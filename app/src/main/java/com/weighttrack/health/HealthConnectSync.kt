@@ -17,7 +17,10 @@ import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.changes.DeletionChange
+import androidx.health.connect.client.changes.UpsertionChange
 import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
+import androidx.health.connect.client.request.ChangesTokenRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Mass
@@ -102,6 +105,8 @@ data class HealthConnectSyncResult(
     val imported: Int,
     val exported: Int,
     val skipped: Int,
+    /** Readings deleted elsewhere and now deleted here too. */
+    val removed: Int = 0,
 )
 
 /**
@@ -370,22 +375,108 @@ class HealthConnectSync @Inject constructor(
                 if (!hasPermissions()) error(context.getString(com.weighttrack.R.string.health_not_granted))
 
                 val zone = ZoneId.systemDefault()
-                val start = Instant.now().minus(sinceDays, ChronoUnit.DAYS)
-                val imported = importWeights(client, start, zone)
+                val profileId = syncProfileId()
+                val token = settingsRepository.healthChangesToken(profileId)
+                // With a token in hand, only what has actually changed since last time. Without
+                // one, the whole window, which is what a first connect needs.
+                val imported = if (token == null) {
+                    val start = Instant.now().minus(sinceDays, ChronoUnit.DAYS)
+                    importWeights(client, start, zone).also { rememberToken(client, profileId) }
+                } else {
+                    importChanges(client, zone, profileId, token)
+                }
                 val exported = exportWeights(client, zone)
                 HealthConnectSyncResult(
                     imported = imported.first,
                     exported = exported,
                     skipped = imported.second,
+                    removed = imported.third,
                 )
             }.onFailure { failed(LogEvent.HEALTH_SYNC_FAILED, it) }
         }
+
+    /** Notes where Health Connect has got to, so the next sync can ask only for what changed. */
+    private suspend fun rememberToken(client: HealthConnectClient, profileId: Long) {
+        runCatching {
+            client.getChangesToken(ChangesTokenRequest(recordTypes = setOf(WeightRecord::class)))
+        }.onSuccess { settingsRepository.setHealthChangesToken(profileId, it) }
+            .onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }
+    }
+
+    /**
+     * Only what has changed since last time, deletions included.
+     *
+     * The reason this exists is the deletions. A reading removed in the scale's own app used to
+     * stay here for ever, because an import that only ever upserts has no way to hear about
+     * something that is no longer there. It also stops every sync rereading five years against
+     * a rate limit that is not generous.
+     *
+     * A token Health Connect no longer recognises is not an error: it means too much has happened
+     * since, so the window is read in full and a fresh token taken.
+     */
+    private suspend fun importChanges(
+        client: HealthConnectClient,
+        zone: ZoneId,
+        profileId: Long,
+        token: String,
+    ): Triple<Int, Int, Int> {
+        var next: String? = token
+        var imported = 0
+        var skipped = 0
+        var removed = 0
+        var pages = 0
+        while (next != null && pages < MAX_RECORD_PAGES) {
+            // A token Health Connect has forgotten can come back either way: as the flag, or as
+            // a refusal to answer at all. Both mean the same thing, and treating the second as a
+            // failure left the stale token stored, so sync stayed broken for good.
+            val response = runCatching { client.getChanges(next) }.getOrElse { failure ->
+                failed(LogEvent.HEALTH_READ_FAILED, failure)
+                return startAgain(client, zone, profileId, removed)
+            }
+            pages++
+            if (response.changesTokenExpired) return startAgain(client, zone, profileId, removed)
+            val gone = mutableListOf<String>()
+            for (change in response.changes) {
+                when (change) {
+                    is UpsertionChange -> {
+                        val record = change.record as? WeightRecord ?: continue
+                        if (take(record, zone)) imported++ else skipped++
+                    }
+                    is DeletionChange -> gone += change.recordId
+                    else -> Unit
+                }
+            }
+            removed += weightRepository.deleteByHealthConnectIds(profileId, gone)
+            settingsRepository.setHealthChangesToken(profileId, response.nextChangesToken)
+            next = if (response.hasMore) response.nextChangesToken else null
+        }
+        return Triple(imported, skipped, removed)
+    }
+
+    /**
+     * Forgets where it had got to and reads the window in full.
+     *
+     * What to do when the place in the queue is no longer any good: too much has happened since,
+     * or the token means nothing to this provider any more.
+     */
+    private suspend fun startAgain(
+        client: HealthConnectClient,
+        zone: ZoneId,
+        profileId: Long,
+        removed: Int,
+    ): Triple<Int, Int, Int> {
+        settingsRepository.setHealthChangesToken(profileId, null)
+        val start = Instant.now().minus(FULL_WINDOW_DAYS, ChronoUnit.DAYS)
+        val full = importWeights(client, start, zone)
+        rememberToken(client, profileId)
+        return Triple(full.first, full.second, removed)
+    }
 
     private suspend fun importWeights(
         client: HealthConnectClient,
         start: Instant,
         zone: ZoneId,
-    ): Pair<Int, Int> {
+    ): Triple<Int, Int, Int> {
         val now = Instant.now()
         val records = readAllPages { token ->
             val page = client.readRecords(
@@ -399,34 +490,38 @@ class HealthConnectSync @Inject constructor(
         }
         var imported = 0
         var skipped = 0
-        records.forEach { record ->
-            val grams = (record.weight.inKilograms * 1000).toInt()
-            if (grams <= 0) {
-                skipped++
-                return@forEach
-            }
-            // A record we wrote comes back carrying our own client id. Re-importing it would
-            // be harmless thanks to the upsert, but skipping keeps the counts honest.
-            val ourClientId = record.metadata.clientRecordId
-            if (
-                ourClientId != null &&
-                weightRepository.byClientRecordIdFor(syncProfileId(), ourClientId) != null
-            ) {
-                skipped++
-                return@forEach
-            }
-            weightRepository.addFor(
-                profileId = syncProfileId(),
-                grams = grams,
-                timestamp = record.time,
-                zone = zone,
-                source = EntrySource.HEALTH_CONNECT,
-                healthConnectId = record.metadata.id,
-                clientRecordId = ourClientId ?: "hc:${record.metadata.id}",
-            )
-            imported++
+        records.forEach { record -> if (take(record, zone)) imported++ else skipped++ }
+        return Triple(imported, skipped, 0)
+    }
+
+    /**
+     * Files one reading from Health Connect, or decides not to.
+     *
+     * Shared by the first full read and by the incremental one afterwards, so a record arriving
+     * through a change notification is treated exactly like one arriving through a query.
+     */
+    private suspend fun take(record: WeightRecord, zone: ZoneId): Boolean {
+        val grams = (record.weight.inKilograms * 1000).toInt()
+        if (grams <= 0) return false
+        // A record we wrote comes back carrying our own client id. Re-importing it would be
+        // harmless thanks to the upsert, but skipping keeps the counts honest.
+        val ourClientId = record.metadata.clientRecordId
+        if (
+            ourClientId != null &&
+            weightRepository.byClientRecordIdFor(syncProfileId(), ourClientId) != null
+        ) {
+            return false
         }
-        return imported to skipped
+        weightRepository.addFor(
+            profileId = syncProfileId(),
+            grams = grams,
+            timestamp = record.time,
+            zone = zone,
+            source = EntrySource.HEALTH_CONNECT,
+            healthConnectId = record.metadata.id,
+            clientRecordId = ourClientId ?: "hc:${record.metadata.id}",
+        )
+        return true
     }
 
     private suspend fun exportWeights(client: HealthConnectClient, zone: ZoneId): Int {
@@ -597,6 +692,9 @@ class HealthConnectSync @Inject constructor(
             activityPermissions + sleepPermissions
 
         private const val BATCH_SIZE = 200
+
+        /** How far back a full read reaches when a token has expired. */
+        private const val FULL_WINDOW_DAYS = 365L * 5
 
         /** Shorter than this is a nap, and a nap is not a night's sleep. */
         private const val MINIMUM_SLEEP_HOURS = 3.0

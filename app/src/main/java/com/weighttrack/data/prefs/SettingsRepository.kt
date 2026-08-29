@@ -16,6 +16,7 @@ import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.UserProfile
 import com.weighttrack.core.model.WeightUnit
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.DayOfWeek
 import javax.inject.Inject
@@ -84,6 +85,14 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setMilestoneStepGrams(grams: Int) = stamped { it[Keys.MILESTONE_STEP_GRAMS] = grams }
+
+    suspend fun healthChangesToken(profileId: Long): String? =
+        dataStore.data.first()[Keys.healthChangesToken(profileId)]
+
+    suspend fun setHealthChangesToken(profileId: Long, token: String?) = edit {
+        val key = Keys.healthChangesToken(profileId)
+        if (token == null) it.remove(key) else it[key] = token
+    }
 
     suspend fun setOnboardingComplete(complete: Boolean) = edit { it[Keys.ONBOARDING_COMPLETE] = complete }
 
@@ -246,6 +255,15 @@ class SettingsRepository @Inject constructor(
         val LEGACY_REMINDER_ADOPTED = booleanPreferencesKey("legacy_reminder_adopted")
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
+        /**
+         * Where Health Connect got to last time, per profile.
+         *
+         * Kept per profile because only one person's readings are exchanged and a household
+         * that moves the claim would otherwise carry the other person's place in the queue.
+         */
+        fun healthChangesToken(profileId: Long) =
+            stringPreferencesKey("health_changes_token_$profileId")
+
         val SCALE_ADDRESS = stringPreferencesKey("scale_address")
         val SCALE_NAME = stringPreferencesKey("scale_name")
     }

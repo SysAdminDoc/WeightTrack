@@ -212,6 +212,21 @@ class WeightRepository @Inject constructor(
         }
     }
 
+    /**
+     * Removes readings that have gone from Health Connect.
+     *
+     * A reading deleted in the scale's own app used to stay here for ever: the import only ever
+     * upserted, so the row it had created had nothing left to remove it. Goes through the same
+     * path as any other delete, which is what leaves the tombstone that carries it to the
+     * person's other devices.
+     */
+    suspend fun deleteByHealthConnectIds(profileId: Long, healthConnectIds: List<String>): Int {
+        if (healthConnectIds.isEmpty()) return 0
+        val ids = healthConnectIds.mapNotNull { dao.byHealthConnectId(profileId, it)?.id }
+        deleteByIds(ids)
+        return ids.size
+    }
+
     suspend fun deleteAll() = dao.deleteAll()
 
     /** Bulk path for import and sync. Existing rows are matched by identity, never duplicated. */

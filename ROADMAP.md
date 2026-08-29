@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — Use Health Connect changes tokens so deletions in the scale's app reach WeightTrack and sync stops full-scanning
-  Why: a reading deleted in Withings or Renpho is never deleted here (upsert only), and every sync rereads five years against the rate limit.
-  Evidence: https://developer.android.com/health-and-fitness/health-connect/sync-data ; https://developer.android.com/health-and-fitness/health-connect/rate-limiting ; HealthConnectSync.kt has no `getChangesToken`/`getChanges`
-  Touches: health/HealthConnectSync.kt, data/prefs/SettingsRepository.kt (token per profile), data/repo/WeightRepository.kt (delete by Health Connect id with a tombstone via DeletionRecorder)
-  Acceptance: fake client emits a `DeletionChange` for a record previously imported; the local row is gone and `DeletionCoverageTest` sees the tombstone; an expired token falls back to one full read and stores a fresh token.
-  Complexity: M
-
 - [ ] P1 — TalkBack semantics for the trend chart, the water ring and the milestone card, and 48 dp targets everywhere
   Why: the three custom-drawn surfaces expose nothing to a screen reader, there is one `semantics {}` block in the app and no `minimumInteractiveComponentSize()`; Happy Scale's 2026.5.3 shipped a VoiceOver pass and openScale #1455 shows the same gap being reported.
   Evidence: repo scan 2026-08-29 (ui/components/TrendChart.kt, ui/water, share/MilestoneImage.kt; `WeightKeypad.kt:140` is the only semantics block); https://developer.android.com/develop/ui/compose/accessibility ; https://github.com/oliexdev/openScale/issues/1455
