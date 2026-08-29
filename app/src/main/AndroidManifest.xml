@@ -43,6 +43,11 @@
     <uses-permission android:name="android.permission.health.READ_HEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_HEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_HYDRATION" />
+    <!--
+      Food. Write only: reading other apps' meals back would double every day for anybody who
+      logs in two places, and there is no way to tell a duplicate from a second helping.
+    -->
+    <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 

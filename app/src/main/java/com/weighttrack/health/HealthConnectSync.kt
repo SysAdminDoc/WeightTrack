@@ -8,6 +8,9 @@ import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.MealType
+import androidx.health.connect.client.records.NutritionRecord
+import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Device
@@ -98,13 +101,90 @@ class HealthConnectSync @Inject constructor(
         HealthPermission.getWritePermission(HydrationRecord::class),
     )
 
+    /**
+     * Writing food. Refusing it costs the nutrition records and nothing else.
+     *
+     * Only write. Reading other apps' meals back would double every day for anybody who logs in
+     * two places, and there is no way to tell a duplicate from a second helping.
+     */
+    val nutritionPermissions: Set<String> = setOf(
+        HealthPermission.getWritePermission(NutritionRecord::class),
+    )
+
     /** Read-only extras. Nothing breaks when these are refused. */
     val activityPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(StepsRecord::class),
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
     )
 
-    val permissions: Set<String> = corePermissions + hydrationPermissions + activityPermissions
+    val permissions: Set<String> =
+        corePermissions + hydrationPermissions + nutritionPermissions + activityPermissions
+
+    suspend fun hasNutritionPermission(): Boolean = runCatching {
+        clientOrNull()?.permissionController?.getGrantedPermissions()
+            ?.containsAll(nutritionPermissions) == true
+    }.getOrDefault(false)
+
+    /**
+     * Writes one logged meal.
+     *
+     * The record identifier is the log row's own, so the same meal edited and written again
+     * replaces its record rather than adding a second one. Health Connect deduplicates on it,
+     * which is the only reason this is safe to call more than once.
+     */
+    suspend fun writeNutrition(
+        instant: java.time.Instant,
+        kcal: Double,
+        proteinG: Double?,
+        carbsG: Double?,
+        fatG: Double?,
+        name: String?,
+        mealType: Int,
+        clientRecordId: String,
+    ): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val client = clientOrNull() ?: return@runCatching false
+            // Only the nutrition grant matters here. Gating on the whole set would drop meals
+            // for somebody who allowed food but not, say, the height read.
+            if (!hasNutritionPermission()) return@runCatching false
+            val zone = ZoneId.systemDefault()
+            client.insertRecords(
+                listOf(
+                    NutritionRecord(
+                        startTime = instant,
+                        startZoneOffset = zone.rules.getOffset(instant),
+                        endTime = instant.plusSeconds(1),
+                        endZoneOffset = zone.rules.getOffset(instant),
+                        energy = Energy.kilocalories(kcal),
+                        protein = proteinG?.let { Mass.grams(it) },
+                        totalCarbohydrate = carbsG?.let { Mass.grams(it) },
+                        totalFat = fatG?.let { Mass.grams(it) },
+                        name = name,
+                        mealType = mealType,
+                        metadata = Metadata.manualEntry(
+                            device = Device(type = Device.TYPE_PHONE),
+                            clientRecordId = clientRecordId,
+                        ),
+                    ),
+                ),
+            )
+            true
+        }.getOrDefault(false)
+    }
+
+    /** Removes a record when its meal is deleted, so the two do not drift apart. */
+    suspend fun deleteNutrition(clientRecordId: String): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val client = clientOrNull() ?: return@runCatching false
+            if (!hasNutritionPermission()) return@runCatching false
+            client.deleteRecords(
+                NutritionRecord::class,
+                recordIdsList = emptyList(),
+                clientRecordIdsList = listOf(clientRecordId),
+            )
+            true
+        }.getOrDefault(false)
+    }
 
     fun availability(): HealthConnectAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
@@ -344,7 +424,18 @@ class HealthConnectSync @Inject constructor(
         }
     }
 
-    private companion object {
-        const val BATCH_SIZE = 200
+    companion object {
+        private const val BATCH_SIZE = 200
+
+        /** How Health Connect names the meals this app splits a day into. */
+        fun mealTypeFor(meal: com.weighttrack.core.nutrition.Meal): Int = when (meal) {
+            com.weighttrack.core.nutrition.Meal.BREAKFAST -> MealType.MEAL_TYPE_BREAKFAST
+            com.weighttrack.core.nutrition.Meal.LUNCH -> MealType.MEAL_TYPE_LUNCH
+            com.weighttrack.core.nutrition.Meal.DINNER -> MealType.MEAL_TYPE_DINNER
+            com.weighttrack.core.nutrition.Meal.SNACK -> MealType.MEAL_TYPE_SNACK
+        }
+
+        /** One identifier per log row, so writing the same meal twice replaces it. */
+        fun nutritionRecordId(logEntryId: Long): String = "food:$logEntryId"
     }
 }

@@ -88,7 +88,6 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 Kept optional so the weight-only experience stays clean. Off by default, one toggle to enable.
 
-- [ ] NutritionRecord write to Health Connect
 - [ ] Bundled offline food subset from the OFF dump for the most common products
 
 ## Phase 4: v0.4.x, sync and insights

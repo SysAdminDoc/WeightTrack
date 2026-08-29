@@ -14,6 +14,7 @@ import com.weighttrack.data.repo.FoodLogRepository
 import com.weighttrack.data.repo.FoodRepository
 import com.weighttrack.data.repo.MacroTargetRepository
 import com.weighttrack.domain.ProgressCalculator
+import com.weighttrack.health.HealthConnectSync
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -72,6 +73,7 @@ class DiaryViewModel @Inject constructor(
     private val foodRepository: FoodRepository,
     private val macroTargetRepository: MacroTargetRepository,
     private val progressCalculator: ProgressCalculator,
+    private val healthConnect: HealthConnectSync,
 ) : ViewModel() {
 
     private val date = MutableStateFlow(LocalDate.now())
@@ -146,18 +148,41 @@ class DiaryViewModel @Inject constructor(
     fun log(food: Food, grams: Double, meal: Meal) {
         if (grams <= 0) return
         viewModelScope.launch {
-            foodLogRepository.log(food, grams, meal, date.value)
+            val id = foodLogRepository.log(food, grams, meal, date.value)
             // Straight to the top of the suggestions, which is where it will be wanted again.
             foodRepository.markUsed(food.id)
             query.value = ""
+            shareWithHealthConnect(id, meal)
         }
     }
 
     fun quickAdd(kcal: Double, meal: Meal, name: String) {
         if (kcal <= 0) return
         viewModelScope.launch {
-            foodLogRepository.quickAdd(kcal, meal, name, date.value)
+            val id = foodLogRepository.quickAdd(kcal, meal, name, date.value)
+            shareWithHealthConnect(id, meal)
         }
+    }
+
+    /**
+     * Passes a meal on to Health Connect, when that has been allowed.
+     *
+     * Quiet either way. Nothing about logging food should depend on another app being installed,
+     * and a refused permission is a choice rather than a failure to report.
+     */
+    private suspend fun shareWithHealthConnect(entryId: Long, meal: Meal) {
+        val entry = foodLogRepository.day(date.value).entries.firstOrNull { it.id == entryId }
+            ?: return
+        healthConnect.writeNutrition(
+            instant = java.time.Instant.ofEpochMilli(entry.loggedAtUtcMillis),
+            kcal = entry.nutrients.kcal,
+            proteinG = entry.nutrients.proteinG,
+            carbsG = entry.nutrients.carbsG,
+            fatG = entry.nutrients.fatG,
+            name = entry.name,
+            mealType = HealthConnectSync.mealTypeFor(meal),
+            clientRecordId = HealthConnectSync.nutritionRecordId(entryId),
+        )
     }
 
     /** People eat the same breakfast for months, and retyping it is what stops them logging. */
@@ -173,7 +198,11 @@ class DiaryViewModel @Inject constructor(
     }
 
     fun delete(entry: FoodLogEntry) {
-        viewModelScope.launch { foodLogRepository.delete(entry) }
+        viewModelScope.launch {
+            foodLogRepository.delete(entry)
+            // Removed there too, or the two drift apart and the day reads differently in each.
+            healthConnect.deleteNutrition(HealthConnectSync.nutritionRecordId(entry.id))
+        }
     }
 
     fun dismissMessage() {
