@@ -86,6 +86,22 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 ## Phase 2: v0.3.x, hardware and habits
 
+### P0 defects found by the third review pass (fasting, photos, lock)
+
+- [ ] Progress photos decode full-resolution bitmaps on the composition thread, one per grid tile, with no `inSampleSize`. A 12 MP JPEG is about 48 MB decoded and the visible grid wants 400 MB or more, so tiles silently render as blank grey boxes while the heap sits at its ceiling and something unrelated dies later. Each decode is also 100 to 300 ms of blocked UI thread. Sample the bitmaps down to the tile size and decode off the main thread.
+- [ ] A camera capture is lost if the process dies while the camera app is in front. The target file lives only in an in-memory `MutableStateFlow`, so the restored view model reads null and drops the photo, leaving the JPEG on disk as an orphan that `deleteAll` will never remove. Put it in `SavedStateHandle`. The public `pendingCapture` flow is also dead code, nothing reads it.
+- [ ] `ProgressPhotoRepository.observeAll` has no `flowOn`, so `mkdirs()` and `isFile` run on the main thread for every row on every emission.
+- [ ] A photo imported from the gallery is filed under today with today's weight, ignoring when it was actually taken. The camera path is correct; only the gallery path is wrong against "with a date and the weight at that time". Read the EXIF date, or ask.
+- [ ] `startFast` can store a fast whose end precedes its start, because it closes the previous open fast at the new start without the clamp `stop` uses. Confirmed by probe: a backwards clock correction between two starts leaves a real fast displayed as "0:00" forever.
+- [ ] Double-tapping "Start fasting" writes a junk zero-length fast into history. Confirmed by probe with two starts 50 ms apart. Needs a guard in the view model.
+- [ ] A running fast can never be edited: editing is only wired from completed history rows, so the whole "still running" branch of the edit dialog is dead and "I started this two hours before I tapped it" cannot be corrected. Half of "fasts SHALL be editable" is unmet.
+- [ ] The fast edit dialog can only change hours and minutes, not the date, so a fast you forgot to stop for a day or more still cannot be fixed. That is the exact case the dialog exists for.
+- [ ] `FastingViewModel` falls back to the user-tapped preset when a running fast has a non-preset target, so the ring caption would disagree with the progress it is drawing. Latent today, but the elvis does the wrong thing in the one case the nullable return exists for.
+- [ ] Two silent-discard paths on saving a fast edit: an end before the start, and a row deleted underneath. Both close the dialog with no message.
+- [ ] `BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED` is treated as transient, but it is permanent on a device that no longer gets security updates. The lock then stands, cannot be satisfied, and the toggle to switch it off is rendered only under the AVAILABLE branch, so it is hidden as well as locked away. Narrow window (needs a broken sensor and no screen lock) but it is the permanent lockout the design says cannot happen.
+- [ ] The fasting screen rebuilds its whole state once a second and recomputes O(n) passes over unbounded history on the main thread each time.
+- [ ] The migration test only ever builds a version 1 database, so the 2 to 4 and 3 to 4 upgrade paths are unproven. Add cases that start from each shipped version.
+
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync
 - [ ] Bluetooth scales, foreground "step on the scale" screen. Order: standard Weight Scale / Body Composition services (0x181D / 0x181B), Xiaomi Mi Scale 2 broadcast decoding (no pairing), then Renpho, Eufy, Beurer/Sanitas re-implemented from openScale's protocol docs. Auto-assign to a profile by weight range.
 - [ ] Multiple profiles (family), each with its own Health Connect mapping and reminder
