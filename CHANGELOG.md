@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Progress photo database updates now resolve and validate their private image files on the I/O dispatcher instead of making the screen collector do filesystem work.
 - Camera captures now survive the app process being reclaimed while the camera is open. The pending private file is restored and filed when control returns, instead of leaving an unreachable JPEG behind.
 - Progress photo tiles now decode a display-sized sample in the background instead of expanding every camera image at full resolution on the interface thread.
 - Weekly summaries now verify notification access at the point where Android posts them, and water logging keeps its local-date behavior on every supported Android version.

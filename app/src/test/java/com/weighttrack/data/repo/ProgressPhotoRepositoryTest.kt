@@ -1,6 +1,7 @@
 package com.weighttrack.data.repo
 
 import android.content.Context
+import android.content.ContextWrapper
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
@@ -14,6 +15,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.time.Instant
+import java.util.concurrent.CopyOnWriteArrayList
 
 @RunWith(RobolectricTestRunner::class)
 class ProgressPhotoRepositoryTest {
@@ -86,6 +88,29 @@ class ProgressPhotoRepositoryTest {
         photo.file.delete()
 
         assertThat(repository.observeAll().first()).isEmpty()
+    }
+
+    @Test
+    fun `listing resolves photo files away from the collector thread`() = runTest {
+        val fileLookups = CopyOnWriteArrayList<Thread>()
+        val checkingContext = object : ContextWrapper(context) {
+            override fun getFilesDir(): File {
+                fileLookups += Thread.currentThread()
+                return super.getFilesDir()
+            }
+        }
+        val checkingRepository = ProgressPhotoRepository(checkingContext, database.progressPhotoDao())
+        checkingRepository.record(
+            checkingRepository.newCaptureFile().apply { writeBytes(byteArrayOf(1, 2, 3)) },
+            weightGrams = 80_000,
+        )
+        fileLookups.clear()
+        val collectorThread = Thread.currentThread()
+
+        assertThat(checkingRepository.observeAll().first()).hasSize(1)
+
+        assertThat(fileLookups).isNotEmpty()
+        assertThat(fileLookups).doesNotContain(collectorThread)
     }
 
     @Test

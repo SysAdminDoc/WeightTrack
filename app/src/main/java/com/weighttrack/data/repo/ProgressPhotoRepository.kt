@@ -7,6 +7,7 @@ import com.weighttrack.data.db.ProgressPhotoEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
@@ -42,7 +43,9 @@ class ProgressPhotoRepository @Inject constructor(
         get() = File(context.filesDir, DIRECTORY_NAME).apply { mkdirs() }
 
     fun observeAll(): Flow<List<ProgressPhoto>> =
-        dao.observeAll().map { rows -> rows.mapNotNull { it.toDomain() } }
+        dao.observeAll()
+            .map { rows -> rows.mapNotNull { it.toDomain() } }
+            .flowOn(Dispatchers.IO)
 
     fun observeCount(): Flow<Int> = dao.observeCount()
 
