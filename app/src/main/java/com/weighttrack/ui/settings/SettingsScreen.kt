@@ -55,8 +55,11 @@ import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.io.BackupCodec
+import androidx.biometric.BiometricManager
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.health.HealthConnectAvailability
+import com.weighttrack.security.AppLockAvailability
+import com.weighttrack.security.AppLockSupport
 import com.weighttrack.notifications.ReminderReceiver
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionHeading
@@ -355,6 +358,40 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        item {
+            val lockAvailability = remember(context) {
+                AppLockSupport.availability(BiometricManager.from(context))
+            }
+            SettingsSection {
+                SectionHeading("Privacy")
+                Spacer(Modifier.height(4.dp))
+                when (lockAvailability) {
+                    AppLockAvailability.AVAILABLE -> {
+                        ToggleRow(
+                            label = "Lock the app",
+                            checked = settings.appLockEnabled,
+                            onCheckedChange = viewModel::setAppLockEnabled,
+                        )
+                        Text(
+                            text = "Asks for your fingerprint, face or screen lock every time you come back to WeightTrack.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    AppLockAvailability.NO_SCREEN_LOCK -> Text(
+                        text = "Set a screen lock in Android settings and WeightTrack can lock itself behind it too.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    AppLockAvailability.UNAVAILABLE -> Text(
+                        text = "This device has no screen lock or biometric WeightTrack can use, so the app lock is unavailable here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 

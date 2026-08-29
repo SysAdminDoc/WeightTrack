@@ -34,6 +34,7 @@ data class AppSettings(
     val reminderHour: Int = 7,
     val reminderMinute: Int = 30,
     val reminderDays: Set<DayOfWeek> = DayOfWeek.entries.toSet(),
+    val appLockEnabled: Boolean = false,
 )
 
 @Singleton
@@ -76,6 +77,8 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setReminderEnabled(enabled: Boolean) = edit { it[Keys.REMINDER_ENABLED] = enabled }
 
+    suspend fun setAppLockEnabled(enabled: Boolean) = edit { it[Keys.APP_LOCK_ENABLED] = enabled }
+
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }
@@ -101,6 +104,7 @@ class SettingsRepository @Inject constructor(
             ?.mapNotNull { name -> DayOfWeek.entries.firstOrNull { it.name == name } }
             ?.toSet()
             ?: DayOfWeek.entries.toSet(),
+        appLockEnabled = this[Keys.APP_LOCK_ENABLED] ?: false,
     )
 
     private fun <T : Enum<T>> enumOrDefault(raw: String?, values: List<T>, fallback: T): T =
@@ -122,5 +126,6 @@ class SettingsRepository @Inject constructor(
         val REMINDER_HOUR = intPreferencesKey("reminder_hour")
         val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
         val REMINDER_DAYS = stringSetPreferencesKey("reminder_days")
+        val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
     }
 }

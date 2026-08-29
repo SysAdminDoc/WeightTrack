@@ -147,6 +147,17 @@ class SettingsViewModel @Inject constructor(
 
     fun canScheduleExactAlarms(): Boolean = reminderScheduler.canScheduleExact()
 
+    fun setAppLockEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setAppLockEnabled(enabled)
+            _message.value = if (enabled) {
+                "App lock is on. You will be asked to unlock each time you come back."
+            } else {
+                "App lock is off."
+            }
+        }
+    }
+
     fun notifyTestSent(sent: Boolean) {
         _message.value = if (sent) {
             "Test notification sent."
