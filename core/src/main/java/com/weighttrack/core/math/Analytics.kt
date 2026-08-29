@@ -61,10 +61,20 @@ object Analytics {
             deviations.getOrPut(point.date.dayOfWeek) { ArrayList() }
                 .add(actual - point.trendGrams)
         }
-        return DayOfWeek.entries.mapNotNull { day ->
+        val averages = DayOfWeek.entries.mapNotNull { day ->
             val values = deviations[day] ?: return@mapNotNull null
             if (values.size < minimumReadingsPerDay) return@mapNotNull null
-            WeekdayEffect(day, values.average(), values.size)
+            Triple(day, values.average(), values.size)
+        }
+        if (averages.isEmpty()) return emptyList()
+        // Centred across the days there are, so what is shown is the rhythm of the week and not
+        // the smoothing. The trend line lags a steady loss by design, which leaves every reading
+        // sitting the same distance below it: real, but a fact about the line rather than about
+        // Tuesdays, and shown uncentred it tells somebody losing weight that all seven of their
+        // days are unusual.
+        val overall = averages.sumOf { it.second } / averages.size
+        return averages.map { (day, average, count) ->
+            WeekdayEffect(day, average - overall, count)
         }
     }
 

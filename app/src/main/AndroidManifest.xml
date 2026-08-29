@@ -48,6 +48,11 @@
       logs in two places, and there is no way to tell a duplicate from a second helping.
     -->
     <uses-permission android:name="android.permission.health.WRITE_NUTRITION" />
+    <!--
+      Sleep, read only, for the insight card. Its own grant on purpose: plenty of people are
+      happy to share step counts and not the hours they were in bed.
+    -->
+    <uses-permission android:name="android.permission.health.READ_SLEEP" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 

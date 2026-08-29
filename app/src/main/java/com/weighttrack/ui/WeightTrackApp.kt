@@ -217,7 +217,12 @@ fun WeightTrackApp(
                 val activity by viewModel.activity.collectAsStateWithLifecycle()
                 // A steps permission granted in Settings has to take effect on return.
                 ResumeEffect { viewModel.onScreenResumed() }
-                ChartsScreen(snapshot = snapshot, activity = activity)
+                val associations by viewModel.associations.collectAsStateWithLifecycle()
+                ChartsScreen(
+                    snapshot = snapshot,
+                    activity = activity,
+                    associations = associations,
+                )
             }
 
             composable(Routes.HISTORY) {

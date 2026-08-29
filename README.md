@@ -69,8 +69,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 283 unit tests
-./gradlew :core:testDebugUnitTest # 246 more: the maths, the scale protocols, the food clients and the merge
+./gradlew testPlayDebugUnitTest   # 289 unit tests
+./gradlew :core:testDebugUnitTest # 264 more: the maths, the scale protocols, the food clients and the merge
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
@@ -90,7 +90,7 @@ The chart is drawn directly on a Compose canvas rather than through a charting l
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: insight cards, a milestone card you can share, and translations.
+See [ROADMAP.md](ROADMAP.md). Next up: a milestone card you can share, and translations.
 
 ### How sync works
 

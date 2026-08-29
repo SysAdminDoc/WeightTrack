@@ -61,10 +61,20 @@ class AnalyticsTest {
         }
         val effects = Analytics.weekdayEffects(series(values, actuals))
         val saturday = effects.first { it.day == DayOfWeek.SATURDAY }
-        assertThat(saturday.averageDeviationGrams).isWithin(1e-6).of(1_000.0)
-        effects.filter { it.day != DayOfWeek.SATURDAY }.forEach {
-            assertThat(it.averageDeviationGrams).isWithin(1e-6).of(0.0)
+        val others = effects.filter { it.day != DayOfWeek.SATURDAY }
+
+        // The gap between Saturday and the rest is the whole kilogram, which is the number the
+        // card talks about. The seven are centred on their own average, so Saturday sits six
+        // sevenths of it above and the other six a seventh below: the same picture, without
+        // claiming an absolute distance from a line that lags on purpose.
+        assertThat(saturday.averageDeviationGrams).isGreaterThan(0.0)
+        others.forEach {
+            assertThat(saturday.averageDeviationGrams - it.averageDeviationGrams)
+                .isWithin(1e-6).of(1_000.0)
         }
+        // And the seven still average out to nothing, which is what centred means.
+        assertThat(effects.sumOf { it.averageDeviationGrams } / effects.size)
+            .isWithin(1e-6).of(0.0)
     }
 
     @Test

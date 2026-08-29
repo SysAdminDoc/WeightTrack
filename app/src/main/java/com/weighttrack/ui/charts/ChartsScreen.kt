@@ -59,6 +59,7 @@ import kotlin.math.roundToInt
 fun ChartsScreen(
     snapshot: ProgressSnapshot,
     activity: ActivityState,
+    associations: AssociationState = AssociationState(),
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -149,6 +150,8 @@ fun ChartsScreen(
         }
 
         item { ActivityCard(activity) }
+
+        item { AssociationCard(associations) }
 
         item { ConsistencyCard(snapshot) }
     }

@@ -11,6 +11,7 @@ import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.units.Energy
+import androidx.health.connect.client.records.SleepSessionRecord
 import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Device
@@ -49,6 +50,14 @@ data class DailyActivity(
     val date: LocalDate,
     val steps: Long?,
     val activeKilocalories: Double?,
+    /**
+     * Hours asleep on the night ending that morning.
+     *
+     * Filed under the morning rather than the evening, so it lines up with the weight recorded
+     * after it. A night's sleep and the weigh-in that follows belong to the same day as far as
+     * anybody looking for a pattern is concerned.
+     */
+    val sleepHours: Double? = null,
 )
 
 data class HealthConnectSyncResult(
@@ -117,8 +126,19 @@ class HealthConnectSync @Inject constructor(
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
     )
 
+    /**
+     * Sleep, read only, and its own grant.
+     *
+     * Asked for separately because plenty of people are happy to share step counts and not the
+     * hours they were in bed. Refusing it costs one card and nothing else.
+     */
+    val sleepPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+    )
+
     val permissions: Set<String> =
-        corePermissions + hydrationPermissions + nutritionPermissions + activityPermissions
+        corePermissions + hydrationPermissions + nutritionPermissions + activityPermissions +
+            sleepPermissions
 
     suspend fun hasNutritionPermission(): Boolean = runCatching {
         clientOrNull()?.permissionController?.getGrantedPermissions()
@@ -216,6 +236,44 @@ class HealthConnectSync @Inject constructor(
     suspend fun hasEverything(): Boolean = hasGranted(permissions)
 
     suspend fun hasActivityPermissions(): Boolean = hasGranted(activityPermissions)
+
+    suspend fun hasSleepPermission(): Boolean = hasGranted(sleepPermissions)
+
+    /**
+     * Hours asleep per morning, over the last [days].
+     *
+     * Read as sessions rather than aggregated by the platform, because a session that starts at
+     * eleven at night belongs to the next morning's weigh-in and an aggregate sliced by calendar
+     * day would file most of it under the evening before.
+     */
+    suspend fun readSleepHours(days: Long = 120): Map<LocalDate, Double> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val client = clientOrNull() ?: return@runCatching emptyMap()
+                if (!hasSleepPermission()) return@runCatching emptyMap()
+                val zone = ZoneId.systemDefault()
+                val end = LocalDate.now().plusDays(1).atStartOfDay()
+                val start = end.minusDays(days)
+                val sessions = client.readRecords(
+                    ReadRecordsRequest(
+                        recordType = SleepSessionRecord::class,
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                    ),
+                ).records
+                val byMorning = mutableMapOf<LocalDate, Double>()
+                for (session in sessions) {
+                    val hours =
+                        (session.endTime.toEpochMilli() - session.startTime.toEpochMilli()) /
+                            3_600_000.0
+                    // A nap is not a night. Counting them would make a restless day look like a
+                    // long sleep.
+                    if (hours < MINIMUM_SLEEP_HOURS) continue
+                    val morning = session.endTime.atZone(zone).toLocalDate()
+                    byMorning[morning] = (byMorning[morning] ?: 0.0) + hours
+                }
+                byMorning.toMap()
+            }.getOrDefault(emptyMap())
+        }
 
     suspend fun hasHydrationPermission(): Boolean = hasGranted(hydrationPermissions)
 
@@ -436,6 +494,9 @@ class HealthConnectSync @Inject constructor(
 
     companion object {
         private const val BATCH_SIZE = 200
+
+        /** Shorter than this is a nap, and a nap is not a night's sleep. */
+        private const val MINIMUM_SLEEP_HOURS = 3.0
 
         /** How Health Connect names the meals this app splits a day into. */
         fun mealTypeFor(meal: com.weighttrack.core.nutrition.Meal): Int = when (meal) {
