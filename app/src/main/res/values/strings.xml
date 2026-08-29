@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">WeightTrack</string>
+    <string name="widget_description">Your trend weight and the change this week.</string>
 </resources>

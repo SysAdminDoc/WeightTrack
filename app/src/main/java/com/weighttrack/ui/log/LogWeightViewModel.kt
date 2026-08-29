@@ -10,6 +10,7 @@ import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.ui.components.KeypadValue
 import com.weighttrack.ui.navigation.Routes
+import com.weighttrack.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -44,6 +45,7 @@ data class LogWeightUiState(
 class LogWeightViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
     private val settingsRepository: SettingsRepository,
+    private val widgetUpdater: WidgetUpdater,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -150,6 +152,7 @@ class LogWeightViewModel @Inject constructor(
                     tags = current.tags,
                 )
             }
+            widgetUpdater.refresh()
             _state.update { it.copy(saved = true) }
         }
     }

@@ -213,6 +213,41 @@ class MilestonesTest {
     }
 
     @Test
+    fun `a milestone that lands almost on the target is dropped`() {
+        // 84.2 down to 78.0 in 2 kg steps would otherwise finish 82.2, 80.2, 78.2, 78.0. The
+        // last two are 200 g apart, so they crowd into the same spot on the progress bar and
+        // both get awarded on the same morning.
+        val milestones = Milestones.generate(84_200, 78_000, 2_000)
+        assertThat(milestones.map { it.grams })
+            .containsExactly(82_200, 80_200, 78_000)
+            .inOrder()
+        assertThat(milestones.last().total).isEqualTo(3)
+    }
+
+    @Test
+    fun `a milestone comfortably short of the target is kept`() {
+        // 1 kg of clearance is half the step, so it stands on its own.
+        val milestones = Milestones.generate(85_000, 78_000, 2_000)
+        assertThat(milestones.map { it.grams })
+            .containsExactly(83_000, 81_000, 79_000, 78_000)
+            .inOrder()
+    }
+
+    @Test
+    fun `crowding removal also applies to gain goals`() {
+        val milestones = Milestones.generate(60_000, 66_200, 2_000)
+        assertThat(milestones.map { it.grams })
+            .containsExactly(62_000, 64_000, 66_200)
+            .inOrder()
+    }
+
+    @Test
+    fun `a span shorter than one step is still just the target`() {
+        assertThat(Milestones.generate(84_200, 84_000, 2_000).map { it.grams })
+            .containsExactly(84_000)
+    }
+
+    @Test
     fun `gain goals step upward`() {
         val milestones = Milestones.generate(60_000, 66_000, 2_000)
         assertThat(milestones.map { it.grams })

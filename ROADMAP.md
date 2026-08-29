@@ -60,7 +60,7 @@ The gap: nobody ships a modern Compose app with a trend-first weight experience 
 
 ## Stack
 
-Kotlin 2.x, Jetpack Compose, Material 3 with dynamic color, dark theme default with a light option. Single activity, Compose navigation. Room (WAL, schema export, auto-migrations), DataStore, Hilt, WorkManager, Glance for widgets, Wear Compose + Tiles + Data Layer for the watch, kotlinx-serialization for import/export. Charts with Vico. minSdk 26, compileSdk 35+. R8 on, signed release builds only.
+Kotlin 2.x, Jetpack Compose, Material 3 with dynamic color, dark theme default with a light option. Single activity, Compose navigation. Room (WAL, schema export, auto-migrations), DataStore, Hilt, WorkManager, Glance for widgets, Wear Compose + Tiles + Data Layer for the watch, kotlinx-serialization for import/export. Charts drawn directly on a Compose canvas: a library was tried and dropped, because the raw readings, the trend, the goal line and the milestone marks all need to share one coordinate space exactly. minSdk 26, compileSdk 37. R8 on, signed release builds only.
 
 Two product flavors from day one: `play` (ML Kit barcode allowed) and `foss` (ZXing, no Google Play services) so F-Droid can build it.
 
@@ -84,35 +84,39 @@ Hacker's Diet exponential moving average: `trend[n] = trend[n-1] + alpha * (weig
 
 v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP, bans for abuse. Send a real User-Agent. ODbL license, so attribute in-app. For an offline database use their dump, never scrape.
 
-## Phase 1: v0.1.0, weight tracking done right
+## Phase 1: v0.1.0, weight tracking done right. Shipped 2026-08-29.
 
-Goal: replace Libra and Happy Scale for anyone on Android.
+Goal: replace Libra and Happy Scale for anyone on Android. Verified on an API 35 emulator in both the debug and the R8-minified release build.
 
-- [ ] Gradle project scaffold (two flavors, version catalog, Hilt, Room, DataStore, Compose BOM, Vico)
-- [ ] Onboarding: units, height, sex, birth year, current weight, optional goal. Three screens, skippable.
-- [ ] Log weight: big number pad, defaults to last weight, date and time editable, optional note and tags (post-workout, travel, period, sick). Undo snackbar.
-- [ ] Units kg / lb / st+lb; height cm or ft+in. Grams internally.
-- [ ] Trend engine (EMA, tunable window), rate per week, implied calorie balance, plateau detection
-- [ ] Goals: target weight plus date or rate; lose, gain, maintain. ETA with a confidence band.
-- [ ] Auto milestones (every 2 kg / 5 lb or 5% steps) with a celebration toast, progress-to-goal percent
-- [ ] Charts: 1W / 1M / 3M / 6M / 1Y / All, pinch and scroll, raw points faded behind the trend, goal line, milestone markers, tap-to-inspect
-- [ ] Weekly change bar chart and weekday averages
-- [ ] Stats: BMI with category, BMR (Mifflin-St Jeor), TDEE from activity level, waist-to-height ratio
-- [ ] Body measurements (neck, chest, waist, hips, arms, thighs) with Navy body-fat estimate, lean/fat mass split
-- [ ] Body fat % entry (manual or from scale via Health Connect)
-- [ ] History list: search, edit, multi-select delete, undo
-- [ ] Health Connect two-way sync for weight, body fat, lean mass, bone mass, body water, height, BMR. History permission requested up front. Dedupe by clientRecordId. Sync status and manual sync button.
-- [ ] CSV import with column mapping and presets: Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings, Eufy, Fitbit
-- [ ] Export CSV and JSON. Automatic local backup to a user-chosen SAF folder, restore from backup.
-- [ ] Daily weigh-in reminder: exact alarm, quiet days, test-notification button, battery-optimization guidance
-- [ ] Home widgets (Glance): quick-log entry, trend plus delta, sparkline
-- [ ] Theme: AMOLED black default, light option, dynamic color, glass-style cards
-- [ ] No network permission in the `foss` flavor for this phase. Health Connect is local IPC.
-- [ ] Crash log to file, in-app log viewer in settings
-- [ ] Unit tests for the trend engine, ETA, BMI/BMR/Navy formulas, CSV parsers, unit conversions
-- [ ] Signed release APK, README screenshots, GitHub Release
+- [x] Gradle project scaffold (two flavours, version catalog, Hilt, Room, DataStore, Compose BOM)
+- [x] Onboarding: units, height, sex, birth year, current weight, optional goal. Three screens, skippable.
+- [x] Log weight: big number pad, defaults to last weight, date and time editable, optional note and tags (post-workout, travel, period, sick). Undo snackbar.
+- [x] Units kg / lb / st+lb; height cm or ft+in. Grams internally.
+- [x] Trend engine (EMA, tunable window), rate per week, implied calorie balance, plateau detection
+- [x] Goals: target weight plus date or rate; lose, gain, maintain. ETA with a confidence band.
+- [x] Auto milestones (every 1, 2 or 5 kg, or the pound equivalents), crowding-aware, with progress-to-goal percent
+- [x] Charts: 1W / 1M / 3M / 6M / 1Y / All, pinch and scroll, raw points faded behind the trend, goal line, milestone markers, tap-to-inspect
+- [x] Weekly change bar chart and weekday averages
+- [x] Stats: BMI with category, BMR (Mifflin-St Jeor), TDEE from activity level, waist-to-height ratio
+- [x] Body measurements (neck, chest, waist, hips, arms, thighs) with Navy body-fat estimate, lean/fat mass split
+- [x] Body fat % entry (manual or from scale via Health Connect)
+- [x] History list: search, edit, multi-select delete, undo
+- [x] Health Connect two-way sync for weight, body fat, lean mass, bone mass, body water, height, BMR. History permission requested up front. Dedupe by clientRecordId. Sync status and manual sync button.
+- [x] CSV import with column mapping and presets: Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings, Eufy, Fitbit
+- [x] Export CSV and JSON. Automatic local backup to a user-chosen SAF folder, restore from backup.
+- [x] Daily weigh-in reminder: exact alarm, quiet days, test-notification button, battery-optimization guidance
+- [x] Home widgets (Glance): quick-log entry, trend plus delta, sparkline
+- [x] Theme: AMOLED black default, light option, dynamic color, glass-style cards
+- [x] No network permission in the `foss` flavor for this phase. Health Connect is local IPC.
+- [ ] Crash log to file, in-app log viewer in settings (carried to 0.2.0)
+- [x] Unit tests for the trend engine, ETA, BMI/BMR/Navy formulas, CSV parsers, unit conversions
+- [x] Signed release APK for both flavours, README screenshots, GitHub Release
 
 ## Phase 2: v0.2.x, hardware and habits
+
+Carried over from Phase 1: crash log to file with an in-app viewer.
+
+### Planned
 
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync
 - [ ] Progress photos: camera or gallery, side-by-side compare with weight overlay, stored locally, optional app lock

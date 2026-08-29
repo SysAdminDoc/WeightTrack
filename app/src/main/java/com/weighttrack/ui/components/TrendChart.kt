@@ -269,7 +269,10 @@ fun TrendChart(
     }
 }
 
-private fun valueBounds(points: List<TrendPoint>, goalGrams: Int?): ClosedFloatingPointRange<Double> {
+/** How far the goal line may stretch the visible range before it is left off the chart. */
+internal const val MAX_GOAL_RANGE_GROWTH = 1.6
+
+internal fun valueBounds(points: List<TrendPoint>, goalGrams: Int?): ClosedFloatingPointRange<Double> {
     var minimum = Double.MAX_VALUE
     var maximum = -Double.MAX_VALUE
     points.forEach { point ->
@@ -280,16 +283,20 @@ private fun valueBounds(points: List<TrendPoint>, goalGrams: Int?): ClosedFloati
             maximum = max(maximum, it.toDouble())
         }
     }
-    // A goal just off the top of the chart is worse than useless, so pull it into view when
-    // it is close enough to be meaningful.
-    goalGrams?.let {
-        val span = (maximum - minimum).coerceAtLeast(1000.0)
-        if (abs(it - minimum) < span * 3 && abs(it - maximum) < span * 3) {
-            minimum = min(minimum, it.toDouble())
-            maximum = max(maximum, it.toDouble())
+    if (minimum > maximum) return 0.0..1.0
+
+    // The goal line is worth showing while it is within reach, and actively harmful once it
+    // is not: a target 6 kg below a 4 kg spread of readings triples the axis and squashes the
+    // trend into the top third of the chart, which is the detail people came to look at.
+    goalGrams?.let { goal ->
+        val dataSpan = (maximum - minimum).coerceAtLeast(1000.0)
+        val withGoal = max(maximum, goal.toDouble()) - min(minimum, goal.toDouble())
+        if (withGoal <= dataSpan * MAX_GOAL_RANGE_GROWTH) {
+            minimum = min(minimum, goal.toDouble())
+            maximum = max(maximum, goal.toDouble())
         }
     }
-    if (minimum > maximum) return 0.0..1.0
+
     // A flat stretch would otherwise collapse to a zero-height band.
     val padding = ((maximum - minimum) * 0.12).coerceAtLeast(300.0)
     return (minimum - padding)..(maximum + padding)
@@ -339,7 +346,9 @@ private fun gridValues(bounds: ClosedFloatingPointRange<Double>, unit: WeightUni
     }
     val targetLines = 5
     val rawStep = span / targetLines / gramsPerDisplayUnit
-    val niceStep = listOf(0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 20.0, 25.0, 50.0, 100.0)
+    // Every candidate is a whole number of tenths, so the labels stay evenly spaced once they
+    // are rounded to one decimal. A 0.25 step renders as 84.0, 84.3, 84.5 and looks broken.
+    val niceStep = listOf(0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0, 100.0)
         .firstOrNull { it >= rawStep } ?: 200.0
     val stepGrams = niceStep * gramsPerDisplayUnit
     val first = ceil(bounds.start / stepGrams) * stepGrams

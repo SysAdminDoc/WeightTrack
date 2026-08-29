@@ -6,6 +6,7 @@ import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
+import com.weighttrack.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -34,6 +35,7 @@ data class HistoryUiState(
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
+    private val widgetUpdater: WidgetUpdater,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
@@ -83,6 +85,7 @@ class HistoryViewModel @Inject constructor(
         val removed = state.value.entries.filter { it.id in ids }
         viewModelScope.launch {
             weightRepository.deleteByIds(ids.toList())
+            widgetUpdater.refresh()
             pendingUndo.value = removed
             selectedIds.value = emptySet()
         }
@@ -91,6 +94,7 @@ class HistoryViewModel @Inject constructor(
     fun delete(entry: WeightEntry) {
         viewModelScope.launch {
             weightRepository.delete(entry)
+            widgetUpdater.refresh()
             pendingUndo.value = listOf(entry)
         }
     }
@@ -106,6 +110,7 @@ class HistoryViewModel @Inject constructor(
         if (restore.isEmpty()) return
         viewModelScope.launch {
             weightRepository.upsertAll(restore.map { it.copy(id = 0) })
+            widgetUpdater.refresh()
             pendingUndo.value = emptyList()
         }
     }

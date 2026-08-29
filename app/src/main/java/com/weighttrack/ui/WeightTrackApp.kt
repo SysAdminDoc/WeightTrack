@@ -1,0 +1,258 @@
+package com.weighttrack.ui
+
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavHostController
+import androidx.navigation.NavType
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
+import com.weighttrack.ui.charts.ChartsScreen
+import com.weighttrack.ui.goal.GoalScreen
+import com.weighttrack.ui.goal.GoalViewModel
+import com.weighttrack.ui.history.HistoryScreen
+import com.weighttrack.ui.history.HistoryViewModel
+import com.weighttrack.ui.home.HomeScreen
+import com.weighttrack.ui.home.HomeViewModel
+import com.weighttrack.ui.log.LogWeightScreen
+import com.weighttrack.ui.log.LogWeightViewModel
+import com.weighttrack.ui.measurements.MeasurementsScreen
+import com.weighttrack.ui.measurements.MeasurementsViewModel
+import com.weighttrack.ui.navigation.Routes
+import com.weighttrack.ui.navigation.TopLevelDestination
+import com.weighttrack.ui.onboarding.OnboardingScreen
+import com.weighttrack.ui.onboarding.OnboardingViewModel
+import com.weighttrack.ui.settings.SettingsScreen
+import com.weighttrack.ui.settings.SettingsViewModel
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun WeightTrackApp(
+    onboardingComplete: Boolean,
+    modifier: Modifier = Modifier,
+) {
+    val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    if (!onboardingComplete) {
+        val viewModel: OnboardingViewModel = hiltViewModel()
+        val state by viewModel.state.collectAsStateWithLifecycle()
+        OnboardingScreen(state = state, viewModel = viewModel, modifier = modifier)
+        return
+    }
+
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = backStackEntry?.destination?.route
+    val topLevel = TopLevelDestination.entries.firstOrNull { it.route == currentRoute }
+    val isFullScreenRoute = currentRoute == Routes.LOG_WITH_ARG ||
+        currentRoute == Routes.GOAL ||
+        currentRoute == Routes.MEASUREMENTS
+
+    Scaffold(
+        modifier = modifier,
+        topBar = {
+            if (topLevel != null) {
+                TopAppBar(title = { Text(topLevel.label) })
+            }
+        },
+        bottomBar = {
+            if (!isFullScreenRoute) {
+                NavigationBar {
+                    TopLevelDestination.entries.forEach { destination ->
+                        NavigationBarItem(
+                            selected = currentRoute == destination.route,
+                            onClick = {
+                                if (currentRoute != destination.route) {
+                                    navController.navigate(destination.route) {
+                                        popUpTo(Routes.HOME) { saveState = true }
+                                        launchSingleTop = true
+                                        restoreState = true
+                                    }
+                                }
+                            },
+                            icon = { Icon(destination.icon, contentDescription = null) },
+                            label = { Text(destination.label) },
+                        )
+                    }
+                }
+            }
+        },
+        floatingActionButton = {
+            // The log button follows the two screens where "I just weighed myself" is the
+            // obvious next action, and stays out of the way everywhere else.
+            if (currentRoute == Routes.HOME || currentRoute == Routes.HISTORY) {
+                FloatingActionButton(onClick = { navController.navigate(Routes.log()) }) {
+                    Icon(Icons.Filled.Add, contentDescription = "Log weight")
+                }
+            }
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
+        NavHost(
+            navController = navController,
+            startDestination = Routes.HOME,
+            modifier = Modifier.padding(padding),
+        ) {
+            composable(Routes.HOME) {
+                val viewModel: HomeViewModel = hiltViewModel()
+                val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
+                HomeScreen(
+                    snapshot = snapshot,
+                    onLogWeight = { navController.navigate(Routes.log()) },
+                    onOpenGoal = { navController.navigate(Routes.GOAL) },
+                    onOpenMeasurements = { navController.navigate(Routes.MEASUREMENTS) },
+                )
+            }
+
+            composable(Routes.CHARTS) {
+                val viewModel: HomeViewModel = hiltViewModel()
+                val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
+                ChartsScreen(snapshot = snapshot)
+            }
+
+            composable(Routes.HISTORY) {
+                val viewModel: HistoryViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                val undoCount by viewModel.undoAvailable.collectAsStateWithLifecycle()
+
+                // Deletion is immediate with an undo, never a confirmation dialog.
+                LaunchedEffect(undoCount) {
+                    if (undoCount > 0) {
+                        val label = if (undoCount == 1) "Reading deleted" else "$undoCount readings deleted"
+                        val result = snackbarHostState.showSnackbar(
+                            message = label,
+                            actionLabel = "Undo",
+                            duration = androidx.compose.material3.SnackbarDuration.Short,
+                        )
+                        if (result == SnackbarResult.ActionPerformed) {
+                            viewModel.undoDelete()
+                        } else {
+                            viewModel.consumeUndo()
+                        }
+                    }
+                }
+
+                HistoryScreen(
+                    state = state,
+                    onQueryChange = viewModel::onQueryChange,
+                    onToggleSelection = viewModel::toggleSelection,
+                    onClearSelection = viewModel::clearSelection,
+                    onSelectAll = viewModel::selectAll,
+                    onDeleteSelected = viewModel::deleteSelected,
+                    onEdit = { entry -> navController.navigate(Routes.log(entry.id)) },
+                )
+            }
+
+            composable(Routes.SETTINGS) {
+                val viewModel: SettingsViewModel = hiltViewModel()
+                val settings by viewModel.settings.collectAsStateWithLifecycle()
+                val entryCount by viewModel.entryCount.collectAsStateWithLifecycle()
+                val healthConnectState by viewModel.healthConnectState.collectAsStateWithLifecycle()
+                val busy by viewModel.busy.collectAsStateWithLifecycle()
+                val message by viewModel.message.collectAsStateWithLifecycle()
+
+                LaunchedEffect(message) {
+                    message?.let {
+                        snackbarHostState.showSnackbar(it)
+                        viewModel.consumeMessage()
+                    }
+                }
+
+                SettingsScreen(
+                    settings = settings,
+                    entryCount = entryCount,
+                    healthConnectState = healthConnectState,
+                    busy = busy,
+                    viewModel = viewModel,
+                )
+            }
+
+            composable(
+                route = Routes.LOG_WITH_ARG,
+                arguments = listOf(
+                    navArgument(Routes.ENTRY_ID_ARG) {
+                        type = NavType.StringType
+                        nullable = true
+                        defaultValue = null
+                    },
+                ),
+            ) {
+                val viewModel: LogWeightViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                LogWeightScreen(
+                    state = state,
+                    onDigit = viewModel::onDigit,
+                    onBackspace = viewModel::onBackspace,
+                    onClear = viewModel::onClear,
+                    onDateChange = viewModel::onDateChange,
+                    onTimeChange = viewModel::onTimeChange,
+                    onNoteChange = viewModel::onNoteChange,
+                    onBodyFatChange = viewModel::onBodyFatChange,
+                    onToggleTag = viewModel::toggleTag,
+                    onSave = viewModel::save,
+                    onClose = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.GOAL) {
+                val viewModel: GoalViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                GoalScreen(
+                    state = state,
+                    milestoneOptions = viewModel.milestoneOptions(),
+                    onDigit = viewModel::onDigit,
+                    onBackspace = viewModel::onBackspace,
+                    onClear = viewModel::onClear,
+                    onTargetDateChange = viewModel::onTargetDateChange,
+                    onMilestoneStepChange = viewModel::onMilestoneStepChange,
+                    onSave = viewModel::save,
+                    onClearGoal = viewModel::clearGoal,
+                    onClose = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.MEASUREMENTS) {
+                val viewModel: MeasurementsViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                val editor by viewModel.editor.collectAsStateWithLifecycle()
+                MeasurementsScreen(
+                    state = state,
+                    editor = editor,
+                    onStartEditing = viewModel::startEditing,
+                    onEditorTextChange = viewModel::onEditorTextChange,
+                    onCancelEditing = viewModel::cancelEditing,
+                    onSaveEditor = viewModel::saveEditor,
+                    onClose = { navController.popBackStack() },
+                )
+            }
+        }
+    }
+}
+
+/** Kept so the navigation graph has a single place to reach the controller in tests. */
+internal fun NavHostController.openLog(entryId: Long? = null) {
+    navigate(Routes.log(entryId))
+}

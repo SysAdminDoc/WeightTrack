@@ -48,6 +48,9 @@ class WeightRepository @Inject constructor(
 
     suspend fun byId(id: Long): WeightEntry? = dao.byId(id)?.toDomain()
 
+    suspend fun byClientRecordId(clientRecordId: String): WeightEntry? =
+        dao.byClientRecordId(clientRecordId)?.toDomain()
+
     suspend fun latestBodyFatPercent(): Double? = dao.latestWithBodyFat()?.bodyFatPercent
 
     suspend fun count(): Int = dao.count()

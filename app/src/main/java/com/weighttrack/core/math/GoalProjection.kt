@@ -176,6 +176,12 @@ object Milestones {
     }
 
     /**
+     * How close to the target a generated milestone may sit before it is dropped, as a
+     * fraction of the step.
+     */
+    private const val CROWDING_FRACTION = 0.4
+
+    /**
      * Milestones from just past the start weight through to the target. The final milestone is
      * always the target itself, even when the span does not divide evenly by the step.
      */
@@ -191,6 +197,11 @@ object Milestones {
         while (marks.size < maxMarks && isBefore(next, targetGrams, span)) {
             marks += next
             next += step
+        }
+        // A span of 6.2 kg in 2 kg steps would otherwise end on 0.2 kg from the target, which
+        // reads as two milestones in the same place and awards both on the same morning.
+        if (marks.isNotEmpty() && abs(targetGrams - marks.last()) < abs(step) * CROWDING_FRACTION) {
+            marks.removeAt(marks.lastIndex)
         }
         marks += targetGrams
 
