@@ -40,6 +40,9 @@ data class AppSettings(
     val weeklySummaryEnabled: Boolean = false,
     val weeklySummaryDay: DayOfWeek = DayOfWeek.SUNDAY,
     val weeklySummaryHour: Int = 19,
+    /** The Bluetooth scale last used, so the next weigh-in does not start with a scan. */
+    val scaleAddress: String? = null,
+    val scaleName: String? = null,
 )
 
 @Singleton
@@ -131,10 +134,23 @@ class SettingsRepository @Inject constructor(
             ?.let { name -> DayOfWeek.entries.firstOrNull { it.name == name } }
             ?: DayOfWeek.SUNDAY,
         weeklySummaryHour = this[Keys.WEEKLY_SUMMARY_HOUR] ?: 19,
+        scaleAddress = this[Keys.SCALE_ADDRESS],
+        scaleName = this[Keys.SCALE_NAME],
     )
 
     private fun <T : Enum<T>> enumOrDefault(raw: String?, values: List<T>, fallback: T): T =
         values.firstOrNull { it.name == raw } ?: fallback
+
+    /** Remembers a scale, or forgets it when the address is null. */
+    suspend fun setScale(address: String?, name: String?) = edit {
+        if (address == null) {
+            it.remove(Keys.SCALE_ADDRESS)
+            it.remove(Keys.SCALE_NAME)
+        } else {
+            it[Keys.SCALE_ADDRESS] = address
+            if (name.isNullOrBlank()) it.remove(Keys.SCALE_NAME) else it[Keys.SCALE_NAME] = name
+        }
+    }
 
     private object Keys {
         val WEIGHT_UNIT = stringPreferencesKey("weight_unit")
@@ -158,5 +174,7 @@ class SettingsRepository @Inject constructor(
         val WEEKLY_SUMMARY_ENABLED = booleanPreferencesKey("weekly_summary_enabled")
         val WEEKLY_SUMMARY_DAY = stringPreferencesKey("weekly_summary_day")
         val WEEKLY_SUMMARY_HOUR = intPreferencesKey("weekly_summary_hour")
+        val SCALE_ADDRESS = stringPreferencesKey("scale_address")
+        val SCALE_NAME = stringPreferencesKey("scale_name")
     }
 }

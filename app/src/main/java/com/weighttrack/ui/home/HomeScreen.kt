@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -64,6 +65,7 @@ fun HomeScreen(
     onOpenWater: () -> Unit,
     onOpenFasting: () -> Unit,
     onOpenPhotos: () -> Unit,
+    onOpenScale: () -> Unit,
     waterSummary: WaterSummary?,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
@@ -104,6 +106,14 @@ fun HomeScreen(
                 title = "Log weight",
                 subtitle = "Record your weight",
                 onClick = onLogWeight,
+            )
+        }
+        item {
+            HomeActionRow(
+                icon = Icons.Outlined.Bluetooth,
+                title = "Weigh in on your scale",
+                subtitle = "Read a Bluetooth scale straight into the log",
+                onClick = onOpenScale,
             )
         }
         item {

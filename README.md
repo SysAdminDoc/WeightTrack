@@ -41,6 +41,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
+- Bluetooth scales, read straight into the log: the standard weight and body composition services, plus Xiaomi's broadcast format that needs no pairing
 - A Wear OS watch app: the trend on a tile and on a watch face, and a weight logged with the crown
 - A home screen widget, and a daily reminder that stays quiet on days you have already weighed in
 - AMOLED black by default, with light, dark and wallpaper-colour themes
@@ -61,8 +62,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 163 unit tests
-./gradlew :core:testDebugUnitTest # 109 more, the pure maths
+./gradlew testPlayDebugUnitTest   # 169 unit tests
+./gradlew :core:testDebugUnitTest # 134 more, the pure maths and the scale formats
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 

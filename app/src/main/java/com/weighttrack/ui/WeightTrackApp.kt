@@ -59,6 +59,8 @@ import com.weighttrack.ui.measurements.MeasurementsViewModel
 import com.weighttrack.ui.navigation.Routes
 import com.weighttrack.ui.photos.PhotosScreen
 import com.weighttrack.ui.photos.PhotosViewModel
+import com.weighttrack.ui.scale.ScaleScreen
+import com.weighttrack.ui.scale.ScaleViewModel
 import com.weighttrack.ui.navigation.TopLevelDestination
 import com.weighttrack.ui.onboarding.OnboardingScreen
 import com.weighttrack.ui.onboarding.OnboardingViewModel
@@ -92,7 +94,8 @@ fun WeightTrackApp(
         currentRoute == Routes.CRASH_LOGS ||
         currentRoute == Routes.WATER ||
         currentRoute == Routes.FASTING ||
-        currentRoute == Routes.PHOTOS
+        currentRoute == Routes.PHOTOS ||
+        currentRoute == Routes.SCALE
 
     Scaffold(
         modifier = modifier,
@@ -192,6 +195,7 @@ fun WeightTrackApp(
                     onOpenWater = { navController.navigate(Routes.WATER) },
                     onOpenFasting = { navController.navigate(Routes.FASTING) },
                     onOpenPhotos = { navController.navigate(Routes.PHOTOS) },
+                    onOpenScale = { navController.navigate(Routes.SCALE) },
                     waterSummary = waterSummary,
                 )
             }
@@ -302,6 +306,21 @@ fun WeightTrackApp(
                     onSaveEdit = viewModel::saveEdit,
                     message = fastingMessage,
                     onDismissMessage = viewModel::dismissMessage,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.SCALE) {
+                val viewModel: ScaleViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                ScaleScreen(
+                    state = state,
+                    permissions = viewModel.requiredPermissions,
+                    onRetry = viewModel::start,
+                    onConnect = viewModel::connectTo,
+                    onSave = viewModel::save,
+                    onDiscard = viewModel::discard,
+                    onForgetScale = viewModel::forgetScale,
                     onBack = { navController.popBackStack() },
                 )
             }
