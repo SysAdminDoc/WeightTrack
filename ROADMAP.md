@@ -103,63 +103,63 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 ### P2
 
 
-- [ ] P2 — GLP-1 log: dose, site with rotation, side effects, protein target and a clinician PDF, off by default
+- [ ] P2: GLP-1 log: dose, site with rotation, side effects, protein target and a clinician PDF, off by default
   Why: MyFitnessPal (free, 2026-04-28), Noom (free, 2026-06-24) and MyNetDiary (paid, 2026-05-05) all shipped this in 2026; no OSS tracker has it; the science says 1.2 to 1.6 g/kg protein and a lean-mass watch during the 10 to 13 percent loss these users see.
   Evidence: https://finance.yahoo.com/sectors/healthcare/articles/myfitnesspal-launches-comprehensive-glp-1-130000875.html ; https://shotsyapp.com/glp-1-tracker/ (feature bar: site rotation, severity on the dose timeline, level between doses, PDF) ; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12673431/ ; https://www.clinicalnutritionreport.com/articles/preventing-lean-mass-loss-glp1/
   Touches: new core/medication (dose schedule, site rotation, pharmacokinetic decay per drug from published half-lives), new data/db MedicationDose + SideEffect entities (Room v12, syncable with tombstones, added to DeletionCoverageTest), new ui/medication screen behind a Settings toggle, charts overlay of dose markers on the trend, PDF via android.graphics.pdf, protein target surfaced in the diary when the toggle is on
   Acceptance: a dose logged with a site suggests the next site in rotation; a side effect appears on the same day axis as doses on the chart; the PDF lists doses, side effects and the weight trend for a chosen range with no other data; deleting a dose produces a tombstone; the feature is invisible while the toggle is off. Stays local: Health Connect Medical Records has no Play policy yet (https://developer.android.com/health-and-fitness/health-connect/medical-records).
   Complexity: XL
 
-- [ ] P2 — Cycle-aware trend: read MenstruationPeriodRecord and annotate expected water weight
+- [ ] P2: Cycle-aware trend: read MenstruationPeriodRecord and annotate expected water weight
   Why: the measured effect is +0.45 kg at menstruation from extracellular water with no fat change, which the trend and the expenditure loop both misread; only three tiny iOS apps do this and none on Android.
   Evidence: https://onlinelibrary.wiley.com/doi/full/10.1002/ajhb.23951 ; https://mytideline.com/ ; https://support.google.com/googlehealth/answer/14237115?hl=en (Health Connect cycle data) ; https://macrofactor.com/expenditure-v3/ (damped updates during flagged water events)
   Touches: AndroidManifest.xml (READ_MENSTRUATION, its own grant like sleep), health/HealthConnectSync.kt, core/math/Insights.kt (phase markers), ui/charts (shaded phase band, optional), core/math/AdaptiveExpenditure.kt (down-weight days flagged as menstruation)
   Acceptance: with the permission granted and periods recorded, the chart shows a band for each period and the weekday/insight cards exclude those days from "unusual" calls; a core test shows expenditure moves less than 50 kcal when a flagged 0.5 kg spike is injected versus more without the flag; refusing the permission changes nothing else.
   Complexity: L
 
-- [ ] P2 — Holt double-exponential trend as a selectable smoothing mode
+- [ ] P2: Holt double-exponential trend as a selectable smoothing mode
   Why: an EMA lags a steady slope by design; TrendWeight 2.11.0 (2026-08-26) added Holt's linear trend for exactly this, trale #481 proposes a Kalman equivalent, and Happy Scale offers four modes.
   Evidence: https://github.com/trendweight/trendweight/issues/396 ; https://github.com/QuantumPhysique/trale/issues/481 ; https://happyscale.com/support ; core/src/main/java/com/weighttrack/core/math/TrendEngine.kt
   Touches: core/math/TrendEngine.kt (second smoother with the same gap-aware compounding), data/prefs/SettingsRepository.kt (mode), ui/settings smoothing section, ui/components/TrendChart.kt (no change if TrendSeries stays the shape)
   Acceptance: on a synthetic steady 0.5 kg/week loss the Holt trend lags the true line by under 0.1 kg after 30 days where the EMA lags by more; milestones, rate and ETA all read off whichever mode is chosen; the default stays EMA alpha 0.1.
   Complexity: M
 
-- [ ] P2 — Use step counts as a confidence signal for expenditure updates and correct for a goal switch
+- [ ] P2: Use step counts as a confidence signal for expenditure updates and correct for a goal switch
   Why: MacroFactor's 2025 modifiers (steps never converted to kcal, expenditure shifted by 4× the weekly %-change target when the goal changes) cut median 100-day prediction error by about 20 percent; steps are already read from Health Connect.
   Evidence: https://macrofactor.com/expenditure-modifiers/ ; https://macrofactor.com/expenditure-v3/ ; core/src/main/java/com/weighttrack/core/math/AdaptiveExpenditure.kt
   Touches: core/math/AdaptiveExpenditure.kt (weight the window by step consistency; apply the goal-switch shift), domain/ProgressCalculator.kt, tests
   Acceptance: a fixture where steps double in week two moves the estimate faster than the same intake and weight without steps; changing a goal from lose to maintain shifts the recommended intake immediately by the documented factor; a test proves steps never enter the kcal arithmetic directly.
   Complexity: M
 
-- [ ] P2 — User-set maintain band, and a maintenance mode when a loss goal is reached
+- [ ] P2: User-set maintain band, and a maintenance mode when a loss goal is reached
   Why: the maintain tolerance is a fixed 1 kg constant; trale #454 asks for a chosen band; Happy Scale is criticised for telling someone below their loss goal that the trend "improved".
   Evidence: core/src/main/java/com/weighttrack/core/math/GoalProjection.kt:47 ; https://github.com/QuantumPhysique/trale/issues/454 ; https://unimeal.reviews/weight-loss-apps/happy-scale/
   Touches: core/math/GoalProjection.kt, data/db GoalEntity (band grams, Room v12 auto-migration), ui/goal/GoalScreen.kt, domain/ProgressCalculator.kt (reached loss goal reports "holding" not "still losing")
   Acceptance: a 2 kg band keeps a maintain goal "on track" at +1.8 kg drift; a reached loss goal whose trend keeps falling is described as below target rather than improving; migration test covers the new column.
   Complexity: S
 
-- [ ] P2 — Refresh cached online foods and dedupe Open Food Facts units
+- [ ] P2: Refresh cached online foods and dedupe Open Food Facts units
   Why: a product kept from a lookup never updates when the label changes (Food You #241, 6 reactions), and OSS trackers' loudest food complaint is contradictory or meaningless units from crowdsourced entries.
   Evidence: https://github.com/maksimowiczm/FoodYou/issues/241 ; https://lemmy.world/post/22208606 ; data/food and core/nutrition (no fetchedAt or refresh path, repo scan 2026-08-29)
   Touches: core/nutrition/Food.kt (fetchedAt, source revision), data/repo/FoodRepository.kt (refresh action under the 15 req/min limiter), ui/food food detail ("last checked", refresh button), core/nutrition/OpenFoodFacts.kt (normalise per-100g vs per-serving, drop entries whose kcal disagrees with macros by more than 20 percent)
   Acceptance: refreshing a cached product updates its numbers without changing logged diary rows; a product with kcal 900 and 0 g of every macro is rejected by a unit test; the limiter is respected across a refresh of ten foods.
   Complexity: M
 
-- [ ] P2 — Scheduled CSV export beside the backup, and a Google Fit takeout importer
+- [ ] P2: Scheduled CSV export beside the backup, and a Google Fit takeout importer
   Why: openScale #338 wants scheduled export distinct from backup; Google Fit ends in 2026 and Google Health's export deadline for discontinued data was 2026-07-15, so takeout CSVs are what migrants hold.
   Evidence: https://github.com/oliexdev/openScale/issues/338 ; https://developer.android.com/health-and-fitness/health-connect/migration/fit ; https://blog.google/products-and-platforms/products/google-health/google-health-app/ ; data/io/WeightCsvImporter.kt (no Fit or Takeout column set)
   Touches: data/io/WeightCsvImporter.kt (Takeout "Daily activity metrics" and Fit weight CSV layouts), data/io/AutoBackup.kt (CSV variant), tests with real header rows
   Acceptance: a Takeout daily-metrics CSV with the "Average weight (kg)" column imports with correct dates; re-import updates rather than duplicates; the scheduled export writes a CSV next to the JSON.
   Complexity: S
 
-- [ ] P2 — Split SettingsScreen and add view model tests for the untested screens
+- [ ] P2: Split SettingsScreen and add view model tests for the untested screens
   Why: SettingsScreen.kt is 941 lines and the app has no tests for SettingsRepository, SyncWorker, or the goal, history (undo), log, onboarding and settings view models; Compose UI test dependencies are declared and never used.
   Evidence: app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt ; app/build.gradle.kts:199,202 ; repo test inventory 2026-08-29
   Touches: ui/settings/* (one file per section), new tests under app/src/test for SettingsRepository, HistoryViewModel undo, GoalViewModel, LogWeightViewModel, SyncWorker (WorkManager test helpers)
   Acceptance: no settings file over 300 lines; the undo path has a test that goes red when `undoDelete` is stubbed out; SyncWorker returns `success` on `Refused` and `retry` on a network failure under `TestListenableWorkerBuilder`.
   Complexity: M
 
-- [ ] P2 — network_security_config with a user-supplied certificate path for a self-signed NAS, and a clear cleartext refusal
+- [ ] P2: network_security_config with a user-supplied certificate path for a self-signed NAS, and a clear cleartext refusal
   Why: there is no network security config, so an `http://` WebDAV URL fails with a generic error and a self-signed Nextcloud cannot be trusted at all; Android 17 turns Certificate Transparency on by default and `usesCleartextTraffic` is slated for deprecation.
   Evidence: https://developer.android.com/about/versions/17/behavior-changes-all ; https://developer.android.com/about/versions/17/behavior-changes-17 ; app/src/main/res/xml (no network_security_config.xml); ui/settings/SyncCard.kt (no scheme validation)
   Touches: res/xml/network_security_config.xml, AndroidManifest.xml, data/sync/WebDavSyncTarget.kt (OkHttp client with an optional pinned user certificate loaded from a SAF pick), ui/settings/SyncCard.kt (reject http:// with a sentence, "trust this server's certificate" flow)
@@ -168,49 +168,49 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P3
 
-- [ ] P3 — Vibrate on a successful scale capture and show the settling weight live
+- [ ] P3: Vibrate on a successful scale capture and show the settling weight live
   Why: openScale #1097 asks for feedback at the moment the reading lands; ble-scale-sync 1.26.0 shows the weight settling before it is final, which tells the person to keep standing still.
   Evidence: https://github.com/oliexdev/openScale/issues/1097 ; https://github.com/KristianP26/ble-scale-sync/releases/tag/v1.26.0 ; ui/scale/ScaleScreen.kt
   Touches: ui/scale/ScaleScreen.kt, ble/ScaleReadingRouter.kt (emit unstable readings as a separate state), VibratorManager use
   Acceptance: unstable frames update a live number without filing; the stable frame files, vibrates once, and the live number stops.
   Complexity: S
 
-- [ ] P3 — New measurement entry pre-fills unchanged sites from the last entry
+- [ ] P3: New measurement entry pre-fills unchanged sites from the last entry
   Why: openScale 3.1.2 (2026-08-09) added it because thirteen sites retyped every time is why people stop measuring.
   Evidence: https://github.com/oliexdev/openScale/releases/tag/v3.1.2 ; ui/measurements/MeasurementsScreen.kt
   Touches: ui/measurements, data/repo/MeasurementRepository.kt (latest per site)
   Acceptance: opening a new measurement shows last values greyed; saving with none changed creates no row; changing one site saves all thirteen with the carried values marked as carried in the CSV export.
   Complexity: S
 
-- [ ] P3 — Editable chart date shortcuts and week-over-week comparison
+- [ ] P3: Editable chart date shortcuts and week-over-week comparison
   Why: Happy Scale 2026.5.3 made the shortcut row editable (last X days, since date, custom range); Withings users' loudest chart complaint is losing the period delta and week-over-week view.
   Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; https://support.withings.com/hc/en-us/community/posts/11251967828497 ; ui/charts/ChartsScreen.kt
   Touches: ui/charts/ChartsScreen.kt (range chips become editable, "since" picker), core/math/Analytics.kt (this week vs last week delta already derivable from weekly bars)
   Acceptance: a custom "since 2026-01-01" chip persists across launches; the header shows the change over the chosen range and versus the previous equal range.
   Complexity: M
 
-- [ ] P3 — Above/below-trend glance mode on the widget and tile
+- [ ] P3: Above/below-trend glance mode on the widget and tile
   Why: Hacker's Diet readers ask for a display that shows only whether today is above or below the trend, with no raw number, and the widget already hides the number under the lock.
   Evidence: https://news.ycombinator.com/item?id=39301552 ; widget/WeightWidget.kt ; wear/WeightTileService.kt
   Touches: widget/WeightWidget.kt, wear tile and complication, data/prefs/SettingsRepository.kt (mode)
   Acceptance: with the mode on, widget and tile show an arrow and the delta from trend with no absolute weight; a widget snapshot test asserts no digit sequence resembling a weight.
   Complexity: S
 
-- [ ] P3 — Move the wear module to targetSdk 36 with the Tiles 1.6 interaction API
+- [ ] P3: Move the wear module to targetSdk 36 with the Tiles 1.6 interaction API
   Why: the watch targets 35 while the phone targets 37; Tiles 1.6 removes `onEnterEvent`/`onLeaveEvent` for SDK 36+ targets, so the bump has to land with `onRecentInteractionEvents`.
   Evidence: https://developer.android.com/jetpack/androidx/releases/wear-tiles ; wear/build.gradle.kts (targetSdk 35)
   Touches: wear/build.gradle.kts, wear/WeightTileService.kt
   Acceptance: `:wear:assembleRelease` at targetSdk 36 with no deprecation warning from tiles; the tile still refreshes after a phone-side change on the Wear AVD.
   Complexity: S
 
-- [ ] P3 — Bump Compose BOM to 2026.08.01 line, Material3 1.4.0, OkHttp 5.5.0
+- [ ] P3: Bump Compose BOM to 2026.08.01 line, Material3 1.4.0, OkHttp 5.5.0
   Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and 5.5.0 rotated its signing key.
   Evidence: https://developer.android.com/jetpack/androidx/releases/compose-ui ; https://developer.android.com/jetpack/androidx/releases/compose-material3 ; https://github.com/square/okhttp/blob/master/CHANGELOG.md ; gradle/libs.versions.toml
   Touches: gradle/libs.versions.toml
   Acceptance: all four unit suites and both lint tasks green; both release APKs assemble; WebDAV PROPFIND round trip against the recorded-reply test passes.
   Complexity: S
 
-- [ ] P3 — Move design-qa.md under docs/ and add CONTRIBUTING.md and SECURITY.md
+- [ ] P3: Move design-qa.md under docs/ and add CONTRIBUTING.md and SECURITY.md
   Why: design-qa.md is tracked at the repo root outside the documented doc set; there is no contribution or vulnerability-report guidance, and README still says "Next up: translations" after string extraction shipped.
   Evidence: `git ls-files` 2026-08-29; README.md line 104
   Touches: docs/design-qa.md, CONTRIBUTING.md, SECURITY.md, README.md

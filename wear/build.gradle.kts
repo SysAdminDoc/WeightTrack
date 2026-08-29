@@ -22,8 +22,8 @@ android {
         // Wear OS 3. Earlier watches cannot run Compose for Wear at a usable frame rate.
         minSdk = 30
         targetSdk = 35
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.3.1"
     }
 
     signingConfigs {

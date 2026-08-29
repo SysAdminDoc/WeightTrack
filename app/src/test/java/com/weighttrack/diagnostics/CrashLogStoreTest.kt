@@ -16,7 +16,7 @@ class CrashLogStoreTest {
     private lateinit var directory: File
     private lateinit var store: CrashLogStore
 
-    private val buildInfo = "WeightTrack 0.3.0 (play)"
+    private val buildInfo = "WeightTrack 0.3.1 (play)"
 
     @Before
     fun setUp() {

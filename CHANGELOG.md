@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+## 0.3.1
+
+- New app icon: adaptive, themed (monochrome) and legacy variants regenerated from the 2026-08 icon set.
 - Health Connect is now exchanged in the background, about once an hour, instead of only when you open Settings and press the button. A reading your scale wrote, or one you deleted there, used to sit unnoticed until you went looking, which meant the trend, the widget and the watch were all quietly out of date. The background job now runs for a Health Connect connection on its own, so it works for somebody who uses no folder sync at all, and the widget and watch are refreshed only when something actually changed.
 - An option to keep only the lowest reading of each day when importing from Health Connect. A second weigh-in after breakfast is the same morning plus a meal rather than a second day, and letting both in drags the trend around for no reason. Off by default, because which one to keep is a real choice and taking it away from you is not the app's business.
 - Twelve fixes from reviewing the last few changes. Restoring a backup now puts your units, theme, height and the rest back: they were written into every backup from the first version and never read on the way in, so restoring on a new phone quietly lost them. A password saved before this release is now re-encrypted on the next start rather than staying legible until you happen to edit it, and one that cannot be decrypted is treated as missing rather than sent to the server as an empty string. A maintain goal that had drifted said "you are already there" on the same sheet as "still to go 3 kg". The working behind the date said "fitted to 14 days of readings" when there were two, and now says both numbers. A scale that has forgotten the pairing is no longer headlined as though the phone had no Bluetooth, and an automatic backup that has stopped because the folder went says so on the settings screen instead of just never happening again.

@@ -1,11 +1,11 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-35D6A0?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.1-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
-# WeightTrack v0.3.0
+# WeightTrack v0.3.1
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. Your readings stay on your phone and leave only when you export them.
 
@@ -73,9 +73,10 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 336 unit tests
-./gradlew :core:testDebugUnitTest # 277 more: the maths, the scale protocols, the food clients and the merge
-./gradlew :wear:testDebugUnitTest # 19 for the watch
+./gradlew :app:testPlayDebugUnitTest # 469 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 475 F-Droid-flavour tests
+./gradlew :core:testDebugUnitTest    # 305 for the maths, scale protocols, food clients and merge
+./gradlew :wear:testDebugUnitTest    # 19 for the watch
 ```
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
