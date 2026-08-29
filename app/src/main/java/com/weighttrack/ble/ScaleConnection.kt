@@ -53,6 +53,23 @@ interface ScaleConnection {
 }
 
 @Singleton
+/**
+ * Whether a broadcast means this scale has forgotten the pairing.
+ *
+ * Its own function because the receiver around it only exists from Android 16 and cannot be built
+ * at all under a test runner on an older level, which left the one decision it makes with nothing
+ * checking it. Both halves matter: the action, and that it is the scale being talked to rather
+ * than a pair of headphones somebody unpaired at the same moment.
+ */
+internal fun isBondLost(action: String?, broadcastAddress: String?, connectedTo: String): Boolean =
+    action == KEY_MISSING_ACTION && broadcastAddress != null && broadcastAddress == connectedTo
+
+/**
+ * `BluetoothDevice.ACTION_KEY_MISSING`, spelled out because the constant is API 36 and this file
+ * compiles against minSdk 26. `ScaleBondTest` holds it to the platform value.
+ */
+internal const val KEY_MISSING_ACTION = "android.bluetooth.device.action.KEY_MISSING"
+
 class BluetoothScaleConnection @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val runtimeLog: com.weighttrack.diagnostics.RuntimeLog,
@@ -318,7 +335,7 @@ class BluetoothScaleConnection @Inject constructor(
                 override fun onReceive(context: Context, intent: android.content.Intent) {
                     val forgotten: BluetoothDevice? =
                         intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
-                    if (forgotten?.address != address) return
+                    if (!isBondLost(intent.action, forgotten?.address, address)) return
                     runtimeLog.write(
                         com.weighttrack.diagnostics.LogArea.SCALE,
                         com.weighttrack.diagnostics.LogEvent.SCALE_BOND_LOST,
@@ -371,12 +388,6 @@ class BluetoothScaleConnection @Inject constructor(
     private companion object {
         /** Android 16, the first version that says a peer has forgotten its key. */
         const val ANDROID_16 = 36
-
-        /**
-         * `BluetoothDevice.ACTION_KEY_MISSING`, spelled out because the constant is API 36 and
-         * this file compiles against minSdk 26. [ScaleBondTest] holds it to the platform value.
-         */
-        const val KEY_MISSING_ACTION = "android.bluetooth.device.action.KEY_MISSING"
 
         val WEIGHT_SCALE_SERVICE: UUID = shortUuid(0x181D)
         val WEIGHT_MEASUREMENT: UUID = shortUuid(0x2A9D)

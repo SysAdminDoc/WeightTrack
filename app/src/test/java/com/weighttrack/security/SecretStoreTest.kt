@@ -102,6 +102,38 @@ class SecretStoreTest {
     }
 
     @Test
+    fun `a password stored before this existed is rewritten encrypted`() = kotlinx.coroutines.test.runTest {
+        // Reading a plain value works either way, so without a rewrite it would stay legible in
+        // the file for as long as nobody edited it, which for most people is for ever.
+        val keyed = SecretStore { key }
+        val preferences = com.weighttrack.data.InMemoryPreferences()
+        val name = androidx.datastore.preferences.core.stringPreferencesKey("sync_webdav_password")
+        preferences.updateData { it.toMutablePreferences().apply { set(name, "old-plain") } }
+        val sync = com.weighttrack.data.sync.SyncPreferences(preferences, keyed)
+
+        sync.protectStoredSecrets()
+
+        val written = preferences.data.value[name]!!
+        assertThat(written).doesNotContain("old-plain")
+        assertThat(keyed.isProtected(written)).isTrue()
+        assertThat(sync.current().webDavPassword).isEqualTo("old-plain")
+    }
+
+    @Test
+    fun `rewriting an already encrypted password leaves it alone`() = kotlinx.coroutines.test.runTest {
+        val keyed = SecretStore { key }
+        val preferences = com.weighttrack.data.InMemoryPreferences()
+        val sync = com.weighttrack.data.sync.SyncPreferences(preferences, keyed)
+        sync.useWebDav("https://cloud.example.com/dav", "me", "already-safe")
+        val name = androidx.datastore.preferences.core.stringPreferencesKey("sync_webdav_password")
+        val before = preferences.data.value[name]
+
+        sync.protectStoredSecrets()
+
+        assertThat(preferences.data.value[name]).isEqualTo(before)
+    }
+
+    @Test
     fun `a password stored before this existed still works`() = kotlinx.coroutines.test.runTest {
         val keyed = SecretStore { key }
         val preferences = com.weighttrack.data.InMemoryPreferences()

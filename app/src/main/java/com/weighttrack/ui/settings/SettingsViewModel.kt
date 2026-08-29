@@ -429,7 +429,12 @@ class SettingsViewModel @Inject constructor(
     // ---- automatic backup ----
 
     /** Where the weekly copy goes, and when the last one was written. */
-    data class AutoBackupState(val folder: String? = null, val lastAt: Long? = null)
+    data class AutoBackupState(
+        val folder: String? = null,
+        val lastAt: Long? = null,
+        /** The folder has gone, so the weekly copy is not happening. */
+        val problem: Boolean = false,
+    )
 
     private val _autoBackup = MutableStateFlow(AutoBackupState())
     val autoBackup: StateFlow<AutoBackupState> = _autoBackup.asStateFlow()
@@ -439,6 +444,7 @@ class SettingsViewModel @Inject constructor(
             _autoBackup.value = AutoBackupState(
                 folder = settingsRepository.autoBackupFolder(),
                 lastAt = settingsRepository.lastAutoBackup(),
+                problem = settingsRepository.autoBackupProblem(),
             )
         }
     }

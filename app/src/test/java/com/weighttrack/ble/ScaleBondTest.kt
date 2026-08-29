@@ -24,12 +24,7 @@ class ScaleBondTest {
     fun `the action listened for is the one the platform broadcasts`() {
         // Spelled out in the source because the constant is API 36 and this module builds against
         // minSdk 26. A typo would compile, and the scale would simply never be diagnosed.
-        val declared = BluetoothScaleConnection::class.java
-            .getDeclaredField("KEY_MISSING_ACTION")
-            .apply { isAccessible = true }
-            .get(null)
-
-        assertThat(declared).isEqualTo("android.bluetooth.device.action.KEY_MISSING")
+        assertThat(KEY_MISSING_ACTION).isEqualTo("android.bluetooth.device.action.KEY_MISSING")
     }
 
     @Test
@@ -46,9 +41,48 @@ class ScaleBondTest {
     }
 
     @Test
+    fun `the broadcast for this scale is read as a lost bond`() {
+        assertThat(
+            isBondLost(
+                action = "android.bluetooth.device.action.KEY_MISSING",
+                broadcastAddress = "AA:BB:CC:DD:EE:FF",
+                connectedTo = "AA:BB:CC:DD:EE:FF",
+            ),
+        ).isTrue()
+    }
+
+    @Test
+    fun `somebody else's device losing its bond is not this scale`() {
+        // Headphones unpaired at the same moment must not make the scale screen say the scale
+        // forgot the pairing.
+        assertThat(
+            isBondLost(
+                action = "android.bluetooth.device.action.KEY_MISSING",
+                broadcastAddress = "11:22:33:44:55:66",
+                connectedTo = "AA:BB:CC:DD:EE:FF",
+            ),
+        ).isFalse()
+    }
+
+    @Test
+    fun `another broadcast is not a lost bond`() {
+        assertThat(
+            isBondLost(
+                action = "android.bluetooth.device.action.ACL_DISCONNECTED",
+                broadcastAddress = "AA:BB:CC:DD:EE:FF",
+                connectedTo = "AA:BB:CC:DD:EE:FF",
+            ),
+        ).isFalse()
+        assertThat(isBondLost(null, "AA:BB:CC:DD:EE:FF", "AA:BB:CC:DD:EE:FF")).isFalse()
+        assertThat(
+            isBondLost("android.bluetooth.device.action.KEY_MISSING", null, "AA:BB:CC:DD:EE:FF"),
+        ).isFalse()
+    }
+
+    @Test
     fun `a lost bond is its own problem, not a lost connection`() {
-        // The whole point. Reporting it as CONNECTION_LOST would send somebody to check the
-        // batteries in a scale whose batteries are fine.
+        // Reporting it as CONNECTION_LOST would send somebody to check the batteries in a scale
+        // whose batteries are fine.
         assertThat(ScaleProblem.entries).contains(ScaleProblem.BOND_LOST)
         assertThat(ScaleProblem.BOND_LOST).isNotEqualTo(ScaleProblem.CONNECTION_LOST)
     }

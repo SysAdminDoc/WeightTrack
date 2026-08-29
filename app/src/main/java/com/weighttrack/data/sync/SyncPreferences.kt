@@ -50,7 +50,12 @@ data class SyncSettings(
         get() = when (mode) {
             SyncMode.OFF -> false
             SyncMode.FOLDER -> !folderUri.isNullOrBlank()
-            SyncMode.WEBDAV -> !webDavUrl.isNullOrBlank() && !webDavUser.isNullOrBlank()
+            // The password counts. A stored one that will not decrypt, which happens if the
+            // keystore key is replaced, would otherwise leave sync looking set up while it sent
+            // an empty password and got a bare authentication failure back.
+            SyncMode.WEBDAV -> !webDavUrl.isNullOrBlank() &&
+                !webDavUser.isNullOrBlank() &&
+                !webDavPassword.isNullOrEmpty()
         }
 }
 
@@ -62,6 +67,20 @@ class SyncPreferences @Inject constructor(
     val settings: Flow<SyncSettings> = dataStore.data.map { it.toSettings() }
 
     suspend fun current(): SyncSettings = settings.first()
+
+    /**
+     * Re-writes a password that was stored before it was being encrypted.
+     *
+     * Reading a plain value works either way, so without this a password saved before the change
+     * would stay legible in the file for as long as somebody never edited it, which is most
+     * people. Runs once: after it, the value carries the marker and this does nothing.
+     */
+    suspend fun protectStoredSecrets() {
+        val stored = dataStore.data.first()[Keys.WEBDAV_PASSWORD] ?: return
+        if (secrets.isProtected(stored)) return
+        val protected = secrets.protect(stored) ?: return
+        dataStore.edit { it[Keys.WEBDAV_PASSWORD] = protected }
+    }
 
     /**
      * This phone's name in the folder, made on first use.

@@ -286,7 +286,15 @@ fun ScaleScreen(
 
 @Composable
 private fun headline(state: ScaleUiState): String = when (state.stage) {
-    ScaleStage.BLOCKED -> stringResource(R.string.scale_nothing_to_listen_with)
+    ScaleStage.BLOCKED -> stringResource(
+        // Not every block is a missing radio. A scale that forgot the pairing is blocked too,
+        // and telling that person there is nothing to listen with sends them nowhere useful.
+        if (state.problem == ScaleProblem.BOND_LOST) {
+            R.string.scale_pairing_lost_headline
+        } else {
+            R.string.scale_nothing_to_listen_with
+        },
+    )
     ScaleStage.SEARCHING -> stringResource(R.string.scale_looking_for_your_scale)
     ScaleStage.WAITING_FOR_WEIGHT -> stringResource(R.string.scale_step_on_the_scale)
     ScaleStage.MEASURED -> when {

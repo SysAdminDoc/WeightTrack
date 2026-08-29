@@ -3,6 +3,10 @@ package com.weighttrack.data.io
 import android.content.Context
 import com.weighttrack.R
 import android.net.Uri
+import com.weighttrack.core.model.ActivityLevel
+import com.weighttrack.core.model.LengthUnit
+import com.weighttrack.core.model.Sex
+import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.GoalRepository
@@ -187,6 +191,27 @@ class BackupService @Inject constructor(
                     now,
                 )
             }
+            // Written on the way out since the first version and never read on the way back,
+            // so restoring on a new phone quietly lost units, theme, height and the rest.
+            backup.settings?.let { stored ->
+                val current = settingsRepository.settings.first()
+                settingsRepository.applySynced(
+                    weightUnit = decode(stored.weightUnit, WeightUnit.entries, current.weightUnit),
+                    lengthUnit = decode(stored.lengthUnit, LengthUnit.entries, current.lengthUnit),
+                    themeMode = decode(stored.themeMode, ThemeMode.entries, current.themeMode),
+                    heightMm = stored.heightMm,
+                    sex = decode(stored.sex, Sex.entries, current.profile.sex),
+                    birthYear = stored.birthYear,
+                    activityLevel = decode(
+                        stored.activityLevel,
+                        ActivityLevel.entries,
+                        current.profile.activityLevel,
+                    ),
+                    trendWindowDays = stored.trendWindowDays,
+                    milestoneStepGrams = stored.milestoneStepGrams,
+                    updatedAtUtcMillis = System.currentTimeMillis(),
+                )
+            }
             ImportSummary(
                 imported = entries.size,
                 skipped = backup.entries.size - entries.size,
@@ -194,6 +219,15 @@ class BackupService @Inject constructor(
             )
         }
     }
+
+    /**
+     * Reads a name back to a value, keeping what is here when the file says something unknown.
+     *
+     * Falling back to a default would quietly reset somebody's units because a backup was
+     * written by a version that spelled them differently.
+     */
+    private fun <T : Enum<T>> decode(name: String, values: List<T>, fallback: T): T =
+        values.firstOrNull { it.name == name } ?: fallback
 
     private fun writeText(uri: Uri, text: String) {
         // "wt" truncates an existing file. Without it, overwriting a longer backup leaves the

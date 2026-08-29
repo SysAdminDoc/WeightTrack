@@ -57,7 +57,15 @@ fun ProjectionExplainer(
 
             LabelledValue(
                 stringResource(R.string.projection_readings_used),
-                stringResource(R.string.projection_days_of_readings, projection.fittedDays),
+                // Both numbers. The span is what the line was fitted across; the weigh-ins are
+                // how much of it was actually measured, and two readings a fortnight apart is a
+                // very different thing from fourteen.
+                androidx.compose.ui.platform.LocalContext.current.resources.getQuantityString(
+                    R.plurals.projection_days_and_weigh_ins,
+                    projection.fittedWeighIns,
+                    projection.fittedDays,
+                    projection.fittedWeighIns,
+                ),
             )
             LabelledValue(
                 stringResource(R.string.projection_rate),

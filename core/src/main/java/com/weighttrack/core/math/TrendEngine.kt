@@ -70,6 +70,14 @@ data class TrendRate(
     val gramsPerDay: Double,
     val standardErrorGramsPerDay: Double,
     val sampleDays: Int,
+    /**
+     * How many of those days somebody actually stood on the scale.
+     *
+     * The series carries a point per calendar day whether or not anything was measured, so
+     * [sampleDays] is a span rather than a count of readings. Saying "fitted to fourteen days of
+     * readings" when there were two is exactly the overstatement the explanation exists to avoid.
+     */
+    val weighIns: Int = sampleDays,
 ) {
     val gramsPerWeek: Double get() = gramsPerDay * 7
     val kgPerWeek: Double get() = gramsPerWeek / UnitConverter.GRAMS_PER_KG
@@ -184,7 +192,8 @@ object TrendEngine {
     ): TrendRate {
         val window = series.points.takeLast(lookbackDays.coerceAtLeast(2))
         val n = window.size
-        if (n < 2) return TrendRate(0.0, 0.0, n)
+        val weighIns = window.count { it.actualGrams != null }
+        if (n < 2) return TrendRate(0.0, 0.0, n, weighIns)
 
         val xs = DoubleArray(n) { it.toDouble() }
         val ys = DoubleArray(n) { window[it].trendGrams }
@@ -198,7 +207,7 @@ object TrendEngine {
             sxx += dx * dx
             sxy += dx * (ys[i] - meanY)
         }
-        if (sxx == 0.0) return TrendRate(0.0, 0.0, n)
+        if (sxx == 0.0) return TrendRate(0.0, 0.0, n, weighIns)
 
         val slope = sxy / sxx
         val intercept = meanY - slope * meanX
@@ -214,7 +223,7 @@ object TrendEngine {
         } else {
             0.0
         }
-        return TrendRate(slope, standardError, n)
+        return TrendRate(slope, standardError, n, weighIns)
     }
 
     /**

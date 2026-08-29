@@ -54,8 +54,10 @@ data class GoalProjection(
     val reached: Boolean,
     /** Null when there is a date. Otherwise which of the reasons applied. */
     val noEtaReason: NoEtaReason? = null,
-    /** How many days of readings the rate was fitted to, for the explanation to quote. */
+    /** The span the rate was fitted across, in days. */
     val fittedDays: Int = 0,
+    /** How many of those days carried a weigh-in. */
+    val fittedWeighIns: Int = 0,
     /** The rate the date came from, in grams a day. */
     val fittedGramsPerDay: Double = 0.0,
 ) {
@@ -100,8 +102,12 @@ object GoalProjector {
                 etaDaysPessimistic = null,
                 movingTowardGoal = withinBand,
                 reached = withinBand,
-                noEtaReason = NoEtaReason.REACHED,
+                // Holding steady is being there; having drifted out of the band is not, and
+                // saying so in a sheet whose other line reads "still to go 3.0 kg" is a
+                // contradiction on one screen.
+                noEtaReason = if (withinBand) NoEtaReason.REACHED else NoEtaReason.WRONG_WAY,
                 fittedDays = rate.sampleDays,
+                fittedWeighIns = rate.weighIns,
                 fittedGramsPerDay = rate.gramsPerDay,
             )
         }
@@ -172,6 +178,7 @@ object GoalProjector {
             reached = reached,
             noEtaReason = why,
             fittedDays = rate.sampleDays,
+            fittedWeighIns = rate.weighIns,
             fittedGramsPerDay = rate.gramsPerDay,
         )
     }

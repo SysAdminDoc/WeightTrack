@@ -88,6 +88,14 @@ class SettingsRepository @Inject constructor(
     suspend fun setMilestoneStepGrams(grams: Int) = stamped { it[Keys.MILESTONE_STEP_GRAMS] = grams }
 
     /** The folder the weekly copy goes into, or null when nobody has chosen one. */
+    /** The same one-off rewrite for the USDA key. See SyncPreferences.protectStoredSecrets. */
+    suspend fun protectStoredSecrets() {
+        val stored = dataStore.data.first()[Keys.USDA_API_KEY] ?: return
+        if (secrets.isProtected(stored)) return
+        val protected = secrets.protect(stored) ?: return
+        edit { it[Keys.USDA_API_KEY] = protected }
+    }
+
     suspend fun autoBackupFolder(): String? = dataStore.data.first()[Keys.AUTO_BACKUP_FOLDER]
 
     suspend fun setAutoBackupFolder(uri: String?) = edit {
@@ -97,6 +105,14 @@ class SettingsRepository @Inject constructor(
     suspend fun lastAutoBackup(): Long? = dataStore.data.first()[Keys.LAST_AUTO_BACKUP]
 
     suspend fun setLastAutoBackup(at: Long) = edit { it[Keys.LAST_AUTO_BACKUP] = at }
+
+    /** Whether the last attempt found the folder gone, so the screen can say so. */
+    suspend fun autoBackupProblem(): Boolean =
+        dataStore.data.first()[Keys.AUTO_BACKUP_PROBLEM] ?: false
+
+    suspend fun setAutoBackupProblem(problem: Boolean) = edit {
+        it[Keys.AUTO_BACKUP_PROBLEM] = problem
+    }
 
     suspend fun healthChangesToken(profileId: Long): String? =
         dataStore.data.first()[Keys.healthChangesToken(profileId)]
@@ -283,6 +299,7 @@ class SettingsRepository @Inject constructor(
 
         val AUTO_BACKUP_FOLDER = stringPreferencesKey("auto_backup_folder")
         val LAST_AUTO_BACKUP = longPreferencesKey("last_auto_backup")
+        val AUTO_BACKUP_PROBLEM = booleanPreferencesKey("auto_backup_problem")
 
         val SCALE_ADDRESS = stringPreferencesKey("scale_address")
         val SCALE_NAME = stringPreferencesKey("scale_name")

@@ -51,6 +51,10 @@ class AutoBackupWorker @AssistedInject constructor(
             // The card was taken out, or the permission went when the app was reinstalled. Only
             // the person can put it right by picking the folder again, so retrying is pointless.
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKUP_FOLDER_GONE)
+            // Nothing will fix itself here: the card is out, or the permission went. Recorded so
+            // the settings screen can say so, because a backup that has silently stopped is the
+            // failure this feature exists to prevent.
+            settingsRepository.setAutoBackupProblem(true)
             return@withContext Result.success()
         }
 
@@ -83,6 +87,7 @@ class AutoBackupWorker @AssistedInject constructor(
         AutoBackup.toRemove(names).forEach { old ->
             runCatching { folder.findFile(old)?.delete() }
         }
+        settingsRepository.setAutoBackupProblem(false)
         settingsRepository.setLastAutoBackup(System.currentTimeMillis())
         Result.success()
     }
@@ -105,8 +110,9 @@ class AutoBackupScheduler @Inject constructor(
             return
         }
         val request = PeriodicWorkRequestBuilder<AutoBackupWorker>(7, TimeUnit.DAYS).build()
-        // Kept rather than replaced, so choosing the folder again does not push the next run a
-        // week into the future every time.
+        // UPDATE so that a later version changing the period or the constraints reaches installs
+        // that already have the job, which KEEP would leave on the old schedule for ever. It also
+        // means picking the folder again does not restart the week.
         manager.enqueueUniquePeriodicWork(WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request)
     }
 

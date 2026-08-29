@@ -121,6 +121,46 @@ class NoEtaReasonTest {
     }
 
     @Test
+    fun `a maintain goal that has drifted is not already there`() {
+        // The sheet used to say "you are already there" directly above "still to go 3.0 kg", on a
+        // screen whose other line said the trend was not moving toward the goal.
+        val projection = project(
+            listOf(83_000.0, 83_000.0),
+            gramsPerDay = 0.0,
+            target = 80_000,
+            direction = GoalDirection.MAINTAIN,
+        )!!
+
+        assertThat(projection.reached).isFalse()
+        assertThat(projection.noEtaReason).isNotEqualTo(NoEtaReason.REACHED)
+    }
+
+    @Test
+    fun `the explanation says how much of the window was actually measured`() {
+        // The series carries a point per calendar day whether or not anybody stood on the scale,
+        // so quoting the span as "days of readings" overstated it, sometimes sevenfold.
+        val start = LocalDate.of(2026, 8, 1)
+        val points = (0 until 14).map { day ->
+            TrendPoint(
+                date = start.plusDays(day.toLong()),
+                trendGrams = 85_000.0 - day * 50,
+                // Weighed on the first day and the last, and not in between.
+                actualGrams = if (day == 0 || day == 13) (85_000 - day * 50) else null,
+            )
+        }
+        val projection = GoalProjector.project(
+            direction = GoalDirection.LOSE,
+            startGrams = 90_000,
+            targetGrams = 84_000,
+            series = TrendSeries(points, 0.1),
+            rate = TrendEngine.rate(TrendSeries(points, 0.1)),
+        )!!
+
+        assertThat(projection.fittedDays).isEqualTo(14)
+        assertThat(projection.fittedWeighIns).isEqualTo(2)
+    }
+
+    @Test
     fun `every refusal has a reason`() {
         // A null date with no reason is the shape this exists to prevent: the screen would show
         // a blank where an explanation belongs.

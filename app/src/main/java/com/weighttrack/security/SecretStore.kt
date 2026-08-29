@@ -72,7 +72,16 @@ internal object Secrets {
  * worse thing than an export missing one.
  */
 @Singleton
-class SecretStore internal constructor(private val keySource: () -> SecretKey) {
+class SecretStore internal constructor(keySource: () -> SecretKey) {
+
+    /**
+     * Fetched once and held.
+     *
+     * Settings are a flow, and its mapping runs in whoever is collecting, which for several view
+     * models is the interface thread. Looking the key up per read meant a binder call into
+     * keystore2 on every preference change, for anybody who had ever stored a password.
+     */
+    private val key: SecretKey by lazy(keySource)
 
     /**
      * The real one, backed by the Android keystore.
@@ -91,10 +100,18 @@ class SecretStore internal constructor(private val keySource: () -> SecretKey) {
      * working is worse off than somebody whose password sits in a file only root can read.
      */
     fun protect(secret: String): String? =
-        runCatching { Secrets.protect(secret, keySource()) }.getOrNull()
+        runCatching { Secrets.protect(secret, key) }.getOrNull()
 
-    fun reveal(stored: String): String? = runCatching { Secrets.reveal(stored, keySource()) }
-        .getOrElse { if (Secrets.isProtected(stored)) null else stored }
+    /**
+     * Reads one back.
+     *
+     * A value with no marker is handed back without touching the keystore at all, which is what
+     * a phone that has never stored a password does on every single preference read.
+     */
+    fun reveal(stored: String): String? {
+        if (!Secrets.isProtected(stored)) return stored
+        return runCatching { Secrets.reveal(stored, key) }.getOrNull()
+    }
 
     fun isProtected(stored: String): Boolean = Secrets.isProtected(stored)
 

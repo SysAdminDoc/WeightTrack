@@ -23,11 +23,17 @@ class AutoBackupTest {
 
     @Test
     fun `the name sorts the same way the dates do`() {
-        // The pruning reads the order off the names, so a name that sorted differently from its
-        // date would delete the wrong file.
-        val sorted = names("2026-01-05", "2026-08-29", "2026-12-31").sorted()
+        // Built with nameFor rather than a copy of its format, or a name that no longer sorted
+        // would leave this green while the pruning deleted the wrong file.
+        val days = listOf(
+            LocalDate.of(2026, 12, 31),
+            LocalDate.of(2026, 1, 5),
+            LocalDate.of(2026, 8, 29),
+        )
 
-        assertThat(sorted).isEqualTo(names("2026-01-05", "2026-08-29", "2026-12-31"))
+        val byName = days.map(AutoBackup::nameFor).sorted()
+
+        assertThat(byName).isEqualTo(days.sorted().map(AutoBackup::nameFor))
     }
 
     @Test
@@ -113,10 +119,18 @@ class AutoBackupTest {
     }
 
     @Test
-    fun `two runs on one day do not make two files`() {
-        // Written under the same name, so a phone that runs the job twice replaces rather than
-        // fills the folder.
-        assertThat(AutoBackup.nameFor(LocalDate.of(2026, 8, 29)))
-            .isEqualTo(AutoBackup.nameFor(LocalDate.of(2026, 8, 29)))
+    fun `a second run on the same day replaces rather than adds`() {
+        // The worker looks for this name before creating anything. Two files for one day would
+        // fill the folder with copies of today instead of a month of history, and the pruning
+        // would then drop real history to make room.
+        val name = AutoBackup.nameFor(LocalDate.of(2026, 8, 29))
+        val folder = names("2026-08-22") + name
+
+        assertThat(AutoBackup.backupsIn(folder)).containsExactly(name, "weighttrack-2026-08-22.json")
+            .inOrder()
+        assertThat(AutoBackup.toRemove(folder)).isEmpty()
+        assertThat(
+            java.io.File("src/main/java/com/weighttrack/data/io/AutoBackupWorker.kt").readText(),
+        ).contains("folder.findFile(name)")
     }
 }

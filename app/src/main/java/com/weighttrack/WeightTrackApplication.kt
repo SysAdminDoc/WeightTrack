@@ -22,6 +22,12 @@ class WeightTrackApplication : Application(), Configuration.Provider {
 
     @Inject lateinit var syncScheduler: SyncScheduler
 
+    @Inject lateinit var autoBackupScheduler: com.weighttrack.data.io.AutoBackupScheduler
+
+    @Inject lateinit var syncPreferences: com.weighttrack.data.sync.SyncPreferences
+
+    @Inject lateinit var settingsRepository: com.weighttrack.data.prefs.SettingsRepository
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
@@ -34,6 +40,12 @@ class WeightTrackApplication : Application(), Configuration.Provider {
         // would be a visible cost for something nobody is watching.
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
             runCatching { syncScheduler.reschedule() }
+            // The weekly copy, put back for the same reason.
+            runCatching { autoBackupScheduler.reschedule() }
+            // A password stored before it was being encrypted would otherwise stay legible in the
+            // file until somebody happened to edit it, which for most people is never.
+            runCatching { syncPreferences.protectStoredSecrets() }
+            runCatching { settingsRepository.protectStoredSecrets() }
         }
     }
 }

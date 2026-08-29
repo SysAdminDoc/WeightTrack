@@ -761,7 +761,6 @@
     <string name="settings_health_connect_removed">, removed %1$d deleted elsewhere</string>
     <string name="projection_how_this_was_worked_out">How this was worked out</string>
     <string name="projection_readings_used">Fitted to</string>
-    <string name="projection_days_of_readings">%1$d days of readings</string>
     <string name="projection_rate">Going at</string>
     <string name="projection_a_week">%1$s a week</string>
     <string name="projection_still_to_go">Still to go</string>
@@ -773,4 +772,10 @@
     <string name="projection_flat">Your trend is level, so there is no rate to divide the remaining distance by. A date here would be invented rather than worked out.</string>
     <string name="projection_wrong_way">Your trend is moving away from the target, so at this rate it never arrives. That is worth knowing rather than being given a date anyway.</string>
     <string name="projection_too_far_off">At this rate the answer is years away, which is a guess rather than a forecast, so no date is offered.</string>
+    <plurals name="projection_days_and_weigh_ins">
+        <item quantity="one">%1$d days, %2$d of them a weigh-in</item>
+        <item quantity="other">%1$d days, %2$d of them weigh-ins</item>
+    </plurals>
+    <string name="scale_pairing_lost_headline">The scale forgot this phone</string>
+    <string name="settings_backup_folder_gone">The folder is no longer reachable, so no copy has been taken. Choose it again to start them up.</string>
 </resources>
