@@ -87,6 +87,7 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
     // Someone can set a screen lock, or clear crash reports, and come straight back here
     // while this composition is still alive. The counter is what forces a recomposition:
     // refreshing a StateFlow with an equal value is conflated and changes nothing on screen.
@@ -315,6 +316,52 @@ fun SettingsScreen(
                 onTest = { viewModel.notifyTestSent(ReminderReceiver.showTestNotification(context)) },
                 onOpenExactAlarmSettings = { openExactAlarmSettings(context) },
             )
+        }
+
+        item {
+            SettingsSection {
+                SectionHeading("Weekly summary")
+                Spacer(Modifier.height(6.dp))
+                ToggleRow(
+                    label = "Send a weekly read",
+                    checked = settings.weeklySummaryEnabled,
+                    onCheckedChange = { enabled ->
+                        viewModel.setWeeklySummary(
+                            enabled,
+                            settings.weeklySummaryDay,
+                            settings.weeklySummaryHour,
+                        )
+                    },
+                )
+                if (settings.weeklySummaryEnabled) {
+                    Spacer(Modifier.height(6.dp))
+                    ChipRow(
+                        options = DayOfWeek.entries.map {
+                            it to it.getDisplayName(TextStyle.SHORT, locale)
+                        },
+                        selected = settings.weeklySummaryDay,
+                        onSelect = { day ->
+                            viewModel.setWeeklySummary(true, day, settings.weeklySummaryHour)
+                        },
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    ChipRow(
+                        options = listOf(9, 12, 19, 21).map {
+                            it to String.format(locale, "%02d:00", it)
+                        },
+                        selected = settings.weeklySummaryHour,
+                        onSelect = { hour ->
+                            viewModel.setWeeklySummary(true, settings.weeklySummaryDay, hour)
+                        },
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = "A short note on how the week went, and nothing at all in a week with too few readings to say anything honest about.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
 
         item {

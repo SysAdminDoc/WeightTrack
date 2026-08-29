@@ -17,6 +17,7 @@ import com.weighttrack.diagnostics.CrashLogStore
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.notifications.ReminderScheduler
+import com.weighttrack.notifications.WeeklySummaryScheduler
 import com.weighttrack.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -44,6 +45,7 @@ class SettingsViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
     private val backupService: BackupService,
     private val reminderScheduler: ReminderScheduler,
+    private val weeklySummaryScheduler: WeeklySummaryScheduler,
     private val crashLogStore: CrashLogStore,
     private val widgetUpdater: WidgetUpdater,
     val healthConnect: HealthConnectSync,
@@ -155,6 +157,21 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun canScheduleExactAlarms(): Boolean = reminderScheduler.canScheduleExact()
+
+    fun setWeeklySummary(enabled: Boolean, day: java.time.DayOfWeek, hour: Int) {
+        viewModelScope.launch {
+            settingsRepository.setWeeklySummary(enabled, day, hour)
+            val updated = settingsRepository.settings.first()
+            weeklySummaryScheduler.reschedule(updated)
+            _message.value = if (!enabled) {
+                "Weekly summary turned off."
+            } else {
+                weeklySummaryScheduler.nextTriggerAt(updated)
+                    ?.let { next -> "Next summary " + describeNext(next) + "." }
+                    ?: "Weekly summary turned on."
+            }
+        }
+    }
 
     fun setAppLockEnabled(enabled: Boolean) {
         viewModelScope.launch {

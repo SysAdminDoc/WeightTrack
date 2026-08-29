@@ -71,6 +71,11 @@
             android:exported="false" />
 
         <receiver
+            android:name=".notifications.WeeklySummaryReceiver"
+            android:enabled="true"
+            android:exported="false" />
+
+        <receiver
             android:name=".notifications.BootReceiver"
             android:enabled="true"
             android:exported="true"

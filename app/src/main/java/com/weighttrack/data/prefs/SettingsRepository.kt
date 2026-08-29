@@ -37,6 +37,9 @@ data class AppSettings(
     val appLockEnabled: Boolean = false,
     val waterTargetMl: Int = 2_000,
     val waterServingMl: Int = 250,
+    val weeklySummaryEnabled: Boolean = false,
+    val weeklySummaryDay: DayOfWeek = DayOfWeek.SUNDAY,
+    val weeklySummaryHour: Int = 19,
 )
 
 @Singleton
@@ -89,6 +92,12 @@ class SettingsRepository @Inject constructor(
         it[Keys.WATER_SERVING_ML] = millilitres.coerceIn(25, 2_000)
     }
 
+    suspend fun setWeeklySummary(enabled: Boolean, day: DayOfWeek, hour: Int) = edit {
+        it[Keys.WEEKLY_SUMMARY_ENABLED] = enabled
+        it[Keys.WEEKLY_SUMMARY_DAY] = day.name
+        it[Keys.WEEKLY_SUMMARY_HOUR] = hour.coerceIn(0, 23)
+    }
+
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }
@@ -117,6 +126,11 @@ class SettingsRepository @Inject constructor(
         appLockEnabled = this[Keys.APP_LOCK_ENABLED] ?: false,
         waterTargetMl = this[Keys.WATER_TARGET_ML] ?: 2_000,
         waterServingMl = this[Keys.WATER_SERVING_ML] ?: 250,
+        weeklySummaryEnabled = this[Keys.WEEKLY_SUMMARY_ENABLED] ?: false,
+        weeklySummaryDay = this[Keys.WEEKLY_SUMMARY_DAY]
+            ?.let { name -> DayOfWeek.entries.firstOrNull { it.name == name } }
+            ?: DayOfWeek.SUNDAY,
+        weeklySummaryHour = this[Keys.WEEKLY_SUMMARY_HOUR] ?: 19,
     )
 
     private fun <T : Enum<T>> enumOrDefault(raw: String?, values: List<T>, fallback: T): T =
@@ -141,5 +155,8 @@ class SettingsRepository @Inject constructor(
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
         val WATER_TARGET_ML = intPreferencesKey("water_target_ml")
         val WATER_SERVING_ML = intPreferencesKey("water_serving_ml")
+        val WEEKLY_SUMMARY_ENABLED = booleanPreferencesKey("weekly_summary_enabled")
+        val WEEKLY_SUMMARY_DAY = stringPreferencesKey("weekly_summary_day")
+        val WEEKLY_SUMMARY_HOUR = intPreferencesKey("weekly_summary_hour")
     }
 }

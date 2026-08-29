@@ -141,6 +141,8 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var scheduler: ReminderScheduler
 
+    @Inject lateinit var weeklyScheduler: WeeklySummaryScheduler
+
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action != Intent.ACTION_BOOT_COMPLETED &&
             intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
@@ -150,7 +152,9 @@ class BootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                scheduler.reschedule(settingsRepository.settings.first())
+                val settings = settingsRepository.settings.first()
+                scheduler.reschedule(settings)
+                weeklyScheduler.reschedule(settings)
             } finally {
                 pendingResult.finish()
             }
