@@ -23,6 +23,7 @@ class WebDavSyncTarget(
     private val baseUrl: String,
     private val username: String,
     password: String,
+    private val say: (Int, Array<out Any>) -> String,
 ) : SyncTarget {
 
     private val http: OkHttpClient by lazy {
@@ -69,14 +70,19 @@ class WebDavSyncTarget(
 
     private fun WebDavClient.Result<*>.asFailure(): SyncOutcome<Nothing> = when (this) {
         WebDavClient.Result.NotAllowed ->
-            SyncOutcome.Refused("The server would not accept that username and password.")
-        WebDavClient.Result.Missing -> SyncOutcome.Refused("That address is not there.")
+            SyncOutcome.Refused(say(com.weighttrack.R.string.sync_wrong_password, emptyArray()))
+        WebDavClient.Result.Missing ->
+            SyncOutcome.Refused(say(com.weighttrack.R.string.sync_address_missing, emptyArray()))
         is WebDavClient.Result.Failed -> when {
             // Nothing the person can do about these, and they usually pass.
-            code == 0 -> SyncOutcome.Unreachable("Could not reach the server.")
-            code == 507 -> SyncOutcome.Refused("The server has no room left.")
-            code in 500..599 -> SyncOutcome.Unreachable("The server answered $code.")
-            else -> SyncOutcome.Refused("The server answered $code.")
+            code == 0 ->
+                SyncOutcome.Unreachable(say(com.weighttrack.R.string.sync_server_unreachable, emptyArray()))
+            code == 507 ->
+                SyncOutcome.Refused(say(com.weighttrack.R.string.sync_server_full, emptyArray()))
+            code in 500..599 ->
+                SyncOutcome.Unreachable(say(com.weighttrack.R.string.sync_server_answered, arrayOf(code)))
+            else ->
+                SyncOutcome.Refused(say(com.weighttrack.R.string.sync_server_answered, arrayOf(code)))
         }
         is WebDavClient.Result.Ok -> error("not a failure")
     }

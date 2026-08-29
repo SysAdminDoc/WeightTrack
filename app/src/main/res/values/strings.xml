@@ -4,4 +4,567 @@
     <string name="widget_description">Your trend weight and the change this week.</string>
     <string name="water_widget_label">WeightTrack water</string>
     <string name="water_widget_description">Water so far today, and a tap to add a serving.</string>
+    <!-- app -->
+    <string name="app_privacy_first">Privacy first</string>
+    <string name="app_log_weight">Log weight</string>
+
+    <!-- barcode -->
+    <string name="barcode_scan_a_barcode">Scan a barcode</string>
+
+    <!-- common -->
+    <string name="common_back">Back</string>
+
+    <!-- barcode -->
+    <string name="barcode_reading_a_barcode_needs_the_camera">Reading a barcode needs the camera. Nothing is recorded and no picture is kept: the frame is looked at for a number and thrown away.</string>
+    <string name="barcode_allow_the_camera">Allow the camera</string>
+
+    <!-- charts -->
+    <string name="charts_what_moved_with_your_weight">What moved with your weight</string>
+    <string name="charts_these_are_patterns_in_your_own">These are patterns in your own numbers, not causes. Plenty of things move together for reasons that have nothing to do with each other.</string>
+    <string name="charts_nothing_to_plot_yet">Nothing to plot yet</string>
+    <string name="charts_log_a_few_readings_and_the">Log a few readings and the trend line, the weekly changes and your weekday pattern all appear here.</string>
+    <string name="charts_weight_trend">Weight trend</string>
+    <string name="charts_drag_to_pan_pinch_to_zoom">Drag to pan · Pinch to zoom · Tap a day</string>
+    <string name="charts_week_by_week">Week by week</string>
+    <string name="charts_average_week">Average week</string>
+    <string name="charts_biggest_drop">Biggest drop</string>
+    <string name="charts_weekday_pattern">Weekday pattern</string>
+    <string name="charts_how_far_each_day_usually_sits">How far each day usually sits from the trend line. This is the weekly rhythm with the underlying loss or gain taken out.</string>
+    <string name="charts_you_read_heaviest_on_and_lightest">You read heaviest on %1$s and lightest on %2$s. Weigh on the same day each week and you will see a cleaner picture.</string>
+    <string name="charts_logging">Logging</string>
+    <string name="charts_the_trend_copes_fine_with_missed">The trend copes fine with missed days. More readings just make it steadier.</string>
+    <string name="charts_movement">Movement</string>
+    <string name="charts_checking_health_connect">Checking Health Connect.</string>
+    <string name="charts_health_connect_is_not_available_on">Health Connect is not available on this device, so there are no step or calorie figures to show.</string>
+    <string name="charts_connect_health_connect_in_settings_and">Connect Health Connect in Settings and allow steps and active calories, and your movement will show up here against the weight trend.</string>
+    <string name="charts_nothing_recorded_in_the_last_month">Nothing recorded in the last month. Steps come from whatever writes them, usually a watch or your phone.</string>
+    <string name="charts_shown_for_context_beside_the_trend">Shown for context beside the trend. Steps are one input to the weight, not a cause of it.</string>
+
+    <!-- common -->
+    <string name="common_backspace">Backspace</string>
+
+    <!-- diagnostics -->
+    <string name="diagnostics_crash_reports">Crash reports</string>
+    <string name="diagnostics_clear_all">Clear all</string>
+    <string name="diagnostics_if_weighttrack_ever_closes_unexpectedly_the">If WeightTrack ever closes unexpectedly, the details land here so you can send them on. Nothing is uploaded on its own.</string>
+    <string name="diagnostics_these_stay_on_your_phone_tap">These stay on your phone. Tap one to read it, then share it if you want it looked at.</string>
+    <string name="diagnostics_share">Share</string>
+
+    <!-- common -->
+    <string name="common_delete">Delete</string>
+    <string name="common_close">Close</string>
+
+    <!-- diary -->
+    <string name="diary_food_diary">Food diary</string>
+
+    <!-- common -->
+    <string name="common_previous">Previous</string>
+    <string name="common_next">Next</string>
+
+    <!-- diary -->
+    <string name="diary_kcal">kcal</string>
+    <string name="diary_copy_the_day_before">Copy the day before</string>
+    <string name="diary_what_you_burn">What you burn</string>
+    <string name="diary_about_kcal_a_day">About %1$s kcal a day.</string>
+    <string name="diary_make_that_my_target">Make that my target</string>
+    <string name="diary_kcal_2">%1$s kcal</string>
+
+    <!-- common -->
+    <string name="common_remove">Remove</string>
+    <string name="common_add">Add</string>
+
+    <!-- diary -->
+    <string name="diary_quick_add">Quick add</string>
+    <string name="diary_same_as_yesterday">Same as yesterday</string>
+    <string name="diary_add_to">Add to %1$s</string>
+    <string name="diary_search">Search</string>
+    <string name="diary_nothing_to_add_yet_add_a">Nothing to add yet. Add a food or scan a barcode on the Foods screen first.</string>
+
+    <!-- common -->
+    <string name="common_cancel">Cancel</string>
+
+    <!-- diary -->
+    <string name="diary_grams">Grams</string>
+    <string name="diary_serving">1 serving</string>
+    <string name="diary_servings">2 servings</string>
+    <string name="diary_quick_add_to">Quick add to %1$s</string>
+    <string name="diary_a_meal_out_has_no_barcode">A meal out has no barcode. Put in roughly what it was and get on with your day.</string>
+    <string name="diary_calories">Calories</string>
+    <string name="diary_what_was_it_optional">What was it (optional)</string>
+    <string name="diary_daily_target">Daily target</string>
+    <string name="diary_protein_optional">Protein %1$s (optional)</string>
+    <string name="diary_carbohydrate_optional">Carbohydrate %1$s (optional)</string>
+    <string name="diary_fat_optional">Fat %1$s (optional)</string>
+    <string name="diary_only_on_a_day">Only on a %1$s</string>
+    <string name="diary_leave_that_off_and_this_is">Leave that off and this is the target for every day that has not got one of its own.</string>
+
+    <!-- common -->
+    <string name="common_save">Save</string>
+
+    <!-- fasting -->
+    <string name="fasting_fasting">Fasting</string>
+    <string name="fasting_correct_the_start_time">Correct the start time</string>
+    <string name="fasting_window">Window</string>
+    <string name="fasting_end_fast">End fast</string>
+    <string name="fasting_discard_this_fast">Discard this fast</string>
+    <string name="fasting_start_fasting">Start fasting</string>
+    <string name="fasting_recent_fasts">Recent fasts</string>
+    <string name="fasting_at">%1$s at %2$s</string>
+    <string name="fasting_target">target</string>
+
+    <!-- common -->
+    <string name="common_edit">Edit</string>
+
+    <!-- fasting -->
+    <string name="fasting_started">Started</string>
+    <string name="fasting_change_start">Change start</string>
+    <string name="fasting_ended">Ended</string>
+    <string name="fasting_change_end">Change end</string>
+    <string name="fasting_the_end_has_to_come_after">The end has to come after the start.</string>
+    <string name="fasting_that_is_how_long">That is %1$s long.</string>
+    <string name="fasting_still_running_targeting_what">Still running, targeting %1$s.</string>
+    <string name="fasting_pick_a_time">Pick a time</string>
+
+    <!-- common -->
+    <string name="common_set">Set</string>
+
+    <!-- food -->
+    <string name="food_foods">Foods</string>
+    <string name="food_search_your_foods">Search your foods</string>
+    <string name="food_add_a_food">Add a food</string>
+    <string name="food_look_it_up_online">Look it up online</string>
+    <string name="food_found_online">Found online</string>
+    <string name="food_keep">Keep</string>
+    <string name="food_favourite">Favourite</string>
+    <string name="food_recipes">Recipes</string>
+    <string name="food_ingredients_and_calories">%1$s ingredients, %2$s kcal a portion</string>
+    <string name="food_ingredients_from_usda">Ingredients from USDA</string>
+    <string name="food_open_food_facts_covers_packaged_food">Open Food Facts covers packaged food. USDA FoodData Central covers plain ingredients, and needs a free key of your own. This app will not ship one: a key inside an open source app is a shared quota in a public repository.</string>
+    <string name="food_enter_a_usda_key">Enter a USDA key</string>
+    <string name="food_nothing_here_yet_add_a_food">Nothing here yet. Add a food you eat often, or look one up online and keep it.</string>
+    <string name="food_everything_is_per_grams_which_is">Everything is per 100 grams, which is how labels are written and how this app stores it.</string>
+    <string name="food_a_name_and_the_calories_per">A name and the calories per 100 grams are all that is needed.</string>
+    <string name="food_usda_fooddata_central_key">USDA FoodData Central key</string>
+    <string name="food_get_a_free_key_at_and">Get a free key at %1$s and paste it here. It stays on this phone. Leave it empty to clear it.</string>
+
+    <!-- goal -->
+    <string name="goal_log_a_weight_first_a_goal">Log a weight first. A goal needs a starting point to measure from.</string>
+    <string name="goal_target_weight">Target weight</string>
+    <string name="goal_milestones">Milestones</string>
+    <string name="goal_milestones_on_the_way">%1$s milestones on the way</string>
+    <string name="goal_target_date">Target date</string>
+    <string name="goal_clear">Clear</string>
+    <string name="goal_pace_needed">Pace needed</string>
+    <string name="goal_that_is_a_fast_pace_losing">That is a fast pace. Losing more than about %1$s a week is hard to hold and costs you muscle. Consider a later date.</string>
+    <string name="goal_remove_goal">Remove goal</string>
+
+    <!-- history -->
+    <string name="history_search_notes_and_tags">Search notes and tags</string>
+    <string name="history_latest">Latest</string>
+    <string name="history_clear_selection">Clear selection</string>
+    <string name="history_selected">%1$s selected</string>
+    <string name="history_select_all">Select all</string>
+    <string name="history_delete_selected">Delete selected</string>
+
+    <!-- home -->
+    <string name="home_below_maintenance">below maintenance</string>
+    <string name="home_above_maintenance">above maintenance</string>
+    <string name="home_last_weighed">Last weighed %1$s at %2$s</string>
+    <string name="home_last_weighed_above">Last weighed %1$s at %2$s, above the line</string>
+    <string name="home_last_weighed_below">Last weighed %1$s at %2$s, below the line</string>
+    <string name="home_per_week">per week</string>
+    <string name="home_kcal_a_day_value">%1$s kcal/day</string>
+    <string name="home_kcal_a_day">kcal/day</string>
+    <string name="home_kcal_a_day_at_your_activity_level">kcal/day at your activity level</string>
+    <string name="home_bmi">BMI</string>
+    <string name="home_no_readings_yet">No readings yet</string>
+    <string name="home_log_your_weight_once_and_weighttrack">Log your weight once and WeightTrack starts drawing the trend. A few days in, it can tell you which way you are actually going.</string>
+    <string name="home_log_your_first_weight">  Log your first weight</string>
+    <string name="home_record_your_weight">Record your weight</string>
+    <string name="home_what_you_ate_today_by_meal">What you ate today, by meal</string>
+    <string name="home_your_food_database_recipes_and_lookups">Your food database, recipes and lookups</string>
+    <string name="home_weigh_in_on_your_scale">Weigh in on your scale</string>
+    <string name="home_read_a_bluetooth_scale_straight_into">Read a Bluetooth scale straight into the log</string>
+    <string name="home_water">Water</string>
+    <string name="home_time_an_eating_window">Time an eating window</string>
+    <string name="home_progress_photos">Progress photos</string>
+    <string name="home_compare_how_you_look_over_time">Compare how you look over time</string>
+    <string name="home_trend_weight">Trend weight</string>
+    <string name="home_this_week">%1$s this week</string>
+    <string name="home_days">30 days</string>
+    <string name="home_rate_of_change">Rate of change</string>
+    <string name="home_keep_logging_a_week_of_readings">Keep logging. A week of readings is enough to work out which way the trend is going.</string>
+    <string name="home_rate">Rate</string>
+    <string name="home_energy_balance">Energy balance</string>
+    <string name="home_the_line_has_been_flat_for">The line has been flat for a couple of weeks. That is a plateau, not a failure, and it usually means intake has crept back up to maintenance.</string>
+    <string name="home_goal">Goal</string>
+    <string name="home_to_based_on_the_last_two">%1$s to %2$s, based on the last two weeks.</string>
+    <string name="home_the_trend_is_not_moving_toward">The trend is not moving toward the target yet, so there is no honest date to give you.</string>
+    <string name="home_next_milestone_away_that_is_of">Next milestone %1$s, %2$s away. That is %3$s of %4$s.</string>
+    <string name="home_share_your_progress">Share your progress</string>
+    <string name="home_body">Body</string>
+    <string name="home_measurements">Measurements</string>
+    <string name="home_add_your_height_in_settings_and">Add your height in settings and WeightTrack can work out BMI, your healthy range and how many calories you burn at rest.</string>
+    <string name="home_body_fat">Body fat</string>
+    <string name="home_at_rest">At rest</string>
+    <string name="home_maintenance">Maintenance</string>
+    <string name="home_waist_to_height">Waist to height</string>
+    <string name="home_healthy_range">Healthy range</string>
+    <string name="home_lean_and_fat_mass">Lean and fat mass</string>
+    <string name="home_include_what_i_weigh">Include what I weigh</string>
+    <string name="home_off_unless_you_turn_it_on">Off unless you turn it on, and off again next time. The card shows how far you have come, not what the scale says.</string>
+
+    <!-- lock -->
+    <string name="lock_weighttrack_is_locked">WeightTrack is locked</string>
+    <string name="lock_unlock_with_your_fingerprint_face_or">Unlock with your fingerprint, face or screen lock to see your readings.</string>
+    <string name="lock_unlock">Unlock</string>
+
+    <!-- log -->
+    <string name="log_context">Context</string>
+    <string name="log_add_note_or_body_fat">Add note or body fat</string>
+    <string name="log_note">Note</string>
+    <string name="log_body_fat">Body fat %</string>
+    <string name="log_optional_from_a_smart_scale_or">Optional, from a smart scale or a caliper reading</string>
+
+    <!-- measurements -->
+    <string name="measurements_track_more_than_the_scale">Track more than the scale</string>
+    <string name="measurements_waist_neck_and_hips_improve_your">Waist, neck and hips improve your body-fat estimate.</string>
+    <string name="measurements_body_fat_estimate">Body fat estimate</string>
+    <string name="measurements_other_measurements">Other measurements</string>
+
+    <!-- onboarding -->
+    <string name="onboarding_weighttrack">WeightTrack</string>
+    <string name="onboarding_of">%1$s of %2$s</string>
+    <string name="onboarding_no_account_no_ads_stored_on">No account · No ads · Stored on this device</string>
+    <string name="onboarding_skip">Skip</string>
+    <string name="onboarding_no_goal_for_now">No goal for now</string>
+    <string name="onboarding_your_weight_your_data">Your weight. Your data.</string>
+    <string name="onboarding_track_the_trend_without_an_account">Track the trend without an account, ads, or a subscription. Your readings stay on this phone.</string>
+    <string name="onboarding_weight">Weight</string>
+    <string name="onboarding_a_little_about_you">A little about you</string>
+    <string name="onboarding_this_is_only_used_to_work">This is only used to work out BMI, body fat and roughly how many calories you burn. Skip it and everything else still works.</string>
+    <string name="onboarding_height">Height (%1$s)</string>
+    <string name="onboarding_year_of_birth">Year of birth</string>
+    <string name="onboarding_sex">Sex</string>
+    <string name="onboarding_how_active_are_you">How active are you</string>
+    <string name="onboarding_what_do_you_weigh_today">What do you weigh today</string>
+    <string name="onboarding_one_reading_is_enough_to_start">One reading is enough to start. The trend line needs about a week before it means much, so weigh in when you can and ignore the daily jumps until then.</string>
+    <string name="onboarding_where_are_you_heading">Where are you heading</string>
+    <string name="onboarding_set_a_target_and_weighttrack_works">Set a target and WeightTrack works out a finish date from the rate you actually manage, then breaks the journey into milestones. You can change it or drop it at any time.</string>
+
+    <!-- photos -->
+    <string name="photos_gallery">  Gallery</string>
+    <string name="photos_camera">  Camera</string>
+    <string name="photos_no_photos_yet">No photos yet</string>
+    <string name="photos_photos_stay_on_this_phone_and">Photos stay on this phone and are never uploaded. Pick two to see them side by side with the weight change between them.</string>
+    <string name="photos_side_by_side">Side by side</string>
+    <string name="photos_between_these_two">%1$s between these two.</string>
+    <string name="photos_selected">Selected</string>
+
+    <!-- scale -->
+    <string name="scale_weigh_in">Weigh in</string>
+    <string name="scale_what_the_scale_measured">What the scale measured</string>
+    <string name="scale_that_looks_like_somebody_else">That looks like %1$s rather than you.</string>
+    <string name="scale_save_as_somebody">Save as %1$s</string>
+    <string name="scale_no_it_is_mine">No, it is mine</string>
+    <string name="scale_neither">Neither</string>
+    <string name="scale_that_is_a_long_way_from">That is a long way from your last reading. Record it anyway?</string>
+    <string name="scale_it_is_mine">It is mine</string>
+    <string name="scale_not_me">Not me</string>
+    <string name="scale_scales_nearby">Scales nearby</string>
+    <string name="scale_a_scale_that_broadcasts_its_weight">A scale that broadcasts its weight needs no tap here. One that does not is connected to when you pick it.</string>
+    <string name="scale_use_this_one">Use this one</string>
+    <string name="scale_forget_it">Forget it</string>
+
+    <!-- common -->
+    <string name="common_done">Done</string>
+
+    <!-- settings -->
+    <string name="settings_who_this_is_for">Who this is for</string>
+    <string name="settings_a_household_shares_a_scale_more">A household shares a scale more often than it shares a phone. Each person keeps their own readings, goal, measurements and history.</string>
+    <string name="settings_rename">Rename</string>
+    <string name="settings_add_someone">Add someone</string>
+    <string name="settings_sync_this_profile_with_health_connect">Sync this profile with Health Connect</string>
+    <string name="settings_health_connect_keeps_one_set_of">Health Connect keeps one set of weights for whoever owns the phone, so only one profile can use it.</string>
+    <string name="settings_food_logging">Food logging</string>
+    <string name="settings_keep_a_food_database">Keep a food database</string>
+    <string name="settings_off_by_default_turn_it_on">Off by default. Turn it on and a Foods screen appears, with your own foods, recipes and lookups against Open Food Facts. Meals are passed to Health Connect if you allow it, and never read back from it.</string>
+    <string name="settings_units">Units</string>
+    <string name="settings_weights_are_stored_in_grams_so">Weights are stored in grams, so switching units never changes a single reading.</string>
+    <string name="settings_appearance">Appearance</string>
+    <string name="settings_use_wallpaper_colours">Use wallpaper colours</string>
+    <string name="settings_trend_smoothing">Trend smoothing</string>
+    <string name="settings_a_shorter_window_follows_the_scale">A shorter window follows the scale more closely.</string>
+    <string name="settings_days">%1$s days</string>
+    <string name="settings_profile">Profile</string>
+    <string name="settings_only_used_to_work_out_bmi">Only used to work out BMI, body fat and how many calories you burn. It never leaves the phone.</string>
+    <string name="settings_activity_level">Activity level</string>
+    <string name="settings_weekly_summary">Weekly summary</string>
+    <string name="settings_send_a_weekly_read">Send a weekly read</string>
+    <string name="settings_a_short_note_on_how_the">A short note on how the week went, and nothing at all in a week with too few readings to say anything honest about.</string>
+    <string name="settings_your_data">Your data</string>
+    <string name="settings_weighttrack_has_no_account_and_no">WeightTrack has no account and no server. Cloud backup is switched off on purpose, so these files are how your history moves to a new phone.</string>
+    <string name="settings_back_up_everything">Back up everything</string>
+    <string name="settings_restore_from_a_backup">Restore from a backup</string>
+    <string name="settings_spreadsheets_and_other_apps">Spreadsheets and other apps</string>
+    <string name="settings_export_readings_as_csv">Export readings as CSV</string>
+    <string name="settings_export_measurements_as_csv">Export measurements as CSV</string>
+    <string name="settings_import_a_csv_from_another_app">Import a CSV from another app</string>
+    <string name="settings_exports_from_libra_happy_scale_openscale">Exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others are read automatically. Columns are matched by name and the date format is worked out from the file.</string>
+    <string name="settings_privacy">Privacy</string>
+    <string name="settings_lock_the_app">Lock the app</string>
+    <string name="settings_diagnostics">Diagnostics</string>
+    <string name="settings_if_the_app_ever_closes_unexpectedly">If the app ever closes unexpectedly, the details are written to a file here so you can send them on. Nothing is uploaded on its own.</string>
+    <string name="settings_about">About</string>
+    <string name="settings_free_and_open_source_under_the">Free and open source under the MIT licence. No ads, no subscription, no account, and nothing about you is sent anywhere.</string>
+    <string name="settings_rename_somebody">Rename %1$s</string>
+    <string name="settings_reminder_time">Reminder time</string>
+    <string name="settings_you_will_not_be_nudged_on">You will not be nudged on a day you have already weighed in.</string>
+    <string name="settings_send_a_test_notification">Send a test notification</string>
+    <string name="settings_android_is_holding_weighttrack_to_approximate">Android is holding WeightTrack to approximate alarms, so the reminder may arrive a little late. Allowing exact alarms fixes that.</string>
+    <string name="settings_open_alarm_settings">Open alarm settings</string>
+    <string name="settings_if_reminders_stop_arriving_check_that">If reminders stop arriving, check that battery optimisation is turned off for WeightTrack. Samsung and Xiaomi phones are the usual culprits.</string>
+    <string name="settings_health_connect">Health Connect</string>
+    <string name="settings_health_connect_is_not_available_on">Health Connect is not available on this device, so scale apps cannot hand readings over automatically. Everything else works as normal.</string>
+    <string name="settings_health_connect_needs_updating_before_weighttrack">Health Connect needs updating before WeightTrack can talk to it.</string>
+    <string name="settings_update">Update</string>
+    <string name="settings_pulls_readings_in_from_withings_renpho">Pulls readings in from Withings, Renpho, Samsung Health, Fitbit and anything else that writes weight, and sends yours back out. Records are matched on both sides, so nothing is ever imported twice.</string>
+    <string name="settings_meals_drinks_and_steps_are_not">Meals, drinks and steps are not shared yet. They each need their own permission.</string>
+    <string name="settings_allow_the_rest">Allow the rest</string>
+    <string name="settings_connect">Connect</string>
+    <string name="settings_name">Name</string>
+    <string name="settings_sync_between_your_devices">Sync between your devices</string>
+    <string name="settings_no_account_and_nothing_of_yours">No account and nothing of yours on anybody\'s server but your own. Each device writes one file and reads the others, so put that folder somewhere both phones can see: a Syncthing folder, or a directory on your own Nextcloud.</string>
+    <string name="settings_pick_a_folder">Pick a folder</string>
+    <string name="settings_use_webdav">Use WebDAV</string>
+    <string name="settings_pick_a_different_folder">Pick a different folder</string>
+    <string name="settings_change_the_details">Change the details</string>
+    <string name="settings_sync_in_the_background">Sync in the background</string>
+    <string name="settings_about_once_an_hour_when_the">About once an hour when the phone is charging or idle. There is always the button.</string>
+    <string name="settings_turn_off">Turn off</string>
+    <string name="settings_webdav">WebDAV</string>
+    <string name="settings_address">Address</string>
+    <string name="settings_https_cloud_example_com_remote_php">https://cloud.example.com/remote.php/dav/files/me/WeightTrack</string>
+    <string name="settings_username">Username</string>
+    <string name="settings_password">Password</string>
+    <string name="settings_on_nextcloud_make_an_app_password">On Nextcloud, make an app password rather than using your account one. It is kept on this phone and sent to that server and nowhere else.</string>
+    <string name="settings_use_this">Use this</string>
+
+    <!-- water -->
+    <string name="water_clear_day">Clear day</string>
+    <string name="water_previous_day">Previous day</string>
+    <string name="water_next_day">Next day</string>
+    <string name="water_add">Add %1$s</string>
+    <string name="water_logged">Logged</string>
+    <string name="water_one_serving">One serving</string>
+    <string name="water_the_serving_is_what_the_big">The serving is what the big button and the home screen widget add.</string>
+    <string name="water_recent_days">Recent days</string>
+    <!-- food messages -->
+    <string name="food_could_not_reach_open_food_facts">Could not reach Open Food Facts.</string>
+    <string name="food_nothing_found_for">Nothing found for "%1$s".</string>
+    <string name="food_is_already_in_your_foods">%1$s is already in your foods.</string>
+    <string name="food_added_to_your_foods">%1$s added to your foods.</string>
+    <string name="food_too_many_lookups_just_now_try">Too many lookups just now. Try again in a moment.</string>
+    <string name="food_no_food_found_for_that_barcode">No food found for that barcode.</string>
+    <string name="food_saved_to_your_foods">%1$s saved to your foods.</string>
+    <string name="food_added">%1$s added.</string>
+    <string name="food_saved">%1$s saved.</string>
+
+    <!-- settings messages -->
+    <string name="settings_health_connect_access_was_not_granted">Health Connect access was not granted, so nothing was synced.</string>
+    <string name="settings_switched_to_somebody">Switched to %1$s</string>
+    <string name="settings_there_has_to_be_somebody_add">There has to be somebody. Add another profile first.</string>
+    <string name="settings_sync_turned_off_nothing_was_deleted">Sync turned off. Nothing was deleted.</string>
+    <string name="settings_pick_somewhere_to_sync_to_first">Pick somewhere to sync to first.</string>
+    <string name="settings_sync_could_not_finish_nothing_was">Sync could not finish. Nothing was lost, and it will try again.</string>
+
+    <string name="food_open_food_facts_asks_for_a_moment">Open Food Facts asks for a moment. Try again in %1$s seconds.</string>
+    <string name="diary_target_cleared">Target cleared.</string>
+    <string name="diary_that_day_is_back_on_the_everyday_target">That day is back on the everyday target.</string>
+    <!-- diary messages -->
+    <string name="diary_nothing_to_copy_from_the_day">Nothing to copy from the day before.</string>
+    <string name="diary_copied_things_from_yesterday">Copied %1$s things from yesterday.</string>
+    <string name="diary_copied_yesterday_s">Copied yesterday\'s %1$s.</string>
+    <string name="diary_target_set_for_every_day">Target set for every %1$s.</string>
+    <string name="diary_daily_target_set">Daily target set.</string>
+    <string name="diary_target_set_to_kcal">Target set to %1$s kcal.</string>
+
+    <!-- fasting messages -->
+    <string name="fasting_that_fast_would_end_before_it">That fast would end before it started, so it was not saved.</string>
+    <string name="fasting_that_fast_is_no_longer_here">That fast is no longer here, so there was nothing to change.</string>
+
+    <!-- food messages -->
+    <string name="food_usda_key_cleared">USDA key cleared.</string>
+    <string name="food_usda_key_saved_ingredient_searches_will">USDA key saved. Ingredient searches will include it.</string>
+
+    <!-- settings messages -->
+    <string name="settings_reminders_turned_off_for_somebody">Reminders turned off for %1$s.</string>
+    <string name="settings_next_reminder_for_somebody">Next reminder for %1$s %2$s.</string>
+    <string name="settings_pick_at_least_one_day_for">Pick at least one day for the reminder.</string>
+    <string name="settings_health_connect_now_exchanges_weights_for">Health Connect now exchanges weights for this profile only.</string>
+    <string name="settings_health_connect_is_no_longer_tied">Health Connect is no longer tied to a profile, so nothing is synced.</string>
+    <string name="settings_weekly_summary_turned_off">Weekly summary turned off.</string>
+    <string name="settings_next_summary_when">Next summary %1$s.</string>
+    <string name="settings_weekly_summary_turned_on">Weekly summary turned on.</string>
+    <string name="settings_app_lock_is_on_you_will">App lock is on. You will be asked to unlock each time you come back.</string>
+    <string name="settings_app_lock_is_off">App lock is off.</string>
+    <string name="settings_test_notification_sent">Test notification sent.</string>
+    <string name="settings_android_is_blocking_notifications_for_weighttrack">Android is blocking notifications for WeightTrack. Turn them on in system settings.</string>
+    <string name="settings_exported_readings">Exported %1$s readings.</string>
+    <string name="settings_export_failed">Export failed: %1$s</string>
+    <string name="settings_backed_up_readings_plus_measurements_goal">Backed up %1$s readings, plus measurements, goal and settings.</string>
+    <string name="settings_backup_failed">Backup failed: %1$s</string>
+    <string name="settings_exported_measurements">Exported %1$s measurements.</string>
+    <string name="settings_imported_readings">Imported %1$s readings</string>
+    <string name="settings_import_failed">Import failed: %1$s</string>
+    <string name="settings_restored_readings_and_measurements">Restored %1$s readings and %2$s measurements.</string>
+    <string name="settings_restore_failed">Restore failed: %1$s</string>
+    <string name="settings_health_connect_brought_in_sent_out">Health Connect: brought in %1$s, sent out %2$s.</string>
+    <string name="settings_health_connect_sync_failed">Health Connect sync failed: %1$s</string>
+    <string name="settings_something_went_wrong">Something went wrong: %1$s</string>
+    <string name="settings_deleted_and_everything_recorded_for_them">Deleted %1$s and everything recorded for them</string>
+    <!-- fasting labels -->
+    <string name="fasting_no_target">no target</string>
+    <string name="fasting_hour">1 hour</string>
+    <string name="fasting_hours">%1$s hours</string>
+    <string name="fasting_minutes">%1$s minutes</string>
+    <string name="fasting_h_m">%1$sh %2$sm</string>
+
+    <!-- common labels -->
+    <string name="common_today">Today</string>
+    <string name="common_yesterday">Yesterday</string>
+    <string name="common_days_ago">%1$s days ago</string>
+    <string name="common_any_day_now">Any day now</string>
+    <string name="common_tomorrow">Tomorrow</string>
+    <string name="common_in_days">In %1$s days</string>
+    <string name="common_in_weeks">In %1$s weeks</string>
+    <string name="common_today_2">today</string>
+    <string name="common_yesterday_2">yesterday</string>
+    <string name="common_a_week_ago">a week ago</string>
+    <string name="common_weeks_ago">%1$s weeks ago</string>
+    <string name="common_months_ago">%1$s months ago</string>
+
+    <!-- goal labels -->
+    <string name="goal_to_lose">↓ %1$s to lose</string>
+    <string name="goal_to_gain">↑ %1$s to gain</string>
+    <string name="goal_holding_steady_at_your_current_weight">Holding steady at your current weight.</string>
+
+    <!-- history labels -->
+    <string name="history_manual">manual</string>
+    <string name="history_health_connect">Health Connect</string>
+    <string name="history_imported">imported</string>
+    <string name="history_scale">scale</string>
+
+    <!-- home labels -->
+    <string name="home_reached">Reached</string>
+    <string name="home_not_on_this_trend">Not on this trend</string>
+    <string name="home_projected">Projected %1$s</string>
+    <string name="home_from_your_reading">from your reading</string>
+    <string name="home_estimated_from_measurements">estimated from measurements</string>
+    <string name="home_underweight">underweight</string>
+    <string name="home_healthy">healthy</string>
+    <string name="home_overweight">overweight</string>
+    <string name="home_obese_class">obese, class 1</string>
+    <string name="home_obese_class_2">obese, class 2</string>
+    <string name="home_obese_class_3">obese, class 3</string>
+    <string name="home_low">low</string>
+    <string name="home_increased_risk">increased risk</string>
+    <string name="home_high_risk">high risk</string>
+
+    <!-- log labels -->
+    <string name="log_post_workout">Post workout</string>
+    <string name="log_fasted">Fasted</string>
+    <string name="log_well_hydrated">Well hydrated</string>
+    <string name="log_travel">Travel</string>
+    <string name="log_alcohol">Alcohol</string>
+    <string name="log_high_salt">High salt</string>
+    <string name="log_period">Period</string>
+    <string name="log_ill">Ill</string>
+    <string name="log_poor_sleep">Poor sleep</string>
+    <string name="log_stressed">Stressed</string>
+
+    <!-- measurements labels -->
+    <string name="measurements_neck">Neck</string>
+    <string name="measurements_shoulders">Shoulders</string>
+    <string name="measurements_chest">Chest</string>
+    <string name="measurements_waist">Waist</string>
+    <string name="measurements_hips">Hips</string>
+    <string name="measurements_left_arm">Left arm</string>
+    <string name="measurements_right_arm">Right arm</string>
+    <string name="measurements_left_forearm">Left forearm</string>
+    <string name="measurements_right_forearm">Right forearm</string>
+    <string name="measurements_left_thigh">Left thigh</string>
+    <string name="measurements_right_thigh">Right thigh</string>
+    <string name="measurements_left_calf">Left calf</string>
+    <string name="measurements_right_calf">Right calf</string>
+    <string name="measurements_just_below_the_larynx_tape_sloping">Just below the larynx, tape sloping slightly down at the front.</string>
+    <string name="measurements_at_the_navel_for_men_at">At the navel for men, at the narrowest point for women. Relaxed, not held in.</string>
+    <string name="measurements_around_the_widest_part_of_the">Around the widest part of the buttocks.</string>
+    <string name="measurements_around_the_fullest_part_arms_relaxed">Around the fullest part, arms relaxed at your sides.</string>
+    <string name="measurements_around_the_widest_point_tape_level">Around the widest point, tape level all the way round.</string>
+    <string name="measurements_same_spot_each_time_tape_snug">Same spot each time, tape snug but not tight.</string>
+
+    <!-- onboarding labels -->
+    <string name="onboarding_finish">Finish</string>
+    <string name="onboarding_continue">Continue</string>
+    <string name="onboarding_kilograms">Kilograms</string>
+    <string name="onboarding_pounds">Pounds</string>
+    <string name="onboarding_stones">Stones</string>
+    <string name="onboarding_sedentary">Sedentary</string>
+    <string name="onboarding_light">Light</string>
+    <string name="onboarding_moderate">Moderate</string>
+    <string name="onboarding_active">Active</string>
+    <string name="onboarding_very_active">Very active</string>
+
+    <!-- scale labels -->
+    <string name="scale_nothing_to_listen_with">Nothing to listen with</string>
+    <string name="scale_looking_for_your_scale">Looking for your scale</string>
+    <string name="scale_step_on_the_scale">Step on the scale</string>
+    <string name="scale_whose_is_this">Whose is this?</string>
+    <string name="scale_is_this_you">Is this you?</string>
+    <string name="scale_recording">Recording</string>
+    <string name="scale_saved">Saved</string>
+    <string name="scale_this_phone_has_no_bluetooth_so">This phone has no Bluetooth, so it cannot reach a scale. You can still enter a weight by hand.</string>
+    <string name="scale_bluetooth_is_switched_off_turn_it">Bluetooth is switched off. Turn it on and try again.</string>
+    <string name="scale_finding_a_scale_needs_permission_to">Finding a scale needs permission to look for nearby devices. It is used only while this screen is open, and nothing about your location is read.</string>
+    <string name="scale_android_would_not_start_the_search">Android would not start the search. Try again in a moment.</string>
+    <string name="scale_the_scale_stopped_talking_before_it">The scale stopped talking before it sent a weight.</string>
+    <string name="scale_something_went_wrong">Something went wrong.</string>
+
+    <!-- settings labels -->
+    <string name="settings_asks_for_your_fingerprint_face_or">Asks for your fingerprint, face or screen lock every time you come back to WeightTrack.</string>
+    <string name="settings_set_a_screen_lock_in_android">Set a screen lock in Android settings and WeightTrack can lock itself behind it too.</string>
+    <string name="settings_this_device_has_no_screen_lock">This device has no screen lock or biometric WeightTrack can use, so the app lock is unavailable here.</string>
+    <string name="settings_android_has_switched_this_phone_s">Android has switched this phone\'s biometric sensor off until a security update arrives, and there is no screen lock to fall back on. WeightTrack opens without asking until one of those is sorted out, rather than locking you out of your own history.</string>
+    <string name="settings_android_cannot_check_your_fingerprint_or">Android cannot check your fingerprint or screen lock at the moment. Come back in a minute and the setting will be here.</string>
+    <string name="settings_crash_reports_none">Crash reports (none)</string>
+    <string name="settings_crash_reports">Crash reports (1)</string>
+    <string name="settings_crash_reports_2">Crash reports (%1$s)</string>
+    <string name="settings_centimetres">Centimetres</string>
+    <string name="settings_inches">Inches</string>
+    <string name="settings_follow_system">Follow system</string>
+    <string name="settings_dark">Dark</string>
+    <string name="settings_black">Black</string>
+    <string name="settings_male">Male</string>
+    <string name="settings_female">Female</string>
+    <string name="settings_lightly_active">Lightly active</string>
+    <string name="settings_moderately_active">Moderately active</string>
+    <!-- the bar along the bottom -->
+    <string name="nav_home">Home</string>
+    <string name="nav_charts">Charts</string>
+    <string name="nav_history">History</string>
+    <string name="nav_settings">Settings</string>
+    <!-- sync -->
+    <string name="sync_up_to_date">Already up to date.</string>
+    <string name="sync_changed">Synced %1$s changes across %2$s devices.</string>
+    <string name="sync_orphaned">Synced, but %1$s records belong to a profile that no longer exists.</string>
+    <string name="sync_folder_gone">That folder cannot be opened any more. Pick it again.</string>
+    <string name="sync_could_not_read_folder">Could not read the folder.</string>
+    <string name="sync_could_not_read_file">Could not read %1$s.</string>
+    <string name="sync_could_not_write_file">Could not write %1$s.</string>
+    <string name="sync_wrong_password">The server would not accept that username and password.</string>
+    <string name="sync_address_missing">That address is not there.</string>
+    <string name="sync_server_unreachable">Could not reach the server.</string>
+    <string name="sync_server_full">The server has no room left.</string>
+    <string name="sync_server_answered">The server answered %1$s.</string>
 </resources>

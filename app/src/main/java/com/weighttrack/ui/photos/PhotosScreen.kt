@@ -51,8 +51,10 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.weighttrack.R
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.repo.ProgressPhoto
 import com.weighttrack.ui.components.EmptyState
@@ -96,15 +98,15 @@ fun PhotosScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Progress photos") },
+                title = { Text(stringResource(R.string.home_progress_photos)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     if (state.selectedIds.isNotEmpty()) {
-                        TextButton(onClick = onClearSelection) { Text("Clear") }
+                        TextButton(onClick = onClearSelection) { Text(stringResource(R.string.goal_clear)) }
                     }
                 },
             )
@@ -124,14 +126,14 @@ fun PhotosScreen(
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Outlined.PhotoLibrary, contentDescription = null)
-                    Text("  Gallery")
+                    Text(stringResource(R.string.photos_gallery))
                 }
                 OutlinedButton(
                     onClick = { takePhoto.launch(captureUri(context, onPrepareCapture())) },
                     modifier = Modifier.weight(1f),
                 ) {
                     Icon(Icons.Outlined.PhotoCamera, contentDescription = null)
-                    Text("  Camera")
+                    Text(stringResource(R.string.photos_camera))
                 }
             }
 
@@ -142,8 +144,8 @@ fun PhotosScreen(
             if (state.photos.isEmpty()) {
                 EmptyState(
                     icon = Icons.Outlined.PhotoCamera,
-                    title = "No photos yet",
-                    message = "Photos stay on this phone and are never uploaded. Pick two to see them side by side with the weight change between them.",
+                    title = stringResource(R.string.photos_no_photos_yet),
+                    message = stringResource(R.string.photos_photos_stay_on_this_phone_and),
                     modifier = Modifier.padding(top = 32.dp),
                 )
                 return@Column
@@ -189,7 +191,7 @@ private fun ComparisonCard(
     today: LocalDate,
 ) {
     SectionCard(modifier = Modifier.padding(horizontal = 16.dp)) {
-        SectionHeading("Side by side")
+        SectionHeading(stringResource(R.string.photos_side_by_side))
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             listOf(before, after).forEach { photo ->
@@ -217,7 +219,7 @@ private fun ComparisonCard(
         if (from != null && to != null) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "${WeightFormatter.delta((to - from).toDouble(), unit)} between these two.",
+                text = stringResource(R.string.photos_between_these_two, WeightFormatter.delta((to - from).toDouble(), unit)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -275,7 +277,7 @@ private fun PhotoTile(
             ) {
                 Icon(
                     Icons.Filled.Check,
-                    contentDescription = "Selected",
+                    contentDescription = stringResource(R.string.photos_selected),
                     tint = MaterialTheme.colorScheme.onPrimary,
                     modifier = Modifier.size(15.dp),
                 )

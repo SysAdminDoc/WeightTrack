@@ -28,6 +28,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.weighttrack.R
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -113,7 +115,12 @@ fun WeightTrackApp(
         topBar = {
             if (topLevel != null) {
                 TopAppBar(
-                    title = { Text(topLevel.label, style = MaterialTheme.typography.headlineMedium) },
+                    title = {
+                        Text(
+                            stringResource(topLevel.label),
+                            style = MaterialTheme.typography.headlineMedium,
+                        )
+                    },
                     actions = {
                         if (topLevel == TopLevelDestination.HOME) {
                             Row(
@@ -127,7 +134,7 @@ fun WeightTrackApp(
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                                 Text(
-                                    "Privacy first",
+                                    stringResource(R.string.app_privacy_first),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
@@ -159,7 +166,7 @@ fun WeightTrackApp(
                                 }
                             },
                             icon = { Icon(destination.icon, contentDescription = null) },
-                            label = { Text(destination.label) },
+                            label = { Text(stringResource(destination.label)) },
                             colors = NavigationBarItemDefaults.colors(
                                 selectedIconColor = MaterialTheme.colorScheme.primary,
                                 selectedTextColor = MaterialTheme.colorScheme.primary,
@@ -182,7 +189,7 @@ fun WeightTrackApp(
                         pressedElevation = 2.dp,
                     ),
                 ) {
-                    Icon(Icons.Filled.Add, contentDescription = "Log weight")
+                    Icon(Icons.Filled.Add, contentDescription = stringResource(R.string.app_log_weight))
                 }
             }
         },

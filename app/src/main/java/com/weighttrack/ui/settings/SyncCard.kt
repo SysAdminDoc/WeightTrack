@@ -18,8 +18,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.data.sync.SyncMode
 import com.weighttrack.data.sync.SyncSettings
 import com.weighttrack.ui.components.LabelledValue
@@ -46,10 +48,10 @@ fun SyncCard(
     var editingWebDav by remember { mutableStateOf(false) }
 
     SettingsSection {
-        SectionHeading("Sync between your devices")
+        SectionHeading(stringResource(R.string.settings_sync_between_your_devices))
         Spacer(Modifier.height(6.dp))
         Text(
-            text = "No account and nothing of yours on anybody's server but your own. Each device writes one file and reads the others, so put that folder somewhere both phones can see: a Syncthing folder, or a directory on your own Nextcloud.",
+            text = stringResource(R.string.settings_no_account_and_nothing_of_yours),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -58,22 +60,22 @@ fun SyncCard(
         when (settings.mode) {
             SyncMode.OFF -> {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(onClick = onPickFolder) { Text("Pick a folder") }
-                    OutlinedButton(onClick = { editingWebDav = true }) { Text("Use WebDAV") }
+                    Button(onClick = onPickFolder) { Text(stringResource(R.string.settings_pick_a_folder)) }
+                    OutlinedButton(onClick = { editingWebDav = true }) { Text(stringResource(R.string.settings_use_webdav)) }
                 }
             }
             SyncMode.FOLDER -> {
                 LabelledValue("Folder", folderName ?: "Chosen")
                 SyncStatus(settings, syncing, onSyncNow, onTurnOff, onBackgroundChange)
                 Spacer(Modifier.height(6.dp))
-                TextButton(onClick = onPickFolder) { Text("Pick a different folder") }
+                TextButton(onClick = onPickFolder) { Text(stringResource(R.string.settings_pick_a_different_folder)) }
             }
             SyncMode.WEBDAV -> {
                 LabelledValue("Server", settings.webDavUrl.orEmpty())
                 LabelledValue("Username", settings.webDavUser.orEmpty())
                 SyncStatus(settings, syncing, onSyncNow, onTurnOff, onBackgroundChange)
                 Spacer(Modifier.height(6.dp))
-                TextButton(onClick = { editingWebDav = true }) { Text("Change the details") }
+                TextButton(onClick = { editingWebDav = true }) { Text(stringResource(R.string.settings_change_the_details)) }
             }
         }
     }
@@ -108,14 +110,14 @@ private fun SyncStatus(
     }
     Spacer(Modifier.height(8.dp))
     SyncToggleRow(
-        label = "Sync in the background",
+        label = stringResource(R.string.settings_sync_in_the_background),
         checked = settings.syncInBackground,
         onCheckedChange = onBackgroundChange,
     )
     Text(
         // Deliberately not a promise about when. Android decides, and saying "every hour" when
         // the phone might sleep through four of them would be a lie somebody could catch.
-        text = "About once an hour when the phone is charging or idle. There is always the button.",
+        text = stringResource(R.string.settings_about_once_an_hour_when_the),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -124,7 +126,7 @@ private fun SyncStatus(
         Button(onClick = onSyncNow, enabled = !syncing) {
             Text(if (syncing) "Syncing" else "Sync now")
         }
-        OutlinedButton(onClick = onTurnOff) { Text("Turn off") }
+        OutlinedButton(onClick = onTurnOff) { Text(stringResource(R.string.settings_turn_off)) }
     }
 }
 
@@ -140,7 +142,7 @@ private fun WebDavDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("WebDAV") },
+        title = { Text(stringResource(R.string.settings_webdav)) },
         text = {
             androidx.compose.foundation.layout.Column {
                 OutlinedTextField(
@@ -148,8 +150,8 @@ private fun WebDavDialog(
                     onValueChange = { url = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Address") },
-                    placeholder = { Text("https://cloud.example.com/remote.php/dav/files/me/WeightTrack") },
+                    label = { Text(stringResource(R.string.settings_address)) },
+                    placeholder = { Text(stringResource(R.string.settings_https_cloud_example_com_remote_php)) },
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -157,7 +159,7 @@ private fun WebDavDialog(
                     onValueChange = { user = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Username") },
+                    label = { Text(stringResource(R.string.settings_username)) },
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
@@ -166,13 +168,13 @@ private fun WebDavDialog(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     visualTransformation = PasswordVisualTransformation(),
-                    label = { Text("Password") },
+                    label = { Text(stringResource(R.string.settings_password)) },
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
                     // Worth saying plainly. An app password can be revoked on its own, and this
                     // one is stored on the phone in the app's own data.
-                    text = "On Nextcloud, make an app password rather than using your account one. It is kept on this phone and sent to that server and nowhere else.",
+                    text = stringResource(R.string.settings_on_nextcloud_make_an_app_password),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -182,9 +184,9 @@ private fun WebDavDialog(
             TextButton(
                 onClick = { onConfirm(url, user, password) },
                 enabled = url.isNotBlank() && user.isNotBlank() && password.isNotBlank(),
-            ) { Text("Use this") }
+            ) { Text(stringResource(R.string.settings_use_this)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 

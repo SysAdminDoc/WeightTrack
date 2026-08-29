@@ -31,8 +31,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
@@ -57,10 +59,10 @@ fun MeasurementsScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Measurements") },
+                title = { Text(stringResource(R.string.home_measurements)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
                     }
                 },
             )
@@ -84,10 +86,10 @@ fun MeasurementsScreen(
                             modifier = Modifier.size(32.dp),
                         )
                         Column {
-                            Text("Track more than the scale", style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(R.string.measurements_track_more_than_the_scale), style = MaterialTheme.typography.titleMedium)
                             Spacer(Modifier.height(2.dp))
                             Text(
-                                text = "Waist, neck and hips improve your body-fat estimate.",
+                                text = stringResource(R.string.measurements_waist_neck_and_hips_improve_your),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -96,7 +98,7 @@ fun MeasurementsScreen(
                 }
             }
 
-            item { SectionHeading("Body fat estimate", Modifier.padding(top = 8.dp)) }
+            item { SectionHeading(stringResource(R.string.measurements_body_fat_estimate), Modifier.padding(top = 8.dp)) }
             item {
                 MeasurementGroup(
                     types = MeasurementType.entries.filter { it.usedForBodyFat },
@@ -106,7 +108,7 @@ fun MeasurementsScreen(
                 )
             }
 
-            item { SectionHeading("Other measurements", Modifier.padding(top = 12.dp)) }
+            item { SectionHeading(stringResource(R.string.measurements_other_measurements), Modifier.padding(top = 12.dp)) }
             item {
                 MeasurementGroup(
                     types = MeasurementType.entries.filter { !it.usedForBodyFat },
@@ -141,8 +143,8 @@ fun MeasurementsScreen(
                     )
                 }
             },
-            confirmButton = { TextButton(onClick = onSaveEditor) { Text("Save") } },
-            dismissButton = { TextButton(onClick = onCancelEditing) { Text("Cancel") } },
+            confirmButton = { TextButton(onClick = onSaveEditor) { Text(stringResource(R.string.common_save)) } },
+            dismissButton = { TextButton(onClick = onCancelEditing) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
 }
@@ -215,27 +217,29 @@ private fun MeasurementRow(
     }
 }
 
+@Composable
 fun measurementLabel(type: MeasurementType): String = when (type) {
-    MeasurementType.NECK -> "Neck"
-    MeasurementType.SHOULDERS -> "Shoulders"
-    MeasurementType.CHEST -> "Chest"
-    MeasurementType.WAIST -> "Waist"
-    MeasurementType.HIPS -> "Hips"
-    MeasurementType.LEFT_ARM -> "Left arm"
-    MeasurementType.RIGHT_ARM -> "Right arm"
-    MeasurementType.LEFT_FOREARM -> "Left forearm"
-    MeasurementType.RIGHT_FOREARM -> "Right forearm"
-    MeasurementType.LEFT_THIGH -> "Left thigh"
-    MeasurementType.RIGHT_THIGH -> "Right thigh"
-    MeasurementType.LEFT_CALF -> "Left calf"
-    MeasurementType.RIGHT_CALF -> "Right calf"
+    MeasurementType.NECK -> stringResource(R.string.measurements_neck)
+    MeasurementType.SHOULDERS -> stringResource(R.string.measurements_shoulders)
+    MeasurementType.CHEST -> stringResource(R.string.measurements_chest)
+    MeasurementType.WAIST -> stringResource(R.string.measurements_waist)
+    MeasurementType.HIPS -> stringResource(R.string.measurements_hips)
+    MeasurementType.LEFT_ARM -> stringResource(R.string.measurements_left_arm)
+    MeasurementType.RIGHT_ARM -> stringResource(R.string.measurements_right_arm)
+    MeasurementType.LEFT_FOREARM -> stringResource(R.string.measurements_left_forearm)
+    MeasurementType.RIGHT_FOREARM -> stringResource(R.string.measurements_right_forearm)
+    MeasurementType.LEFT_THIGH -> stringResource(R.string.measurements_left_thigh)
+    MeasurementType.RIGHT_THIGH -> stringResource(R.string.measurements_right_thigh)
+    MeasurementType.LEFT_CALF -> stringResource(R.string.measurements_left_calf)
+    MeasurementType.RIGHT_CALF -> stringResource(R.string.measurements_right_calf)
 }
 
+@Composable
 private fun measurementHint(type: MeasurementType): String = when (type) {
-    MeasurementType.NECK -> "Just below the larynx, tape sloping slightly down at the front."
-    MeasurementType.WAIST -> "At the navel for men, at the narrowest point for women. Relaxed, not held in."
-    MeasurementType.HIPS -> "Around the widest part of the buttocks."
-    MeasurementType.CHEST -> "Around the fullest part, arms relaxed at your sides."
-    MeasurementType.SHOULDERS -> "Around the widest point, tape level all the way round."
-    else -> "Same spot each time, tape snug but not tight."
+    MeasurementType.NECK -> stringResource(R.string.measurements_just_below_the_larynx_tape_sloping)
+    MeasurementType.WAIST -> stringResource(R.string.measurements_at_the_navel_for_men_at)
+    MeasurementType.HIPS -> stringResource(R.string.measurements_around_the_widest_part_of_the)
+    MeasurementType.CHEST -> stringResource(R.string.measurements_around_the_fullest_part_arms_relaxed)
+    MeasurementType.SHOULDERS -> stringResource(R.string.measurements_around_the_widest_point_tape_level)
+    else -> stringResource(R.string.measurements_same_spot_each_time_tape_snug)
 }

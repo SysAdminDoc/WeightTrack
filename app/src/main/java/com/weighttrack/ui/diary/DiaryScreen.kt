@@ -35,7 +35,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.MacroBasis
 import com.weighttrack.core.nutrition.MacroTarget
@@ -88,10 +90,10 @@ fun DiaryScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Food diary") },
+                title = { Text(stringResource(R.string.diary_food_diary)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -109,12 +111,12 @@ fun DiaryScreen(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        TextButton(onClick = onPreviousDay) { Text("Previous") }
+                        TextButton(onClick = onPreviousDay) { Text(stringResource(R.string.common_previous)) }
                         Text(
                             text = DateFormatters.relativeDay(state.date, today),
                             style = MaterialTheme.typography.titleMedium,
                         )
-                        TextButton(onClick = onNextDay, enabled = !state.isToday) { Text("Next") }
+                        TextButton(onClick = onNextDay, enabled = !state.isToday) { Text(stringResource(R.string.common_next)) }
                     }
                     Spacer(Modifier.height(6.dp))
                     Column(
@@ -127,7 +129,7 @@ fun DiaryScreen(
                             color = MaterialTheme.colorScheme.onSurface,
                         )
                         Text(
-                            text = "kcal",
+                            text = stringResource(R.string.diary_kcal),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -152,7 +154,7 @@ fun DiaryScreen(
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(onClick = { onCopyYesterday(null) }) {
-                            Text("Copy the day before")
+                            Text(stringResource(R.string.diary_copy_the_day_before))
                         }
                         OutlinedButton(onClick = { editingTarget = true }) {
                             Text(if (state.target == null) "Set a target" else "Target")
@@ -164,10 +166,10 @@ fun DiaryScreen(
             state.expenditure?.let { estimate ->
                 item {
                     SectionCard {
-                        SectionHeading("What you burn")
+                        SectionHeading(stringResource(R.string.diary_what_you_burn))
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "About ${estimate.rounded} kcal a day.",
+                            text = stringResource(R.string.diary_about_kcal_a_day, estimate.rounded),
                             style = MaterialTheme.typography.titleMedium,
                         )
                         Text(
@@ -196,7 +198,7 @@ fun DiaryScreen(
                             if (!recommended.cappedAtMinimum) {
                                 Spacer(Modifier.height(6.dp))
                                 OutlinedButton(onClick = onUseRecommendation) {
-                                    Text("Make that my target")
+                                    Text(stringResource(R.string.diary_make_that_my_target))
                                 }
                             }
                         }
@@ -214,7 +216,7 @@ fun DiaryScreen(
                         ) {
                             SectionHeading(meal.label)
                             Text(
-                                text = "${state.day.totalFor(meal).kcal.roundToInt()} kcal",
+                                text = stringResource(R.string.diary_kcal_2, state.day.totalFor(meal).kcal.roundToInt()),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -236,17 +238,17 @@ fun DiaryScreen(
                                     )
                                 }
                                 TextButton(onClick = { onDelete(entry) }) {
-                                    Text("Remove", color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(R.string.common_remove), color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
                         Spacer(Modifier.height(4.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { adding = meal }) { Text("Add") }
-                            OutlinedButton(onClick = { quickAdding = meal }) { Text("Quick add") }
+                            Button(onClick = { adding = meal }) { Text(stringResource(R.string.common_add)) }
+                            OutlinedButton(onClick = { quickAdding = meal }) { Text(stringResource(R.string.diary_quick_add)) }
                             if (state.day.forMeal(meal).isEmpty()) {
                                 TextButton(onClick = { onCopyYesterday(meal) }) {
-                                    Text("Same as yesterday")
+                                    Text(stringResource(R.string.diary_same_as_yesterday))
                                 }
                             }
                         }
@@ -336,7 +338,7 @@ private fun AddFromFoodsDialog(
         val shown = if (results.isNotEmpty()) results else suggestions
         AlertDialog(
             onDismissRequest = onCancel,
-            title = { Text("Add to ${meal.label.lowercase()}") },
+            title = { Text(stringResource(R.string.diary_add_to, meal.label.lowercase())) },
             text = {
                 Column {
                     OutlinedTextField(
@@ -344,12 +346,12 @@ private fun AddFromFoodsDialog(
                         onValueChange = onQueryChange,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Search") },
+                        label = { Text(stringResource(R.string.diary_search)) },
                     )
                     Spacer(Modifier.height(8.dp))
                     if (shown.isEmpty()) {
                         Text(
-                            text = "Nothing to add yet. Add a food or scan a barcode on the Foods screen first.",
+                            text = stringResource(R.string.diary_nothing_to_add_yet_add_a),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -376,7 +378,7 @@ private fun AddFromFoodsDialog(
                 }
             },
             confirmButton = {},
-            dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
         )
     } else {
         val amount = grams.toDoubleOrNull()
@@ -390,18 +392,18 @@ private fun AddFromFoodsDialog(
                         onValueChange = { grams = keepNumeric(it) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Grams") },
+                        label = { Text(stringResource(R.string.diary_grams)) },
                     )
                     Spacer(Modifier.height(6.dp))
                     food.servingGrams?.let {
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             SegmentButton(
-                                label = "1 serving",
+                                label = stringResource(R.string.diary_serving),
                                 selected = amount == it,
                                 onClick = { grams = it.roundToInt().toString() },
                             )
                             SegmentButton(
-                                label = "2 servings",
+                                label = stringResource(R.string.diary_servings),
                                 selected = amount == it * 2,
                                 onClick = { grams = (it * 2).roundToInt().toString() },
                             )
@@ -421,9 +423,9 @@ private fun AddFromFoodsDialog(
                 TextButton(
                     enabled = amount != null && amount > 0,
                     onClick = { onLog(food, amount ?: 0.0) },
-                ) { Text("Add") }
+                ) { Text(stringResource(R.string.common_add)) }
             },
-            dismissButton = { TextButton(onClick = { chosen = null }) { Text("Back") } },
+            dismissButton = { TextButton(onClick = { chosen = null }) { Text(stringResource(R.string.common_back)) } },
         )
     }
 }
@@ -436,12 +438,12 @@ private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, Str
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Quick add to ${meal.label.lowercase()}") },
+        title = { Text(stringResource(R.string.diary_quick_add_to, meal.label.lowercase())) },
         text = {
             Column {
                 Text(
                     // The escape hatch that stops a food log becoming a chore.
-                    text = "A meal out has no barcode. Put in roughly what it was and get on with your day.",
+                    text = stringResource(R.string.diary_a_meal_out_has_no_barcode),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -451,14 +453,14 @@ private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, Str
                     onValueChange = { kcal = keepNumeric(it) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Calories") },
+                    label = { Text(stringResource(R.string.diary_calories)) },
                 )
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("What was it (optional)") },
+                    label = { Text(stringResource(R.string.diary_what_was_it_optional)) },
                 )
             }
         },
@@ -466,9 +468,9 @@ private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, Str
             TextButton(
                 enabled = amount != null && amount > 0,
                 onClick = { onAdd(amount ?: 0.0, name) },
-            ) { Text("Add") }
+            ) { Text(stringResource(R.string.common_add)) }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -506,7 +508,7 @@ private fun TargetDialog(
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Daily target") },
+        title = { Text(stringResource(R.string.diary_daily_target)) },
         text = {
             Column {
                 OutlinedTextField(
@@ -514,7 +516,7 @@ private fun TargetDialog(
                     onValueChange = { kcal = keepNumeric(it) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Calories") },
+                    label = { Text(stringResource(R.string.diary_calories)) },
                 )
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -533,32 +535,35 @@ private fun TargetDialog(
                     onValueChange = { protein = keepNumeric(it) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Protein $suffix (optional)") },
+                    label = { Text(stringResource(R.string.diary_protein_optional, suffix)) },
                 )
                 OutlinedTextField(
                     value = carbs,
                     onValueChange = { carbs = keepNumeric(it) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Carbohydrate $suffix (optional)") },
+                    label = { Text(stringResource(R.string.diary_carbohydrate_optional, suffix)) },
                 )
                 OutlinedTextField(
                     value = fat,
                     onValueChange = { fat = keepNumeric(it) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    label = { Text("Fat $suffix (optional)") },
+                    label = { Text(stringResource(R.string.diary_fat_optional, suffix)) },
                 )
                 Spacer(Modifier.height(6.dp))
                 SegmentButton(
-                    label = "Only on a " + day.name.lowercase().replaceFirstChar(Char::uppercase),
+                    label = stringResource(
+                        R.string.diary_only_on_a_day,
+                        day.name.lowercase().replaceFirstChar(Char::uppercase),
+                    ),
                     selected = justThisDay,
                     onClick = { justThisDay = !justThisDay },
                 )
                 Spacer(Modifier.height(4.dp))
                 Text(
                     // Eating the same on a rest day as on a long run is what this is for.
-                    text = "Leave that off and this is the target for every day that has not got one of its own.",
+                    text = stringResource(R.string.diary_leave_that_off_and_this_is),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -577,9 +582,9 @@ private fun TargetDialog(
                         day.takeIf { justThisDay },
                     )
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 

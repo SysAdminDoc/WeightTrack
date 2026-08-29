@@ -3,6 +3,7 @@ package com.weighttrack.ui.settings
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.weighttrack.R
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -20,6 +21,7 @@ import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.notifications.ReminderScheduler
 import com.weighttrack.notifications.WeeklySummaryScheduler
+import com.weighttrack.ui.AppStrings
 import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
@@ -49,6 +51,7 @@ data class HealthConnectState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val strings: AppStrings,
     private val syncPreferences: com.weighttrack.data.sync.SyncPreferences,
     private val syncEngine: com.weighttrack.data.sync.SyncEngine,
     private val syncScheduler: com.weighttrack.sync.SyncScheduler,
@@ -174,11 +177,17 @@ class SettingsViewModel @Inject constructor(
                 ?: return@launch
             reminderScheduler.reschedule(updated)
             _message.value = if (!enabled) {
-                "Reminders turned off for " + updated.name + "."
+                strings[R.string.settings_reminders_turned_off_for_somebody, updated.name]
             } else {
                 reminderScheduler.nextTriggerAt(updated)
-                    ?.let { next -> "Next reminder for " + updated.name + " " + describeNext(next) + "." }
-                    ?: "Pick at least one day for the reminder."
+                    ?.let { next ->
+                        strings[
+                            R.string.settings_next_reminder_for_somebody,
+                            updated.name,
+                            describeNext(next),
+                        ]
+                    }
+                    ?: strings[R.string.settings_pick_at_least_one_day_for]
             }
         }
     }
@@ -188,9 +197,9 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             profileRepository.setHealthConnect(activeProfileId.value, enabled)
             _message.value = if (enabled) {
-                "Health Connect now exchanges weights for this profile only."
+                strings[R.string.settings_health_connect_now_exchanges_weights_for]
             } else {
-                "Health Connect is no longer tied to a profile, so nothing is synced."
+                strings[R.string.settings_health_connect_is_no_longer_tied]
             }
         }
     }
@@ -207,11 +216,11 @@ class SettingsViewModel @Inject constructor(
             val updated = settingsRepository.settings.first()
             weeklySummaryScheduler.reschedule(updated)
             _message.value = if (!enabled) {
-                "Weekly summary turned off."
+                strings[R.string.settings_weekly_summary_turned_off]
             } else {
                 weeklySummaryScheduler.nextTriggerAt(updated)
-                    ?.let { next -> "Next summary " + describeNext(next) + "." }
-                    ?: "Weekly summary turned on."
+                    ?.let { next -> strings[R.string.settings_next_summary_when, describeNext(next)] }
+                    ?: strings[R.string.settings_weekly_summary_turned_on]
             }
         }
     }
@@ -223,39 +232,39 @@ class SettingsViewModel @Inject constructor(
             // next feels like updating it, which can be half an hour.
             SurfaceUpdater.refresh()
             _message.value = if (enabled) {
-                "App lock is on. You will be asked to unlock each time you come back."
+                strings[R.string.settings_app_lock_is_on_you_will]
             } else {
-                "App lock is off."
+                strings[R.string.settings_app_lock_is_off]
             }
         }
     }
 
     fun notifyTestSent(sent: Boolean) {
         _message.value = if (sent) {
-            "Test notification sent."
+            strings[R.string.settings_test_notification_sent]
         } else {
-            "Android is blocking notifications for WeightTrack. Turn them on in system settings."
+            strings[R.string.settings_android_is_blocking_notifications_for_weighttrack]
         }
     }
 
     fun exportCsv(uri: Uri) = runBackup {
         backupService.exportCsv(uri).fold(
-            onSuccess = { "Exported $it readings." },
-            onFailure = { "Export failed: ${it.message}" },
+            onSuccess = { strings[R.string.settings_exported_readings, it] },
+            onFailure = { strings[R.string.settings_export_failed, it.message.orEmpty()] },
         )
     }
 
     fun exportJson(uri: Uri) = runBackup {
         backupService.exportJson(uri).fold(
-            onSuccess = { "Backed up $it readings, plus measurements, goal and settings." },
-            onFailure = { "Backup failed: ${it.message}" },
+            onSuccess = { strings[R.string.settings_backed_up_readings_plus_measurements_goal, it] },
+            onFailure = { strings[R.string.settings_backup_failed, it.message.orEmpty()] },
         )
     }
 
     fun exportMeasurements(uri: Uri) = runBackup {
         backupService.exportMeasurementsCsv(uri).fold(
-            onSuccess = { "Exported $it measurements." },
-            onFailure = { "Export failed: ${it.message}" },
+            onSuccess = { strings[R.string.settings_exported_measurements, it] },
+            onFailure = { strings[R.string.settings_export_failed, it.message.orEmpty()] },
         )
     }
 
@@ -264,22 +273,22 @@ class SettingsViewModel @Inject constructor(
         backupService.importCsv(uri, unit).fold(
             onSuccess = { summary ->
                 buildString {
-                    append("Imported ${summary.imported} readings")
+                    append(strings[R.string.settings_imported_readings, summary.imported])
                     if (summary.skipped > 0) append(", skipped ${summary.skipped} unreadable rows")
                     append(".")
                     summary.problems.firstOrNull()?.let { append(" $it") }
                 }
             },
-            onFailure = { "Import failed: ${it.message}" },
+            onFailure = { strings[R.string.settings_import_failed, it.message.orEmpty()] },
         )
     }
 
     fun importJson(uri: Uri) = runBackup {
         backupService.importJson(uri).fold(
             onSuccess = { summary ->
-                "Restored ${summary.imported} readings and ${summary.measurements} measurements."
+                strings[R.string.settings_restored_readings_and_measurements, summary.imported, summary.measurements]
             },
-            onFailure = { "Restore failed: ${it.message}" },
+            onFailure = { strings[R.string.settings_restore_failed, it.message.orEmpty()] },
         )
     }
 
@@ -292,9 +301,9 @@ class SettingsViewModel @Inject constructor(
             SurfaceUpdater.refresh()
             _message.value = result.fold(
                 onSuccess = { summary ->
-                    "Health Connect: brought in ${summary.imported}, sent out ${summary.exported}."
+                    strings[R.string.settings_health_connect_brought_in_sent_out, summary.imported, summary.exported]
                 },
-                onFailure = { "Health Connect sync failed: ${it.message}" },
+                onFailure = { strings[R.string.settings_health_connect_sync_failed, it.message.orEmpty()] },
             )
             refreshHealthConnect()
         }
@@ -311,7 +320,7 @@ class SettingsViewModel @Inject constructor(
         if (allowed) {
             syncHealthConnect()
         } else {
-            _message.value = "Health Connect access was not granted, so nothing was synced."
+            _message.value = strings[R.string.settings_health_connect_access_was_not_granted]
         }
     }
 
@@ -319,7 +328,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             _busy.value = true
             _message.value = runCatching { block() }
-                .getOrElse { "Something went wrong: ${it.message}" }
+                .getOrElse { strings[R.string.settings_something_went_wrong, it.message.orEmpty()] }
             SurfaceUpdater.refresh()
             _busy.value = false
         }
@@ -347,7 +356,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             profileRepository.add(name)
             SurfaceUpdater.refresh()
-            _message.value = "Switched to " + name.trim()
+            _message.value = strings[R.string.settings_switched_to_somebody, name.trim()]
         }
     }
 
@@ -368,11 +377,11 @@ class SettingsViewModel @Inject constructor(
                 reminderScheduler.cancel(id)
                 progressPhotoRepository.deleteFiles(photos)
                 SurfaceUpdater.refresh()
-                _message.value = name?.let { "Deleted $it and everything recorded for them" }
+                _message.value = name?.let { strings[R.string.settings_deleted_and_everything_recorded_for_them, it] }
             } else {
                 // Refusing to delete the last one is deliberate: the app would have nowhere to
                 // put the next reading and no way to make a profile to fix it.
-                _message.value = "There has to be somebody. Add another profile first."
+                _message.value = strings[R.string.settings_there_has_to_be_somebody_add]
             }
         }
     }
@@ -415,7 +424,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             syncPreferences.turnOff()
             syncScheduler.reschedule()
-            _message.value = "Sync turned off. Nothing was deleted."
+            _message.value = strings[R.string.settings_sync_turned_off_nothing_was_deleted]
         }
     }
 
@@ -438,13 +447,13 @@ class SettingsViewModel @Inject constructor(
                     is com.weighttrack.data.sync.SyncResult.Unreachable ->
                         _message.value = result.reason
                     com.weighttrack.data.sync.SyncResult.NotSetUp ->
-                        _message.value = "Pick somewhere to sync to first."
+                        _message.value = strings[R.string.settings_pick_somewhere_to_sync_to_first]
                 }
             } catch (error: Exception) {
                 // Something in a file from another device, or a row that will not go where it
                 // is told. Whatever it is, it must not take the app down: the button is a thing
                 // somebody pressed, not a promise that every other device is well behaved.
-                _message.value = "Sync could not finish. Nothing was lost, and it will try again."
+                _message.value = strings[R.string.settings_sync_could_not_finish_nothing_was]
             } finally {
                 _syncing.value = false
             }

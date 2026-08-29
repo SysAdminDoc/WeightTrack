@@ -70,14 +70,24 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 305 unit tests
-./gradlew :core:testDebugUnitTest # 276 more: the maths, the scale protocols, the food clients and the merge
+./gradlew testPlayDebugUnitTest   # 327 unit tests
+./gradlew :core:testDebugUnitTest # 277 more: the maths, the scale protocols, the food clients and the merge
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
 
 The bundled offline food list is committed, so a normal build needs no network. To rebuild it from a fresh Open Food Facts export, run `py -3.13 tools/build_offline_foods.py`. That reads about 1.2 GB straight off the wire, keeps the most-scanned products per market and writes `app/src/main/assets/offline_foods.db` with a digest beside it.
+
+## Translating
+
+Every word the app shows lives in `app/src/main/res/values/strings.xml`. To add a language, copy that file to `values-<code>/strings.xml` and translate the values, leaving the names alone. Placeholders like `%1$s` have to stay, and they can move within a sentence if that reads better in your language, which is the reason whole sentences are kept in one string rather than glued together in code.
+
+A test walks the screens and fails the build if anybody adds text that cannot be translated, so the English file stays the complete list rather than drifting out of date. Debug builds carry Android's pseudo-languages: switch the app to "Accented English" in its language settings and anything still written in the source stands out as plain text among the decorated words.
+
+Nothing ships in any language but English yet, and no machine translation is used here on purpose. This app tells people things about their own weight and eating, and wording that is almost right is worse than wording in a language they will at least read carefully.
+
+Units are left as they are written in English. `kg`, `g`, `cm` and `ml` are the same symbols in every language by definition, and `lb`, `st`, `ft` and `in` are used in the places that read English anyway.
 
 ## How it is put together
 

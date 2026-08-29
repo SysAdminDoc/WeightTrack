@@ -30,8 +30,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.ble.ScaleDevice
 import com.weighttrack.ble.ScaleMatch
 import com.weighttrack.ble.ScaleProblem
@@ -63,10 +65,10 @@ fun ScaleScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Weigh in") },
+                title = { Text(stringResource(R.string.scale_weigh_in)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -111,7 +113,7 @@ fun ScaleScreen(
             state.reading?.let { reading ->
                 item {
                     SectionCard {
-                        SectionHeading("What the scale measured")
+                        SectionHeading(stringResource(R.string.scale_what_the_scale_measured))
                         Spacer(Modifier.height(4.dp))
                         LabelledValue(
                             "Weight",
@@ -139,19 +141,22 @@ fun ScaleScreen(
                         Text(
                             // The whole reason a household keeps profiles: a weight that plainly
                             // belongs to somebody else should not land in this person's trend.
-                            text = "That looks like " + suggested.name + " rather than you.",
+                            text = stringResource(
+                                R.string.scale_that_looks_like_somebody_else,
+                                suggested.name,
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Button(onClick = onSaveToSuggested) {
-                                Text("Save as " + suggested.name)
+                                Text(stringResource(R.string.scale_save_as_somebody, suggested.name))
                             }
-                            OutlinedButton(onClick = onSave) { Text("No, it is mine") }
+                            OutlinedButton(onClick = onSave) { Text(stringResource(R.string.scale_no_it_is_mine)) }
                         }
                         Spacer(Modifier.height(6.dp))
                         TextButton(onClick = onDiscard) {
-                            Text("Neither", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.scale_neither), color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -163,18 +168,18 @@ fun ScaleScreen(
                         Text(
                             // The other reading of a jump this size is a shared bathroom scale,
                             // and quietly filing someone else's weight ruins a trend for weeks.
-                            text = "That is a long way from your last reading. Record it anyway?",
+                            text = stringResource(R.string.scale_that_is_a_long_way_from),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = onSave) { Text("It is mine") }
+                            Button(onClick = onSave) { Text(stringResource(R.string.scale_it_is_mine)) }
                             OutlinedButton(
                                 onClick = onDiscard,
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error,
                                 ),
-                            ) { Text("Not me") }
+                            ) { Text(stringResource(R.string.scale_not_me)) }
                         }
                     }
                 }
@@ -213,10 +218,10 @@ fun ScaleScreen(
             if (connectable.isNotEmpty() && state.reading == null) {
                 item {
                     SectionCard {
-                        SectionHeading("Scales nearby")
+                        SectionHeading(stringResource(R.string.scale_scales_nearby))
                         Spacer(Modifier.height(4.dp))
                         Text(
-                            text = "A scale that broadcasts its weight needs no tap here. One that does not is connected to when you pick it.",
+                            text = stringResource(R.string.scale_a_scale_that_broadcasts_its_weight),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -237,7 +242,7 @@ fun ScaleScreen(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            TextButton(onClick = { onConnect(device) }) { Text("Use this one") }
+                            TextButton(onClick = { onConnect(device) }) { Text(stringResource(R.string.scale_use_this_one)) }
                         }
                     }
                 }
@@ -247,7 +252,7 @@ fun ScaleScreen(
                 item {
                     SectionCard {
                         LabelledValue("Remembered scale", state.rememberedName)
-                        TextButton(onClick = onForgetScale) { Text("Forget it") }
+                        TextButton(onClick = onForgetScale) { Text(stringResource(R.string.scale_forget_it)) }
                     }
                 }
             }
@@ -255,7 +260,7 @@ fun ScaleScreen(
             if (state.stage == ScaleStage.SAVED) {
                 item {
                     Button(onClick = onBack, modifier = Modifier.fillMaxWidth().height(52.dp)) {
-                        Text("Done")
+                        Text(stringResource(R.string.common_done))
                     }
                 }
             }
@@ -263,25 +268,27 @@ fun ScaleScreen(
     }
 }
 
+@Composable
 private fun headline(state: ScaleUiState): String = when (state.stage) {
-    ScaleStage.BLOCKED -> "Nothing to listen with"
-    ScaleStage.SEARCHING -> "Looking for your scale"
-    ScaleStage.WAITING_FOR_WEIGHT -> "Step on the scale"
+    ScaleStage.BLOCKED -> stringResource(R.string.scale_nothing_to_listen_with)
+    ScaleStage.SEARCHING -> stringResource(R.string.scale_looking_for_your_scale)
+    ScaleStage.WAITING_FOR_WEIGHT -> stringResource(R.string.scale_step_on_the_scale)
     ScaleStage.MEASURED -> when {
-        state.suggestedProfile != null -> "Whose is this?"
-        state.match == ScaleMatch.OUT_OF_RANGE -> "Is this you?"
-        else -> "Recording"
+        state.suggestedProfile != null -> stringResource(R.string.scale_whose_is_this)
+        state.match == ScaleMatch.OUT_OF_RANGE -> stringResource(R.string.scale_is_this_you)
+        else -> stringResource(R.string.scale_recording)
     }
-    ScaleStage.SAVED -> "Saved"
+    ScaleStage.SAVED -> stringResource(R.string.scale_saved)
 }
 
+@Composable
 private fun explain(problem: ScaleProblem?): String = when (problem) {
     ScaleProblem.NO_BLUETOOTH_HARDWARE ->
-        "This phone has no Bluetooth, so it cannot reach a scale. You can still enter a weight by hand."
-    ScaleProblem.BLUETOOTH_OFF -> "Bluetooth is switched off. Turn it on and try again."
+        stringResource(R.string.scale_this_phone_has_no_bluetooth_so)
+    ScaleProblem.BLUETOOTH_OFF -> stringResource(R.string.scale_bluetooth_is_switched_off_turn_it)
     ScaleProblem.PERMISSION_MISSING ->
-        "Finding a scale needs permission to look for nearby devices. It is used only while this screen is open, and nothing about your location is read."
-    ScaleProblem.SCAN_FAILED -> "Android would not start the search. Try again in a moment."
-    ScaleProblem.CONNECTION_LOST -> "The scale stopped talking before it sent a weight."
-    null -> "Something went wrong."
+        stringResource(R.string.scale_finding_a_scale_needs_permission_to)
+    ScaleProblem.SCAN_FAILED -> stringResource(R.string.scale_android_would_not_start_the_search)
+    ScaleProblem.CONNECTION_LOST -> stringResource(R.string.scale_the_scale_stopped_talking_before_it)
+    null -> stringResource(R.string.scale_something_went_wrong)
 }

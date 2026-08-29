@@ -5,7 +5,9 @@ import androidx.compose.material.icons.automirrored.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Settings
+import androidx.annotation.StringRes
 import androidx.compose.ui.graphics.vector.ImageVector
+import com.weighttrack.R
 
 object Routes {
     const val ONBOARDING = "onboarding"
@@ -33,11 +35,12 @@ object Routes {
 
 enum class TopLevelDestination(
     val route: String,
-    val label: String,
+    /** The resource rather than the word, so the bar can be translated like everything else. */
+    @StringRes val label: Int,
     val icon: ImageVector,
 ) {
-    HOME(Routes.HOME, "Home", Icons.Outlined.Home),
-    CHARTS(Routes.CHARTS, "Charts", Icons.AutoMirrored.Outlined.ShowChart),
-    HISTORY(Routes.HISTORY, "History", Icons.Outlined.History),
-    SETTINGS(Routes.SETTINGS, "Settings", Icons.Outlined.Settings),
+    HOME(Routes.HOME, R.string.nav_home, Icons.Outlined.Home),
+    CHARTS(Routes.CHARTS, R.string.nav_charts, Icons.AutoMirrored.Outlined.ShowChart),
+    HISTORY(Routes.HISTORY, R.string.nav_history, Icons.Outlined.History),
+    SETTINGS(Routes.SETTINGS, R.string.nav_settings, Icons.Outlined.Settings),
 }

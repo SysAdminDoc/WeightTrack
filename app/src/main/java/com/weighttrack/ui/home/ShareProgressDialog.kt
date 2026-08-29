@@ -18,7 +18,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.share.MilestoneCard
 
 /**
@@ -37,7 +39,7 @@ fun ShareProgressDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Share your progress") },
+        title = { Text(stringResource(R.string.home_share_your_progress)) },
         text = {
             Column {
                 Text(content.headline, style = MaterialTheme.typography.headlineSmall)
@@ -59,7 +61,7 @@ fun ShareProgressDialog(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = "Include what I weigh",
+                        text = stringResource(R.string.home_include_what_i_weigh),
                         style = MaterialTheme.typography.bodyLarge,
                         modifier = Modifier.weight(1f),
                     )
@@ -68,14 +70,14 @@ fun ShareProgressDialog(
                 Text(
                     // Off every time it opens, never remembered. A setting that stays on is one
                     // somebody forgets they turned on.
-                    text = "Off unless you turn it on, and off again next time. The card shows how far you have come, not what the scale says.",
+                    text = stringResource(R.string.home_off_unless_you_turn_it_on),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },
-        confirmButton = { TextButton(onClick = onShare) { Text("Share") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = onShare) { Text(stringResource(R.string.diagnostics_share)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 

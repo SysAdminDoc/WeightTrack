@@ -55,11 +55,13 @@ class FastingHistoryTest {
 
     @Test
     fun `a target is described from the fast rather than the tapped preset`() {
-        assertThat(formatTarget(16 * 60)).isEqualTo("16 hours")
-        assertThat(formatTarget(60)).isEqualTo("1 hour")
+        // The decision, not the wording. What the words are is a matter for whoever translates
+        // the app; which of them applies is a matter for the app.
+        assertThat(fastTarget(16 * 60)).isEqualTo(FastTarget.Hours(16))
+        assertThat(fastTarget(60)).isEqualTo(FastTarget.OneHour)
         // The case the preset lookup returns null for, which used to caption the ring wrongly.
-        assertThat(formatTarget(17 * 60 + 30)).isEqualTo("17h 30m")
-        assertThat(formatTarget(45)).isEqualTo("45 minutes")
-        assertThat(formatTarget(0)).isEqualTo("no target")
+        assertThat(fastTarget(17 * 60 + 30)).isEqualTo(FastTarget.HoursAndMinutes(17, 30))
+        assertThat(fastTarget(45)).isEqualTo(FastTarget.Minutes(45))
+        assertThat(fastTarget(0)).isEqualTo(FastTarget.None)
     }
 }

@@ -26,9 +26,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.weighttrack.R
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -59,7 +61,7 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("WeightTrack", style = MaterialTheme.typography.titleLarge)
+            Text(stringResource(R.string.onboarding_weighttrack), style = MaterialTheme.typography.titleLarge)
             Icon(
                 Icons.Outlined.Lock,
                 contentDescription = null,
@@ -73,7 +75,7 @@ fun OnboardingScreen(
         )
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "${OnboardingStep.entries.indexOf(state.step) + 1} of ${OnboardingStep.entries.size}",
+            text = stringResource(R.string.onboarding_of, OnboardingStep.entries.indexOf(state.step) + 1, OnboardingStep.entries.size),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -95,15 +97,15 @@ fun OnboardingScreen(
         ) {
             Text(
                 when (state.step) {
-                    OnboardingStep.GOAL -> "Finish"
-                    else -> "Continue"
+                    OnboardingStep.GOAL -> stringResource(R.string.onboarding_finish)
+                    else -> stringResource(R.string.onboarding_continue)
                 },
             )
         }
         if (state.step == OnboardingStep.UNITS) {
             Spacer(Modifier.height(14.dp))
             Text(
-                text = "No account · No ads · Stored on this device",
+                text = stringResource(R.string.onboarding_no_account_no_ads_stored_on),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
@@ -111,13 +113,13 @@ fun OnboardingScreen(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             if (state.step != OnboardingStep.UNITS) {
-                TextButton(onClick = viewModel::back) { Text("Back") }
+                TextButton(onClick = viewModel::back) { Text(stringResource(R.string.common_back)) }
             } else {
                 Spacer(Modifier.size(1.dp))
             }
             when (state.step) {
-                OnboardingStep.ABOUT_YOU -> TextButton(onClick = viewModel::next) { Text("Skip") }
-                OnboardingStep.GOAL -> TextButton(onClick = viewModel::skipGoal) { Text("No goal for now") }
+                OnboardingStep.ABOUT_YOU -> TextButton(onClick = viewModel::next) { Text(stringResource(R.string.onboarding_skip)) }
+                OnboardingStep.GOAL -> TextButton(onClick = viewModel::skipGoal) { Text(stringResource(R.string.onboarding_no_goal_for_now)) }
                 else -> Spacer(Modifier.size(1.dp))
             }
         }
@@ -152,25 +154,25 @@ private fun StepProgress(total: Int, current: Int) {
 @Composable
 private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
     Text(
-        "Your weight. Your data.",
+        stringResource(R.string.onboarding_your_weight_your_data),
         style = MaterialTheme.typography.displaySmall.copy(fontSize = 32.sp, lineHeight = 38.sp),
     )
     Spacer(Modifier.height(12.dp))
     Text(
-        text = "Track the trend without an account, ads, or a subscription. Your readings stay on this phone.",
+        text = stringResource(R.string.onboarding_track_the_trend_without_an_account),
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(Modifier.height(32.dp))
-    Text("Weight", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.onboarding_weight), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(10.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         WeightUnit.entries.forEach { unit ->
             SegmentButton(
                 label = when (unit) {
-                    WeightUnit.KG -> "Kilograms"
-                    WeightUnit.LB -> "Pounds"
-                    WeightUnit.ST_LB -> "Stones"
+                    WeightUnit.KG -> stringResource(R.string.onboarding_kilograms)
+                    WeightUnit.LB -> stringResource(R.string.onboarding_pounds)
+                    WeightUnit.ST_LB -> stringResource(R.string.onboarding_stones)
                 },
                 selected = state.weightUnit == unit,
                 onClick = { viewModel.setWeightUnit(unit) },
@@ -178,12 +180,16 @@ private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) 
         }
     }
     Spacer(Modifier.height(24.dp))
-    Text("Measurements", style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.home_measurements), style = MaterialTheme.typography.titleMedium)
     Spacer(Modifier.height(10.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         LengthUnit.entries.forEach { unit ->
             SegmentButton(
-                label = if (unit == LengthUnit.CM) "Centimetres" else "Inches",
+                label = if (unit == LengthUnit.CM) {
+                    stringResource(R.string.settings_centimetres)
+                } else {
+                    stringResource(R.string.settings_inches)
+                },
                 selected = state.lengthUnit == unit,
                 onClick = { viewModel.setLengthUnit(unit) },
             )
@@ -193,10 +199,10 @@ private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) 
 
 @Composable
 private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
-    Text("A little about you", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.onboarding_a_little_about_you), style = MaterialTheme.typography.headlineMedium)
     Spacer(Modifier.height(8.dp))
     Text(
-        text = "This is only used to work out BMI, body fat and roughly how many calories you burn. Skip it and everything else still works.",
+        text = stringResource(R.string.onboarding_this_is_only_used_to_work),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -204,7 +210,7 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
     OutlinedTextField(
         value = state.heightText,
         onValueChange = viewModel::setHeightText,
-        label = { Text("Height (${LengthFormatter.unitLabel(state.lengthUnit)})") },
+        label = { Text(stringResource(R.string.onboarding_height, LengthFormatter.unitLabel(state.lengthUnit))) },
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = KeyboardType.Decimal,
         ),
@@ -215,7 +221,7 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
     OutlinedTextField(
         value = state.birthYearText,
         onValueChange = viewModel::setBirthYearText,
-        label = { Text("Year of birth") },
+        label = { Text(stringResource(R.string.onboarding_year_of_birth)) },
         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
             keyboardType = KeyboardType.Number,
         ),
@@ -223,7 +229,7 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
         modifier = Modifier.fillMaxWidth(),
     )
     Spacer(Modifier.height(16.dp))
-    Text("Sex", style = MaterialTheme.typography.titleSmall)
+    Text(stringResource(R.string.onboarding_sex), style = MaterialTheme.typography.titleSmall)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Sex.entries.forEach { sex ->
             SegmentButton(
@@ -234,16 +240,16 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
         }
     }
     Spacer(Modifier.height(16.dp))
-    Text("How active are you", style = MaterialTheme.typography.titleSmall)
+    Text(stringResource(R.string.onboarding_how_active_are_you), style = MaterialTheme.typography.titleSmall)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ActivityLevel.entries.forEach { level ->
             SegmentButton(
                 label = when (level) {
-                    ActivityLevel.SEDENTARY -> "Sedentary"
-                    ActivityLevel.LIGHT -> "Light"
-                    ActivityLevel.MODERATE -> "Moderate"
-                    ActivityLevel.ACTIVE -> "Active"
-                    ActivityLevel.VERY_ACTIVE -> "Very active"
+                    ActivityLevel.SEDENTARY -> stringResource(R.string.onboarding_sedentary)
+                    ActivityLevel.LIGHT -> stringResource(R.string.onboarding_light)
+                    ActivityLevel.MODERATE -> stringResource(R.string.onboarding_moderate)
+                    ActivityLevel.ACTIVE -> stringResource(R.string.onboarding_active)
+                    ActivityLevel.VERY_ACTIVE -> stringResource(R.string.onboarding_very_active)
                 },
                 selected = state.activityLevel == level,
                 onClick = { viewModel.setActivityLevel(level) },
@@ -254,10 +260,10 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
 
 @Composable
 private fun FirstWeightStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
-    Text("What do you weigh today", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.onboarding_what_do_you_weigh_today), style = MaterialTheme.typography.headlineMedium)
     Spacer(Modifier.height(8.dp))
     Text(
-        text = "One reading is enough to start. The trend line needs about a week before it means much, so weigh in when you can and ignore the daily jumps until then.",
+        text = stringResource(R.string.onboarding_one_reading_is_enough_to_start),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -277,10 +283,10 @@ private fun FirstWeightStep(state: OnboardingUiState, viewModel: OnboardingViewM
 
 @Composable
 private fun GoalStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
-    Text("Where are you heading", style = MaterialTheme.typography.headlineMedium)
+    Text(stringResource(R.string.onboarding_where_are_you_heading), style = MaterialTheme.typography.headlineMedium)
     Spacer(Modifier.height(8.dp))
     Text(
-        text = "Set a target and WeightTrack works out a finish date from the rate you actually manage, then breaks the journey into milestones. You can change it or drop it at any time.",
+        text = stringResource(R.string.onboarding_set_a_target_and_weighttrack_works),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )

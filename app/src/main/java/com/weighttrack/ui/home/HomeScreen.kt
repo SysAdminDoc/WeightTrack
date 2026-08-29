@@ -32,8 +32,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.math.BmiCategory
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.math.UnitConverter
@@ -80,14 +82,14 @@ fun HomeScreen(
     if (!snapshot.hasData) {
         EmptyState(
             icon = Icons.Filled.MonitorWeight,
-            title = "No readings yet",
-            message = "Log your weight once and WeightTrack starts drawing the trend. A few days in, it can tell you which way you are actually going.",
+            title = stringResource(R.string.home_no_readings_yet),
+            message = stringResource(R.string.home_log_your_weight_once_and_weighttrack),
             modifier = modifier.fillMaxSize().padding(top = 64.dp),
             action = {
                 Button(onClick = onLogWeight) {
                     androidx.compose.material3.Icon(Icons.Filled.Add, contentDescription = null)
                     Spacer(Modifier.height(0.dp))
-                    Text("  Log your first weight")
+                    Text(stringResource(R.string.home_log_your_first_weight))
                 }
             },
         )
@@ -110,8 +112,8 @@ fun HomeScreen(
         item {
             HomeActionRow(
                 icon = Icons.Outlined.MonitorWeight,
-                title = "Log weight",
-                subtitle = "Record your weight",
+                title = stringResource(R.string.app_log_weight),
+                subtitle = stringResource(R.string.home_record_your_weight),
                 onClick = onLogWeight,
             )
         }
@@ -119,16 +121,16 @@ fun HomeScreen(
             item {
                 HomeActionRow(
                     icon = Icons.Outlined.Restaurant,
-                    title = "Food diary",
-                    subtitle = "What you ate today, by meal",
+                    title = stringResource(R.string.diary_food_diary),
+                    subtitle = stringResource(R.string.home_what_you_ate_today_by_meal),
                     onClick = onOpenDiary,
                 )
             }
             item {
                 HomeActionRow(
                     icon = Icons.Outlined.MenuBook,
-                    title = "Foods",
-                    subtitle = "Your food database, recipes and lookups",
+                    title = stringResource(R.string.food_foods),
+                    subtitle = stringResource(R.string.home_your_food_database_recipes_and_lookups),
                     onClick = onOpenFoods,
                 )
             }
@@ -136,15 +138,15 @@ fun HomeScreen(
         item {
             HomeActionRow(
                 icon = Icons.Outlined.Bluetooth,
-                title = "Weigh in on your scale",
-                subtitle = "Read a Bluetooth scale straight into the log",
+                title = stringResource(R.string.home_weigh_in_on_your_scale),
+                subtitle = stringResource(R.string.home_read_a_bluetooth_scale_straight_into),
                 onClick = onOpenScale,
             )
         }
         item {
             HomeActionRow(
                 icon = Icons.Outlined.LocalDrink,
-                title = "Water",
+                title = stringResource(R.string.home_water),
                 subtitle = waterSummary
                     ?.let { "${VolumeFormatter.full(it.totalMl, it.unit)} of ${VolumeFormatter.full(it.targetMl, it.unit)} today" }
                     ?: "Track what you drink",
@@ -154,16 +156,16 @@ fun HomeScreen(
         item {
             HomeActionRow(
                 icon = Icons.Outlined.Timer,
-                title = "Fasting",
-                subtitle = "Time an eating window",
+                title = stringResource(R.string.fasting_fasting),
+                subtitle = stringResource(R.string.home_time_an_eating_window),
                 onClick = onOpenFasting,
             )
         }
         item {
             HomeActionRow(
                 icon = Icons.Outlined.PhotoCamera,
-                title = "Progress photos",
-                subtitle = "Compare how you look over time",
+                title = stringResource(R.string.home_progress_photos),
+                subtitle = stringResource(R.string.home_compare_how_you_look_over_time),
                 onClick = onOpenPhotos,
             )
         }
@@ -179,7 +181,7 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
     val weekChange = snapshot.series.changeOverDays(7)
 
     Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
-        SectionHeading("Trend weight")
+        SectionHeading(stringResource(R.string.home_trend_weight))
         Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
@@ -199,7 +201,7 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
         if (weekChange != null) {
             val color = changeColor(weekChange, snapshot.goal?.direction, trendColors)
             Text(
-                text = "${WeightFormatter.delta(weekChange, unit)} this week",
+                text = stringResource(R.string.home_this_week, WeightFormatter.delta(weekChange, unit)),
                 style = MaterialTheme.typography.titleMedium,
                 color = color,
                 fontWeight = FontWeight.Medium,
@@ -208,14 +210,18 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
 
         snapshot.latestEntry?.let { entry ->
             val deviation = snapshot.series.latestDeviationGrams
-            val scaleLine = buildString {
-                append("Last weighed ")
-                append(DateFormatters.sinceDay(entry.localDate, today))
-                append(" at ")
-                append(WeightFormatter.full(entry.grams, unit))
-                if (deviation != null && abs(deviation) > 150) {
-                    append(if (deviation > 0) ", above the line" else ", below the line")
-                }
+            // One sentence per case rather than four pieces glued together. Word order is not
+            // the same in every language, and a sentence built by appending cannot be reordered
+            // by whoever translates it.
+            val whenWeighed = DateFormatters.sinceDay(entry.localDate, today)
+            val weighed = WeightFormatter.full(entry.grams, unit)
+            val scaleLine = when {
+                deviation == null || abs(deviation) <= 150 ->
+                    stringResource(R.string.home_last_weighed, whenWeighed, weighed)
+                deviation > 0 ->
+                    stringResource(R.string.home_last_weighed_above, whenWeighed, weighed)
+                else ->
+                    stringResource(R.string.home_last_weighed_below, whenWeighed, weighed)
             }
             Spacer(Modifier.height(2.dp))
             Text(
@@ -232,7 +238,7 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
                 horizontalArrangement = Arrangement.End,
             ) {
                 Text(
-                    text = "30 days",
+                    text = stringResource(R.string.home_days),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.secondary,
                 )
@@ -252,11 +258,11 @@ private fun RateCard(snapshot: ProgressSnapshot) {
     val unit = snapshot.settings.weightUnit
     val rate = snapshot.rate
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp)) {
-        SectionHeading("Rate of change")
+        SectionHeading(stringResource(R.string.home_rate_of_change))
         Spacer(Modifier.height(8.dp))
         if (!rate.hasEnoughData) {
             Text(
-                text = "Keep logging. A week of readings is enough to work out which way the trend is going.",
+                text = stringResource(R.string.home_keep_logging_a_week_of_readings),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -264,22 +270,29 @@ private fun RateCard(snapshot: ProgressSnapshot) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             StatTile(
-                label = "Rate",
+                label = stringResource(R.string.home_rate),
                 value = WeightFormatter.delta(rate.gramsPerWeek, unit, decimals = 2),
-                caption = "per week",
+                caption = stringResource(R.string.home_per_week),
                 modifier = Modifier.weight(1f),
             )
             StatTile(
-                label = "Energy balance",
-                value = "${abs(rate.impliedKcalPerDay).roundToInt()} kcal/day",
-                caption = if (rate.impliedKcalPerDay < 0) "below maintenance" else "above maintenance",
+                label = stringResource(R.string.home_energy_balance),
+                value = stringResource(
+                    R.string.home_kcal_a_day_value,
+                    abs(rate.impliedKcalPerDay).roundToInt(),
+                ),
+                caption = if (rate.impliedKcalPerDay < 0) {
+                    stringResource(R.string.home_below_maintenance)
+                } else {
+                    stringResource(R.string.home_above_maintenance)
+                },
                 modifier = Modifier.weight(1f),
             )
         }
         if (snapshot.isPlateau) {
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "The line has been flat for a couple of weeks. That is a plateau, not a failure, and it usually means intake has crept back up to maintenance.",
+                text = stringResource(R.string.home_the_line_has_been_flat_for),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.tertiary,
             )
@@ -309,7 +322,7 @@ private fun GoalCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Goal", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.home_goal), style = MaterialTheme.typography.titleMedium)
             Text(
                 text = WeightFormatter.full(goal.targetGrams, unit),
                 style = MaterialTheme.typography.titleLarge,
@@ -347,9 +360,9 @@ private fun GoalCard(
             Spacer(Modifier.height(8.dp))
             Text(
                 text = when {
-                    projection.reached -> "Reached"
-                    etaDate == null -> "Not on this trend"
-                    else -> "Projected ${DateFormatters.projection(etaDate, today)}"
+                    projection.reached -> stringResource(R.string.home_reached)
+                    etaDate == null -> stringResource(R.string.home_not_on_this_trend)
+                    else -> stringResource(R.string.home_projected, DateFormatters.projection(etaDate, today))
                 },
                 style = MaterialTheme.typography.titleMedium,
                 color = if (etaDate == null && !projection.reached) {
@@ -364,13 +377,13 @@ private fun GoalCard(
             val latest = projection.etaDatePessimistic(today)
             if (etaDate != null && earliest != null && latest != null && earliest != latest) {
                 Text(
-                    text = "${DateFormatters.shortDate(earliest, today)} to ${DateFormatters.shortDate(latest, today)}, based on the last two weeks.",
+                    text = stringResource(R.string.home_to_based_on_the_last_two, DateFormatters.shortDate(earliest, today), DateFormatters.shortDate(latest, today)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             } else if (etaDate == null && !projection.reached) {
                 Text(
-                    text = "The trend is not moving toward the target yet, so there is no honest date to give you.",
+                    text = stringResource(R.string.home_the_trend_is_not_moving_toward),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -381,7 +394,7 @@ private fun GoalCard(
             Spacer(Modifier.height(4.dp))
             val remaining = abs((snapshot.series.latestTrendGrams ?: 0.0) - milestone.grams)
             Text(
-                text = "Next milestone ${WeightFormatter.full(milestone.grams, unit)}, ${WeightFormatter.full(remaining.roundToInt(), unit)} away. That is ${milestone.index} of ${milestone.total}.",
+                text = stringResource(R.string.home_next_milestone_away_that_is_of, WeightFormatter.full(milestone.grams, unit), WeightFormatter.full(remaining.roundToInt(), unit), milestone.index, milestone.total),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -392,7 +405,7 @@ private fun GoalCard(
         // asked.
         if (canShareProgress(snapshot)) {
             androidx.compose.material3.TextButton(onClick = onShareProgress) {
-                Text("Share your progress")
+                Text(stringResource(R.string.home_share_your_progress))
             }
         }
     }
@@ -460,15 +473,15 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionHeading("Body")
-            androidx.compose.material3.TextButton(onClick = onOpenMeasurements) { Text("Measurements") }
+            SectionHeading(stringResource(R.string.home_body))
+            androidx.compose.material3.TextButton(onClick = onOpenMeasurements) { Text(stringResource(R.string.home_measurements)) }
         }
 
         val hasAnything = snapshot.bmi != null || snapshot.bodyComposition != null ||
             snapshot.basalMetabolicRate != null
         if (!hasAnything) {
             Text(
-                text = "Add your height in settings and WeightTrack can work out BMI, your healthy range and how many calories you burn at rest.",
+                text = stringResource(R.string.home_add_your_height_in_settings_and),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -479,7 +492,7 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             snapshot.bmi?.let { bmi ->
                 StatTile(
-                    label = "BMI",
+                    label = stringResource(R.string.home_bmi),
                     value = String.format(locale, "%.1f", bmi),
                     caption = snapshot.bmiCategory?.let { bmiLabel(it) },
                     modifier = Modifier.weight(1f),
@@ -487,11 +500,11 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
             }
             snapshot.bodyComposition?.let { composition ->
                 StatTile(
-                    label = "Body fat",
+                    label = stringResource(R.string.home_body_fat),
                     value = String.format(locale, "%.1f%%", composition.percent),
                     caption = when (composition.source) {
-                        BodyFatSource.LOGGED -> "from your reading"
-                        BodyFatSource.NAVY_ESTIMATE -> "estimated from measurements"
+                        BodyFatSource.LOGGED -> stringResource(R.string.home_from_your_reading)
+                        BodyFatSource.NAVY_ESTIMATE -> stringResource(R.string.home_estimated_from_measurements)
                     },
                     modifier = Modifier.weight(1f),
                 )
@@ -500,17 +513,17 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
         Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
             snapshot.basalMetabolicRate?.let { bmr ->
                 StatTile(
-                    label = "At rest",
+                    label = stringResource(R.string.home_at_rest),
                     value = "${bmr.roundToInt()}",
-                    caption = "kcal/day",
+                    caption = stringResource(R.string.home_kcal_a_day),
                     modifier = Modifier.weight(1f),
                 )
             }
             snapshot.totalDailyEnergyExpenditure?.let { tdee ->
                 StatTile(
-                    label = "Maintenance",
+                    label = stringResource(R.string.home_maintenance),
                     value = "${tdee.roundToInt()}",
-                    caption = "kcal/day at your activity level",
+                    caption = stringResource(R.string.home_kcal_a_day_at_your_activity_level),
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -518,21 +531,21 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
         snapshot.waistToHeightRatio?.let { ratio ->
             Spacer(Modifier.height(4.dp))
             LabelledValue(
-                label = "Waist to height",
+                label = stringResource(R.string.home_waist_to_height),
                 value = String.format(locale, "%.2f", ratio) +
                     snapshot.waistToHeightCategory?.let { " (${waistLabel(it)})" }.orEmpty(),
             )
         }
         snapshot.healthyRangeGrams?.let { range ->
             LabelledValue(
-                label = "Healthy range",
+                label = stringResource(R.string.home_healthy_range),
                 value = "${WeightFormatter.value(range.first, unit)} to ${WeightFormatter.full(range.last, unit)}",
             )
         }
         snapshot.bodyComposition?.let { composition ->
             if (composition.leanMassGrams != null && composition.fatMassGrams != null) {
                 LabelledValue(
-                    label = "Lean and fat mass",
+                    label = stringResource(R.string.home_lean_and_fat_mass),
                     value = "${WeightFormatter.value(composition.leanMassGrams, unit)} / ${WeightFormatter.full(composition.fatMassGrams, unit)}",
                 )
             }
@@ -540,20 +553,22 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
     }
 }
 
+@Composable
 private fun bmiLabel(category: BmiCategory): String = when (category) {
-    BmiCategory.UNDERWEIGHT -> "underweight"
-    BmiCategory.HEALTHY -> "healthy"
-    BmiCategory.OVERWEIGHT -> "overweight"
-    BmiCategory.OBESE_I -> "obese, class 1"
-    BmiCategory.OBESE_II -> "obese, class 2"
-    BmiCategory.OBESE_III -> "obese, class 3"
+    BmiCategory.UNDERWEIGHT -> stringResource(R.string.home_underweight)
+    BmiCategory.HEALTHY -> stringResource(R.string.home_healthy)
+    BmiCategory.OVERWEIGHT -> stringResource(R.string.home_overweight)
+    BmiCategory.OBESE_I -> stringResource(R.string.home_obese_class)
+    BmiCategory.OBESE_II -> stringResource(R.string.home_obese_class_2)
+    BmiCategory.OBESE_III -> stringResource(R.string.home_obese_class_3)
 }
 
+@Composable
 private fun waistLabel(category: WaistToHeightCategory): String = when (category) {
-    WaistToHeightCategory.LOW -> "low"
-    WaistToHeightCategory.HEALTHY -> "healthy"
-    WaistToHeightCategory.INCREASED -> "increased risk"
-    WaistToHeightCategory.HIGH -> "high risk"
+    WaistToHeightCategory.LOW -> stringResource(R.string.home_low)
+    WaistToHeightCategory.HEALTHY -> stringResource(R.string.home_healthy)
+    WaistToHeightCategory.INCREASED -> stringResource(R.string.home_increased_risk)
+    WaistToHeightCategory.HIGH -> stringResource(R.string.home_high_risk)
 }
 
 /**

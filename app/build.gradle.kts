@@ -48,6 +48,11 @@ android {
         debug {
             applicationIdSuffix = ".debug"
             versionNameSuffix = "-debug"
+            // Adds the accented and the long pseudo-languages. Switching the phone to one of
+            // them shows at a glance which words still come from Kotlin rather than from the
+            // resources, and whether a layout survives a language whose words run half again as
+            // long as English.
+            isPseudoLocalesEnabled = true
         }
         release {
             isMinifyEnabled = true

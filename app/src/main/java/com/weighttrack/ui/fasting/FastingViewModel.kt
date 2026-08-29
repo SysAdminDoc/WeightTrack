@@ -2,10 +2,12 @@ package com.weighttrack.ui.fasting
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.weighttrack.R
 import com.weighttrack.core.model.Fast
 import com.weighttrack.core.model.FastingPreset
 import com.weighttrack.data.repo.FastRepository
 import com.weighttrack.data.repo.FastUpdateResult
+import com.weighttrack.ui.AppStrings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -62,6 +64,7 @@ data class FastingUiState(
 
 @HiltViewModel
 class FastingViewModel @Inject constructor(
+    private val strings: AppStrings,
     private val fastRepository: FastRepository,
 ) : ViewModel() {
 
@@ -151,8 +154,8 @@ class FastingViewModel @Inject constructor(
             val result = fastRepository.update(editing.copy(start = start, end = end))
             _message.value = when (result) {
                 FastUpdateResult.SAVED -> null
-                FastUpdateResult.BACKWARDS -> "That fast would end before it started, so it was not saved."
-                FastUpdateResult.MISSING -> "That fast is no longer here, so there was nothing to change."
+                FastUpdateResult.BACKWARDS -> strings[R.string.fasting_that_fast_would_end_before_it]
+                FastUpdateResult.MISSING -> strings[R.string.fasting_that_fast_is_no_longer_here]
             }
             _editing.value = null
         }

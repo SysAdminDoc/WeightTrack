@@ -37,8 +37,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
@@ -74,7 +76,7 @@ fun HistoryScreen(
             OutlinedTextField(
                 value = state.query,
                 onValueChange = onQueryChange,
-                placeholder = { Text("Search notes and tags") },
+                placeholder = { Text(stringResource(R.string.history_search_notes_and_tags)) },
                 leadingIcon = {
                     Icon(Icons.Outlined.Search, contentDescription = null)
                 },
@@ -112,7 +114,7 @@ fun HistoryScreen(
         ) {
             item {
                 SectionHeading(
-                    text = "Latest",
+                    text = stringResource(R.string.history_latest),
                     modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
                 )
             }
@@ -148,20 +150,20 @@ private fun SelectionBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         IconButton(onClick = onClear) {
-            Icon(Icons.Filled.Close, contentDescription = "Clear selection")
+            Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.history_clear_selection))
         }
         Text(
-            text = "$count selected",
+            text = stringResource(R.string.history_selected, count),
             style = MaterialTheme.typography.titleMedium,
             modifier = Modifier.weight(1f),
         )
         IconButton(onClick = onSelectAll) {
-            Icon(Icons.Filled.SelectAll, contentDescription = "Select all")
+            Icon(Icons.Filled.SelectAll, contentDescription = stringResource(R.string.history_select_all))
         }
         IconButton(onClick = onDelete) {
             Icon(
                 Icons.Filled.Delete,
-                contentDescription = "Delete selected",
+                contentDescription = stringResource(R.string.history_delete_selected),
                 tint = MaterialTheme.colorScheme.error,
             )
         }
@@ -270,9 +272,10 @@ private fun HistoryRow(
     }
 }
 
+@Composable
 private fun sourceLabel(source: EntrySource): String = when (source) {
-    EntrySource.MANUAL -> "manual"
-    EntrySource.HEALTH_CONNECT -> "Health Connect"
-    EntrySource.IMPORT -> "imported"
-    EntrySource.SCALE -> "scale"
+    EntrySource.MANUAL -> stringResource(R.string.history_manual)
+    EntrySource.HEALTH_CONNECT -> stringResource(R.string.history_health_connect)
+    EntrySource.IMPORT -> stringResource(R.string.history_imported)
+    EntrySource.SCALE -> stringResource(R.string.history_scale)
 }

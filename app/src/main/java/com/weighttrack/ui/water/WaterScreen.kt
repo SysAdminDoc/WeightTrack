@@ -36,8 +36,10 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.VolumeUnit
 import com.weighttrack.data.repo.WaterEntry
@@ -92,15 +94,15 @@ fun WaterScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Water") },
+                title = { Text(stringResource(R.string.home_water)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     if (state.entries.isNotEmpty()) {
-                        TextButton(onClick = onClearDay) { Text("Clear day") }
+                        TextButton(onClick = onClearDay) { Text(stringResource(R.string.water_clear_day)) }
                     }
                 },
             )
@@ -118,14 +120,14 @@ fun WaterScreen(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     IconButton(onClick = onPreviousDay) {
-                        Icon(Icons.Filled.ChevronLeft, contentDescription = "Previous day")
+                        Icon(Icons.Filled.ChevronLeft, contentDescription = stringResource(R.string.water_previous_day))
                     }
                     Text(
                         text = DateFormatters.relativeDay(state.date, today),
                         style = MaterialTheme.typography.titleMedium,
                     )
                     IconButton(onClick = onNextDay, enabled = state.date.isBefore(today)) {
-                        Icon(Icons.Filled.ChevronRight, contentDescription = "Next day")
+                        Icon(Icons.Filled.ChevronRight, contentDescription = stringResource(R.string.water_next_day))
                     }
                 }
             }
@@ -172,7 +174,7 @@ fun WaterScreen(
                     onClick = onAddServing,
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                 ) {
-                    Text("Add ${VolumeFormatter.full(state.servingMl, state.unit)}")
+                    Text(stringResource(R.string.water_add, VolumeFormatter.full(state.servingMl, state.unit)))
                 }
             }
 
@@ -198,7 +200,7 @@ fun WaterScreen(
             }
 
             if (state.entries.isNotEmpty()) {
-                item { SectionHeading("Logged", Modifier.padding(top = 8.dp)) }
+                item { SectionHeading(stringResource(R.string.water_logged), Modifier.padding(top = 8.dp)) }
                 items(state.entries, key = { it.id }) { entry ->
                     SectionCard {
                         Row(
@@ -220,7 +222,7 @@ fun WaterScreen(
                             IconButton(onClick = { onRemove(entry) }) {
                                 Icon(
                                     Icons.Outlined.Delete,
-                                    contentDescription = "Remove",
+                                    contentDescription = stringResource(R.string.common_remove),
                                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
@@ -231,7 +233,7 @@ fun WaterScreen(
 
             item {
                 SectionCard {
-                    SectionHeading("Daily target")
+                    SectionHeading(stringResource(R.string.diary_daily_target))
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         targetOptionsMl(state.unit).forEach { amount ->
@@ -243,7 +245,7 @@ fun WaterScreen(
                         }
                     }
                     Spacer(Modifier.height(14.dp))
-                    SectionHeading("One serving")
+                    SectionHeading(stringResource(R.string.water_one_serving))
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         quickAmountsMl(state.unit).forEach { amount ->
@@ -256,7 +258,7 @@ fun WaterScreen(
                     }
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "The serving is what the big button and the home screen widget add.",
+                        text = stringResource(R.string.water_the_serving_is_what_the_big),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -266,7 +268,7 @@ fun WaterScreen(
             if (state.recentDays.size > 1) {
                 item {
                     SectionCard {
-                        SectionHeading("Recent days")
+                        SectionHeading(stringResource(R.string.water_recent_days))
                         Spacer(Modifier.height(6.dp))
                         state.recentDays.take(7).forEach { day ->
                             LabelledValue(

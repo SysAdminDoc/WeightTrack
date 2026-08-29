@@ -6,7 +6,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.math.Insights
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
@@ -22,7 +24,7 @@ import com.weighttrack.ui.components.SectionHeading
 fun AssociationCard(associations: AssociationState) {
     if (!associations.hasAny) return
     SectionCard {
-        SectionHeading("What moved with your weight")
+        SectionHeading(stringResource(R.string.charts_what_moved_with_your_weight))
         Spacer(Modifier.height(4.dp))
         associations.steps?.takeIf { it.isNotable }?.let {
             Text(text = stepsSentence(it), style = MaterialTheme.typography.bodyMedium)
@@ -35,7 +37,7 @@ fun AssociationCard(associations: AssociationState) {
         Text(
             // The only honest framing. Two things moving together over a couple of months of one
             // person's numbers is a thing worth noticing and not a thing worth acting on.
-            text = "These are patterns in your own numbers, not causes. Plenty of things move together for reasons that have nothing to do with each other.",
+            text = stringResource(R.string.charts_these_are_patterns_in_your_own),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

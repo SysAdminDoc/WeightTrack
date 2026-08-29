@@ -49,7 +49,9 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.model.Fast
 import com.weighttrack.core.model.FastingPreset
 import com.weighttrack.ui.components.LabelledValue
@@ -74,21 +76,51 @@ internal fun formatDuration(duration: Duration): String {
 }
 
 /**
- * The target a running fast was started with, in words.
+ * Which way a target should be described, and the numbers to describe it with.
+ *
+ * Kept apart from the wording so the decision can be tested without a screen. Whether seventeen
+ * and a half hours reads as "17h 30m" rather than "1050 minutes" is a judgement about the app;
+ * how those words are spelled is a matter for whoever translates it.
+ */
+internal sealed interface FastTarget {
+    data object None : FastTarget
+
+    data object OneHour : FastTarget
+
+    data class Hours(val hours: Int) : FastTarget
+
+    data class Minutes(val minutes: Int) : FastTarget
+
+    data class HoursAndMinutes(val hours: Int, val minutes: Int) : FastTarget
+}
+
+/**
+ * The target a running fast was started with.
  *
  * Read from the fast itself rather than the tapped preset, so a custom length still describes
  * the ring that is being drawn instead of whichever chip happens to be selected.
  */
-internal fun formatTarget(minutes: Int): String {
+internal fun fastTarget(minutes: Int): FastTarget {
     val hours = minutes / 60
     val rest = minutes % 60
     return when {
-        minutes <= 0 -> "no target"
-        rest == 0 && hours == 1 -> "1 hour"
-        rest == 0 -> "$hours hours"
-        hours == 0 -> "$rest minutes"
-        else -> "${hours}h ${rest}m"
+        minutes <= 0 -> FastTarget.None
+        rest == 0 && hours == 1 -> FastTarget.OneHour
+        rest == 0 -> FastTarget.Hours(hours)
+        hours == 0 -> FastTarget.Minutes(rest)
+        else -> FastTarget.HoursAndMinutes(hours, rest)
     }
+}
+
+/** That target in words. */
+@Composable
+internal fun formatTarget(minutes: Int): String = when (val target = fastTarget(minutes)) {
+    FastTarget.None -> stringResource(R.string.fasting_no_target)
+    FastTarget.OneHour -> stringResource(R.string.fasting_hour)
+    is FastTarget.Hours -> stringResource(R.string.fasting_hours, target.hours)
+    is FastTarget.Minutes -> stringResource(R.string.fasting_minutes, target.minutes)
+    is FastTarget.HoursAndMinutes ->
+        stringResource(R.string.fasting_h_m, target.hours, target.minutes)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -130,10 +162,10 @@ fun FastingScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Fasting") },
+                title = { Text(stringResource(R.string.fasting_fasting)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -190,7 +222,7 @@ fun FastingScreen(
                         // Correcting a start you tapped late is the whole reason the edit dialog
                         // exists, so it has to be reachable while the fast is still running.
                         TextButton(onClick = { onStartEditing(active) }) {
-                            Text("Correct the start time")
+                            Text(stringResource(R.string.fasting_correct_the_start_time))
                         }
                     }
                 }
@@ -199,7 +231,7 @@ fun FastingScreen(
             if (!state.isRunning) {
                 item {
                     SectionCard {
-                        SectionHeading("Window")
+                        SectionHeading(stringResource(R.string.fasting_window))
                         Spacer(Modifier.height(8.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             FastingPreset.entries.take(3).forEach { preset ->
@@ -229,23 +261,23 @@ fun FastingScreen(
                     Button(
                         onClick = onStop,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) { Text("End fast") }
+                    ) { Text(stringResource(R.string.fasting_end_fast)) }
                     Spacer(Modifier.height(6.dp))
                     TextButton(onClick = onCancel, modifier = Modifier.fillMaxWidth()) {
-                        Text("Discard this fast", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.fasting_discard_this_fast), color = MaterialTheme.colorScheme.error)
                     }
                 } else {
                     Button(
                         onClick = onStart,
                         modifier = Modifier.fillMaxWidth().height(52.dp),
-                    ) { Text("Start fasting") }
+                    ) { Text(stringResource(R.string.fasting_start_fasting)) }
                 }
             }
 
             if (!state.history.isEmpty) {
                 item {
                     SectionCard {
-                        SectionHeading("Recent fasts")
+                        SectionHeading(stringResource(R.string.fasting_recent_fasts))
                         Spacer(Modifier.height(4.dp))
                         LabelledValue("Recorded", state.history.recorded.toString())
                         LabelledValue("Hit the target", state.history.reached.toString())
@@ -267,26 +299,26 @@ fun FastingScreen(
                                     style = MaterialTheme.typography.titleMedium,
                                 )
                                 Text(
-                                    text = "${DateFormatters.relativeDay(row.fast.start.atZone(ZoneId.systemDefault()).toLocalDate(), today)} at ${DateFormatters.time(row.fast.start)}",
+                                    text = stringResource(R.string.fasting_at, DateFormatters.relativeDay(row.fast.start.atZone(ZoneId.systemDefault()).toLocalDate(), today), DateFormatters.time(row.fast.start)),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             if (row.reachedTarget) {
                                 Text(
-                                    text = "target",
+                                    text = stringResource(R.string.fasting_target),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.primary,
                                 )
                                 Spacer(Modifier.size(10.dp))
                             }
-                            TextButton(onClick = { onStartEditing(row.fast) }) { Text("Edit") }
+                            TextButton(onClick = { onStartEditing(row.fast) }) { Text(stringResource(R.string.common_edit)) }
                             OutlinedButton(
                                 onClick = { onDelete(row.fast) },
                                 colors = ButtonDefaults.outlinedButtonColors(
                                     contentColor = MaterialTheme.colorScheme.error,
                                 ),
-                            ) { Text("Delete") }
+                            ) { Text(stringResource(R.string.common_delete)) }
                         }
                     }
                 }
@@ -328,35 +360,41 @@ private fun EditFastDialog(
         text = {
             Column {
                 LabelledValue(
-                    label = "Started",
+                    label = stringResource(R.string.fasting_started),
                     value = DateFormatters.shortDate(start.toLocalDate()) + " at " + formatClock(start),
                 )
-                TextButton(onClick = { editingStart = true }) { Text("Change start") }
+                TextButton(onClick = { editingStart = true }) { Text(stringResource(R.string.fasting_change_start)) }
                 Spacer(Modifier.height(4.dp))
                 LabelledValue(
-                    label = "Ended",
+                    label = stringResource(R.string.fasting_ended),
                     value = finish
                         ?.let { DateFormatters.shortDate(it.toLocalDate()) + " at " + formatClock(it) }
                         ?: "Still running",
                 )
                 if (finish != null) {
-                    TextButton(onClick = { editingEnd = true }) { Text("Change end") }
+                    TextButton(onClick = { editingEnd = true }) { Text(stringResource(R.string.fasting_change_end)) }
                 }
                 if (invalid) {
                     Text(
-                        text = "The end has to come after the start.",
+                        text = stringResource(R.string.fasting_the_end_has_to_come_after),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 } else if (finish != null) {
                     Text(
-                        text = "That is " + formatDuration(Duration.between(start, finish)) + " long.",
+                        text = stringResource(
+                            R.string.fasting_that_is_how_long,
+                            formatDuration(Duration.between(start, finish)),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     Text(
-                        text = "Still running, targeting " + formatTarget(fast.targetMinutes) + ".",
+                        text = stringResource(
+                            R.string.fasting_still_running_targeting_what,
+                            formatTarget(fast.targetMinutes),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -369,9 +407,9 @@ private fun EditFastDialog(
                 onClick = {
                     onSave(start.atZone(zone).toInstant(), finish?.atZone(zone)?.toInstant())
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
     )
 
     if (editingStart) {
@@ -421,9 +459,9 @@ private fun DateTimeDialog(
                         date = Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate()
                     }
                     pickingTime = true
-                }) { Text("Next") }
+                }) { Text(stringResource(R.string.common_next)) }
             },
-            dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+            dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
         ) {
             DatePicker(state = dateState, showModeToggle = false)
         }
@@ -434,7 +472,7 @@ private fun DateTimeDialog(
         )
         AlertDialog(
             onDismissRequest = onCancel,
-            title = { Text("Pick a time") },
+            title = { Text(stringResource(R.string.fasting_pick_a_time)) },
             text = {
                 Column(
                     Modifier.fillMaxWidth(),
@@ -444,9 +482,9 @@ private fun DateTimeDialog(
             confirmButton = {
                 TextButton(onClick = {
                     onPick(LocalDateTime.of(date, LocalTime.of(timeState.hour, timeState.minute)))
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.common_set)) }
             },
-            dismissButton = { TextButton(onClick = { pickingTime = false }) { Text("Back") } },
+            dismissButton = { TextButton(onClick = { pickingTime = false }) { Text(stringResource(R.string.common_back)) } },
         )
     }
 }

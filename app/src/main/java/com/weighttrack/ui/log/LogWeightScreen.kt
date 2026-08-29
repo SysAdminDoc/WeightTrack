@@ -40,8 +40,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.model.EntryTag
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.SectionCard
@@ -91,7 +93,7 @@ fun LogWeightScreen(
                 title = { Text(if (state.isEditing) "Edit reading" else "Log weight") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
                     }
                 },
             )
@@ -161,7 +163,7 @@ fun LogWeightScreen(
             }
 
             SectionCard {
-                SectionHeading("Context")
+                SectionHeading(stringResource(R.string.log_context))
                 Spacer(Modifier.height(8.dp))
                 val preferredTags = listOf(
                     EntryTag.FASTED,
@@ -187,14 +189,14 @@ fun LogWeightScreen(
                         modifier = Modifier.fillMaxWidth().height(48.dp),
                         shape = RoundedCornerShape(8.dp),
                     ) {
-                        Text("Add note or body fat")
+                        Text(stringResource(R.string.log_add_note_or_body_fat))
                     }
                 } else {
                     Spacer(Modifier.height(4.dp))
                     OutlinedTextField(
                         value = state.note,
                         onValueChange = onNoteChange,
-                        label = { Text("Note") },
+                        label = { Text(stringResource(R.string.log_note)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = false,
                         minLines = 2,
@@ -203,8 +205,8 @@ fun LogWeightScreen(
                     OutlinedTextField(
                         value = state.bodyFatText,
                         onValueChange = onBodyFatChange,
-                        label = { Text("Body fat %") },
-                        supportingText = { Text("Optional, from a smart scale or a caliper reading") },
+                        label = { Text(stringResource(R.string.log_body_fat)) },
+                        supportingText = { Text(stringResource(R.string.log_optional_from_a_smart_scale_or)) },
                         keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                             keyboardType = KeyboardType.Decimal,
                         ),
@@ -232,10 +234,10 @@ fun LogWeightScreen(
                         )
                     }
                     showDatePicker = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.common_set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         ) {
             DatePicker(state = pickerState)
@@ -253,10 +255,10 @@ fun LogWeightScreen(
                 TextButton(onClick = {
                     onTimeChange(LocalTime.of(pickerState.hour, pickerState.minute))
                     showTimePicker = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.common_set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showTimePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showTimePicker = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         ) {
             Column(
@@ -269,15 +271,16 @@ fun LogWeightScreen(
     }
 }
 
+@Composable
 fun tagLabel(tag: EntryTag): String = when (tag) {
-    EntryTag.POST_WORKOUT -> "Post workout"
-    EntryTag.FASTED -> "Fasted"
-    EntryTag.WELL_HYDRATED -> "Well hydrated"
-    EntryTag.TRAVEL -> "Travel"
-    EntryTag.ALCOHOL -> "Alcohol"
-    EntryTag.HIGH_SALT -> "High salt"
-    EntryTag.PERIOD -> "Period"
-    EntryTag.ILL -> "Ill"
-    EntryTag.POOR_SLEEP -> "Poor sleep"
-    EntryTag.STRESSED -> "Stressed"
+    EntryTag.POST_WORKOUT -> stringResource(R.string.log_post_workout)
+    EntryTag.FASTED -> stringResource(R.string.log_fasted)
+    EntryTag.WELL_HYDRATED -> stringResource(R.string.log_well_hydrated)
+    EntryTag.TRAVEL -> stringResource(R.string.log_travel)
+    EntryTag.ALCOHOL -> stringResource(R.string.log_alcohol)
+    EntryTag.HIGH_SALT -> stringResource(R.string.log_high_salt)
+    EntryTag.PERIOD -> stringResource(R.string.log_period)
+    EntryTag.ILL -> stringResource(R.string.log_ill)
+    EntryTag.POOR_SLEEP -> stringResource(R.string.log_poor_sleep)
+    EntryTag.STRESSED -> stringResource(R.string.log_stressed)
 }

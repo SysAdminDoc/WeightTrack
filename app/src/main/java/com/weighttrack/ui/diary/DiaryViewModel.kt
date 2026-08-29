@@ -2,6 +2,7 @@ package com.weighttrack.ui.diary
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.weighttrack.R
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.math.AdaptiveExpenditure
 import com.weighttrack.core.nutrition.MacroBasis
@@ -14,6 +15,7 @@ import com.weighttrack.data.repo.FoodLogRepository
 import com.weighttrack.data.repo.FoodRepository
 import com.weighttrack.data.repo.MacroTargetRepository
 import com.weighttrack.domain.ProgressCalculator
+import com.weighttrack.ui.AppStrings
 import com.weighttrack.health.HealthConnectSync
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -84,6 +86,7 @@ data class DiaryUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class DiaryViewModel @Inject constructor(
+    private val strings: AppStrings,
     private val foodLogRepository: FoodLogRepository,
     private val foodRepository: FoodRepository,
     private val macroTargetRepository: MacroTargetRepository,
@@ -215,9 +218,9 @@ class DiaryViewModel @Inject constructor(
             // about the same day for no reason anybody could have worked out.
             copied.forEach { shareWithHealthConnect(it) }
             message.value = when {
-                copied.isEmpty() -> "Nothing to copy from the day before."
-                meal == null -> "Copied ${copied.size} things from yesterday."
-                else -> "Copied yesterday's ${meal.label.lowercase()}."
+                copied.isEmpty() -> strings[R.string.diary_nothing_to_copy_from_the_day]
+                meal == null -> strings[R.string.diary_copied_things_from_yesterday, copied.size]
+                else -> strings[R.string.diary_copied_yesterday_s, meal.label.lowercase()]
             }
         }
     }
@@ -261,15 +264,24 @@ class DiaryViewModel @Inject constructor(
                 day = day,
             )
             message.value = day
-                ?.let { "Target set for every " + it.name.lowercase().replaceFirstChar(Char::uppercase) + "." }
-                ?: "Daily target set."
+                ?.let {
+                    strings[
+                        R.string.diary_target_set_for_every_day,
+                        it.name.lowercase().replaceFirstChar(Char::uppercase),
+                    ]
+                }
+                ?: strings[R.string.diary_daily_target_set]
         }
     }
 
     fun clearTarget(day: java.time.DayOfWeek? = null) {
         viewModelScope.launch {
             macroTargetRepository.clear(day)
-            message.value = if (day == null) "Target cleared." else "That day is back on the everyday target."
+            message.value = if (day == null) {
+                strings[R.string.diary_target_cleared]
+            } else {
+                strings[R.string.diary_that_day_is_back_on_the_everyday_target]
+            }
         }
     }
 
@@ -288,7 +300,7 @@ class DiaryViewModel @Inject constructor(
         viewModelScope.launch {
             macroTargetRepository.set(revised, day = day)
             message.value = if (day == null) {
-                "Target set to ${recommended.rounded} kcal."
+                strings[R.string.diary_target_set_to_kcal, recommended.rounded]
             } else {
                 "${day.label} set to ${recommended.rounded} kcal."
             }

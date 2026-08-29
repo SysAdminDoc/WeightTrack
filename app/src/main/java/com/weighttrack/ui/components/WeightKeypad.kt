@@ -18,10 +18,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.weighttrack.R
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.WeightUnit
 import java.util.Locale
@@ -111,7 +113,7 @@ fun WeightKeypad(
             KeypadKey(
                 label = null,
                 icon = Icons.AutoMirrored.Filled.Backspace,
-                contentDescription = "Backspace",
+                contentDescription = stringResource(R.string.common_backspace),
                 modifier = Modifier.weight(1f),
                 onClick = onBackspace,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,

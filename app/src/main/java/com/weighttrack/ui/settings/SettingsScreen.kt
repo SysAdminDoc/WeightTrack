@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -52,6 +53,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.Lifecycle
 import com.weighttrack.BuildConfig
+import com.weighttrack.R
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.ActivityLevel
@@ -185,10 +187,10 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Who this is for")
+                SectionHeading(stringResource(R.string.settings_who_this_is_for))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "A household shares a scale more often than it shares a phone. Each person keeps their own readings, goal, measurements and history.",
+                    text = stringResource(R.string.settings_a_household_shares_a_scale_more),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -214,21 +216,21 @@ fun SettingsScreen(
                             )
                         }
                         Row {
-                            TextButton(onClick = { namingProfile = profile }) { Text("Rename") }
+                            TextButton(onClick = { namingProfile = profile }) { Text(stringResource(R.string.settings_rename)) }
                             if (profiles.size > 1) {
                                 TextButton(onClick = { viewModel.deleteProfile(profile.id) }) {
-                                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                                 }
                             }
                         }
                     }
                 }
                 Spacer(Modifier.height(4.dp))
-                Button(onClick = { addingProfile = true }) { Text("Add someone") }
+                Button(onClick = { addingProfile = true }) { Text(stringResource(R.string.settings_add_someone)) }
                 if (profiles.size > 1) {
                     Spacer(Modifier.height(8.dp))
                     ToggleRow(
-                        label = "Sync this profile with Health Connect",
+                        label = stringResource(R.string.settings_sync_this_profile_with_health_connect),
                         checked = activeProfile.healthConnectEnabled,
                         onCheckedChange = viewModel::setHealthConnectProfile,
                     )
@@ -236,7 +238,7 @@ fun SettingsScreen(
                         // Health Connect keeps one set of weights for the phone's owner. It has
                         // no idea a household exists, so only one profile can use it without the
                         // two of them being mixed together.
-                        text = "Health Connect keeps one set of weights for whoever owns the phone, so only one profile can use it.",
+                        text = stringResource(R.string.settings_health_connect_keeps_one_set_of),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -246,10 +248,10 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Food logging")
+                SectionHeading(stringResource(R.string.settings_food_logging))
                 Spacer(Modifier.height(4.dp))
                 ToggleRow(
-                    label = "Keep a food database",
+                    label = stringResource(R.string.settings_keep_a_food_database),
                     checked = settings.nutritionEnabled,
                     onCheckedChange = viewModel::setNutritionEnabled,
                 )
@@ -257,7 +259,7 @@ fun SettingsScreen(
                     // Off by default on purpose. Most people want a weight tracker, and a
                     // calorie counter bolted onto the front of one is why the paid apps feel
                     // like work.
-                    text = "Off by default. Turn it on and a Foods screen appears, with your own foods, recipes and lookups against Open Food Facts. Meals are passed to Health Connect if you allow it, and never read back from it.",
+                    text = stringResource(R.string.settings_off_by_default_turn_it_on),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -266,9 +268,9 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Units")
+                SectionHeading(stringResource(R.string.settings_units))
                 Spacer(Modifier.height(8.dp))
-                Text("Weight", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.onboarding_weight), style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(6.dp))
                 ChipRow(
                     options = WeightUnit.entries.map { it to weightUnitLabel(it) },
@@ -278,7 +280,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(12.dp))
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.64f))
                 Spacer(Modifier.height(12.dp))
-                Text("Measurements", style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.home_measurements), style = MaterialTheme.typography.bodyLarge)
                 Spacer(Modifier.height(6.dp))
                 ChipRow(
                     options = LengthUnit.entries.map { it to lengthUnitLabel(it) },
@@ -287,7 +289,7 @@ fun SettingsScreen(
                 )
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Weights are stored in grams, so switching units never changes a single reading.",
+                    text = stringResource(R.string.settings_weights_are_stored_in_grams_so),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -296,7 +298,7 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Appearance")
+                SectionHeading(stringResource(R.string.settings_appearance))
                 Spacer(Modifier.height(8.dp))
                 ChipRow(
                     options = ThemeMode.entries.map { it to themeLabel(it) },
@@ -306,7 +308,7 @@ fun SettingsScreen(
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     Spacer(Modifier.height(4.dp))
                     ToggleRow(
-                        label = "Use wallpaper colours",
+                        label = stringResource(R.string.settings_use_wallpaper_colours),
                         checked = settings.dynamicColor,
                         onCheckedChange = viewModel::setDynamicColor,
                     )
@@ -316,15 +318,15 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Trend smoothing")
+                SectionHeading(stringResource(R.string.settings_trend_smoothing))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "A shorter window follows the scale more closely.",
+                    text = stringResource(R.string.settings_a_shorter_window_follows_the_scale),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                Text("${settings.trendWindowDays} days", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.settings_days, settings.trendWindowDays), style = MaterialTheme.typography.titleMedium)
                 Slider(
                     value = settings.trendWindowDays.toFloat(),
                     onValueChange = { viewModel.setTrendWindow(it.toInt()) },
@@ -336,10 +338,10 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Profile")
+                SectionHeading(stringResource(R.string.settings_profile))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Only used to work out BMI, body fat and how many calories you burn. It never leaves the phone.",
+                    text = stringResource(R.string.settings_only_used_to_work_out_bmi),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -352,7 +354,7 @@ fun SettingsScreen(
                             viewModel.setHeightMm(UnitConverter.displayToMm(it, settings.lengthUnit))
                         }
                     },
-                    label = { Text("Height (${LengthFormatter.unitLabel(settings.lengthUnit)})") },
+                    label = { Text(stringResource(R.string.onboarding_height, LengthFormatter.unitLabel(settings.lengthUnit))) },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = KeyboardType.Decimal,
                     ),
@@ -368,7 +370,7 @@ fun SettingsScreen(
                             ?.takeIf { it in 1900..LocalDate.now().year }
                             ?.let(viewModel::setBirthYear)
                     },
-                    label = { Text("Year of birth") },
+                    label = { Text(stringResource(R.string.onboarding_year_of_birth)) },
                     keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
                         keyboardType = KeyboardType.Number,
                     ),
@@ -376,14 +378,14 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(10.dp))
-                Text("Sex", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.onboarding_sex), style = MaterialTheme.typography.bodySmall)
                 ChipRow(
                     options = Sex.entries.map { it to sexLabel(it) },
                     selected = settings.profile.sex,
                     onSelect = viewModel::setSex,
                 )
                 Spacer(Modifier.height(10.dp))
-                Text("Activity level", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.settings_activity_level), style = MaterialTheme.typography.bodySmall)
                 ChipRow(
                     options = ActivityLevel.entries.map { it to activityLabel(it) },
                     selected = settings.profile.activityLevel,
@@ -433,10 +435,10 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Weekly summary")
+                SectionHeading(stringResource(R.string.settings_weekly_summary))
                 Spacer(Modifier.height(6.dp))
                 ToggleRow(
-                    label = "Send a weekly read",
+                    label = stringResource(R.string.settings_send_a_weekly_read),
                     checked = settings.weeklySummaryEnabled,
                     onCheckedChange = { enabled ->
                         viewModel.setWeeklySummary(
@@ -470,7 +472,7 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "A short note on how the week went, and nothing at all in a week with too few readings to say anything honest about.",
+                    text = stringResource(R.string.settings_a_short_note_on_how_the),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -504,11 +506,11 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("Your data")
+                SectionHeading(stringResource(R.string.settings_your_data))
                 Spacer(Modifier.height(4.dp))
                 LabelledValue("Readings stored", entryCount.toString())
                 Text(
-                    text = "WeightTrack has no account and no server. Cloud backup is switched off on purpose, so these files are how your history moves to a new phone.",
+                    text = stringResource(R.string.settings_weighttrack_has_no_account_and_no),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -516,35 +518,35 @@ fun SettingsScreen(
                 Button(
                     onClick = { exportJsonLauncher.launch(BackupCodec.suggestedFileName("json")) },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Back up everything") }
+                ) { Text(stringResource(R.string.settings_back_up_everything)) }
                 Spacer(Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = { restoreLauncher.launch(arrayOf("application/json", "*/*")) },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Restore from a backup") }
+                ) { Text(stringResource(R.string.settings_restore_from_a_backup)) }
 
                 Spacer(Modifier.height(14.dp))
-                Text("Spreadsheets and other apps", style = MaterialTheme.typography.bodySmall)
+                Text(stringResource(R.string.settings_spreadsheets_and_other_apps), style = MaterialTheme.typography.bodySmall)
                 Spacer(Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = { exportCsvLauncher.launch(BackupCodec.suggestedFileName("csv")) },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Export readings as CSV") }
+                ) { Text(stringResource(R.string.settings_export_readings_as_csv)) }
                 Spacer(Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = {
                         exportMeasurementsLauncher.launch("weighttrack-measurements-${LocalDate.now()}.csv")
                     },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Export measurements as CSV") }
+                ) { Text(stringResource(R.string.settings_export_measurements_as_csv)) }
                 Spacer(Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = { importLauncher.launch(arrayOf("text/csv", "text/comma-separated-values", "text/plain", "*/*")) },
                     modifier = Modifier.fillMaxWidth(),
-                ) { Text("Import a CSV from another app") }
+                ) { Text(stringResource(R.string.settings_import_a_csv_from_another_app)) }
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "Exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others are read automatically. Columns are matched by name and the date format is worked out from the file.",
+                    text = stringResource(R.string.settings_exports_from_libra_happy_scale_openscale),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -556,14 +558,14 @@ fun SettingsScreen(
                 AppLockSupport.availability(BiometricManager.from(context))
             }
             SettingsSection {
-                SectionHeading("Privacy")
+                SectionHeading(stringResource(R.string.settings_privacy))
                 Spacer(Modifier.height(4.dp))
                 // The switch is shown whenever the lock is already on, whatever the sensor
                 // says today. A lock you cannot turn off is worse than no lock, and hiding the
                 // switch under the working case is how someone ends up stuck with one.
                 if (lockAvailability == AppLockAvailability.AVAILABLE || settings.appLockEnabled) {
                     ToggleRow(
-                        label = "Lock the app",
+                        label = stringResource(R.string.settings_lock_the_app),
                         checked = settings.appLockEnabled,
                         onCheckedChange = viewModel::setAppLockEnabled,
                     )
@@ -571,15 +573,15 @@ fun SettingsScreen(
                 Text(
                     text = when (lockAvailability) {
                         AppLockAvailability.AVAILABLE ->
-                            "Asks for your fingerprint, face or screen lock every time you come back to WeightTrack."
+                            stringResource(R.string.settings_asks_for_your_fingerprint_face_or)
                         AppLockAvailability.NO_SCREEN_LOCK ->
-                            "Set a screen lock in Android settings and WeightTrack can lock itself behind it too."
+                            stringResource(R.string.settings_set_a_screen_lock_in_android)
                         AppLockAvailability.UNAVAILABLE ->
-                            "This device has no screen lock or biometric WeightTrack can use, so the app lock is unavailable here."
+                            stringResource(R.string.settings_this_device_has_no_screen_lock)
                         AppLockAvailability.NEEDS_SECURITY_UPDATE ->
-                            "Android has switched this phone's biometric sensor off until a security update arrives, and there is no screen lock to fall back on. WeightTrack opens without asking until one of those is sorted out, rather than locking you out of your own history."
+                            stringResource(R.string.settings_android_has_switched_this_phone_s)
                         AppLockAvailability.TEMPORARILY_UNAVAILABLE ->
-                            "Android cannot check your fingerprint or screen lock at the moment. Come back in a minute and the setting will be here."
+                            stringResource(R.string.settings_android_cannot_check_your_fingerprint_or)
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -590,10 +592,10 @@ fun SettingsScreen(
         item {
             val crashReportCount by viewModel.crashReportCount.collectAsStateWithLifecycle()
             SettingsSection {
-                SectionHeading("Diagnostics")
+                SectionHeading(stringResource(R.string.settings_diagnostics))
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "If the app ever closes unexpectedly, the details are written to a file here so you can send them on. Nothing is uploaded on its own.",
+                    text = stringResource(R.string.settings_if_the_app_ever_closes_unexpectedly),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -601,9 +603,9 @@ fun SettingsScreen(
                 OutlinedButton(onClick = onOpenCrashLogs, modifier = Modifier.fillMaxWidth()) {
                     Text(
                         when (crashReportCount) {
-                            0 -> "Crash reports (none)"
-                            1 -> "Crash reports (1)"
-                            else -> "Crash reports ($crashReportCount)"
+                            0 -> stringResource(R.string.settings_crash_reports_none)
+                            1 -> stringResource(R.string.settings_crash_reports)
+                            else -> stringResource(R.string.settings_crash_reports_2, crashReportCount)
                         },
                     )
                 }
@@ -612,13 +614,13 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
-                SectionHeading("About")
+                SectionHeading(stringResource(R.string.settings_about))
                 Spacer(Modifier.height(6.dp))
                 LabelledValue("Version", BuildConfig.VERSION_NAME)
                 LabelledValue("Build", if (BuildConfig.FOSS_ONLY) "F-Droid" else "Play")
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "Free and open source under the MIT licence. No ads, no subscription, no account, and nothing about you is sent anywhere.",
+                    text = stringResource(R.string.settings_free_and_open_source_under_the),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -628,7 +630,7 @@ fun SettingsScreen(
 
     namingProfile?.let { profile ->
         NameDialog(
-            title = "Rename " + profile.name,
+            title = stringResource(R.string.settings_rename_somebody, profile.name),
             initial = profile.name,
             onCancel = { namingProfile = null },
             onConfirm = { name ->
@@ -640,7 +642,7 @@ fun SettingsScreen(
 
     if (addingProfile) {
         NameDialog(
-            title = "Add someone",
+            title = stringResource(R.string.settings_add_someone),
             initial = "",
             onCancel = { addingProfile = false },
             onConfirm = { name ->
@@ -657,7 +659,7 @@ fun SettingsScreen(
         )
         AlertDialog(
             onDismissRequest = { showReminderTime = false },
-            title = { Text("Reminder time") },
+            title = { Text(stringResource(R.string.settings_reminder_time)) },
             text = {
                 Column(
                     Modifier.fillMaxWidth(),
@@ -673,10 +675,10 @@ fun SettingsScreen(
                         activeProfile.reminderDays,
                     )
                     showReminderTime = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.common_set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showReminderTime = false }) { Text("Cancel") }
+                TextButton(onClick = { showReminderTime = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         )
     }
@@ -719,26 +721,26 @@ private fun ReminderCard(
             }
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "You will not be nudged on a day you have already weighed in.",
+                text = stringResource(R.string.settings_you_will_not_be_nudged_on),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Spacer(Modifier.height(8.dp))
             OutlinedButton(onClick = onTest, modifier = Modifier.fillMaxWidth()) {
-                Text("Send a test notification")
+                Text(stringResource(R.string.settings_send_a_test_notification))
             }
             if (!canScheduleExact) {
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Android is holding WeightTrack to approximate alarms, so the reminder may arrive a little late. Allowing exact alarms fixes that.",
+                    text = stringResource(R.string.settings_android_is_holding_weighttrack_to_approximate),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.tertiary,
                 )
-                TextButton(onClick = onOpenExactAlarmSettings) { Text("Open alarm settings") }
+                TextButton(onClick = onOpenExactAlarmSettings) { Text(stringResource(R.string.settings_open_alarm_settings)) }
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = "If reminders stop arriving, check that battery optimisation is turned off for WeightTrack. Samsung and Xiaomi phones are the usual culprits.",
+                text = stringResource(R.string.settings_if_reminders_stop_arriving_check_that),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -754,27 +756,27 @@ private fun HealthConnectCard(
     onInstall: () -> Unit,
 ) {
     SettingsSection {
-        SectionHeading("Health Connect")
+        SectionHeading(stringResource(R.string.settings_health_connect))
         Spacer(Modifier.height(6.dp))
         when (state.availability) {
             HealthConnectAvailability.NOT_SUPPORTED -> {
                 Text(
-                    text = "Health Connect is not available on this device, so scale apps cannot hand readings over automatically. Everything else works as normal.",
+                    text = stringResource(R.string.settings_health_connect_is_not_available_on),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             HealthConnectAvailability.UPDATE_REQUIRED -> {
                 Text(
-                    text = "Health Connect needs updating before WeightTrack can talk to it.",
+                    text = stringResource(R.string.settings_health_connect_needs_updating_before_weighttrack),
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Spacer(Modifier.height(8.dp))
-                Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) { Text("Update") }
+                Button(onClick = onInstall, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.settings_update)) }
             }
             HealthConnectAvailability.INSTALLED -> {
                 Text(
-                    text = "Pulls readings in from Withings, Renpho, Samsung Health, Fitbit and anything else that writes weight, and sends yours back out. Records are matched on both sides, so nothing is ever imported twice.",
+                    text = stringResource(R.string.settings_pulls_readings_in_from_withings_renpho),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -791,7 +793,7 @@ private fun HealthConnectCard(
                         // meals and never say why, because the Connect button is long gone.
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Meals, drinks and steps are not shared yet. They each need their own permission.",
+                            text = stringResource(R.string.settings_meals_drinks_and_steps_are_not),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -799,11 +801,11 @@ private fun HealthConnectCard(
                         OutlinedButton(
                             onClick = onRequestPermissions,
                             modifier = Modifier.fillMaxWidth(),
-                        ) { Text("Allow the rest") }
+                        ) { Text(stringResource(R.string.settings_allow_the_rest)) }
                     }
                 } else {
                     Button(onClick = onRequestPermissions, modifier = Modifier.fillMaxWidth()) {
-                        Text("Connect")
+                        Text(stringResource(R.string.settings_connect))
                     }
                 }
             }
@@ -872,35 +874,40 @@ private fun openHealthConnectListing(context: Context) {
     }
 }
 
+@Composable
 private fun weightUnitLabel(unit: WeightUnit): String = when (unit) {
-    WeightUnit.KG -> "Kilograms"
-    WeightUnit.LB -> "Pounds"
-    WeightUnit.ST_LB -> "Stones"
+    WeightUnit.KG -> stringResource(R.string.onboarding_kilograms)
+    WeightUnit.LB -> stringResource(R.string.onboarding_pounds)
+    WeightUnit.ST_LB -> stringResource(R.string.onboarding_stones)
 }
 
+@Composable
 private fun lengthUnitLabel(unit: LengthUnit): String = when (unit) {
-    LengthUnit.CM -> "Centimetres"
-    LengthUnit.IN -> "Inches"
+    LengthUnit.CM -> stringResource(R.string.settings_centimetres)
+    LengthUnit.IN -> stringResource(R.string.settings_inches)
 }
 
+@Composable
 private fun themeLabel(mode: ThemeMode): String = when (mode) {
-    ThemeMode.SYSTEM -> "Follow system"
-    ThemeMode.LIGHT -> "Light"
-    ThemeMode.DARK -> "Dark"
-    ThemeMode.AMOLED -> "Black"
+    ThemeMode.SYSTEM -> stringResource(R.string.settings_follow_system)
+    ThemeMode.LIGHT -> stringResource(R.string.onboarding_light)
+    ThemeMode.DARK -> stringResource(R.string.settings_dark)
+    ThemeMode.AMOLED -> stringResource(R.string.settings_black)
 }
 
+@Composable
 private fun sexLabel(sex: Sex): String = when (sex) {
-    Sex.MALE -> "Male"
-    Sex.FEMALE -> "Female"
+    Sex.MALE -> stringResource(R.string.settings_male)
+    Sex.FEMALE -> stringResource(R.string.settings_female)
 }
 
+@Composable
 private fun activityLabel(level: ActivityLevel): String = when (level) {
-    ActivityLevel.SEDENTARY -> "Sedentary"
-    ActivityLevel.LIGHT -> "Lightly active"
-    ActivityLevel.MODERATE -> "Moderately active"
-    ActivityLevel.ACTIVE -> "Active"
-    ActivityLevel.VERY_ACTIVE -> "Very active"
+    ActivityLevel.SEDENTARY -> stringResource(R.string.onboarding_sedentary)
+    ActivityLevel.LIGHT -> stringResource(R.string.settings_lightly_active)
+    ActivityLevel.MODERATE -> stringResource(R.string.settings_moderately_active)
+    ActivityLevel.ACTIVE -> stringResource(R.string.onboarding_active)
+    ActivityLevel.VERY_ACTIVE -> stringResource(R.string.onboarding_very_active)
 }
 
 /** One text field and two buttons, for naming a person. */
@@ -920,15 +927,15 @@ private fun NameDialog(
                 value = text,
                 onValueChange = { text = it },
                 singleLine = true,
-                label = { Text("Name") },
+                label = { Text(stringResource(R.string.settings_name)) },
             )
         },
         confirmButton = {
             TextButton(
                 enabled = text.isNotBlank(),
                 onClick = { onConfirm(text) },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
     )
 }

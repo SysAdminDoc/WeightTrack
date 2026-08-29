@@ -32,8 +32,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.weighttrack.R
 import com.weighttrack.core.math.Analytics
 import com.weighttrack.core.math.WeeklyChange
 import com.weighttrack.core.math.WeekdayEffect
@@ -66,8 +68,8 @@ fun ChartsScreen(
     if (!snapshot.hasData) {
         EmptyState(
             icon = Icons.AutoMirrored.Filled.ShowChart,
-            title = "Nothing to plot yet",
-            message = "Log a few readings and the trend line, the weekly changes and your weekday pattern all appear here.",
+            title = stringResource(R.string.charts_nothing_to_plot_yet),
+            message = stringResource(R.string.charts_log_a_few_readings_and_the),
             modifier = modifier.fillMaxSize().padding(top = 64.dp),
         )
         return
@@ -105,7 +107,7 @@ fun ChartsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text("Weight trend", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.charts_weight_trend), style = MaterialTheme.typography.titleMedium)
                     snapshot.series.latestTrendGrams?.roundToInt()?.let { trend ->
                         Text(
                             WeightFormatter.full(trend, unit),
@@ -134,7 +136,7 @@ fun ChartsScreen(
                     height = 220.dp,
                 )
                 Text(
-                    text = "Drag to pan · Pinch to zoom · Tap a day",
+                    text = stringResource(R.string.charts_drag_to_pan_pinch_to_zoom),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -187,14 +189,14 @@ private fun WeeklyChangeCard(
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
         Spacer(Modifier.height(14.dp))
-        SectionHeading("Week by week")
+        SectionHeading(stringResource(R.string.charts_week_by_week))
         Spacer(Modifier.height(10.dp))
         val best = weekly.minByOrNull { it.changeGrams }
         val average = weekly.map { it.changeGrams }.average()
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(
-                    "Average week",
+                    stringResource(R.string.charts_average_week),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -207,7 +209,7 @@ private fun WeeklyChangeCard(
             best?.let {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "Biggest drop",
+                        stringResource(R.string.charts_biggest_drop),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -254,10 +256,10 @@ private fun WeeklyChangeCard(
 private fun WeekdayCard(effects: List<WeekdayEffect>, unit: WeightUnit) {
     val locale = LocalConfiguration.current.locales[0]
     SectionCard {
-        SectionHeading("Weekday pattern")
+        SectionHeading(stringResource(R.string.charts_weekday_pattern))
         Spacer(Modifier.height(4.dp))
         Text(
-            text = "How far each day usually sits from the trend line. This is the weekly rhythm with the underlying loss or gain taken out.",
+            text = stringResource(R.string.charts_how_far_each_day_usually_sits),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -275,7 +277,7 @@ private fun WeekdayCard(effects: List<WeekdayEffect>, unit: WeightUnit) {
             if (spread > 300) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "You read heaviest on ${heaviest.day.getDisplayName(TextStyle.FULL, locale)} and lightest on ${lightest.day.getDisplayName(TextStyle.FULL, locale)}. Weigh on the same day each week and you will see a cleaner picture.",
+                    text = stringResource(R.string.charts_you_read_heaviest_on_and_lightest, heaviest.day.getDisplayName(TextStyle.FULL, locale), lightest.day.getDisplayName(TextStyle.FULL, locale)),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -291,13 +293,13 @@ private fun ConsistencyCard(snapshot: ProgressSnapshot) {
     }
     val streak = remember(snapshot.series) { Analytics.currentStreak(snapshot.series) }
     SectionCard {
-        SectionHeading("Logging")
+        SectionHeading(stringResource(R.string.charts_logging))
         Spacer(Modifier.height(8.dp))
         LabelledValue("Days weighed", "$logged of the last $total")
         LabelledValue("Current streak", if (streak == 0) "None right now" else "$streak days")
         Column {
             Text(
-                text = "The trend copes fine with missed days. More readings just make it steadier.",
+                text = stringResource(R.string.charts_the_trend_copes_fine_with_missed),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -315,26 +317,26 @@ private fun ConsistencyCard(snapshot: ProgressSnapshot) {
 @Composable
 private fun ActivityCard(activity: ActivityState) {
     SectionCard {
-        SectionHeading("Movement")
+        SectionHeading(stringResource(R.string.charts_movement))
         Spacer(Modifier.height(6.dp))
         when (activity.status) {
             ActivityStatus.LOADING -> Text(
-                text = "Checking Health Connect.",
+                text = stringResource(R.string.charts_checking_health_connect),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             ActivityStatus.UNAVAILABLE -> Text(
-                text = "Health Connect is not available on this device, so there are no step or calorie figures to show.",
+                text = stringResource(R.string.charts_health_connect_is_not_available_on),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             ActivityStatus.NOT_PERMITTED -> Text(
-                text = "Connect Health Connect in Settings and allow steps and active calories, and your movement will show up here against the weight trend.",
+                text = stringResource(R.string.charts_connect_health_connect_in_settings_and),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             ActivityStatus.NO_DATA -> Text(
-                text = "Nothing recorded in the last month. Steps come from whatever writes them, usually a watch or your phone.",
+                text = stringResource(R.string.charts_nothing_recorded_in_the_last_month),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -370,7 +372,7 @@ private fun ActivityCard(activity: ActivityState) {
                 }
                 LabelledValue("Days recorded", activity.days.size.toString())
                 Text(
-                    text = "Shown for context beside the trend. Steps are one input to the weight, not a cause of it.",
+                    text = stringResource(R.string.charts_shown_for_context_beside_the_trend),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

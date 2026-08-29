@@ -43,6 +43,7 @@ sealed interface SyncResult {
 @Singleton
 class SyncEngine @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val strings: com.weighttrack.ui.AppStrings,
     private val preferences: SyncPreferences,
     private val store: SyncStore,
     private val settingsRepository: SettingsRepository,
@@ -147,9 +148,13 @@ class SyncEngine @Inject constructor(
         val message = when (result) {
             is SyncResult.Done -> when {
                 result.changes.orphaned > 0 ->
-                    "Synced, but ${result.changes.orphaned} records belong to a profile that no longer exists."
-                result.changes.touched == 0 -> "Already up to date."
-                else -> "Synced ${result.changes.touched} changes across ${result.devices} devices."
+                    strings[com.weighttrack.R.string.sync_orphaned, result.changes.orphaned]
+                result.changes.touched == 0 -> strings[com.weighttrack.R.string.sync_up_to_date]
+                else -> strings[
+                    com.weighttrack.R.string.sync_changed,
+                    result.changes.touched,
+                    result.devices,
+                ]
             }
             is SyncResult.Refused -> result.reason
             is SyncResult.Unreachable -> result.reason
@@ -173,7 +178,9 @@ class SyncEngine @Inject constructor(
             if (url.isNullOrBlank() || user.isNullOrBlank()) {
                 null
             } else {
-                WebDavSyncTarget(url, user, settings.webDavPassword.orEmpty())
+                WebDavSyncTarget(url, user, settings.webDavPassword.orEmpty()) { id, arguments ->
+                    strings.get(id, *arguments)
+                }
             }
         }
     }

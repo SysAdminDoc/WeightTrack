@@ -34,7 +34,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.math.Milestones
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.core.model.WeightUnit
@@ -83,7 +85,7 @@ fun GoalScreen(
                 title = { Text(if (state.hasExistingGoal) "Edit goal" else "Set a goal") },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Close")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
                     }
                 },
             )
@@ -99,7 +101,7 @@ fun GoalScreen(
         ) {
             if (state.currentGrams == null) {
                 Text(
-                    text = "Log a weight first. A goal needs a starting point to measure from.",
+                    text = stringResource(R.string.goal_log_a_weight_first_a_goal),
                     style = MaterialTheme.typography.bodyLarge,
                     modifier = Modifier.padding(top = 24.dp),
                 )
@@ -107,7 +109,7 @@ fun GoalScreen(
             }
 
             Text(
-                text = "Target weight",
+                text = stringResource(R.string.goal_target_weight),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),
@@ -134,9 +136,9 @@ fun GoalScreen(
                 val change = state.targetGrams - state.currentGrams
                 Text(
                     text = when (state.direction) {
-                        GoalDirection.LOSE -> "↓ ${WeightFormatter.full(abs(change), state.unit)} to lose"
-                        GoalDirection.GAIN -> "↑ ${WeightFormatter.full(abs(change), state.unit)} to gain"
-                        else -> "Holding steady at your current weight."
+                        GoalDirection.LOSE -> stringResource(R.string.goal_to_lose, WeightFormatter.full(abs(change), state.unit))
+                        GoalDirection.GAIN -> stringResource(R.string.goal_to_gain, WeightFormatter.full(abs(change), state.unit))
+                        else -> stringResource(R.string.goal_holding_steady_at_your_current_weight)
                     },
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.primary,
@@ -146,7 +148,7 @@ fun GoalScreen(
             WeightKeypad(onDigit = onDigit, onBackspace = onBackspace, onClear = onClear)
 
             SectionCard(contentPadding = PaddingValues(12.dp)) {
-                SectionHeading("Milestones")
+                SectionHeading(stringResource(R.string.goal_milestones))
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     milestoneOptions.forEach { (label, grams) ->
@@ -166,7 +168,7 @@ fun GoalScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "${milestones.size} milestones on the way",
+                        text = stringResource(R.string.goal_milestones_on_the_way, milestones.size),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -193,27 +195,27 @@ fun GoalScreen(
             }
 
             SectionCard(contentPadding = PaddingValues(12.dp)) {
-                SectionHeading("Target date")
+                SectionHeading(stringResource(R.string.goal_target_date))
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { showDatePicker = true }) {
                         Text(state.targetDate?.let { DateFormatters.fullDate(it) } ?: "Pick a date")
                     }
                     if (state.targetDate != null) {
-                        TextButton(onClick = { onTargetDateChange(null) }) { Text("Clear") }
+                        TextButton(onClick = { onTargetDateChange(null) }) { Text(stringResource(R.string.goal_clear)) }
                     }
                 }
                 state.requiredGramsPerDay(today)?.let { perDay ->
                     val perWeek = perDay * 7
                     LabelledValue(
-                        label = "Pace needed",
+                        label = stringResource(R.string.goal_pace_needed),
                         value = WeightFormatter.ratePerWeek(perWeek, state.unit),
                     )
                     // Faster than about 1% of body mass a week is not a plan, it is a crash diet.
                     val safeLimit = state.currentGrams * 0.01
                     if (abs(perWeek) > safeLimit) {
                         Text(
-                            text = "That is a fast pace. Losing more than about ${WeightFormatter.full(safeLimit.roundToInt(), state.unit)} a week is hard to hold and costs you muscle. Consider a later date.",
+                            text = stringResource(R.string.goal_that_is_a_fast_pace_losing, WeightFormatter.full(safeLimit.roundToInt(), state.unit)),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.tertiary,
                         )
@@ -235,7 +237,7 @@ fun GoalScreen(
                     onClick = onClearGoal,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    Text("Remove goal", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.goal_remove_goal), color = MaterialTheme.colorScheme.error)
                 }
             }
 
@@ -257,10 +259,10 @@ fun GoalScreen(
                         )
                     }
                     showDatePicker = false
-                }) { Text("Set") }
+                }) { Text(stringResource(R.string.common_set)) }
             },
             dismissButton = {
-                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+                TextButton(onClick = { showDatePicker = false }) { Text(stringResource(R.string.common_cancel)) }
             },
         ) {
             DatePicker(state = pickerState)

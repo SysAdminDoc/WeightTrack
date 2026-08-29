@@ -34,8 +34,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.diagnostics.CrashReport
 import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.SectionCard
@@ -57,15 +59,15 @@ fun CrashLogScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Crash reports") },
+                title = { Text(stringResource(R.string.diagnostics_crash_reports)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
                 actions = {
                     if (state.reports.isNotEmpty()) {
-                        TextButton(onClick = onDeleteAll) { Text("Clear all") }
+                        TextButton(onClick = onDeleteAll) { Text(stringResource(R.string.diagnostics_clear_all)) }
                     }
                 },
             )
@@ -75,7 +77,7 @@ fun CrashLogScreen(
             EmptyState(
                 icon = Icons.Outlined.BugReport,
                 title = if (state.loaded) "No crashes recorded" else "Loading",
-                message = "If WeightTrack ever closes unexpectedly, the details land here so you can send them on. Nothing is uploaded on its own.",
+                message = stringResource(R.string.diagnostics_if_weighttrack_ever_closes_unexpectedly_the),
                 modifier = Modifier.fillMaxSize().padding(padding).padding(top = 48.dp),
             )
             return@Scaffold
@@ -88,7 +90,7 @@ fun CrashLogScreen(
         ) {
             item {
                 Text(
-                    text = "These stay on your phone. Tap one to read it, then share it if you want it looked at.",
+                    text = stringResource(R.string.diagnostics_these_stay_on_your_phone_tap),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -137,15 +139,15 @@ fun CrashLogScreen(
             },
             confirmButton = {
                 TextButton(onClick = { shareReport(context, openReport, openBody) }) {
-                    Text("Share")
+                    Text(stringResource(R.string.diagnostics_share))
                 }
             },
             dismissButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                     TextButton(onClick = { onDelete(openReport) }) {
-                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                     }
-                    TextButton(onClick = onClose) { Text("Close") }
+                    TextButton(onClick = onClose) { Text(stringResource(R.string.common_close)) }
                 }
             },
         )

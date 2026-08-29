@@ -38,10 +38,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.FoodOrigin
 import com.weighttrack.core.nutrition.OpenFoodFactsClient
@@ -82,10 +84,10 @@ fun FoodScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
-                title = { Text("Foods") },
+                title = { Text(stringResource(R.string.food_foods)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -103,18 +105,18 @@ fun FoodScreen(
                         onValueChange = onQueryChange,
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
-                        label = { Text("Search your foods") },
+                        label = { Text(stringResource(R.string.food_search_your_foods)) },
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onScan) { Text("Scan a barcode") }
-                        OutlinedButton(onClick = { adding = true }) { Text("Add a food") }
+                        Button(onClick = onScan) { Text(stringResource(R.string.barcode_scan_a_barcode)) }
+                        OutlinedButton(onClick = { adding = true }) { Text(stringResource(R.string.food_add_a_food)) }
                     }
                     Spacer(Modifier.height(6.dp))
                     OutlinedButton(
                         onClick = onSearchOnline,
                         enabled = state.hasQuery && !state.searchingOnline,
-                    ) { Text("Look it up online") }
+                    ) { Text(stringResource(R.string.food_look_it_up_online)) }
                     if (state.searchingOnline) {
                         Spacer(Modifier.height(8.dp))
                         CircularProgressIndicator()
@@ -125,7 +127,7 @@ fun FoodScreen(
             if (state.online.isNotEmpty()) {
                 item {
                     SectionCard {
-                        SectionHeading("Found online")
+                        SectionHeading(stringResource(R.string.food_found_online))
                         Spacer(Modifier.height(4.dp))
                         Text(
                             // The licence asks for this, and the data is somebody else's work
@@ -145,7 +147,7 @@ fun FoodScreen(
                     FoodRow(
                         food = food,
                         trailing = {
-                            TextButton(onClick = { onKeep(food) }) { Text("Keep") }
+                            TextButton(onClick = { onKeep(food) }) { Text(stringResource(R.string.food_keep)) }
                         },
                     )
                 }
@@ -181,7 +183,7 @@ fun FoodScreen(
                             if (food.id == 0L) {
                                 // Off the bundled shelf. There is nothing yet to favourite or
                                 // delete, so the only thing worth offering is keeping it.
-                                TextButton(onClick = { onKeep(food) }) { Text("Keep") }
+                                TextButton(onClick = { onKeep(food) }) { Text(stringResource(R.string.food_keep)) }
                             } else {
                                 IconButton(
                                     onClick = { onFavourite(food, !isFavourite(food, state)) },
@@ -192,13 +194,13 @@ fun FoodScreen(
                                         } else {
                                             Icons.Outlined.StarBorder
                                         },
-                                        contentDescription = "Favourite",
+                                        contentDescription = stringResource(R.string.food_favourite),
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
                                 }
                                 if (food.origin == FoodOrigin.CUSTOM) {
                                     TextButton(onClick = { onDelete(food) }) {
-                                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                                        Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                                     }
                                 }
                             }
@@ -209,7 +211,7 @@ fun FoodScreen(
 
             if (state.recipes.isNotEmpty()) {
                 item {
-                    SectionCard { SectionHeading("Recipes") }
+                    SectionCard { SectionHeading(stringResource(R.string.food_recipes)) }
                 }
                 items(state.recipes, key = { "recipe-${it.id}" }) { recipe ->
                     SectionCard {
@@ -221,14 +223,17 @@ fun FoodScreen(
                             Column(Modifier.weight(1f)) {
                                 Text(recipe.name, style = MaterialTheme.typography.titleMedium)
                                 Text(
-                                    text = "${recipe.items.size} ingredients, " +
-                                        "${recipe.perServing.kcal.roundToInt()} kcal a portion",
+                                    text = stringResource(
+                                        R.string.food_ingredients_and_calories,
+                                        recipe.items.size,
+                                        recipe.perServing.kcal.roundToInt(),
+                                    ),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
                             TextButton(onClick = { onDeleteRecipe(recipe) }) {
-                                Text("Delete", color = MaterialTheme.colorScheme.error)
+                                Text(stringResource(R.string.common_delete), color = MaterialTheme.colorScheme.error)
                             }
                         }
                     }
@@ -237,17 +242,17 @@ fun FoodScreen(
 
             item {
                 SectionCard {
-                    SectionHeading("Ingredients from USDA")
+                    SectionHeading(stringResource(R.string.food_ingredients_from_usda))
                     Spacer(Modifier.height(4.dp))
                     Text(
                         // A crowdsourced barcode database knows about a tin of beans and knows
                         // nothing about a potato.
-                        text = "Open Food Facts covers packaged food. USDA FoodData Central covers plain ingredients, and needs a free key of your own. This app will not ship one: a key inside an open source app is a shared quota in a public repository.",
+                        text = stringResource(R.string.food_open_food_facts_covers_packaged_food),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(onClick = { editingKey = true }) { Text("Enter a USDA key") }
+                    OutlinedButton(onClick = { editingKey = true }) { Text(stringResource(R.string.food_enter_a_usda_key)) }
                 }
             }
 
@@ -255,7 +260,7 @@ fun FoodScreen(
                 item {
                     SectionCard {
                         Text(
-                            text = "Nothing here yet. Add a food you eat often, or look one up online and keep it.",
+                            text = stringResource(R.string.food_nothing_here_yet_add_a_food),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -338,11 +343,11 @@ private fun AddFoodDialog(
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("Add a food") },
+        title = { Text(stringResource(R.string.food_add_a_food)) },
         text = {
             Column {
                 Text(
-                    text = "Everything is per 100 grams, which is how labels are written and how this app stores it.",
+                    text = stringResource(R.string.food_everything_is_per_grams_which_is),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -357,7 +362,7 @@ private fun AddFoodDialog(
                 if (!valid) {
                     Spacer(Modifier.height(6.dp))
                     Text(
-                        text = "A name and the calories per 100 grams are all that is needed.",
+                        text = stringResource(R.string.food_a_name_and_the_calories_per),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -378,9 +383,9 @@ private fun AddFoodDialog(
                         serving.replace(',', '.').toDoubleOrNull(),
                     )
                 },
-            ) { Text("Save") }
+            ) { Text(stringResource(R.string.common_save)) }
         },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 
@@ -389,11 +394,11 @@ private fun UsdaKeyDialog(onCancel: () -> Unit, onSave: (String) -> Unit) {
     var key by remember { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text("USDA FoodData Central key") },
+        title = { Text(stringResource(R.string.food_usda_fooddata_central_key)) },
         text = {
             Column {
                 Text(
-                    text = "Get a free key at ${UsdaFoodDataClient.KEY_SIGNUP_URL} and paste it here. It stays on this phone. Leave it empty to clear it.",
+                    text = stringResource(R.string.food_get_a_free_key_at_and, UsdaFoodDataClient.KEY_SIGNUP_URL),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -401,8 +406,8 @@ private fun UsdaKeyDialog(onCancel: () -> Unit, onSave: (String) -> Unit) {
                 NumberlessField(key, { key = it }, "Key")
             }
         },
-        confirmButton = { TextButton(onClick = { onSave(key) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+        confirmButton = { TextButton(onClick = { onSave(key) }) { Text(stringResource(R.string.common_save)) } },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
     )
 }
 

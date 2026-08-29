@@ -21,6 +21,8 @@ class FolderSyncTarget(
     private val treeUri: Uri,
 ) : SyncTarget {
 
+    private fun say(id: Int, vararg arguments: Any): String = context.getString(id, *arguments)
+
     override val describe: String
         get() = treeUri.lastPathSegment?.substringAfterLast(':')?.ifBlank { null }
             ?: treeUri.toString()
@@ -34,14 +36,22 @@ class FolderSyncTarget(
                 // A folder on a memory card that has been taken out, or one whose permission was
                 // revoked when the app was reinstalled. Worth saying, because only the person
                 // can put it right by picking it again.
-                "That folder cannot be opened any more. Pick it again.",
+                say(com.weighttrack.R.string.sync_folder_gone),
             )
         runCatching { folder.listFiles().mapNotNull { it.name } }
-            .fold({ SyncOutcome.Ok(it) }, { SyncOutcome.Unreachable(it.message ?: "Could not read the folder.") })
+            .fold(
+                { SyncOutcome.Ok(it) },
+                {
+                    SyncOutcome.Unreachable(
+                        it.message ?: say(com.weighttrack.R.string.sync_could_not_read_folder),
+                    )
+                },
+            )
     }
 
     override suspend fun read(name: String): SyncOutcome<String?> = withContext(Dispatchers.IO) {
-        val folder = folder() ?: return@withContext SyncOutcome.Refused("That folder cannot be opened any more. Pick it again.")
+        val folder = folder()
+            ?: return@withContext SyncOutcome.Refused(say(com.weighttrack.R.string.sync_folder_gone))
         val file = folder.findFile(name)
         if (file == null || !file.isFile) return@withContext SyncOutcome.Ok(null)
         runCatching {
@@ -52,13 +62,20 @@ class FolderSyncTarget(
                 // half a document. Neither is a reason to stop: the next run picks it up.
                 SyncOutcome.Ok(it)
             },
-            { SyncOutcome.Unreachable(it.message ?: "Could not read $name.") },
+            {
+                SyncOutcome.Unreachable(
+                    it.message ?: say(com.weighttrack.R.string.sync_could_not_read_file, name),
+                )
+            },
         )
     }
 
     override suspend fun write(name: String, content: String): SyncOutcome<Unit> =
         withContext(Dispatchers.IO) {
-            val folder = folder() ?: return@withContext SyncOutcome.Refused("That folder cannot be opened any more. Pick it again.")
+            val folder = folder()
+                ?: return@withContext SyncOutcome.Refused(
+                    say(com.weighttrack.R.string.sync_folder_gone),
+                )
             runCatching {
                 // Reused rather than replaced. Creating over an existing name gives a second file
                 // called "weighttrack-abc (1).json", and from then on the folder holds two files
@@ -74,7 +91,11 @@ class FolderSyncTarget(
                 Unit
             }.fold(
                 { SyncOutcome.Ok(Unit) },
-                { SyncOutcome.Unreachable(it.message ?: "Could not write $name.") },
+                {
+                    SyncOutcome.Unreachable(
+                        it.message ?: say(com.weighttrack.R.string.sync_could_not_write_file, name),
+                    )
+                },
             )
         }
 

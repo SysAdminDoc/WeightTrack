@@ -2,6 +2,7 @@ package com.weighttrack.ui.food
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.weighttrack.R
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.FoodOrigin
 import com.weighttrack.core.nutrition.Nutrients
@@ -12,6 +13,7 @@ import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.FoodRepository
 import com.weighttrack.data.repo.Recipe
 import com.weighttrack.data.repo.RecipeItem
+import com.weighttrack.ui.AppStrings
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
@@ -56,6 +58,7 @@ data class FoodUiState(
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class FoodViewModel @Inject constructor(
+    private val strings: AppStrings,
     private val foodRepository: FoodRepository,
     private val clients: FoodClients,
     private val settingsRepository: SettingsRepository,
@@ -118,10 +121,12 @@ class FoodViewModel @Inject constructor(
                 when (val result = clients.openFoodFacts().search(text)) {
                     is OpenFoodFactsClient.Result.Found -> found += result.value
                     is OpenFoodFactsClient.Result.RateLimited ->
-                        message.value = "Open Food Facts asks for a moment. Try again in " +
-                            "${(result.retryInMillis / 1000) + 1} seconds."
+                        message.value = strings[
+                            R.string.food_open_food_facts_asks_for_a_moment,
+                            (result.retryInMillis / 1000) + 1,
+                        ]
                     is OpenFoodFactsClient.Result.Unreachable ->
-                        message.value = "Could not reach Open Food Facts."
+                        message.value = strings[R.string.food_could_not_reach_open_food_facts]
                     is OpenFoodFactsClient.Result.NotFound -> Unit
                 }
                 when (val result = clients.usda().search(text)) {
@@ -132,7 +137,7 @@ class FoodViewModel @Inject constructor(
                 }
                 online.value = found
                 if (found.isEmpty() && message.value == null) {
-                    message.value = "Nothing found for \"$text\"."
+                    message.value = strings[R.string.food_nothing_found_for, text]
                 }
             } finally {
                 searchingOnline.value = false
@@ -146,29 +151,29 @@ class FoodViewModel @Inject constructor(
             foodRepository.byBarcode(barcode)?.let { known ->
                 // Already here, so no request and no signal needed.
                 if (known.id > 0) {
-                    message.value = "${known.label} is already in your foods."
+                    message.value = strings[R.string.food_is_already_in_your_foods, known.label]
                     onResult(known)
                     return@launch
                 }
                 // Off the bundled shelf. Kept, so it behaves like any other food from now on and
                 // so a correction to it sticks.
                 val id = foodRepository.cache(known)
-                message.value = "${known.label} added to your foods."
+                message.value = strings[R.string.food_added_to_your_foods, known.label]
                 onResult(foodRepository.byId(id))
                 return@launch
             }
             when (val result = clients.openFoodFacts().byBarcode(barcode)) {
                 is OpenFoodFactsClient.Result.Found -> {
                     val id = foodRepository.cache(result.value)
-                    message.value = "${result.value.label} added to your foods."
+                    message.value = strings[R.string.food_added_to_your_foods, result.value.label]
                     onResult(foodRepository.byId(id))
                 }
                 is OpenFoodFactsClient.Result.RateLimited -> {
-                    message.value = "Too many lookups just now. Try again in a moment."
+                    message.value = strings[R.string.food_too_many_lookups_just_now_try]
                     onResult(null)
                 }
                 else -> {
-                    message.value = "No food found for that barcode."
+                    message.value = strings[R.string.food_no_food_found_for_that_barcode]
                     onResult(null)
                 }
             }
@@ -180,7 +185,7 @@ class FoodViewModel @Inject constructor(
         viewModelScope.launch {
             foodRepository.cache(food)
             online.value = online.value.filterNot { it === food }
-            message.value = "${food.name} saved to your foods."
+            message.value = strings[R.string.food_saved_to_your_foods, food.name]
         }
     }
 
@@ -208,7 +213,7 @@ class FoodViewModel @Inject constructor(
                     origin = FoodOrigin.CUSTOM,
                 ),
             )
-            message.value = "${name.trim()} added."
+            message.value = strings[R.string.food_added, name.trim()]
         }
     }
 
@@ -223,7 +228,7 @@ class FoodViewModel @Inject constructor(
     fun saveRecipe(name: String, servings: Int, items: List<RecipeItem>, id: Long = 0) {
         viewModelScope.launch {
             foodRepository.saveRecipe(name, servings, items, id)
-            message.value = "${name.trim()} saved."
+            message.value = strings[R.string.food_saved, name.trim()]
         }
     }
 
@@ -240,9 +245,9 @@ class FoodViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.setUsdaApiKey(key.trim().takeIf { it.isNotEmpty() })
             message.value = if (key.isBlank()) {
-                "USDA key cleared."
+                strings[R.string.food_usda_key_cleared]
             } else {
-                "USDA key saved. Ingredient searches will include it."
+                strings[R.string.food_usda_key_saved_ingredient_searches_will]
             }
         }
     }

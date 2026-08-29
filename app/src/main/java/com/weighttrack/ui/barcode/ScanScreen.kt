@@ -39,11 +39,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.weighttrack.R
 import com.weighttrack.barcode.BarcodeReader
 import com.weighttrack.barcode.Barcodes
 import com.weighttrack.ui.components.SectionCard
@@ -86,10 +88,10 @@ fun ScanScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text("Scan a barcode") },
+                title = { Text(stringResource(R.string.barcode_scan_a_barcode)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_back))
                     }
                 },
             )
@@ -102,12 +104,12 @@ fun ScanScreen(
             if (!granted) {
                 SectionCard {
                     Text(
-                        text = "Reading a barcode needs the camera. Nothing is recorded and no picture is kept: the frame is looked at for a number and thrown away.",
+                        text = stringResource(R.string.barcode_reading_a_barcode_needs_the_camera),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     Spacer(Modifier.height(8.dp))
                     Button(onClick = { permissionLauncher.launch(Manifest.permission.CAMERA) }) {
-                        Text("Allow the camera")
+                        Text(stringResource(R.string.barcode_allow_the_camera))
                     }
                 }
                 return@Column

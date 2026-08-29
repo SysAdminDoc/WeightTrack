@@ -16,8 +16,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.weighttrack.R
 
 /**
  * What shows instead of the app while it is locked.
@@ -44,10 +46,10 @@ fun LockScreen(
             modifier = Modifier.size(48.dp),
         )
         Spacer(Modifier.height(20.dp))
-        Text("WeightTrack is locked", style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(R.string.lock_weighttrack_is_locked), style = MaterialTheme.typography.titleLarge)
         Spacer(Modifier.height(8.dp))
         Text(
-            text = "Unlock with your fingerprint, face or screen lock to see your readings.",
+            text = stringResource(R.string.lock_unlock_with_your_fingerprint_face_or),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             textAlign = TextAlign.Center,
@@ -62,6 +64,6 @@ fun LockScreen(
             )
         }
         Spacer(Modifier.height(28.dp))
-        Button(onClick = onUnlock) { Text("Unlock") }
+        Button(onClick = onUnlock) { Text(stringResource(R.string.lock_unlock)) }
     }
 }
