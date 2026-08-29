@@ -290,16 +290,17 @@ interface FastDao {
     suspend fun deleteAll()
 
     /**
-     * Starts a fast, closing any that was left open.
+     * Starts a fast, unless one is already running.
      *
-     * Two open fasts would make "the current fast" ambiguous and the timer would pick one at
-     * random, so the previous one is ended at the new start rather than abandoned.
+     * This used to close the running fast at the new start. That turned a double tap into a
+     * zero length fast in history, and a backwards clock correction between two starts stored an
+     * end before its own start. A second start is a double tap, not a new fast, so it is refused
+     * and the running fast is returned untouched. The check sits inside the transaction with the
+     * insert so two taps landing together cannot both get through it.
      */
     @Transaction
-    suspend fun startFast(startUtcMillis: Long, targetMinutes: Int): Long {
-        active()?.let { open ->
-            update(open.copy(endUtcMillis = startUtcMillis, updatedAtUtcMillis = startUtcMillis))
-        }
+    suspend fun startFast(startUtcMillis: Long, targetMinutes: Int): Long? {
+        if (active() != null) return null
         return insert(
             FastEntity(
                 startUtcMillis = startUtcMillis,

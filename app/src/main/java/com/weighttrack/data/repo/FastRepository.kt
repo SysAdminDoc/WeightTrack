@@ -9,6 +9,9 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** Why a fast edit did or did not save. */
+enum class FastUpdateResult { SAVED, BACKWARDS, MISSING }
+
 @Singleton
 class FastRepository @Inject constructor(
     private val dao: FastDao,
@@ -22,7 +25,8 @@ class FastRepository @Inject constructor(
 
     suspend fun active(): Fast? = dao.active()?.toDomain()
 
-    suspend fun start(targetMinutes: Int, at: Instant = Instant.now()): Long =
+    /** Starts a fast. Returns null when one is already running, so a double tap is a no-op. */
+    suspend fun start(targetMinutes: Int, at: Instant = Instant.now()): Long? =
         dao.startFast(at.toEpochMilli(), targetMinutes)
 
     /** Ends the running fast. Does nothing when none is running. */
@@ -42,8 +46,15 @@ class FastRepository @Inject constructor(
         return true
     }
 
-    suspend fun update(fast: Fast) {
-        val existing = dao.byId(fast.id) ?: return
+    /**
+     * Saves a corrected fast.
+     *
+     * Both refusals are reported rather than swallowed: the caller shows the reason, because a
+     * dialog that closes and changes nothing looks like it saved.
+     */
+    suspend fun update(fast: Fast): FastUpdateResult {
+        if (fast.end != null && fast.end.isBefore(fast.start)) return FastUpdateResult.BACKWARDS
+        val existing = dao.byId(fast.id) ?: return FastUpdateResult.MISSING
         dao.update(
             existing.copy(
                 startUtcMillis = fast.start.toEpochMilli(),
@@ -53,6 +64,7 @@ class FastRepository @Inject constructor(
                 updatedAtUtcMillis = System.currentTimeMillis(),
             ),
         )
+        return FastUpdateResult.SAVED
     }
 
     suspend fun delete(fast: Fast) {

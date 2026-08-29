@@ -18,17 +18,19 @@ import org.robolectric.RobolectricTestRunner
 import java.io.File
 
 /**
- * The upgrade path from the first release.
+ * The upgrade path from every version that has shipped.
  *
  * Losing someone's weight history on an app update is the worst thing this app could do, and a
- * destructive fallback would do exactly that in silence. This builds a real version 1 database
- * from the schema Room itself exported, puts rows in it, then opens it with the current Room
- * definition so the whole real auto-migration chain runs, and checks the rows are still there
- * afterwards. Opening with the current definition keeps this covering every future version
- * step without being rewritten.
+ * destructive fallback would do exactly that in silence. This builds a real database at an old
+ * version from the schema Room itself exported, puts rows in it, then opens it with the current
+ * Room definition so the whole real auto-migration chain runs, and checks the rows are still
+ * there afterwards.
  *
- * Driving the version 1 tables from the exported `1.json` rather than hand-written DDL means
- * the test cannot drift away from what version 1 actually shipped.
+ * Every shipped version gets its own case. Only testing the oldest one leaves the intermediate
+ * steps unproven: a phone updating from 3 to 4 never runs the 1 to 2 migration at all.
+ *
+ * Driving the old tables from the exported `<version>.json` rather than hand-written DDL means
+ * the test cannot drift away from what those versions actually shipped.
  */
 @RunWith(RobolectricTestRunner::class)
 class WeightTrackDatabaseMigrationTest {
@@ -51,9 +53,9 @@ class WeightTrackDatabaseMigrationTest {
             ?: error("Could not find the exported Room schema for version $version")
     }
 
-    /** Recreates the version 1 database exactly as Room described it. */
-    private fun createVersionOneDatabase(): File {
-        val schema = Json.parseToJsonElement(schemaFile(1).readText())
+    /** Recreates an old database exactly as Room described it. */
+    private fun createDatabaseAtVersion(version: Int): File {
+        val schema = Json.parseToJsonElement(schemaFile(version).readText())
             .jsonObject.getValue("database").jsonObject
 
         val file = context.getDatabasePath(databaseName)
@@ -64,26 +66,32 @@ class WeightTrackDatabaseMigrationTest {
             val createSql = entity.jsonObject.getValue("createSql").jsonPrimitive.content
             db.execSQL(createSql.replace("\${TABLE_NAME}", table))
             // Room validates indices as well as columns, so a table without them is not a
-            // faithful version 1 database and the migration check fails for the wrong reason.
+            // faithful old database and the migration check fails for the wrong reason.
             entity.jsonObject["indices"]?.jsonArray?.forEach { index ->
                 val indexSql = index.jsonObject.getValue("createSql").jsonPrimitive.content
                 db.execSQL(indexSql.replace("\${TABLE_NAME}", table))
             }
         }
         // Room refuses to open a database whose recorded identity hash it does not recognise,
-        // so the setup queries that stamp it are part of being a genuine version 1 database.
+        // so the setup queries that stamp it are part of being a genuine old database.
         schema["setupQueries"]?.jsonArray?.forEach { db.execSQL(it.jsonPrimitive.content) }
-        db.version = 1
+        db.version = version
         db.close()
         return file
     }
 
-    private fun seedVersionOneRows() {
+    private fun withOldDatabase(block: (SQLiteDatabase) -> Unit) {
         val db = SQLiteDatabase.openDatabase(
             context.getDatabasePath(databaseName).path,
             null,
             SQLiteDatabase.OPEN_READWRITE,
         )
+        block(db)
+        db.close()
+    }
+
+    /** The three tables that have existed since version 1. */
+    private fun seedCoreRows() = withOldDatabase { db ->
         db.execSQL(
             """
             INSERT INTO weight_entries
@@ -108,7 +116,6 @@ class WeightTrackDatabaseMigrationTest {
             VALUES ('LOSE', 90000, 80000, '2023-11-01', NULL, 2000, 1, 0)
             """.trimIndent(),
         )
-        db.close()
     }
 
     /** Opens with the current definition, which is what actually runs the migration. */
@@ -118,13 +125,7 @@ class WeightTrackDatabaseMigrationTest {
             .build()
             .also { database = it }
 
-    @Test
-    fun `version 1 data survives the upgrade`() = runTest {
-        createVersionOneDatabase()
-        seedVersionOneRows()
-
-        val db = openCurrent()
-
+    private suspend fun assertCoreRowsSurvived(db: WeightTrackDatabase) {
         val entry = db.weightEntryDao().latest()
         assertThat(entry).isNotNull()
         assertThat(entry!!.grams).isEqualTo(82_500)
@@ -137,9 +138,63 @@ class WeightTrackDatabaseMigrationTest {
     }
 
     @Test
+    fun `version 1 data survives the upgrade`() = runTest {
+        createDatabaseAtVersion(1)
+        seedCoreRows()
+
+        assertCoreRowsSurvived(openCurrent())
+    }
+
+    @Test
+    fun `version 2 data survives the upgrade`() = runTest {
+        createDatabaseAtVersion(2)
+        seedCoreRows()
+        withOldDatabase { db ->
+            db.execSQL(
+                """
+                INSERT INTO water_entries
+                (timestampUtcMillis, localDate, millilitres, healthConnectId, updatedAtUtcMillis)
+                VALUES (1700000000000, '2023-11-14', 330, NULL, 0)
+                """.trimIndent(),
+            )
+        }
+
+        val db = openCurrent()
+        assertCoreRowsSurvived(db)
+        assertThat(db.waterDao().totalForDate("2023-11-14")).isEqualTo(330)
+    }
+
+    @Test
+    fun `version 3 data survives the upgrade`() = runTest {
+        createDatabaseAtVersion(3)
+        seedCoreRows()
+        withOldDatabase { db ->
+            db.execSQL(
+                """
+                INSERT INTO water_entries
+                (timestampUtcMillis, localDate, millilitres, healthConnectId, updatedAtUtcMillis)
+                VALUES (1700000000000, '2023-11-14', 330, NULL, 0)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO fasts
+                (startUtcMillis, endUtcMillis, targetMinutes, note, updatedAtUtcMillis)
+                VALUES (1700000000000, 1700057600000, 960, NULL, 0)
+                """.trimIndent(),
+            )
+        }
+
+        val db = openCurrent()
+        assertCoreRowsSurvived(db)
+        assertThat(db.waterDao().totalForDate("2023-11-14")).isEqualTo(330)
+        assertThat(db.fastDao().observeCompleted().first().single().targetMinutes).isEqualTo(960)
+    }
+
+    @Test
     fun `the water table exists and works after the upgrade`() = runTest {
-        createVersionOneDatabase()
-        seedVersionOneRows()
+        createDatabaseAtVersion(1)
+        seedCoreRows()
 
         val db = openCurrent()
         val dao = db.waterDao()
@@ -159,15 +214,16 @@ class WeightTrackDatabaseMigrationTest {
 
     @Test
     fun `the fasting table exists and works after the upgrade`() = runTest {
-        createVersionOneDatabase()
-        seedVersionOneRows()
+        createDatabaseAtVersion(1)
+        seedCoreRows()
 
         val db = openCurrent()
         val dao = db.fastDao()
         assertThat(dao.active()).isNull()
 
         val id = dao.startFast(startUtcMillis = 1_800_000_000_000, targetMinutes = 16 * 60)
-        assertThat(id).isGreaterThan(0)
+        assertThat(id).isNotNull()
+        assertThat(id!!).isGreaterThan(0)
         val active = dao.active()
         assertThat(active).isNotNull()
         assertThat(active!!.targetMinutes).isEqualTo(16 * 60)
@@ -175,22 +231,27 @@ class WeightTrackDatabaseMigrationTest {
     }
 
     @Test
-    fun `starting a second fast closes the first rather than leaving two open`() = runTest {
-        createVersionOneDatabase()
+    fun `the progress photo table exists and works after the upgrade`() = runTest {
+        createDatabaseAtVersion(1)
+        seedCoreRows()
+
         val db = openCurrent()
-        val dao = db.fastDao()
-
-        dao.startFast(startUtcMillis = 1_000, targetMinutes = 16 * 60)
-        dao.startFast(startUtcMillis = 5_000, targetMinutes = 18 * 60)
-
-        // Two open fasts would make "the current fast" ambiguous on the timer.
-        assertThat(dao.active()!!.targetMinutes).isEqualTo(18 * 60)
-        assertThat(dao.observeCompletedCount().first()).isEqualTo(1)
+        val dao = db.progressPhotoDao()
+        dao.insert(
+            ProgressPhotoEntity(
+                timestampUtcMillis = 1_800_000_000_000,
+                localDate = "2026-01-01",
+                fileName = "photo-1.jpg",
+                weightGrams = 82_500,
+                note = null,
+            ),
+        )
+        assertThat(dao.observeAll().first().single().fileName).isEqualTo("photo-1.jpg")
     }
 
     @Test
     fun `an empty version 1 database upgrades cleanly`() = runTest {
-        createVersionOneDatabase()
+        createDatabaseAtVersion(1)
 
         val db = openCurrent()
         assertThat(db.weightEntryDao().count()).isEqualTo(0)

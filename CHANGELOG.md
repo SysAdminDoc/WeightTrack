@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Fasting fixes from the third review pass. Tapping start twice no longer files a zero length fast, and a start after the clock has jumped backwards can no longer record a fast that ends before it began. A running fast is now editable, so "I actually started this two hours ago" is a correction you can make. Both the start and the end carry a date as well as a time, which is what a fast you forgot to stop overnight needs. The ring caption reads the target off the running fast instead of the last chip you tapped. An edit that cannot be saved says why rather than closing in silence. And the screen no longer walks your whole fasting history on the interface thread once a second.
 - Progress photo database updates now resolve and validate their private image files on the I/O dispatcher instead of making the screen collector do filesystem work.
 - Camera captures now survive the app process being reclaimed while the camera is open. The pending private file is restored and filed when control returns, instead of leaving an unreachable JPEG behind.
 - Progress photo tiles now decode a display-sized sample in the background instead of expanding every camera image at full resolution on the interface thread.

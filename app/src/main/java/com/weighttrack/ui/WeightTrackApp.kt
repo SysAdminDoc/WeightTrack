@@ -284,8 +284,11 @@ fun WeightTrackApp(
                 val viewModel: FastingViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val editingFast by viewModel.editing.collectAsStateWithLifecycle()
+                val fastingNow by viewModel.now.collectAsStateWithLifecycle()
+                val fastingMessage by viewModel.message.collectAsStateWithLifecycle()
                 FastingScreen(
                     state = state,
+                    now = fastingNow,
                     onSelectPreset = viewModel::selectPreset,
                     onStart = viewModel::start,
                     onStop = viewModel::stop,
@@ -295,6 +298,8 @@ fun WeightTrackApp(
                     onStartEditing = viewModel::startEditing,
                     onCancelEditing = viewModel::cancelEditing,
                     onSaveEdit = viewModel::saveEdit,
+                    message = fastingMessage,
+                    onDismissMessage = viewModel::dismissMessage,
                     onBack = { navController.popBackStack() },
                 )
             }
