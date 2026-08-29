@@ -32,3 +32,4 @@ keystore.properties
 # JVM crash dumps, written into the repo root when the Gradle daemon dies
 hs_err_pid*.log
 replay_pid*.log
+RESEARCH.md
