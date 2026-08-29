@@ -224,4 +224,85 @@ class AdaptiveExpenditureTest {
 
         assertThat(estimate.kcalPerDay).isWithin(1.0).of(2_115.0)
     }
+
+    @Test
+    fun `a few days on the scale is not a fortnight of weighing`() {
+        // Somebody who has logged food for a fortnight and owned a scale for five days. Four
+        // hundred grams of ordinary water movement across those five days, stretched over
+        // fourteen, is a difference of well over a thousand calories a day between the two
+        // directions, and both answers would be stated with a straight face.
+        val lostWater = AdaptiveExpenditure.estimate(
+            series = clustered(85_000, -400, weighIns = 5),
+            intakeByDate = intake(2_000.0),
+            today = today,
+        )
+        val gainedWater = AdaptiveExpenditure.estimate(
+            series = clustered(85_000, 400, weighIns = 5),
+            intakeByDate = intake(2_000.0),
+            today = today,
+        )
+
+        assertThat(lostWater).isNull()
+        assertThat(gainedWater).isNull()
+    }
+
+    @Test
+    fun `weighing spread across the window is enough`() {
+        // The same five readings, spread over the fortnight instead of bunched at the end. Now
+        // the rate is measured across the stretch it is applied to.
+        val estimate = AdaptiveExpenditure.estimate(
+            series = spread(85_000, -71.4, weighIns = 5),
+            intakeByDate = intake(2_000.0),
+            today = today,
+        )
+
+        assertThat(estimate).isNotNull()
+        assertThat(estimate!!.weighIns).isEqualTo(5)
+        assertThat(estimate.kcalPerDay).isWithin(30.0).of(2_549.8)
+    }
+
+    @Test
+    fun `the answer covers the days that were weighed, not the days that were asked for`() {
+        // Weighing stopped four days ago. The estimate describes the ten days that were actually
+        // measured rather than pretending to know about the four that were not.
+        val estimate = AdaptiveExpenditure.estimate(
+            series = endingEarly(85_000, -71.4, stoppedDaysAgo = 4),
+            intakeByDate = intake(2_000.0),
+            today = today,
+        )!!
+
+        assertThat(estimate.days).isEqualTo(10)
+        assertThat(estimate.kcalPerDay).isWithin(5.0).of(2_549.8)
+    }
+
+    /** Weigh-ins bunched into the last few days of the window, drifting by [drift] grams total. */
+    private fun clustered(startGrams: Int, drift: Int, weighIns: Int): TrendSeries {
+        val from = today.minusDays(weighIns.toLong() - 1)
+        val daily = (0 until weighIns).map { day ->
+            DailyWeight(
+                from.plusDays(day.toLong()),
+                startGrams + (drift.toDouble() * day / (weighIns - 1)).toInt(),
+            )
+        }
+        return TrendEngine.computeSeries(daily, TrendEngine.DEFAULT_WINDOW_DAYS)
+    }
+
+    /** Weigh-ins spread evenly across the fortnight rather than bunched at one end. */
+    private fun spread(startGrams: Int, gramsPerDay: Double, weighIns: Int): TrendSeries {
+        val step = 13.0 / (weighIns - 1)
+        val daily = (0 until weighIns).map { index ->
+            val day = (index * step).toLong()
+            DailyWeight(start.plusDays(day), (startGrams + gramsPerDay * day).toInt())
+        }
+        return TrendEngine.computeSeries(daily, TrendEngine.DEFAULT_WINDOW_DAYS)
+    }
+
+    /** Daily weigh-ins that stop some days before today. */
+    private fun endingEarly(startGrams: Int, gramsPerDay: Double, stoppedDaysAgo: Int): TrendSeries {
+        val days = 14 - stoppedDaysAgo
+        val daily = (0 until days).map { day ->
+            DailyWeight(start.plusDays(day.toLong()), (startGrams + gramsPerDay * day).toInt())
+        }
+        return TrendEngine.computeSeries(daily, TrendEngine.DEFAULT_WINDOW_DAYS)
+    }
 }

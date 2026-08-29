@@ -123,7 +123,7 @@ class FoodLogRepositoryTest {
 
         val copied = log.copyDay(from = yesterday, to = today, meal = Meal.BREAKFAST)
 
-        assertThat(copied).isEqualTo(1)
+        assertThat(copied).hasSize(1)
         val day = log.observeDay(today).first()
         assertThat(day.entries).hasSize(1)
         assertThat(day.forMeal(Meal.BREAKFAST).single().grams!!).isWithin(1e-9).of(40.0)
@@ -137,13 +137,13 @@ class FoodLogRepositoryTest {
         log.log(food, grams = 40.0, meal = Meal.BREAKFAST, date = yesterday)
         log.log(food, grams = 200.0, meal = Meal.DINNER, date = yesterday)
 
-        assertThat(log.copyDay(from = yesterday, to = today)).isEqualTo(2)
+        assertThat(log.copyDay(from = yesterday, to = today)).hasSize(2)
         assertThat(log.observeDay(today).first().entries).hasSize(2)
     }
 
     @Test
     fun `copying a day with nothing in it does nothing`() = runTest {
-        assertThat(log.copyDay(from = yesterday, to = today)).isEqualTo(0)
+        assertThat(log.copyDay(from = yesterday, to = today)).isEmpty()
         assertThat(log.observeDay(today).first().isEmpty).isTrue()
     }
 

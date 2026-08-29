@@ -45,6 +45,7 @@ import com.weighttrack.data.repo.FoodLogEntry
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.core.nutrition.OpenFoodFactsClient
+import com.weighttrack.ui.food.needsOpenFoodFactsCredit
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.food.keepNumeric
@@ -171,11 +172,18 @@ fun DiaryScreen(
                         )
                         Text(
                             // No formula and no activity multiplier. Their own body measured it.
-                            text = "Worked out from ${estimate.loggedDays} days of food and what your weight actually did, not from a formula.",
+                            text = if (state.expenditureConfident) {
+                                "Worked out from ${estimate.loggedDays} days of food and what your weight actually did, not from a formula."
+                            } else {
+                                // Hedged rather than stated. The arithmetic ran, but a fortnight
+                                // with gaps in the food or a large swing in weight is not yet a
+                                // fact about anybody's metabolism.
+                                "Still settling. It is worked out from ${estimate.loggedDays} days of food out of ${estimate.days}, and it will steady as you log more."
+                            },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        state.recommendation?.let { recommended ->
+                        state.recommendation?.takeIf { state.expenditureConfident }?.let { recommended ->
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 text = if (recommended.cappedAtMinimum) {
@@ -346,7 +354,7 @@ private fun AddFromFoodsDialog(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (shown.any { it.id == 0L }) {
+                    if (needsOpenFoodFactsCredit(shown)) {
                         Text(
                             // Credited here too. The shelf shows up in this list as readily as
                             // on the Foods screen.

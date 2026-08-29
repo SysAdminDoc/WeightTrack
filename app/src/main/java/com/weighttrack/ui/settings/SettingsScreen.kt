@@ -753,6 +753,22 @@ private fun HealthConnectCard(
                         enabled = !state.syncing,
                         modifier = Modifier.fillMaxWidth(),
                     ) { Text(if (state.syncing) "Syncing" else "Sync now") }
+                    if (!state.grantedEverything) {
+                        // Anybody who connected before food, water and steps existed granted
+                        // only weight. Without this the app would keep quietly failing to write
+                        // meals and never say why, because the Connect button is long gone.
+                        Spacer(Modifier.height(8.dp))
+                        Text(
+                            text = "Meals, drinks and steps are not shared yet. They each need their own permission.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(6.dp))
+                        OutlinedButton(
+                            onClick = onRequestPermissions,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) { Text("Allow the rest") }
+                    }
                 } else {
                     Button(onClick = onRequestPermissions, modifier = Modifier.fillMaxWidth()) {
                         Text("Connect")

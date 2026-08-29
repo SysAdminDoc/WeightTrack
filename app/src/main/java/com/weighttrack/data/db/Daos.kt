@@ -670,7 +670,7 @@ interface FoodLogDao {
     suspend fun insert(entry: FoodLogEntryEntity): Long
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
-    suspend fun insertAll(entries: List<FoodLogEntryEntity>)
+    suspend fun insertAll(entries: List<FoodLogEntryEntity>): List<Long>
 
     @Update
     suspend fun update(entry: FoodLogEntryEntity)

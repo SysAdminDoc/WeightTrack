@@ -105,6 +105,28 @@ class OfflineFoodStoreTest {
     }
 
     @Test
+    fun `a percent sign in the middle of a query still finds the product`() = runTest {
+        // Standing in front of a tub of yoghurt with no signal. Nearly a thousand products on
+        // the shelf have a percent sign in the name, and every one of them was unreachable while
+        // the escape clause belonged to the statement instead of to each LIKE: it bound to the
+        // last pattern only, and the earlier ones went off hunting for a literal backslash.
+        for (query in listOf("0% fat", "100% apple", "70% chocolate")) {
+            assertThat(store.search(query)).isNotEmpty()
+        }
+    }
+
+    @Test
+    fun `a percent sign is still not a wildcard when it comes first`() = runTest {
+        // The escaping has to survive being applied to every word, not just be present.
+        val loose = store.search("0% fat")
+        for (food in loose) {
+            val text = "${food.name} ${food.brand.orEmpty()}".lowercase()
+            assertThat(text).contains("0%")
+            assertThat(text).contains("fat")
+        }
+    }
+
+    @Test
     fun `the limit is kept to`() = runTest {
         assertThat(store.search("chocolate", limit = 3)).hasSize(3)
         assertThat(store.search("chocolate", limit = 1)).hasSize(1)

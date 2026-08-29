@@ -160,7 +160,7 @@ fun FoodScreen(
                 item {
                     SectionCard {
                         SectionHeading(if (state.hasQuery) "Matching foods" else "Your foods")
-                        if (shown.any { it.id == 0L }) {
+                        if (needsOpenFoodFactsCredit(shown)) {
                             Spacer(Modifier.height(4.dp))
                             Text(
                                 // The shelf that ships with the app is somebody else's work,
@@ -463,3 +463,15 @@ internal fun keepNumeric(text: String): String {
  */
 internal fun foodKey(food: Food): String =
     if (food.id != 0L) "food-${food.id}" else "shelf-${food.barcode.orEmpty()}-${food.name}"
+
+/**
+ * Whether a list of foods carries Open Food Facts data and so has to credit it.
+ *
+ * The licence follows the data, not the row it happens to be sitting in. Keeping a product off
+ * the bundled shelf copies it into somebody's own foods, where it is still Open Food Facts data
+ * and still has to say so, and the scanner does that copying without anybody deciding to. Asking
+ * whether a food had been kept yet credited the licence right up until the moment it stopped
+ * being true.
+ */
+internal fun needsOpenFoodFactsCredit(foods: List<Food>): Boolean =
+    foods.any { it.origin == FoodOrigin.OPEN_FOOD_FACTS }

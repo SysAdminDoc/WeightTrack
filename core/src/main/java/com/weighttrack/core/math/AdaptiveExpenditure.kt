@@ -95,21 +95,39 @@ object AdaptiveExpenditure {
         if (windowDays < MIN_DAYS) return null
         val from = today.minusDays(windowDays.toLong() - 1)
 
-        val logged = intakeByDate.filterKeys { !it.isBefore(from) && !it.isAfter(today) }
+        val window = intakeByDate.filterKeys { !it.isBefore(from) && !it.isAfter(today) }
             .filterValues { it > 0 }
-        if (logged.size < MIN_DAYS) return null
+        if (window.size < MIN_DAYS) return null
 
-        val readings = series.points
+        val weighed = series.points
             .filter { it.actualGrams != null && !it.date.isBefore(from) && !it.date.isAfter(today) }
-            .map { it.date.toEpochDay().toDouble() to it.actualGrams!!.toDouble() }
-        if (readings.size < MIN_WEIGH_INS) return null
+            .map { it.date to it.actualGrams!! }
+            .sortedBy { it.first }
+        if (weighed.size < MIN_WEIGH_INS) return null
 
-        val days = windowDays
+        // Only the stretch that was actually weighed.
+        //
+        // Counting readings is not enough. Five mornings in a row, on somebody who bought a
+        // scale last week, gives a slope from five days of ordinary water movement, and using it
+        // across a fortnight multiplies that noise by three. Four hundred grams of water either
+        // way then comes out as fourteen hundred calories a day between the two answers, both
+        // stated with a straight face. So the window is the measured stretch, not the asked-for
+        // one, and if that stretch is too short there is no answer to give.
+        val first = weighed.first().first
+        val last = weighed.last().first
+        val days = (last.toEpochDay() - first.toEpochDay()).toInt() + 1
+        if (days < MIN_DAYS) return null
+
+        val readings = weighed.map { it.first.toEpochDay().toDouble() to it.second.toDouble() }
         val gramsPerDay = slopePerDay(readings) ?: return null
         val kgPerDay = gramsPerDay / 1_000.0
         // What the window covers, first reading to last. A span, not a count: fourteen days have
         // thirteen nights between them. Reported to the person, and never used as the rate.
         val changeKg = kgPerDay * (days - 1)
+        // Averaged over the same stretch the weight was measured across, so the two halves of
+        // the sum describe the same fortnight.
+        val logged = window.filterKeys { !it.isBefore(first) && !it.isAfter(last) }
+        if (logged.size < MIN_DAYS) return null
         val meanIntake = logged.values.average()
 
         // Eating below what you burn shows up as weight going down, so a fall adds to the

@@ -139,16 +139,22 @@ class FoodLogRepository @Inject constructor(
      * People eat the same breakfast for months. Retyping it every morning is the thing that
      * makes them stop logging.
      */
-    suspend fun copyDay(from: LocalDate, to: LocalDate, meal: Meal? = null): Int {
+    /**
+     * Copies a day's eating onto another one, handing back the rows it made.
+     *
+     * The identifiers are returned rather than a count because the caller has to pass each new
+     * meal on to Health Connect. Copied food is food, and a day that appears in the diary but
+     * not in Health Connect makes the two disagree for no reason anybody could work out.
+     */
+    suspend fun copyDay(from: LocalDate, to: LocalDate, meal: Meal? = null): List<Long> {
         val profileId = profiles.activeId()
         val source = dao.forDate(profileId, from.toString())
             .filter { meal == null || it.meal == meal.name }
-        if (source.isEmpty()) return 0
+        if (source.isEmpty()) return emptyList()
         val now = System.currentTimeMillis()
-        dao.insertAll(
+        return dao.insertAll(
             source.map { it.copy(id = 0, localDate = to.toString(), loggedAtUtcMillis = now) },
         )
-        return source.size
     }
 
     suspend fun update(entry: FoodLogEntry) {

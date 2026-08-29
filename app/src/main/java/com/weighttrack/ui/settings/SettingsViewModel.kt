@@ -38,6 +38,12 @@ import javax.inject.Inject
 data class HealthConnectState(
     val availability: HealthConnectAvailability = HealthConnectAvailability.NOT_SUPPORTED,
     val granted: Boolean = false,
+    /**
+     * Whether food, water and steps were allowed as well as weight.
+     *
+     * False on any install that connected before those existed, which is every one of them.
+     */
+    val grantedEverything: Boolean = false,
     val syncing: Boolean = false,
 )
 
@@ -108,6 +114,7 @@ class SettingsViewModel @Inject constructor(
             _healthConnectState.value = HealthConnectState(
                 availability = healthConnect.availability(),
                 granted = healthConnect.hasPermissions(),
+                grantedEverything = healthConnect.hasEverything(),
             )
         }
     }
@@ -294,7 +301,10 @@ class SettingsViewModel @Inject constructor(
         // Weight sync only needs the core set. Treating a declined optional read as a
         // refused connection would report a working sync as unauthorised.
         val allowed = granted.containsAll(healthConnect.corePermissions)
-        _healthConnectState.value = _healthConnectState.value.copy(granted = allowed)
+        _healthConnectState.value = _healthConnectState.value.copy(
+            granted = allowed,
+            grantedEverything = granted.containsAll(healthConnect.permissions),
+        )
         if (allowed) {
             syncHealthConnect()
         } else {

@@ -45,6 +45,14 @@ data class DiaryUiState(
     /** What this day is meant to come to, when there is a target at all. */
     val target: MacroTarget? = null,
     /**
+     * Whether that target belongs to this day of the week alone.
+     *
+     * The difference decides where a change goes. Writing a Saturday target into the everyday
+     * row would quietly replace the one the other six days were using, and leave Saturday
+     * looking exactly as it did.
+     */
+    val targetIsForThisDay: Boolean = false,
+    /**
      * What this person burns, worked out from what they ate and what their weight did.
      *
      * Null until there is enough of both to say anything, which is most of the first fortnight.
@@ -52,6 +60,13 @@ data class DiaryUiState(
     val expenditure: AdaptiveExpenditure.Estimate? = null,
     /** What to eat to keep moving at the rate their goal implies. */
     val recommendation: AdaptiveExpenditure.Recommendation? = null,
+    /**
+     * Whether the estimate is steady enough to state rather than hedge.
+     *
+     * A fortnight with food logged on nine of its days, or a weight that moved five kilograms,
+     * is an arithmetic result rather than a fact about somebody's metabolism.
+     */
+    val expenditureConfident: Boolean = false,
 ) {
     val isToday: Boolean get() = date == LocalDate.now()
 
@@ -119,6 +134,7 @@ class DiaryViewModel @Inject constructor(
         DiaryUiState(
             date = date,
             target = targets.forDay(date.dayOfWeek),
+            targetIsForThisDay = targets.byDay.containsKey(date.dayOfWeek),
             day = day,
             suggestions = recent,
             searchResults = if (query.value.isBlank()) emptyList() else results,
@@ -126,6 +142,8 @@ class DiaryViewModel @Inject constructor(
             message = message,
             expenditure = insight.expenditure,
             recommendation = insight.recommendation,
+            expenditureConfident = insight.expenditure
+                ?.let { AdaptiveExpenditure.isConfident(it) } == true,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiaryUiState())
 
@@ -152,7 +170,7 @@ class DiaryViewModel @Inject constructor(
             // Straight to the top of the suggestions, which is where it will be wanted again.
             foodRepository.markUsed(food.id)
             query.value = ""
-            shareWithHealthConnect(id, meal)
+            shareWithHealthConnect(id)
         }
     }
 
@@ -160,7 +178,7 @@ class DiaryViewModel @Inject constructor(
         if (kcal <= 0) return
         viewModelScope.launch {
             val id = foodLogRepository.quickAdd(kcal, meal, name, date.value)
-            shareWithHealthConnect(id, meal)
+            shareWithHealthConnect(id)
         }
     }
 
@@ -170,17 +188,21 @@ class DiaryViewModel @Inject constructor(
      * Quiet either way. Nothing about logging food should depend on another app being installed,
      * and a refused permission is a choice rather than a failure to report.
      */
-    private suspend fun shareWithHealthConnect(entryId: Long, meal: Meal) {
+    private suspend fun shareWithHealthConnect(entryId: Long) {
         val entry = foodLogRepository.day(date.value).entries.firstOrNull { it.id == entryId }
             ?: return
         healthConnect.writeNutrition(
-            instant = java.time.Instant.ofEpochMilli(entry.loggedAtUtcMillis),
+            // The day the meal belongs to, at the time of day it was entered. Using the moment
+            // of entry would file Tuesday's dinner, added on Thursday, under Thursday, and every
+            // other app reading Health Connect would then disagree with the diary about both
+            // days. Copying yesterday made that the normal case rather than the awkward one.
+            instant = HealthConnectSync.instantFor(entry.date, entry.loggedAtUtcMillis),
             kcal = entry.nutrients.kcal,
             proteinG = entry.nutrients.proteinG,
             carbsG = entry.nutrients.carbsG,
             fatG = entry.nutrients.fatG,
             name = entry.name,
-            mealType = HealthConnectSync.mealTypeFor(meal),
+            mealType = HealthConnectSync.mealTypeFor(entry.meal),
             clientRecordId = HealthConnectSync.nutritionRecordId(entryId),
         )
     }
@@ -189,9 +211,12 @@ class DiaryViewModel @Inject constructor(
     fun copyYesterday(meal: Meal? = null) {
         viewModelScope.launch {
             val copied = foodLogRepository.copyDay(date.value.minusDays(1), date.value, meal)
+            // Copied food is food. Leaving it out made the diary and Health Connect disagree
+            // about the same day for no reason anybody could have worked out.
+            copied.forEach { shareWithHealthConnect(it) }
             message.value = when {
-                copied == 0 -> "Nothing to copy from the day before."
-                meal == null -> "Copied $copied things from yesterday."
+                copied.isEmpty() -> "Nothing to copy from the day before."
+                meal == null -> "Copied ${copied.size} things from yesterday."
                 else -> "Copied yesterday's ${meal.label.lowercase()}."
             }
         }
@@ -256,22 +281,23 @@ class DiaryViewModel @Inject constructor(
 
     /** Takes the recommendation as the target, which is the point of working it out. */
     fun useRecommendation() {
-        val recommended = state.value.recommendation ?: return
-        val existing = state.value.target
+        val current = state.value
+        val recommended = current.recommendation ?: return
+        val day = TargetRevision.rowFor(current.date.dayOfWeek, current.targetIsForThisDay)
+        val revised = TargetRevision.revised(current.target, recommended.kcalPerDay)
         viewModelScope.launch {
-            macroTargetRepository.set(
-                MacroTarget(
-                    kcal = recommended.kcalPerDay,
-                    // The split is kept if there was one. Only the calories are being revised.
-                    proteinG = existing?.proteinG,
-                    carbsG = existing?.carbsG,
-                    fatG = existing?.fatG,
-                    basis = existing?.basis ?: MacroBasis.GRAMS,
-                ),
-            )
-            message.value = "Target set to ${recommended.rounded} kcal."
+            macroTargetRepository.set(revised, day = day)
+            message.value = if (day == null) {
+                "Target set to ${recommended.rounded} kcal."
+            } else {
+                "${day.label} set to ${recommended.rounded} kcal."
+            }
         }
     }
+
+    /** "Monday", not "MONDAY". */
+    private val java.time.DayOfWeek.label: String
+        get() = name.lowercase().replaceFirstChar { it.uppercase() }
 
     companion object {
         const val SUGGESTION_LIMIT = 12

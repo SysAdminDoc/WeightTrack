@@ -205,6 +205,16 @@ class HealthConnectSync @Inject constructor(
 
     suspend fun hasPermissions(): Boolean = hasGranted(corePermissions)
 
+    /**
+     * Whether everything the app can use has been allowed.
+     *
+     * Separate from [hasPermissions] on purpose. Weight is what Health Connect is for here and
+     * the app works with only that, but somebody who connected before food and water existed has
+     * granted the core set and nothing else, and asking only about the core set would mean the
+     * screen never offered them the rest.
+     */
+    suspend fun hasEverything(): Boolean = hasGranted(permissions)
+
     suspend fun hasActivityPermissions(): Boolean = hasGranted(activityPermissions)
 
     suspend fun hasHydrationPermission(): Boolean = hasGranted(hydrationPermissions)
@@ -437,5 +447,25 @@ class HealthConnectSync @Inject constructor(
 
         /** One identifier per log row, so writing the same meal twice replaces it. */
         fun nutritionRecordId(logEntryId: Long): String = "food:$logEntryId"
+
+        /**
+         * The moment a meal belongs to: its own day, at the time of day it was entered.
+         *
+         * A meal carries the day it counts towards and, separately, the moment somebody typed it
+         * in. Those are the same thing only when the entry is for today. Health Connect files by
+         * instant, so the day has to win.
+         */
+        fun instantFor(
+            date: java.time.LocalDate,
+            enteredAtUtcMillis: Long,
+            zone: ZoneId = ZoneId.systemDefault(),
+        ): java.time.Instant {
+            val entered = java.time.Instant.ofEpochMilli(enteredAtUtcMillis).atZone(zone)
+            return if (entered.toLocalDate() == date) {
+                entered.toInstant()
+            } else {
+                date.atTime(entered.toLocalTime()).atZone(zone).toInstant()
+            }
+        }
     }
 }

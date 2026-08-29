@@ -39,10 +39,24 @@ class OfflineFoodStore @Inject constructor(
      * copied out once. The copy is keyed on the shelf's digest, so a build that ships a new one
      * gets a new copy and a build that does not never pays for it again.
      */
-    private val database: SQLiteDatabase? by lazy { runCatching { open() }.getOrNull() }
+    private var opened: SQLiteDatabase? = null
+
+    /**
+     * Tried again after a failure rather than given up on.
+     *
+     * The copy can fail because the phone has no room left. Remembering that forever would leave
+     * the shelf switched off until the app was killed, long after somebody had cleared space and
+     * wondered why the scanner still needed a signal.
+     */
+    @Synchronized
+    private fun database(): SQLiteDatabase? {
+        opened?.let { if (it.isOpen) return it }
+        opened = runCatching { open() }.getOrNull()
+        return opened
+    }
 
     /** Whether the shelf is there at all. A build without the asset simply has no offline set. */
-    val available: Boolean get() = database != null
+    val available: Boolean get() = database() != null
 
     private fun open(): SQLiteDatabase? {
         // Written beside the shelf by the build script: a digest and a length. Asking the asset
@@ -84,7 +98,7 @@ class OfflineFoodStore @Inject constructor(
     suspend fun byBarcode(barcode: String): Food? = withContext(Dispatchers.IO) {
         val code = barcode.trim()
         if (code.isEmpty()) return@withContext null
-        val db = database ?: return@withContext null
+        val db = database() ?: return@withContext null
         runCatching {
             db.rawQuery("$COLUMNS WHERE barcode = ? LIMIT 1", arrayOf(code)).use { cursor ->
                 if (cursor.moveToFirst()) cursor.toFood() else null
@@ -104,12 +118,16 @@ class OfflineFoodStore @Inject constructor(
         withContext(Dispatchers.IO) {
             val words = query.trim().lowercase().split(" ").filter { it.isNotEmpty() }
             if (words.isEmpty() || query.trim().length < MIN_QUERY) return@withContext emptyList()
-            val db = database ?: return@withContext emptyList()
-            val where = words.joinToString(" AND ") { "search LIKE ?" }
+            val db = database() ?: return@withContext emptyList()
+            // The escape clause belongs to each LIKE, not to the statement. Written once at
+            // the end it binds to the last one only, and every earlier pattern goes to SQLite
+            // still carrying the backslashes, hunting for a literal backslash no product name
+            // contains. A search for "0% fat" then answers nothing at all.
+            val where = words.joinToString(" AND ") { "search LIKE ? ESCAPE '\\'" }
             val arguments = words.map { "%${it.escapeForLike()}%" } + limit.toString()
             runCatching {
                 db.rawQuery(
-                    "$COLUMNS WHERE $where ESCAPE '\\' ORDER BY scans DESC, name LIMIT ?",
+                    "$COLUMNS WHERE $where ORDER BY scans DESC, name LIMIT ?",
                     arguments.toTypedArray(),
                 ).use { cursor ->
                     buildList {
