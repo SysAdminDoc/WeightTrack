@@ -36,6 +36,19 @@ data class TrendSeries(
     /** How far today's reading sits above or below the smoothed line. */
     val latestDeviationGrams: Double?
         get() = lastMeasured?.let { it.actualGrams!! - it.trendGrams }
+
+    /**
+     * Change in the smoothed line over the last [days].
+     *
+     * Falls back to the whole series when the log is shorter than the window asked for, so a
+     * new user sees a real "since you started" figure instead of a blank.
+     */
+    fun changeOverDays(days: Int): Double? {
+        if (points.size < 2) return null
+        val last = points.last()
+        val earlier = points.getOrNull(points.size - 1 - days) ?: points.first()
+        return last.trendGrams - earlier.trendGrams
+    }
 }
 
 /**
