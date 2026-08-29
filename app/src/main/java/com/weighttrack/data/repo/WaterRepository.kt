@@ -3,7 +3,9 @@ package com.weighttrack.data.repo
 import com.weighttrack.data.db.DailyWaterRow
 import com.weighttrack.data.db.WaterDao
 import com.weighttrack.data.db.WaterEntryEntity
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.LocalDate
@@ -24,18 +26,27 @@ data class DailyWater(
 )
 
 @Singleton
+/** Scoped to the active profile, which it asks for rather than being told. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class WaterRepository @Inject constructor(
     private val dao: WaterDao,
+    private val profiles: ProfileRepository,
 ) {
-    fun observeForDate(date: LocalDate): Flow<List<WaterEntry>> =
-        dao.observeForDate(date.toString()).map { rows -> rows.mapNotNull { it.toDomain() } }
+    private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
+        profiles.activeProfileId.flatMapLatest(query)
 
-    fun observeTotalForDate(date: LocalDate): Flow<Int> = dao.observeTotalForDate(date.toString())
+    fun observeForDate(date: LocalDate): Flow<List<WaterEntry>> =
+        scoped { dao.observeForDate(it, date.toString()) }
+            .map { rows -> rows.mapNotNull { it.toDomain() } }
+
+    fun observeTotalForDate(date: LocalDate): Flow<Int> =
+        scoped { dao.observeTotalForDate(it, date.toString()) }
 
     fun observeRecentDays(days: Int = 14): Flow<List<DailyWater>> =
-        dao.observeRecentDays(days).map { rows -> rows.mapNotNull { it.toDomain() } }
+        scoped { dao.observeRecentDays(it, days) }.map { rows -> rows.mapNotNull { it.toDomain() } }
 
-    suspend fun totalForDate(date: LocalDate): Int = dao.totalForDate(date.toString())
+    suspend fun totalForDate(date: LocalDate): Int =
+        dao.totalForDate(profiles.activeId(), date.toString())
 
     /**
      * Records a drink.
@@ -52,6 +63,7 @@ class WaterRepository @Inject constructor(
         if (millilitres <= 0) return -1
         return dao.insert(
             WaterEntryEntity(
+                profileId = profiles.activeId(),
                 timestampUtcMillis = timestamp.toEpochMilli(),
                 localDate = timestamp.atZone(zone).toLocalDate().toString(),
                 millilitres = millilitres,
@@ -75,7 +87,8 @@ class WaterRepository @Inject constructor(
     }
 
     /** Undoes a whole day, for the "I tapped that four times by accident" case. */
-    suspend fun clearDate(date: LocalDate) = dao.deleteForDate(date.toString())
+    suspend fun clearDate(date: LocalDate) =
+        dao.deleteForDate(profiles.activeId(), date.toString())
 
     suspend fun deleteAll() = dao.deleteAll()
 

@@ -5,7 +5,9 @@ import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.toDomain
 import com.weighttrack.data.db.toEntity
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import java.time.Instant
 import java.time.ZoneId
@@ -13,23 +15,30 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
+/** Scoped to the active profile, which it asks for rather than being told. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class MeasurementRepository @Inject constructor(
     private val dao: MeasurementDao,
+    private val profiles: ProfileRepository,
 ) {
+    private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
+        profiles.activeProfileId.flatMapLatest(query)
+
     fun observeAll(): Flow<List<BodyMeasurement>> =
-        dao.observeAll().map { rows -> rows.mapNotNull { it.toDomain() } }
+        scoped { dao.observeAll(it) }.map { rows -> rows.mapNotNull { it.toDomain() } }
 
     fun observeByType(type: MeasurementType): Flow<List<BodyMeasurement>> =
-        dao.observeByType(type.name).map { rows -> rows.mapNotNull { it.toDomain() } }
+        scoped { dao.observeByType(it, type.name) }
+            .map { rows -> rows.mapNotNull { it.toDomain() } }
 
     /** Newest value per measurement type, keyed for direct lookup by the body fat estimate. */
     fun observeLatestPerType(): Flow<Map<MeasurementType, BodyMeasurement>> =
-        dao.observeLatestPerType().map { rows ->
+        scoped { dao.observeLatestPerType(it) }.map { rows ->
             rows.mapNotNull { it.toDomain() }.associateBy { it.type }
         }
 
     suspend fun latestPerType(): Map<MeasurementType, BodyMeasurement> =
-        dao.latestPerType().mapNotNull { it.toDomain() }.associateBy { it.type }
+        dao.latestPerType(profiles.activeId()).mapNotNull { it.toDomain() }.associateBy { it.type }
 
     suspend fun add(
         type: MeasurementType,
@@ -45,19 +54,27 @@ class MeasurementRepository @Inject constructor(
             valueMm = valueMm,
             note = note,
         )
-        return dao.insert(measurement.toEntity())
+        return dao.insert(measurement.toEntity(profileId = profiles.activeId()))
     }
 
-    suspend fun update(measurement: BodyMeasurement) = dao.update(measurement.toEntity())
+    suspend fun update(measurement: BodyMeasurement) =
+        dao.update(measurement.toEntity(profileId = profileOf(measurement.id)))
 
-    suspend fun delete(measurement: BodyMeasurement) = dao.delete(measurement.toEntity())
+    suspend fun delete(measurement: BodyMeasurement) =
+        dao.delete(measurement.toEntity(profileId = profileOf(measurement.id)))
+
+    /** Read back off the stored row so an edit cannot move a measurement to another profile. */
+    private suspend fun profileOf(id: Long): Long =
+        dao.byId(id)?.profileId ?: profiles.activeId()
 
     suspend fun deleteByIds(ids: List<Long>) {
         if (ids.isNotEmpty()) dao.deleteByIds(ids)
     }
 
     suspend fun upsertAll(measurements: List<BodyMeasurement>) {
-        if (measurements.isNotEmpty()) dao.insertAll(measurements.map { it.toEntity() })
+        if (measurements.isEmpty()) return
+        val profileId = profiles.activeId()
+        dao.insertAll(measurements.map { it.toEntity(profileId = profileId) })
     }
 
     suspend fun deleteAll() = dao.deleteAll()

@@ -8,7 +8,9 @@ import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.ProgressPhotoEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
@@ -40,19 +42,23 @@ data class ProgressPhoto(
  * would also leave the picture outside the app where the app lock cannot cover it.
  */
 @Singleton
+/** Scoped to the active profile, which it asks for rather than being told. */
+@OptIn(ExperimentalCoroutinesApi::class)
 class ProgressPhotoRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val dao: ProgressPhotoDao,
+    private val profiles: ProfileRepository,
 ) {
     private val directory: File
         get() = File(context.filesDir, DIRECTORY_NAME).apply { mkdirs() }
 
     fun observeAll(): Flow<List<ProgressPhoto>> =
-        dao.observeAll()
+        profiles.activeProfileId.flatMapLatest { dao.observeAll(it) }
             .map { rows -> rows.mapNotNull { it.toDomain() } }
             .flowOn(Dispatchers.IO)
 
-    fun observeCount(): Flow<Int> = dao.observeCount()
+    fun observeCount(): Flow<Int> =
+        profiles.activeProfileId.flatMapLatest { dao.observeCount(it) }
 
     /**
      * When a picked image was actually taken, or null when nothing says.
@@ -141,6 +147,7 @@ class ProgressPhotoRepository @Inject constructor(
             return@withContext null
         }
         val entity = ProgressPhotoEntity(
+            profileId = profiles.activeId(),
             timestampUtcMillis = timestamp.toEpochMilli(),
             localDate = timestamp.atZone(zone).toLocalDate().toString(),
             fileName = file.name,

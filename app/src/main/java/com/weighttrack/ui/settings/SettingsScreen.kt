@@ -62,6 +62,7 @@ import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.io.BackupCodec
 import androidx.biometric.BiometricManager
 import com.weighttrack.data.prefs.AppSettings
+import com.weighttrack.data.repo.Profile
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.security.AppLockAvailability
 import com.weighttrack.security.AppLockSupport
@@ -79,6 +80,8 @@ import java.time.format.TextStyle
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    profiles: List<Profile>,
+    activeProfileId: Long,
     entryCount: Int,
     healthConnectState: HealthConnectState,
     busy: Boolean,
@@ -97,6 +100,8 @@ fun SettingsScreen(
         viewModel.onScreenResumed()
     }
     var showReminderTime by remember { mutableStateOf(false) }
+    var namingProfile by remember { mutableStateOf<Profile?>(null) }
+    var addingProfile by remember { mutableStateOf(false) }
     var heightText by remember(settings.profile.heightMm, settings.lengthUnit) {
         mutableStateOf(
             settings.profile.heightMm.takeIf { it > 0 }
@@ -151,6 +156,51 @@ fun SettingsScreen(
     ) {
         if (busy) {
             item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+        }
+
+        item {
+            SettingsSection {
+                SectionHeading("Who this is for")
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "A household shares a scale more often than it shares a phone. Each person keeps their own readings, goal, measurements and history.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                profiles.forEach { profile ->
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(onClick = { viewModel.switchProfile(profile.id) }) {
+                            Text(
+                                text = if (profile.id == activeProfileId) {
+                                    profile.name + "  (showing)"
+                                } else {
+                                    profile.name
+                                },
+                                color = if (profile.id == activeProfileId) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurface
+                                },
+                            )
+                        }
+                        Row {
+                            TextButton(onClick = { namingProfile = profile }) { Text("Rename") }
+                            if (profiles.size > 1) {
+                                TextButton(onClick = { viewModel.deleteProfile(profile.id) }) {
+                                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(4.dp))
+                Button(onClick = { addingProfile = true }) { Text("Add someone") }
+            }
         }
 
         item {
@@ -497,6 +547,30 @@ fun SettingsScreen(
         }
     }
 
+    namingProfile?.let { profile ->
+        NameDialog(
+            title = "Rename " + profile.name,
+            initial = profile.name,
+            onCancel = { namingProfile = null },
+            onConfirm = { name ->
+                viewModel.renameProfile(profile.id, name)
+                namingProfile = null
+            },
+        )
+    }
+
+    if (addingProfile) {
+        NameDialog(
+            title = "Add someone",
+            initial = "",
+            onCancel = { addingProfile = false },
+            onConfirm = { name ->
+                viewModel.addProfile(name)
+                addingProfile = false
+            },
+        )
+    }
+
     if (showReminderTime) {
         val timeState = rememberTimePickerState(
             initialHour = settings.reminderHour,
@@ -730,4 +804,34 @@ private fun activityLabel(level: ActivityLevel): String = when (level) {
     ActivityLevel.MODERATE -> "Moderately active"
     ActivityLevel.ACTIVE -> "Active"
     ActivityLevel.VERY_ACTIVE -> "Very active"
+}
+
+/** One text field and two buttons, for naming a person. */
+@Composable
+private fun NameDialog(
+    title: String,
+    initial: String,
+    onCancel: () -> Unit,
+    onConfirm: (String) -> Unit,
+) {
+    var text by remember { mutableStateOf(initial) }
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(title) },
+        text = {
+            OutlinedTextField(
+                value = text,
+                onValueChange = { text = it },
+                singleLine = true,
+                label = { Text("Name") },
+            )
+        },
+        confirmButton = {
+            TextButton(
+                enabled = text.isNotBlank(),
+                onClick = { onConfirm(text) },
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+    )
 }

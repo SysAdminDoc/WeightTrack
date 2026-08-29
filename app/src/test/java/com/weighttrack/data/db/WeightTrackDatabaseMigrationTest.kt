@@ -26,6 +26,10 @@ import java.io.File
  * Room definition so the whole real auto-migration chain runs, and checks the rows are still
  * there afterwards.
  *
+ * Version 5 adds profiles, and every row from before it has to land in the one the migration
+ * creates. A history that survives the upgrade but belongs to a profile that does not exist is
+ * invisible, which is the same as losing it.
+ *
  * Every shipped version gets its own case. Only testing the oldest one leaves the intermediate
  * steps unproven: a phone updating from 3 to 4 never runs the 1 to 2 migration at all.
  *
@@ -36,6 +40,7 @@ import java.io.File
 class WeightTrackDatabaseMigrationTest {
 
     private val context: Context = ApplicationProvider.getApplicationContext()
+    private val DEFAULT_PROFILE = WeightTrackDatabase.DEFAULT_PROFILE_ID
     private val databaseName = "migration-test.db"
     private var database: WeightTrackDatabase? = null
 
@@ -126,15 +131,15 @@ class WeightTrackDatabaseMigrationTest {
             .also { database = it }
 
     private suspend fun assertCoreRowsSurvived(db: WeightTrackDatabase) {
-        val entry = db.weightEntryDao().latest()
+        val entry = db.weightEntryDao().latest(DEFAULT_PROFILE)
         assertThat(entry).isNotNull()
         assertThat(entry!!.grams).isEqualTo(82_500)
         assertThat(entry.note).isEqualTo("a note")
         assertThat(entry.clientRecordId).isEqualTo("client-1")
         assertThat(entry.bodyFatPercent).isWithin(1e-9).of(21.5)
 
-        assertThat(db.measurementDao().latestPerType().single().valueMm).isEqualTo(880)
-        assertThat(db.goalDao().active()!!.targetGrams).isEqualTo(80_000)
+        assertThat(db.measurementDao().latestPerType(DEFAULT_PROFILE).single().valueMm).isEqualTo(880)
+        assertThat(db.goalDao().active(DEFAULT_PROFILE)!!.targetGrams).isEqualTo(80_000)
     }
 
     @Test
@@ -161,7 +166,7 @@ class WeightTrackDatabaseMigrationTest {
 
         val db = openCurrent()
         assertCoreRowsSurvived(db)
-        assertThat(db.waterDao().totalForDate("2023-11-14")).isEqualTo(330)
+        assertThat(db.waterDao().totalForDate(DEFAULT_PROFILE, "2023-11-14")).isEqualTo(330)
     }
 
     @Test
@@ -187,8 +192,8 @@ class WeightTrackDatabaseMigrationTest {
 
         val db = openCurrent()
         assertCoreRowsSurvived(db)
-        assertThat(db.waterDao().totalForDate("2023-11-14")).isEqualTo(330)
-        assertThat(db.fastDao().observeCompleted().first().single().targetMinutes).isEqualTo(960)
+        assertThat(db.waterDao().totalForDate(DEFAULT_PROFILE, "2023-11-14")).isEqualTo(330)
+        assertThat(db.fastDao().observeCompleted(DEFAULT_PROFILE).first().single().targetMinutes).isEqualTo(960)
     }
 
     @Test
@@ -198,7 +203,7 @@ class WeightTrackDatabaseMigrationTest {
 
         val db = openCurrent()
         val dao = db.waterDao()
-        assertThat(dao.totalForDate("2026-01-01")).isEqualTo(0)
+        assertThat(dao.totalForDate(DEFAULT_PROFILE, "2026-01-01")).isEqualTo(0)
 
         dao.insert(
             WaterEntryEntity(
@@ -209,7 +214,7 @@ class WeightTrackDatabaseMigrationTest {
                 updatedAtUtcMillis = 0,
             ),
         )
-        assertThat(dao.totalForDate("2026-01-01")).isEqualTo(250)
+        assertThat(dao.totalForDate(DEFAULT_PROFILE, "2026-01-01")).isEqualTo(250)
     }
 
     @Test
@@ -219,12 +224,16 @@ class WeightTrackDatabaseMigrationTest {
 
         val db = openCurrent()
         val dao = db.fastDao()
-        assertThat(dao.active()).isNull()
+        assertThat(dao.active(DEFAULT_PROFILE)).isNull()
 
-        val id = dao.startFast(startUtcMillis = 1_800_000_000_000, targetMinutes = 16 * 60)
+        val id = dao.startFast(
+            profileId = DEFAULT_PROFILE,
+            startUtcMillis = 1_800_000_000_000,
+            targetMinutes = 16 * 60,
+        )
         assertThat(id).isNotNull()
         assertThat(id!!).isGreaterThan(0)
-        val active = dao.active()
+        val active = dao.active(DEFAULT_PROFILE)
         assertThat(active).isNotNull()
         assertThat(active!!.targetMinutes).isEqualTo(16 * 60)
         assertThat(active.endUtcMillis).isNull()
@@ -246,7 +255,41 @@ class WeightTrackDatabaseMigrationTest {
                 note = null,
             ),
         )
-        assertThat(dao.observeAll().first().single().fileName).isEqualTo("photo-1.jpg")
+        assertThat(dao.observeAll(DEFAULT_PROFILE).first().single().fileName).isEqualTo("photo-1.jpg")
+    }
+
+    @Test
+    fun `every row from before profiles lands in the one the upgrade creates`() = runTest {
+        createDatabaseAtVersion(4)
+        seedCoreRows()
+        withOldDatabase { db ->
+            db.execSQL(
+                """
+                INSERT INTO water_entries
+                (timestampUtcMillis, localDate, millilitres, healthConnectId, updatedAtUtcMillis)
+                VALUES (1700000000000, '2023-11-14', 330, NULL, 0)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO fasts
+                (startUtcMillis, endUtcMillis, targetMinutes, note, updatedAtUtcMillis)
+                VALUES (1700000000000, 1700057600000, 960, NULL, 0)
+                """.trimIndent(),
+            )
+        }
+
+        val db = openCurrent()
+
+        // The profile the migration made has to exist, or every row now points at nothing and
+        // the whole history is invisible on the first launch after the update.
+        val profiles = db.profileDao().all()
+        assertThat(profiles).hasSize(1)
+        assertThat(profiles.single().id).isEqualTo(WeightTrackDatabase.DEFAULT_PROFILE_ID)
+
+        assertCoreRowsSurvived(db)
+        assertThat(db.waterDao().totalForDate(DEFAULT_PROFILE, "2023-11-14")).isEqualTo(330)
+        assertThat(db.fastDao().observeCompleted(DEFAULT_PROFILE).first()).hasSize(1)
     }
 
     @Test
@@ -254,7 +297,7 @@ class WeightTrackDatabaseMigrationTest {
         createDatabaseAtVersion(1)
 
         val db = openCurrent()
-        assertThat(db.weightEntryDao().count()).isEqualTo(0)
-        assertThat(db.waterDao().totalForDate("2026-01-01")).isEqualTo(0)
+        assertThat(db.weightEntryDao().count(DEFAULT_PROFILE)).isEqualTo(0)
+        assertThat(db.waterDao().totalForDate(DEFAULT_PROFILE, "2026-01-01")).isEqualTo(0)
     }
 }

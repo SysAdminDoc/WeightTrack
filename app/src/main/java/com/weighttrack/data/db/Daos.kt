@@ -18,36 +18,59 @@ data class DailyWeightRow(
 @Dao
 interface WeightEntryDao {
 
-    @Query("SELECT * FROM weight_entries ORDER BY timestampUtcMillis DESC")
-    fun observeAll(): Flow<List<WeightEntryEntity>>
+    @Query("SELECT * FROM weight_entries WHERE profileId = :profileId ORDER BY timestampUtcMillis DESC")
+    fun observeAll(profileId: Long): Flow<List<WeightEntryEntity>>
 
-    @Query("SELECT * FROM weight_entries ORDER BY timestampUtcMillis ASC")
-    fun observeAllAscending(): Flow<List<WeightEntryEntity>>
+    @Query("SELECT * FROM weight_entries WHERE profileId = :profileId ORDER BY timestampUtcMillis ASC")
+    fun observeAllAscending(profileId: Long): Flow<List<WeightEntryEntity>>
 
     @Query(
         """
         SELECT localDate, AVG(grams) AS grams
         FROM weight_entries
+        WHERE profileId = :profileId
         GROUP BY localDate
         ORDER BY localDate ASC
         """,
     )
-    fun observeDailyAverages(): Flow<List<DailyWeightRow>>
-
-    @Query("SELECT * FROM weight_entries ORDER BY timestampUtcMillis DESC LIMIT 1")
-    fun observeLatest(): Flow<WeightEntryEntity?>
-
-    @Query("SELECT * FROM weight_entries ORDER BY timestampUtcMillis DESC LIMIT 1")
-    suspend fun latest(): WeightEntryEntity?
-
-    @Query("SELECT * FROM weight_entries ORDER BY timestampUtcMillis ASC LIMIT 1")
-    suspend fun earliest(): WeightEntryEntity?
+    fun observeDailyAverages(profileId: Long): Flow<List<DailyWeightRow>>
 
     @Query(
-        "SELECT * FROM weight_entries WHERE timestampUtcMillis <= :atUtcMillis " +
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
             "ORDER BY timestampUtcMillis DESC LIMIT 1",
     )
-    suspend fun latestAtOrBefore(atUtcMillis: Long): WeightEntryEntity?
+    fun observeLatest(profileId: Long): Flow<WeightEntryEntity?>
+
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "ORDER BY timestampUtcMillis DESC LIMIT 1",
+    )
+    suspend fun latest(profileId: Long): WeightEntryEntity?
+
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "ORDER BY timestampUtcMillis ASC LIMIT 1",
+    )
+    suspend fun earliest(profileId: Long): WeightEntryEntity?
+
+    /** The most recent reading of every profile, which is how a scale reading finds its owner. */
+    @Query(
+        """
+        SELECT w.* FROM weight_entries w
+        INNER JOIN (
+            SELECT profileId, MAX(timestampUtcMillis) AS newest
+            FROM weight_entries GROUP BY profileId
+        ) latest ON w.profileId = latest.profileId AND w.timestampUtcMillis = latest.newest
+        """,
+    )
+    suspend fun latestPerProfile(): List<WeightEntryEntity>
+
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "AND timestampUtcMillis <= :atUtcMillis " +
+            "ORDER BY timestampUtcMillis DESC LIMIT 1",
+    )
+    suspend fun latestAtOrBefore(profileId: Long, atUtcMillis: Long): WeightEntryEntity?
 
     @Query("SELECT * FROM weight_entries WHERE id = :id")
     suspend fun byId(id: Long): WeightEntryEntity?
@@ -58,35 +81,47 @@ interface WeightEntryDao {
     @Query("SELECT * FROM weight_entries WHERE healthConnectId = :healthConnectId")
     suspend fun byHealthConnectId(healthConnectId: String): WeightEntryEntity?
 
-    @Query("SELECT * FROM weight_entries WHERE localDate = :localDate ORDER BY timestampUtcMillis ASC")
-    suspend fun byLocalDate(localDate: String): List<WeightEntryEntity>
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId AND localDate = :localDate " +
+            "ORDER BY timestampUtcMillis ASC",
+    )
+    suspend fun byLocalDate(profileId: Long, localDate: String): List<WeightEntryEntity>
 
     @Query(
         """
         SELECT * FROM weight_entries
-        WHERE timestampUtcMillis BETWEEN :fromUtcMillis AND :toUtcMillis
+        WHERE profileId = :profileId
+        AND timestampUtcMillis BETWEEN :fromUtcMillis AND :toUtcMillis
         ORDER BY timestampUtcMillis ASC
         """,
     )
-    suspend fun between(fromUtcMillis: Long, toUtcMillis: Long): List<WeightEntryEntity>
+    suspend fun between(
+        profileId: Long,
+        fromUtcMillis: Long,
+        toUtcMillis: Long,
+    ): List<WeightEntryEntity>
 
     @Query(
         """
         SELECT * FROM weight_entries
-        WHERE (:query = '' OR note LIKE '%' || :query || '%' OR tags LIKE '%' || :query || '%')
+        WHERE profileId = :profileId
+        AND (:query = '' OR note LIKE '%' || :query || '%' OR tags LIKE '%' || :query || '%')
         ORDER BY timestampUtcMillis DESC
         """,
     )
-    fun search(query: String): Flow<List<WeightEntryEntity>>
+    fun search(profileId: Long, query: String): Flow<List<WeightEntryEntity>>
 
-    @Query("SELECT COUNT(*) FROM weight_entries")
-    fun observeCount(): Flow<Int>
+    @Query("SELECT COUNT(*) FROM weight_entries WHERE profileId = :profileId")
+    fun observeCount(profileId: Long): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM weight_entries")
-    suspend fun count(): Int
+    @Query("SELECT COUNT(*) FROM weight_entries WHERE profileId = :profileId")
+    suspend fun count(profileId: Long): Int
 
-    @Query("SELECT * FROM weight_entries WHERE bodyFatPercent IS NOT NULL ORDER BY timestampUtcMillis DESC LIMIT 1")
-    suspend fun latestWithBodyFat(): WeightEntryEntity?
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "AND bodyFatPercent IS NOT NULL ORDER BY timestampUtcMillis DESC LIMIT 1",
+    )
+    suspend fun latestWithBodyFat(profileId: Long): WeightEntryEntity?
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entry: WeightEntryEntity): Long
@@ -128,11 +163,14 @@ interface WeightEntryDao {
 @Dao
 interface MeasurementDao {
 
-    @Query("SELECT * FROM measurements ORDER BY timestampUtcMillis DESC")
-    fun observeAll(): Flow<List<MeasurementEntity>>
+    @Query("SELECT * FROM measurements WHERE profileId = :profileId ORDER BY timestampUtcMillis DESC")
+    fun observeAll(profileId: Long): Flow<List<MeasurementEntity>>
 
-    @Query("SELECT * FROM measurements WHERE type = :type ORDER BY timestampUtcMillis ASC")
-    fun observeByType(type: String): Flow<List<MeasurementEntity>>
+    @Query(
+        "SELECT * FROM measurements WHERE profileId = :profileId AND type = :type " +
+            "ORDER BY timestampUtcMillis ASC",
+    )
+    fun observeByType(profileId: Long, type: String): Flow<List<MeasurementEntity>>
 
     /**
      * The newest reading for each measurement type, which is what the body fat estimate and
@@ -143,22 +181,24 @@ interface MeasurementDao {
         SELECT m.* FROM measurements m
         INNER JOIN (
             SELECT type, MAX(timestampUtcMillis) AS newest
-            FROM measurements GROUP BY type
+            FROM measurements WHERE profileId = :profileId GROUP BY type
         ) latest ON m.type = latest.type AND m.timestampUtcMillis = latest.newest
+        WHERE m.profileId = :profileId
         """,
     )
-    fun observeLatestPerType(): Flow<List<MeasurementEntity>>
+    fun observeLatestPerType(profileId: Long): Flow<List<MeasurementEntity>>
 
     @Query(
         """
         SELECT m.* FROM measurements m
         INNER JOIN (
             SELECT type, MAX(timestampUtcMillis) AS newest
-            FROM measurements GROUP BY type
+            FROM measurements WHERE profileId = :profileId GROUP BY type
         ) latest ON m.type = latest.type AND m.timestampUtcMillis = latest.newest
+        WHERE m.profileId = :profileId
         """,
     )
-    suspend fun latestPerType(): List<MeasurementEntity>
+    suspend fun latestPerType(profileId: Long): List<MeasurementEntity>
 
     @Query("SELECT * FROM measurements WHERE id = :id")
     suspend fun byId(id: Long): MeasurementEntity?
@@ -185,17 +225,23 @@ interface MeasurementDao {
 @Dao
 interface GoalDao {
 
-    @Query("SELECT * FROM goals WHERE active = 1 ORDER BY createdAtUtcMillis DESC LIMIT 1")
-    fun observeActive(): Flow<GoalEntity?>
+    @Query(
+        "SELECT * FROM goals WHERE profileId = :profileId AND active = 1 " +
+            "ORDER BY createdAtUtcMillis DESC LIMIT 1",
+    )
+    fun observeActive(profileId: Long): Flow<GoalEntity?>
 
-    @Query("SELECT * FROM goals WHERE active = 1 ORDER BY createdAtUtcMillis DESC LIMIT 1")
-    suspend fun active(): GoalEntity?
+    @Query(
+        "SELECT * FROM goals WHERE profileId = :profileId AND active = 1 " +
+            "ORDER BY createdAtUtcMillis DESC LIMIT 1",
+    )
+    suspend fun active(profileId: Long): GoalEntity?
 
-    @Query("SELECT * FROM goals ORDER BY createdAtUtcMillis DESC")
-    fun observeAll(): Flow<List<GoalEntity>>
+    @Query("SELECT * FROM goals WHERE profileId = :profileId ORDER BY createdAtUtcMillis DESC")
+    fun observeAll(profileId: Long): Flow<List<GoalEntity>>
 
-    @Query("UPDATE goals SET active = 0")
-    suspend fun deactivateAll()
+    @Query("UPDATE goals SET active = 0 WHERE profileId = :profileId")
+    suspend fun deactivateAll(profileId: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(goal: GoalEntity): Long
@@ -209,11 +255,14 @@ interface GoalDao {
     @Query("DELETE FROM goals")
     suspend fun deleteAll()
 
-    /** Only one goal may be active, so setting a new one retires the previous in the same step. */
+    /**
+     * Only one goal may be active per profile, so setting a new one retires the previous in the
+     * same step. Scoped, or setting a goal would quietly retire everybody else's.
+     */
     @Transaction
-    suspend fun replaceActive(goal: GoalEntity): Long {
-        deactivateAll()
-        return insert(goal.copy(active = true))
+    suspend fun replaceActive(profileId: Long, goal: GoalEntity): Long {
+        deactivateAll(profileId)
+        return insert(goal.copy(profileId = profileId, active = true))
     }
 }
 
@@ -226,25 +275,35 @@ data class DailyWaterRow(
 @Dao
 interface WaterDao {
 
-    @Query("SELECT * FROM water_entries WHERE localDate = :localDate ORDER BY timestampUtcMillis DESC")
-    fun observeForDate(localDate: String): Flow<List<WaterEntryEntity>>
+    @Query(
+        "SELECT * FROM water_entries WHERE profileId = :profileId AND localDate = :localDate " +
+            "ORDER BY timestampUtcMillis DESC",
+    )
+    fun observeForDate(profileId: Long, localDate: String): Flow<List<WaterEntryEntity>>
 
-    @Query("SELECT COALESCE(SUM(millilitres), 0) FROM water_entries WHERE localDate = :localDate")
-    fun observeTotalForDate(localDate: String): Flow<Int>
+    @Query(
+        "SELECT COALESCE(SUM(millilitres), 0) FROM water_entries " +
+            "WHERE profileId = :profileId AND localDate = :localDate",
+    )
+    fun observeTotalForDate(profileId: Long, localDate: String): Flow<Int>
 
-    @Query("SELECT COALESCE(SUM(millilitres), 0) FROM water_entries WHERE localDate = :localDate")
-    suspend fun totalForDate(localDate: String): Int
+    @Query(
+        "SELECT COALESCE(SUM(millilitres), 0) FROM water_entries " +
+            "WHERE profileId = :profileId AND localDate = :localDate",
+    )
+    suspend fun totalForDate(profileId: Long, localDate: String): Int
 
     @Query(
         """
         SELECT localDate, CAST(SUM(millilitres) AS INTEGER) AS millilitres
         FROM water_entries
+        WHERE profileId = :profileId
         GROUP BY localDate
         ORDER BY localDate DESC
         LIMIT :days
         """,
     )
-    fun observeRecentDays(days: Int): Flow<List<DailyWaterRow>>
+    fun observeRecentDays(profileId: Long, days: Int): Flow<List<DailyWaterRow>>
 
     @Query("SELECT * FROM water_entries WHERE id = :id")
     suspend fun byId(id: Long): WaterEntryEntity?
@@ -258,8 +317,8 @@ interface WaterDao {
     @Query("UPDATE water_entries SET healthConnectId = :clientRecordId WHERE id = :id")
     suspend fun setHealthConnectId(id: Long, clientRecordId: String)
 
-    @Query("DELETE FROM water_entries WHERE localDate = :localDate")
-    suspend fun deleteForDate(localDate: String)
+    @Query("DELETE FROM water_entries WHERE profileId = :profileId AND localDate = :localDate")
+    suspend fun deleteForDate(profileId: Long, localDate: String)
 
     @Query("DELETE FROM water_entries")
     suspend fun deleteAll()
@@ -268,20 +327,31 @@ interface WaterDao {
 @Dao
 interface FastDao {
 
-    @Query("SELECT * FROM fasts WHERE endUtcMillis IS NULL ORDER BY startUtcMillis DESC LIMIT 1")
-    fun observeActive(): Flow<FastEntity?>
+    @Query(
+        "SELECT * FROM fasts WHERE profileId = :profileId AND endUtcMillis IS NULL " +
+            "ORDER BY startUtcMillis DESC LIMIT 1",
+    )
+    fun observeActive(profileId: Long): Flow<FastEntity?>
 
-    @Query("SELECT * FROM fasts WHERE endUtcMillis IS NULL ORDER BY startUtcMillis DESC LIMIT 1")
-    suspend fun active(): FastEntity?
+    @Query(
+        "SELECT * FROM fasts WHERE profileId = :profileId AND endUtcMillis IS NULL " +
+            "ORDER BY startUtcMillis DESC LIMIT 1",
+    )
+    suspend fun active(profileId: Long): FastEntity?
 
-    @Query("SELECT * FROM fasts WHERE endUtcMillis IS NOT NULL ORDER BY startUtcMillis DESC")
-    fun observeCompleted(): Flow<List<FastEntity>>
+    @Query(
+        "SELECT * FROM fasts WHERE profileId = :profileId AND endUtcMillis IS NOT NULL " +
+            "ORDER BY startUtcMillis DESC",
+    )
+    fun observeCompleted(profileId: Long): Flow<List<FastEntity>>
 
     @Query("SELECT * FROM fasts WHERE id = :id")
     suspend fun byId(id: Long): FastEntity?
 
-    @Query("SELECT COUNT(*) FROM fasts WHERE endUtcMillis IS NOT NULL")
-    fun observeCompletedCount(): Flow<Int>
+    @Query(
+        "SELECT COUNT(*) FROM fasts WHERE profileId = :profileId AND endUtcMillis IS NOT NULL",
+    )
+    fun observeCompletedCount(profileId: Long): Flow<Int>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(fast: FastEntity): Long
@@ -305,10 +375,11 @@ interface FastDao {
      * insert so two taps landing together cannot both get through it.
      */
     @Transaction
-    suspend fun startFast(startUtcMillis: Long, targetMinutes: Int): Long? {
-        if (active() != null) return null
+    suspend fun startFast(profileId: Long, startUtcMillis: Long, targetMinutes: Int): Long? {
+        if (active(profileId) != null) return null
         return insert(
             FastEntity(
+                profileId = profileId,
                 startUtcMillis = startUtcMillis,
                 endUtcMillis = null,
                 targetMinutes = targetMinutes,
@@ -322,17 +393,18 @@ interface FastDao {
 @Dao
 interface ProgressPhotoDao {
 
-    @Query("SELECT * FROM progress_photos ORDER BY timestampUtcMillis DESC")
-    fun observeAll(): Flow<List<ProgressPhotoEntity>>
+    @Query("SELECT * FROM progress_photos WHERE profileId = :profileId ORDER BY timestampUtcMillis DESC")
+    fun observeAll(profileId: Long): Flow<List<ProgressPhotoEntity>>
 
+    /** Every profile's photos, for the delete that has to leave no file behind. */
     @Query("SELECT * FROM progress_photos ORDER BY timestampUtcMillis DESC")
     suspend fun all(): List<ProgressPhotoEntity>
 
     @Query("SELECT * FROM progress_photos WHERE id = :id")
     suspend fun byId(id: Long): ProgressPhotoEntity?
 
-    @Query("SELECT COUNT(*) FROM progress_photos")
-    fun observeCount(): Flow<Int>
+    @Query("SELECT COUNT(*) FROM progress_photos WHERE profileId = :profileId")
+    fun observeCount(profileId: Long): Flow<Int>
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(photo: ProgressPhotoEntity): Long
@@ -342,4 +414,67 @@ interface ProgressPhotoDao {
 
     @Query("DELETE FROM progress_photos")
     suspend fun deleteAll()
+}
+
+@Dao
+interface ProfileDao {
+
+    @Query("SELECT * FROM profiles ORDER BY position ASC, id ASC")
+    fun observeAll(): Flow<List<ProfileEntity>>
+
+    @Query("SELECT * FROM profiles ORDER BY position ASC, id ASC")
+    suspend fun all(): List<ProfileEntity>
+
+    @Query("SELECT * FROM profiles WHERE id = :id")
+    suspend fun byId(id: Long): ProfileEntity?
+
+    @Query("SELECT COUNT(*) FROM profiles")
+    suspend fun count(): Int
+
+    @Query("SELECT COALESCE(MAX(position), -1) FROM profiles")
+    suspend fun highestPosition(): Int
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(profile: ProfileEntity): Long
+
+    @Update
+    suspend fun update(profile: ProfileEntity)
+
+    @Delete
+    suspend fun delete(profile: ProfileEntity)
+
+    /**
+     * Removes a profile and everything that belonged to it, in one transaction.
+     *
+     * Deleting the row on its own would leave rows pointing at nothing, which is worse than
+     * losing them: they would still be counted and still be exported, but never shown.
+     */
+    @Transaction
+    suspend fun deleteWithData(profile: ProfileEntity) {
+        deleteWeightEntries(profile.id)
+        deleteMeasurements(profile.id)
+        deleteGoals(profile.id)
+        deleteWaterEntries(profile.id)
+        deleteFasts(profile.id)
+        deleteProgressPhotos(profile.id)
+        delete(profile)
+    }
+
+    @Query("DELETE FROM weight_entries WHERE profileId = :profileId")
+    suspend fun deleteWeightEntries(profileId: Long)
+
+    @Query("DELETE FROM measurements WHERE profileId = :profileId")
+    suspend fun deleteMeasurements(profileId: Long)
+
+    @Query("DELETE FROM goals WHERE profileId = :profileId")
+    suspend fun deleteGoals(profileId: Long)
+
+    @Query("DELETE FROM water_entries WHERE profileId = :profileId")
+    suspend fun deleteWaterEntries(profileId: Long)
+
+    @Query("DELETE FROM fasts WHERE profileId = :profileId")
+    suspend fun deleteFasts(profileId: Long)
+
+    @Query("DELETE FROM progress_photos WHERE profileId = :profileId")
+    suspend fun deleteProgressPhotos(profileId: Long)
 }

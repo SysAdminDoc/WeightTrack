@@ -257,8 +257,12 @@ fun WeightTrackApp(
                     }
                 }
 
+                val profiles by viewModel.profiles.collectAsStateWithLifecycle()
+                val activeProfileId by viewModel.activeProfileId.collectAsStateWithLifecycle()
                 SettingsScreen(
                     settings = settings,
+                    profiles = profiles,
+                    activeProfileId = activeProfileId,
                     entryCount = entryCount,
                     healthConnectState = healthConnectState,
                     busy = busy,

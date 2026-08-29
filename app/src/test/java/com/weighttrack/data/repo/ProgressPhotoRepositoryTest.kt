@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.data.db.WeightTrackDatabase
+import com.weighttrack.data.testProfileRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -32,7 +33,7 @@ class ProgressPhotoRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, WeightTrackDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ProgressPhotoRepository(context, database.progressPhotoDao())
+        repository = ProgressPhotoRepository(context, database.progressPhotoDao(), testProfileRepository(database))
     }
 
     @After
@@ -163,7 +164,11 @@ class ProgressPhotoRepositoryTest {
                 return super.getFilesDir()
             }
         }
-        val checkingRepository = ProgressPhotoRepository(checkingContext, database.progressPhotoDao())
+        val checkingRepository = ProgressPhotoRepository(
+            checkingContext,
+            database.progressPhotoDao(),
+            testProfileRepository(database),
+        )
         checkingRepository.record(
             checkingRepository.newCaptureFile().apply { writeBytes(byteArrayOf(1, 2, 3)) },
             weightGrams = 80_000,

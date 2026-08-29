@@ -12,6 +12,8 @@ import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.io.BackupService
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.data.repo.Profile
+import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.diagnostics.CrashLogStore
 import com.weighttrack.health.HealthConnectAvailability
@@ -43,6 +45,7 @@ data class HealthConnectState(
 class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val weightRepository: WeightRepository,
+    private val profileRepository: ProfileRepository,
     private val backupService: BackupService,
     private val reminderScheduler: ReminderScheduler,
     private val weeklySummaryScheduler: WeeklySummaryScheduler,
@@ -56,6 +59,12 @@ class SettingsViewModel @Inject constructor(
 
     val entryCount: StateFlow<Int> = weightRepository.observeCount()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
+
+    val profiles: StateFlow<List<Profile>> = profileRepository.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    val activeProfileId: StateFlow<Long> = profileRepository.activeProfileId
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1L)
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -286,6 +295,43 @@ class SettingsViewModel @Inject constructor(
             today -> "today at $time"
             today.plusDays(1) -> "tomorrow at $time"
             else -> "on ${next.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }} at $time"
+        }
+    }
+
+    fun switchProfile(id: Long) {
+        viewModelScope.launch {
+            profileRepository.setActive(id)
+            // Everything glanceable is showing somebody else's numbers until this runs.
+            SurfaceUpdater.refresh()
+        }
+    }
+
+    fun addProfile(name: String) {
+        viewModelScope.launch {
+            profileRepository.add(name)
+            SurfaceUpdater.refresh()
+            _message.value = "Switched to " + name.trim()
+        }
+    }
+
+    fun renameProfile(id: Long, name: String) {
+        viewModelScope.launch {
+            profileRepository.rename(id, name)
+            SurfaceUpdater.refresh()
+        }
+    }
+
+    fun deleteProfile(id: Long) {
+        viewModelScope.launch {
+            val name = profiles.value.firstOrNull { it.id == id }?.name
+            if (profileRepository.delete(id)) {
+                SurfaceUpdater.refresh()
+                _message.value = name?.let { "Deleted $it and everything recorded for them" }
+            } else {
+                // Refusing to delete the last one is deliberate: the app would have nowhere to
+                // put the next reading and no way to make a profile to fix it.
+                _message.value = "There has to be somebody. Add another profile first."
+            }
         }
     }
 }

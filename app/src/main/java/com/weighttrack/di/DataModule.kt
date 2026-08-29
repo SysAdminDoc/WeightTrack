@@ -7,8 +7,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.sqlite.db.SupportSQLiteDatabase
 import com.weighttrack.data.db.FastDao
 import com.weighttrack.data.db.GoalDao
+import com.weighttrack.data.db.ProfileDao
 import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.WaterDao
@@ -34,6 +36,21 @@ object DataModule {
             // Write-ahead logging keeps a reader from blocking the write that happens the
             // instant someone steps off the scale, and survives a process kill mid-write.
             .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
+            // A database created fresh has no profiles, and the migration only seeds one for an
+            // upgrade. Without this the switcher would be empty on a new install even though
+            // every reading was going to profile one anyway.
+            .addCallback(
+                object : RoomDatabase.Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        db.execSQL(
+                            "INSERT OR IGNORE INTO profiles " +
+                                "(id, name, position, createdAtUtcMillis) VALUES (" +
+                                WeightTrackDatabase.DEFAULT_PROFILE_ID + ", '" +
+                                WeightTrackDatabase.DEFAULT_PROFILE_NAME + "', 0, 0)",
+                        )
+                    }
+                },
+            )
             .build()
 
     @Provides
@@ -72,4 +89,7 @@ object DataModule {
     @Singleton
     fun provideCrashLogStore(@ApplicationContext context: Context): CrashLogStore =
         CrashLogStore(File(context.filesDir, CrashLogStore.DIRECTORY_NAME))
+
+    @Provides
+    fun provideProfileDao(database: WeightTrackDatabase): ProfileDao = database.profileDao()
 }

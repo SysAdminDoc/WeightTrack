@@ -1,8 +1,26 @@
 package com.weighttrack.data.db
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+
+/**
+ * Whose readings these are.
+ *
+ * A household shares one scale far more often than it shares a phone, so the app has to be able
+ * to keep two people apart. There is always at least one profile and it can never be deleted:
+ * everything else in the database points at one, and a row with nowhere to belong is a row
+ * nobody can ever see again.
+ */
+@Entity(tableName = "profiles")
+data class ProfileEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    /** Sorted by this rather than by name, so switching does not reshuffle under a thumb. */
+    val position: Int,
+    val createdAtUtcMillis: Long,
+)
 
 /**
  * Stored columns stay primitive on purpose. Enums and dates are held as text, so the database
@@ -12,6 +30,7 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "weight_entries",
     indices = [
+        Index(value = ["profileId", "timestampUtcMillis"]),
         Index(value = ["timestampUtcMillis"]),
         Index(value = ["localDate"]),
         Index(value = ["clientRecordId"], unique = true),
@@ -20,6 +39,8 @@ import androidx.room.PrimaryKey
 )
 data class WeightEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
     val timestampUtcMillis: Long,
     val zoneOffsetSeconds: Int,
     /**
@@ -42,12 +63,15 @@ data class WeightEntryEntity(
 @Entity(
     tableName = "measurements",
     indices = [
+        Index(value = ["profileId", "timestampUtcMillis"]),
         Index(value = ["timestampUtcMillis"]),
         Index(value = ["type", "timestampUtcMillis"]),
     ],
 )
 data class MeasurementEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
     val timestampUtcMillis: Long,
     val localDate: String,
     val type: String,
@@ -56,9 +80,11 @@ data class MeasurementEntity(
     val updatedAtUtcMillis: Long,
 )
 
-@Entity(tableName = "goals")
+@Entity(tableName = "goals", indices = [Index(value = ["profileId"])])
 data class GoalEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
     val direction: String,
     val startGrams: Int,
     val targetGrams: Int,
@@ -72,12 +98,15 @@ data class GoalEntity(
 @Entity(
     tableName = "water_entries",
     indices = [
+        Index(value = ["profileId", "localDate"]),
         Index(value = ["timestampUtcMillis"]),
         Index(value = ["localDate"]),
     ],
 )
 data class WaterEntryEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
     val timestampUtcMillis: Long,
     /** The day the drink counts towards, in the zone the person was standing in. */
     val localDate: String,
@@ -96,12 +125,15 @@ data class WaterEntryEntity(
 @Entity(
     tableName = "fasts",
     indices = [
+        Index(value = ["profileId", "startUtcMillis"]),
         Index(value = ["startUtcMillis"]),
         Index(value = ["endUtcMillis"]),
     ],
 )
 data class FastEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
     val startUtcMillis: Long,
     val endUtcMillis: Long?,
     /** The preset the fast was started against, in whole minutes. */
@@ -120,12 +152,15 @@ data class FastEntity(
 @Entity(
     tableName = "progress_photos",
     indices = [
+        Index(value = ["profileId", "timestampUtcMillis"]),
         Index(value = ["timestampUtcMillis"]),
         Index(value = ["fileName"], unique = true),
     ],
 )
 data class ProgressPhotoEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
     val timestampUtcMillis: Long,
     val localDate: String,
     val fileName: String,

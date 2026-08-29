@@ -4,6 +4,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.data.db.WeightTrackDatabase
+import com.weighttrack.data.testProfileRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -28,7 +29,7 @@ class FastRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repository = FastRepository(database.fastDao())
+        repository = FastRepository(database.fastDao(), testProfileRepository(database))
     }
 
     @After

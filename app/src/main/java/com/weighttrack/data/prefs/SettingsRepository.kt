@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.weighttrack.core.math.TrendEngine
@@ -41,6 +42,8 @@ data class AppSettings(
     val weeklySummaryDay: DayOfWeek = DayOfWeek.SUNDAY,
     val weeklySummaryHour: Int = 19,
     /** The Bluetooth scale last used, so the next weigh-in does not start with a scan. */
+    /** Whose readings the app is showing. */
+    val activeProfileId: Long = 1L,
     val scaleAddress: String? = null,
     val scaleName: String? = null,
 )
@@ -134,12 +137,15 @@ class SettingsRepository @Inject constructor(
             ?.let { name -> DayOfWeek.entries.firstOrNull { it.name == name } }
             ?: DayOfWeek.SUNDAY,
         weeklySummaryHour = this[Keys.WEEKLY_SUMMARY_HOUR] ?: 19,
+        activeProfileId = this[Keys.ACTIVE_PROFILE_ID] ?: 1L,
         scaleAddress = this[Keys.SCALE_ADDRESS],
         scaleName = this[Keys.SCALE_NAME],
     )
 
     private fun <T : Enum<T>> enumOrDefault(raw: String?, values: List<T>, fallback: T): T =
         values.firstOrNull { it.name == raw } ?: fallback
+
+    suspend fun setActiveProfile(id: Long) = edit { it[Keys.ACTIVE_PROFILE_ID] = id }
 
     /** Remembers a scale, or forgets it when the address is null. */
     suspend fun setScale(address: String?, name: String?) = edit {
@@ -174,6 +180,7 @@ class SettingsRepository @Inject constructor(
         val WEEKLY_SUMMARY_ENABLED = booleanPreferencesKey("weekly_summary_enabled")
         val WEEKLY_SUMMARY_DAY = stringPreferencesKey("weekly_summary_day")
         val WEEKLY_SUMMARY_HOUR = intPreferencesKey("weekly_summary_hour")
+        val ACTIVE_PROFILE_ID = longPreferencesKey("active_profile_id")
         val SCALE_ADDRESS = stringPreferencesKey("scale_address")
         val SCALE_NAME = stringPreferencesKey("scale_name")
     }

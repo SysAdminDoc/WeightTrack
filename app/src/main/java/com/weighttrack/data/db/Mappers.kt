@@ -33,9 +33,13 @@ fun WeightEntryEntity.toDomain(): WeightEntry = WeightEntry(
     healthConnectId = healthConnectId,
 )
 
-fun WeightEntry.toEntity(updatedAtUtcMillis: Long = System.currentTimeMillis()): WeightEntryEntity =
+fun WeightEntry.toEntity(
+    profileId: Long,
+    updatedAtUtcMillis: Long = System.currentTimeMillis(),
+): WeightEntryEntity =
     WeightEntryEntity(
         id = id,
+        profileId = profileId,
         timestampUtcMillis = timestamp.toEpochMilli(),
         zoneOffsetSeconds = zoneOffset.totalSeconds,
         localDate = localDate.toString(),
@@ -61,9 +65,13 @@ fun MeasurementEntity.toDomain(): BodyMeasurement? {
     )
 }
 
-fun BodyMeasurement.toEntity(updatedAtUtcMillis: Long = System.currentTimeMillis()): MeasurementEntity =
+fun BodyMeasurement.toEntity(
+    profileId: Long,
+    updatedAtUtcMillis: Long = System.currentTimeMillis(),
+): MeasurementEntity =
     MeasurementEntity(
         id = id,
+        profileId = profileId,
         timestampUtcMillis = timestamp.toEpochMilli(),
         localDate = localDate.toString(),
         type = type.name,
@@ -83,8 +91,12 @@ fun GoalEntity.toDomain(): Goal = Goal(
     active = active,
 )
 
-fun Goal.toEntity(createdAtUtcMillis: Long = System.currentTimeMillis()): GoalEntity = GoalEntity(
+fun Goal.toEntity(
+    profileId: Long,
+    createdAtUtcMillis: Long = System.currentTimeMillis(),
+): GoalEntity = GoalEntity(
     id = id,
+    profileId = profileId,
     direction = direction.name,
     startGrams = startGrams,
     targetGrams = targetGrams,

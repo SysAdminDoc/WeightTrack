@@ -1,8 +1,5 @@
 package com.weighttrack.ui.scale
 
-import androidx.datastore.core.DataStore
-import androidx.datastore.preferences.core.Preferences
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
@@ -20,7 +17,9 @@ import com.weighttrack.core.scale.ScaleBroadcast
 import com.weighttrack.core.scale.ScaleReading
 import com.weighttrack.data.db.WeightTrackDatabase
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
+import com.weighttrack.data.testSettingsRepository
 import com.weighttrack.wear.NoWearBridge
 import com.weighttrack.wear.WearSummaryBuilder
 import com.weighttrack.widget.SurfaceUpdater
@@ -29,7 +28,6 @@ import kotlinx.coroutines.asExecutor
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
@@ -62,6 +60,7 @@ class ScaleViewModelTest {
     private lateinit var weightRepository: WeightRepository
     private lateinit var settingsRepository: SettingsRepository
     private lateinit var surfaceUpdater: SurfaceUpdater
+    private lateinit var profiles: ProfileRepository
 
     // Replaying, so an event emitted a moment before the view model subscribes is not lost and
     // the test is about the view model rather than about scheduling.
@@ -98,14 +97,18 @@ class ScaleViewModelTest {
             .setQueryExecutor(dispatcher.asExecutor())
             .setTransactionExecutor(dispatcher.asExecutor())
             .build()
-        weightRepository = WeightRepository(database.weightEntryDao())
-        settingsRepository = SettingsRepository(InMemoryPreferences())
+        settingsRepository = testSettingsRepository()
+        profiles = ProfileRepository(database.profileDao(), settingsRepository)
+        weightRepository = WeightRepository(database.weightEntryDao(), profiles)
         surfaceUpdater = SurfaceUpdater(
             context = context,
             wearBridge = NoWearBridge(),
             wearSummaryBuilder = WearSummaryBuilder(
                 weightRepository = weightRepository,
-                goalRepository = com.weighttrack.data.repo.GoalRepository(database.goalDao()),
+                goalRepository = com.weighttrack.data.repo.GoalRepository(
+                    database.goalDao(),
+                    profiles,
+                ),
                 settingsRepository = settingsRepository,
             ),
         )
@@ -115,21 +118,6 @@ class ScaleViewModelTest {
     fun tearDown() {
         database.close()
         Dispatchers.resetMain()
-    }
-
-    /**
-     * Settings held in memory.
-     *
-     * A real datastore does its file work off the test scheduler, so advancing time returns
-     * while the view model is still waiting to be told the unit, and the test measures the
-     * scheduler instead of the code.
-     */
-    private class InMemoryPreferences : DataStore<Preferences> {
-        private val state = MutableStateFlow(emptyPreferences())
-        override val data = state
-        override suspend fun updateData(
-            transform: suspend (Preferences) -> Preferences,
-        ): Preferences = transform(state.value).also { state.value = it }
     }
 
     private fun viewModel() = ScaleViewModel(
