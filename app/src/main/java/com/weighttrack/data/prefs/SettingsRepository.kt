@@ -60,6 +60,7 @@ data class AppSettings(
 @Singleton
 class SettingsRepository @Inject constructor(
     private val dataStore: DataStore<Preferences>,
+    private val secrets: com.weighttrack.security.SecretStore,
 ) {
     val settings: Flow<AppSettings> = dataStore.data.map { it.toSettings() }
 
@@ -210,7 +211,7 @@ class SettingsRepository @Inject constructor(
         activeProfileId = this[Keys.ACTIVE_PROFILE_ID] ?: 1L,
         legacyReminderAdopted = this[Keys.LEGACY_REMINDER_ADOPTED] ?: false,
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
-        usdaApiKey = this[Keys.USDA_API_KEY],
+        usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
         scaleAddress = this[Keys.SCALE_ADDRESS],
         scaleName = this[Keys.SCALE_NAME],
     )
@@ -225,7 +226,12 @@ class SettingsRepository @Inject constructor(
     suspend fun setNutritionEnabled(enabled: Boolean) = edit { it[Keys.NUTRITION_ENABLED] = enabled }
 
     suspend fun setUsdaApiKey(key: String?) = edit {
-        if (key == null) it.remove(Keys.USDA_API_KEY) else it[Keys.USDA_API_KEY] = key
+        if (key == null) {
+            it.remove(Keys.USDA_API_KEY)
+        } else {
+            // Somebody's own quota on a public service, so worth the same care as a password.
+            it[Keys.USDA_API_KEY] = secrets.protect(key) ?: key
+        }
     }
 
     /** Remembers a scale, or forgets it when the address is null. */

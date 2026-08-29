@@ -57,6 +57,7 @@ data class SyncSettings(
 @Singleton
 class SyncPreferences @Inject constructor(
     private val dataStore: DataStore<Preferences>,
+    private val secrets: com.weighttrack.security.SecretStore,
 ) {
     val settings: Flow<SyncSettings> = dataStore.data.map { it.toSettings() }
 
@@ -86,7 +87,10 @@ class SyncPreferences @Inject constructor(
         it[Keys.MODE] = SyncMode.WEBDAV.name
         it[Keys.WEBDAV_URL] = url.trim()
         it[Keys.WEBDAV_USER] = user.trim()
-        it[Keys.WEBDAV_PASSWORD] = password
+        // Encrypted with a key that never leaves this phone, so the stored file is of no use
+        // to anything that reads it. Stored plain only if the phone refuses a key at all, which
+        // no ordinary one does: a sync that silently stopped working would be worse.
+        it[Keys.WEBDAV_PASSWORD] = secrets.protect(password) ?: password
     }
 
     /**
@@ -117,7 +121,7 @@ class SyncPreferences @Inject constructor(
         folderUri = this[Keys.FOLDER_URI],
         webDavUrl = this[Keys.WEBDAV_URL],
         webDavUser = this[Keys.WEBDAV_USER],
-        webDavPassword = this[Keys.WEBDAV_PASSWORD],
+        webDavPassword = this[Keys.WEBDAV_PASSWORD]?.let(secrets::reveal),
         deviceId = this[Keys.DEVICE_ID].orEmpty(),
         lastSyncAtUtcMillis = this[Keys.LAST_SYNC_AT] ?: 0,
         lastSyncMessage = this[Keys.LAST_MESSAGE],

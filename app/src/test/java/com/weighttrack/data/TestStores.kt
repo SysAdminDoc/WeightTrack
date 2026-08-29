@@ -24,7 +24,8 @@ internal class InMemoryPreferences : DataStore<Preferences> {
     ): Preferences = transform(state.value).also { state.value = it }
 }
 
-internal fun testSettingsRepository(): SettingsRepository = SettingsRepository(InMemoryPreferences())
+internal fun testSettingsRepository(): SettingsRepository =
+    SettingsRepository(InMemoryPreferences(), com.weighttrack.security.SecretStore())
 
 /**
  * The profile repository every data repository needs.

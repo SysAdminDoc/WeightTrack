@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — Encrypt the WebDAV password and the USDA key at rest
-  Why: both sit in plain DataStore; a backup-excluded file on an encrypted phone is not nothing, but a credential to the user's own server deserves the Keystore.
-  Evidence: app/src/main/java/com/weighttrack/data/sync/SyncPreferences.kt:132; data/prefs/SettingsRepository.kt:248; https://developer.android.com/jetpack/androidx/releases/datastore (datastore-tink 1.3.0-alpha07, 2026-03-11)
-  Touches: data/sync/SyncPreferences.kt, data/prefs/SettingsRepository.kt, new security/SecretStore.kt (AES-GCM key in AndroidKeyStore, or datastore-tink once stable), one-time migration of existing values
-  Acceptance: the stored file contains no plaintext password (asserted by a Robolectric test reading the file); an existing plaintext value is migrated on first read and the old key cleared.
-  Complexity: M
-
 - [ ] P1 — Explain the goal date: a "how this was worked out" view with the fitted window, rate, range and what would change it
   Why: Happy Scale 2026.5.3 (2026-06-02) made this its headline trend feature; the projection already refuses fake precision and the reasoning behind a refusal is the part people distrust.
   Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; core/src/main/java/com/weighttrack/core/math/GoalProjection.kt (all inputs already computed)
