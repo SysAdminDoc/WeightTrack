@@ -79,6 +79,10 @@ class HealthConnectSync @Inject constructor(
         HealthPermission.getReadPermission(BodyFatRecord::class),
         HealthPermission.getWritePermission(BodyFatRecord::class),
         HealthPermission.getReadPermission(HeightRecord::class),
+    )
+
+    /** Writing water. Refusing it costs the hydration records and nothing else. */
+    val hydrationPermissions: Set<String> = setOf(
         HealthPermission.getWritePermission(HydrationRecord::class),
     )
 
@@ -88,7 +92,7 @@ class HealthConnectSync @Inject constructor(
         HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
     )
 
-    val permissions: Set<String> = corePermissions + activityPermissions
+    val permissions: Set<String> = corePermissions + hydrationPermissions + activityPermissions
 
     fun availability(): HealthConnectAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
@@ -110,6 +114,8 @@ class HealthConnectSync @Inject constructor(
     suspend fun hasPermissions(): Boolean = hasGranted(corePermissions)
 
     suspend fun hasActivityPermissions(): Boolean = hasGranted(activityPermissions)
+
+    suspend fun hasHydrationPermission(): Boolean = hasGranted(hydrationPermissions)
 
     private suspend fun hasGranted(required: Set<String>): Boolean {
         val client = clientOrNull() ?: return false
@@ -275,7 +281,9 @@ class HealthConnectSync @Inject constructor(
     ): Boolean = withContext(Dispatchers.IO) {
         runCatching {
             val client = clientOrNull() ?: return@runCatching false
-            if (!hasPermissions()) return@runCatching false
+            // Only the hydration grant matters here. Gating on the whole set would drop water
+            // records for someone who allowed water but not, say, the height read.
+            if (!hasHydrationPermission()) return@runCatching false
             val zone = ZoneId.systemDefault()
             client.insertRecords(
                 listOf(

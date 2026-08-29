@@ -78,22 +78,18 @@ class WaterViewModel @Inject constructor(
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), WaterUiState())
 
-    val hasHealthConnect: StateFlow<Boolean> = settingsRepository.settings
-        .map { healthConnect.availability() == com.weighttrack.health.HealthConnectAvailability.INSTALLED }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
-
     fun addServing() = add(state.value.servingMl)
 
     fun add(millilitres: Int) {
         if (millilitres <= 0) return
         viewModelScope.launch {
-            val instant = Instant.now()
-            val clientRecordId = "water:${UUID.randomUUID()}"
-            waterRepository.add(millilitres = millilitres, timestamp = instant)
+            WaterLogger.log(
+                millilitres = millilitres,
+                onDate = state.value.date,
+                waterRepository = waterRepository,
+                healthConnect = healthConnect,
+            )
             widgetUpdater.refresh()
-            // Health Connect is best effort. The drink is already recorded locally, so a
-            // refused or missing permission must not turn a tap into an error.
-            healthConnect.writeHydration(millilitres, instant, clientRecordId)
         }
     }
 

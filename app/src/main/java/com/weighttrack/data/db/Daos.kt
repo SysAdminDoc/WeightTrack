@@ -249,6 +249,9 @@ interface WaterDao {
     @Delete
     suspend fun delete(entry: WaterEntryEntity)
 
+    @Query("UPDATE water_entries SET healthConnectId = :clientRecordId WHERE id = :id")
+    suspend fun setHealthConnectId(id: Long, clientRecordId: String)
+
     @Query("DELETE FROM water_entries WHERE localDate = :localDate")
     suspend fun deleteForDate(localDate: String)
 

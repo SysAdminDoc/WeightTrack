@@ -132,7 +132,9 @@ fun WaterScreen(
 
             item {
                 SectionCard {
-                    SectionHeading("Today's total")
+                    SectionHeading(
+                        if (state.date == today) "Today's total" else "Total for the day",
+                    )
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
                         Text(

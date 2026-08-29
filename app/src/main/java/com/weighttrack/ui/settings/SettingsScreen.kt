@@ -36,6 +36,7 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -66,6 +67,7 @@ import com.weighttrack.security.AppLockAvailability
 import com.weighttrack.security.AppLockSupport
 import com.weighttrack.notifications.ReminderReceiver
 import com.weighttrack.ui.components.LabelledValue
+import com.weighttrack.ui.components.ResumeEffect
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.format.LengthFormatter
@@ -85,16 +87,13 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-    // Someone can set a screen lock, or clear crash reports, and come straight back here while
-    // this composition is still alive. Without a resume hook the screen keeps showing stale
-    // answers to both questions.
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_RESUME) viewModel.onScreenResumed()
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    // Someone can set a screen lock, or clear crash reports, and come straight back here
+    // while this composition is still alive. The counter is what forces a recomposition:
+    // refreshing a StateFlow with an equal value is conflated and changes nothing on screen.
+    var resumeCount by remember { mutableIntStateOf(0) }
+    ResumeEffect {
+        resumeCount++
+        viewModel.onScreenResumed()
     }
     var showReminderTime by remember { mutableStateOf(false) }
     var heightText by remember(settings.profile.heightMm, settings.lengthUnit) {
@@ -377,7 +376,9 @@ fun SettingsScreen(
         }
 
         item {
-            val lockAvailability = AppLockSupport.availability(BiometricManager.from(context))
+            val lockAvailability = remember(resumeCount) {
+                AppLockSupport.availability(BiometricManager.from(context))
+            }
             SettingsSection {
                 SectionHeading("Privacy")
                 Spacer(Modifier.height(4.dp))
@@ -401,6 +402,11 @@ fun SettingsScreen(
                     )
                     AppLockAvailability.UNAVAILABLE -> Text(
                         text = "This device has no screen lock or biometric WeightTrack can use, so the app lock is unavailable here.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    AppLockAvailability.TEMPORARILY_UNAVAILABLE -> Text(
+                        text = "Android cannot check your fingerprint or screen lock at the moment. Come back in a minute and the setting will be here.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )

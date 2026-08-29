@@ -9,8 +9,14 @@ import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.domain.ProgressCalculator
 import com.weighttrack.domain.ProgressSnapshot
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import java.time.LocalDate
@@ -30,8 +36,15 @@ class HomeViewModel @Inject constructor(
             initialValue = ProgressSnapshot.empty(AppSettings()),
         )
 
+    /**
+     * Re-reads which day it is rather than capturing it once.
+     *
+     * The home view model lives as long as the process, so a captured date would leave the
+     * water row summing yesterday and calling it today after midnight or a flight.
+     */
+    @OptIn(ExperimentalCoroutinesApi::class)
     val waterSummary: StateFlow<WaterSummary?> = combine(
-        waterRepository.observeTotalForDate(LocalDate.now()),
+        currentDay().flatMapLatest { waterRepository.observeTotalForDate(it) },
         settingsRepository.settings,
     ) { total, settings ->
         WaterSummary(
@@ -48,3 +61,22 @@ data class WaterSummary(
     val targetMl: Int,
     val unit: VolumeUnit,
 )
+
+/**
+ * Emits today's date, and again each time the day rolls over.
+ *
+ * Polling once a minute rather than scheduling at midnight keeps it correct through a manual
+ * clock change or a timezone change too, which a single scheduled tick would miss.
+ */
+private fun currentDay(): Flow<LocalDate> = flow {
+    var last = LocalDate.now()
+    emit(last)
+    while (true) {
+        delay(60_000)
+        val today = LocalDate.now()
+        if (today != last) {
+            last = today
+            emit(today)
+        }
+    }
+}.distinctUntilChanged()

@@ -26,8 +26,12 @@ enum class VolumeUnit {
     ;
 
     companion object {
+        /**
+         * Only pounds imply fluid ounces. Stones are a British unit and Britain measures
+         * drinks in millilitres, so following "not kilograms" would get that backwards.
+         */
         fun forWeightUnit(unit: WeightUnit): VolumeUnit =
-            if (unit == WeightUnit.KG) ML else FL_OZ
+            if (unit == WeightUnit.LB) FL_OZ else ML
     }
 }
 

@@ -61,6 +61,15 @@ class WaterRepository @Inject constructor(
         )
     }
 
+    /**
+     * Records that this drink reached Health Connect, under the client record id it was
+     * written with. That id is how the record is addressed there, so storing it is what
+     * makes a local row and a Health Connect record matchable at all.
+     */
+    suspend fun markSyncedToHealthConnect(id: Long, clientRecordId: String) {
+        dao.setHealthConnectId(id, clientRecordId)
+    }
+
     suspend fun delete(entry: WaterEntry) {
         dao.byId(entry.id)?.let { dao.delete(it) }
     }

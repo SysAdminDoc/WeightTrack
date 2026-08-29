@@ -17,6 +17,13 @@ enum class AppLockAvailability {
 
     /** No usable authentication on this device at all. */
     UNAVAILABLE,
+
+    /**
+     * Cannot authenticate right now, but might in a moment.
+     *
+     * The lock stays up for this: a busy sensor is not a reason to hand over someone's data.
+     */
+    TEMPORARILY_UNAVAILABLE,
 }
 
 object AppLockSupport {
@@ -41,7 +48,13 @@ object AppLockSupport {
     fun fromCanAuthenticate(code: Int): AppLockAvailability = when (code) {
         BiometricManager.BIOMETRIC_SUCCESS -> AppLockAvailability.AVAILABLE
         BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> AppLockAvailability.NO_SCREEN_LOCK
-        else -> AppLockAvailability.UNAVAILABLE
+        BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
+        BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED,
+        -> AppLockAvailability.UNAVAILABLE
+        // Anything else is a maybe: the sensor is busy, the status is unknown, a security
+        // update is pending. Those are all transient, and treating them as "cannot lock"
+        // would open the whole app without a prompt on a phone that still has a PIN.
+        else -> AppLockAvailability.TEMPORARILY_UNAVAILABLE
     }
 
     fun availability(manager: BiometricManager): AppLockAvailability =

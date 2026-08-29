@@ -39,8 +39,18 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
+    /**
+     * Whether the lock can be satisfied at all.
+     *
+     * A transient failure keeps the lock up. Only a device with genuinely nothing to
+     * authenticate against bypasses it, because that is the case where leaving the lock
+     * standing would put someone's own history permanently out of reach.
+     */
     private fun lockIsUsable(): Boolean =
-        AppLockSupport.availability(BiometricManager.from(this)) == AppLockAvailability.AVAILABLE
+        when (AppLockSupport.availability(BiometricManager.from(this))) {
+            AppLockAvailability.NO_SCREEN_LOCK, AppLockAvailability.UNAVAILABLE -> false
+            AppLockAvailability.AVAILABLE, AppLockAvailability.TEMPORARILY_UNAVAILABLE -> true
+        }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

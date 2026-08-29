@@ -28,6 +28,8 @@ import androidx.glance.text.TextStyle
 import com.weighttrack.core.model.VolumeUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WaterRepository
+import com.weighttrack.health.HealthConnectSync
+import com.weighttrack.ui.water.WaterLogger
 import com.weighttrack.ui.format.VolumeFormatter
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -41,6 +43,7 @@ import java.time.LocalDate
 interface WaterWidgetEntryPoint {
     fun waterRepository(): WaterRepository
     fun settingsRepository(): SettingsRepository
+    fun healthConnect(): HealthConnectSync
 }
 
 private data class WaterWidgetData(
@@ -83,7 +86,14 @@ class AddWaterServingAction : ActionCallback {
             WaterWidgetEntryPoint::class.java,
         )
         val serving = entryPoint.settingsRepository().settings.first().waterServingMl
-        entryPoint.waterRepository().add(millilitres = serving)
+        // The same path the screen uses, so the widget is not a lesser way to log:
+        // it lands on the right day and reaches Health Connect too.
+        WaterLogger.log(
+            millilitres = serving,
+            onDate = LocalDate.now(),
+            waterRepository = entryPoint.waterRepository(),
+            healthConnect = entryPoint.healthConnect(),
+        )
         WaterWidget().updateAll(context)
     }
 }

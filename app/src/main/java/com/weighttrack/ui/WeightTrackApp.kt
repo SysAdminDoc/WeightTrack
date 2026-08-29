@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.weighttrack.ui.charts.ChartsScreen
+import com.weighttrack.ui.components.ResumeEffect
 import com.weighttrack.ui.charts.ChartsViewModel
 import com.weighttrack.ui.fasting.FastingScreen
 import com.weighttrack.ui.fasting.FastingViewModel
@@ -195,6 +196,8 @@ fun WeightTrackApp(
                 val viewModel: ChartsViewModel = hiltViewModel()
                 val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
                 val activity by viewModel.activity.collectAsStateWithLifecycle()
+                // A steps permission granted in Settings has to take effect on return.
+                ResumeEffect { viewModel.onScreenResumed() }
                 ChartsScreen(snapshot = snapshot, activity = activity)
             }
 

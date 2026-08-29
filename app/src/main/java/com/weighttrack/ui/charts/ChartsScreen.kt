@@ -54,7 +54,6 @@ import java.time.format.TextStyle
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
-import kotlin.math.roundToInt
 
 @Composable
 fun ChartsScreen(

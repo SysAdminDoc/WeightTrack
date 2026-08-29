@@ -57,6 +57,9 @@ class ChartsViewModel @Inject constructor(
         refreshActivity()
     }
 
+    /** Called when the screen resumes, so a permission granted in Settings takes effect. */
+    fun onScreenResumed() = refreshActivity()
+
     fun refreshActivity() {
         viewModelScope.launch {
             if (healthConnect.availability() != HealthConnectAvailability.INSTALLED) {

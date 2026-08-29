@@ -159,6 +159,9 @@ class SettingsViewModel @Inject constructor(
     fun setAppLockEnabled(enabled: Boolean) {
         viewModelScope.launch {
             settingsRepository.setAppLockEnabled(enabled)
+            // Otherwise the home screen widget keeps showing the trend weight until Android
+            // next feels like updating it, which can be half an hour.
+            widgetUpdater.refresh()
             _message.value = if (enabled) {
                 "App lock is on. You will be asked to unlock each time you come back."
             } else {
@@ -238,7 +241,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onHealthConnectPermissionResult(granted: Set<String>) {
-        val allowed = granted.containsAll(healthConnect.permissions)
+        // Weight sync only needs the core set. Treating a declined optional read as a
+        // refused connection would report a working sync as unauthorised.
+        val allowed = granted.containsAll(healthConnect.corePermissions)
         _healthConnectState.value = _healthConnectState.value.copy(granted = allowed)
         if (allowed) {
             syncHealthConnect()

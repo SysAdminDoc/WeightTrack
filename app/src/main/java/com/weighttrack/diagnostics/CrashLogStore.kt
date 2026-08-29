@@ -74,7 +74,7 @@ class CrashLogStore(private val directory: File) {
             file = File(directory, "$FILE_PREFIX$millis$FILE_SUFFIX")
         }
         file.writeText(body)
-        prune()
+        prune(keep = file.name)
         CrashReport(file.name, Instant.ofEpochMilli(millis), summarise(throwable))
     }.getOrNull()
 
@@ -104,11 +104,23 @@ class CrashLogStore(private val directory: File) {
 
     fun count(): Int = list().size
 
-    /** Keeps the newest [MAX_REPORTS] so a crash loop cannot fill the device. */
-    private fun prune() {
+    /**
+     * Keeps the newest [MAX_REPORTS] so a crash loop cannot fill the device.
+     *
+     * [keep] is never dropped. Ordering is by the timestamp in the filename, so a device
+     * whose clock stepped backwards can write a report that already sorts as the oldest, and
+     * without this the report just written would be the one deleted.
+     */
+    private fun prune(keep: String? = null) {
         val reports = list()
         if (reports.size <= MAX_REPORTS) return
-        reports.drop(MAX_REPORTS).forEach { delete(it.id) }
+        val protectedPresent = keep != null && reports.any { it.id == keep }
+        // A protected report takes one of the slots, so one fewer of the rest is kept and the
+        // total still lands on MAX_REPORTS.
+        val othersToKeep = if (protectedPresent) MAX_REPORTS - 1 else MAX_REPORTS
+        reports.filter { it.id != keep }
+            .drop(othersToKeep)
+            .forEach { delete(it.id) }
     }
 
     /**

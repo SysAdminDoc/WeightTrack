@@ -131,12 +131,27 @@ class CrashLogStoreTest {
     @Test
     fun `a clock that steps backwards does not overwrite a newer report`() {
         val later = store.write(boom("later"), "main", buildInfo, Instant.ofEpochMilli(5_000))!!
-        // The device clock corrects backwards onto an occupied slot.
-        val earlier = store.write(boom("earlier"), "main", buildInfo, Instant.ofEpochMilli(5_000))!!
+        // A genuine backwards step: the new report lands on an earlier, free slot.
+        val earlier = store.write(boom("earlier"), "main", buildInfo, Instant.ofEpochMilli(2_000))!!
 
         assertThat(earlier.id).isNotEqualTo(later.id)
         assertThat(store.count()).isEqualTo(2)
         assertThat(store.read(later.id)).contains("later")
+        assertThat(store.read(earlier.id)).contains("earlier")
+    }
+
+    @Test
+    fun `a report written after the clock steps back is not the one pruned`() {
+        // Fill the store, then write with a timestamp older than everything in it. Sorting is
+        // by the time in the filename, so without protection the report just written sorts
+        // last and prune deletes the very thing the crash produced.
+        repeat(CrashLogStore.MAX_REPORTS) { index ->
+            store.write(boom("crash $index"), "main", buildInfo, Instant.ofEpochMilli(10_000L + index))
+        }
+        val afterClockStep = store.write(boom("the real one"), "main", buildInfo, Instant.ofEpochMilli(1))!!
+
+        assertThat(store.count()).isEqualTo(CrashLogStore.MAX_REPORTS)
+        assertThat(store.read(afterClockStep.id)).contains("the real one")
     }
 
     @Test
