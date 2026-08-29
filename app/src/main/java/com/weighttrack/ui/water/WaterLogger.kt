@@ -51,7 +51,7 @@ object WaterLogger {
         onDate: LocalDate,
         zone: ZoneId = ZoneId.systemDefault(),
         now: Instant = Instant.now(),
-    ): Instant = if (onDate == LocalDate.ofInstant(now, zone)) {
+    ): Instant = if (onDate == now.atZone(zone).toLocalDate()) {
         now
     } else {
         // Midday, so the entry cannot slip either side of the date boundary once daylight

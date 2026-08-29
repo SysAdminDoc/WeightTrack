@@ -1,11 +1,15 @@
 package com.weighttrack.notifications
 
+import android.Manifest
 import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import com.weighttrack.MainActivity
 import com.weighttrack.R
 import com.weighttrack.data.prefs.SettingsRepository
@@ -69,6 +73,11 @@ class WeeklySummaryReceiver : BroadcastReceiver() {
     private fun post(context: Context, title: String, body: String) {
         WeeklySummaryScheduler.ensureChannel(context)
         if (!ReminderReceiver.hasNotificationPermission(context)) return
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
 
         val openApp = PendingIntent.getActivity(
             context,

@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Weekly summaries now verify notification access at the point where Android posts them, and water logging keeps its local-date behavior on every supported Android version.
 - Weekly summary. Pick a day and a time and WeightTrack sends one short note on how the week went, leading with a milestone if you crossed one. In a week with too few readings to say anything honest it stays quiet rather than sending you a notification with nothing in it.
 - Progress photos. Add them from the camera or the gallery, and pick any two to see them side by side with the dates and the weight change between them. Pictures are copied into the app's own storage rather than referenced, so they keep working, they sit behind the app lock, and they are excluded from backup like the rest of your data. Nothing is ever uploaded.
 - A second review pass found more holes, all closed. Adding water while looking at an earlier day now records it on that day instead of quietly filing it under today. The water widget writes to Health Connect the same way the screen does, so the one-tap path is not a lesser one. The home water total follows the calendar instead of freezing on the day the app was opened. Turning the app lock on refreshes the widget straight away rather than leaving your weight on the home screen for another half hour. And the app lock no longer opens the app when the fingerprint sensor is merely busy: only a phone with genuinely nothing to authenticate against skips it.
