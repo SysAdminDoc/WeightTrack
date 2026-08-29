@@ -45,6 +45,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.weighttrack.BuildConfig
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.math.UnitConverter
@@ -73,6 +74,7 @@ fun SettingsScreen(
     healthConnectState: HealthConnectState,
     busy: Boolean,
     viewModel: SettingsViewModel,
+    onOpenCrashLogs: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -353,6 +355,29 @@ fun SettingsScreen(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+            }
+        }
+
+        item {
+            val crashReportCount by viewModel.crashReportCount.collectAsStateWithLifecycle()
+            SettingsSection {
+                SectionHeading("Diagnostics")
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = "If the app ever closes unexpectedly, the details are written to a file here so you can send them on. Nothing is uploaded on its own.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedButton(onClick = onOpenCrashLogs, modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        when (crashReportCount) {
+                            0 -> "Crash reports (none)"
+                            1 -> "Crash reports (1)"
+                            else -> "Crash reports ($crashReportCount)"
+                        },
+                    )
+                }
             }
         }
 

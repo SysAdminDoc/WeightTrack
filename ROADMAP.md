@@ -84,52 +84,7 @@ Hacker's Diet exponential moving average: `trend[n] = trend[n-1] + alpha * (weig
 
 v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP, bans for abuse. Send a real User-Agent. ODbL license, so attribute in-app. For an offline database use their dump, never scrape.
 
-## Phase 1: v0.1.0, weight tracking done right. Shipped 2026-08-29.
-
-Goal: replace Libra and Happy Scale for anyone on Android. Verified on an API 35 emulator in both the debug and the R8-minified release build.
-
-- [x] Gradle project scaffold (two flavours, version catalog, Hilt, Room, DataStore, Compose BOM)
-- [x] Onboarding: units, height, sex, birth year, current weight, optional goal. Three screens, skippable.
-- [x] Log weight: big number pad, defaults to last weight, date and time editable, optional note and tags (post-workout, travel, period, sick). Undo snackbar.
-- [x] Units kg / lb / st+lb; height cm or ft+in. Grams internally.
-- [x] Trend engine (EMA, tunable window), rate per week, implied calorie balance, plateau detection
-- [x] Goals: target weight plus date or rate; lose, gain, maintain. ETA with a confidence band.
-- [x] Auto milestones (every 1, 2 or 5 kg, or the pound equivalents), crowding-aware, with progress-to-goal percent
-- [x] Charts: 1W / 1M / 3M / 6M / 1Y / All, pinch and scroll, raw points faded behind the trend, goal line, milestone markers, tap-to-inspect
-- [x] Weekly change bar chart and weekday averages
-- [x] Stats: BMI with category, BMR (Mifflin-St Jeor), TDEE from activity level, waist-to-height ratio
-- [x] Body measurements (neck, chest, waist, hips, arms, thighs) with Navy body-fat estimate, lean/fat mass split
-- [x] Body fat % entry (manual or from scale via Health Connect)
-- [x] History list: search, edit, multi-select delete, undo
-- [x] Health Connect two-way sync for weight, body fat, lean mass, bone mass, body water, height, BMR. History permission requested up front. Dedupe by clientRecordId. Sync status and manual sync button.
-- [x] CSV import with column mapping and presets: Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings, Eufy, Fitbit
-- [x] Export CSV and JSON. Automatic local backup to a user-chosen SAF folder, restore from backup.
-- [x] Daily weigh-in reminder: exact alarm, quiet days, test-notification button, battery-optimization guidance
-- [x] Home widgets (Glance): quick-log entry, trend plus delta, sparkline
-- [x] Theme: AMOLED black default, light option, dynamic color, glass-style cards
-- [x] No network permission in the `foss` flavor for this phase. Health Connect is local IPC.
-- [ ] Crash log to file, in-app log viewer in settings (carried to 0.2.0)
-- [x] Unit tests for the trend engine, ETA, BMI/BMR/Navy formulas, CSV parsers, unit conversions
-- [x] Signed release APK for both flavours, README screenshots, GitHub Release
-
-## Interface refresh: v0.2.0. Shipped 2026-08-29.
-
-Goal: make every existing feature easier to scan and faster to use without changing the private, local-first model.
-
-- [x] True AMOLED black as the default, with one mint and blue palette across themes
-- [x] Shared system-sans typography with tabular figures for weight and rate values
-- [x] Trend-first Home with a thirty-day sparkline, weekly rate and compact goal progress
-- [x] Flat Charts layout with an unfilled trend line and rectangular range controls
-- [x] Continuous grouped rows for History and Measurements
-- [x] Compact Log weight and Edit goal flows built around the shared keypad
-- [x] Full-width Settings groups and a refreshed four-step onboarding flow
-- [x] Route mockups and emulator screenshot comparison for every page
-
 ## Phase 2: v0.3.x, hardware and habits
-
-Carried over from Phase 1: crash log to file with an in-app viewer.
-
-### Planned
 
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync
 - [ ] Progress photos: camera or gallery, side-by-side compare with weight overlay, stored locally, optional app lock
@@ -140,6 +95,7 @@ Carried over from Phase 1: crash log to file with an in-app viewer.
 - [ ] Steps and active calories read from Health Connect, shown against the trend
 - [ ] App lock (biometric or PIN)
 - [ ] F-Droid submission
+- [ ] Move off the deprecated `androidx.hilt.navigation.compose.hiltViewModel`; it has moved to `androidx.hilt.lifecycle.viewmodel.compose` and currently emits nine deprecation warnings on every build
 
 ## Phase 3: v0.4.x, nutrition
 

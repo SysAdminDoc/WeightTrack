@@ -11,11 +11,13 @@ import com.weighttrack.data.db.GoalDao
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.WeightEntryDao
 import com.weighttrack.data.db.WeightTrackDatabase
+import com.weighttrack.diagnostics.CrashLogStore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import java.io.File
 import javax.inject.Singleton
 
 @Module
@@ -48,4 +50,13 @@ object DataModule {
         PreferenceDataStoreFactory.create {
             context.preferencesDataStoreFile("weighttrack_settings")
         }
+
+    /**
+     * Crash reports live in internal storage, which no other app can read and which the
+     * data-extraction rules already exclude from backup and device transfer.
+     */
+    @Provides
+    @Singleton
+    fun provideCrashLogStore(@ApplicationContext context: Context): CrashLogStore =
+        CrashLogStore(File(context.filesDir, CrashLogStore.DIRECTORY_NAME))
 }

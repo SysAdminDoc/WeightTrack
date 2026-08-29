@@ -40,6 +40,8 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.weighttrack.ui.charts.ChartsScreen
+import com.weighttrack.ui.diagnostics.CrashLogScreen
+import com.weighttrack.ui.diagnostics.CrashLogViewModel
 import com.weighttrack.ui.goal.GoalScreen
 import com.weighttrack.ui.goal.GoalViewModel
 import com.weighttrack.ui.history.HistoryScreen
@@ -78,7 +80,8 @@ fun WeightTrackApp(
     val topLevel = TopLevelDestination.entries.firstOrNull { it.route == currentRoute }
     val isFullScreenRoute = currentRoute == Routes.LOG_WITH_ARG ||
         currentRoute == Routes.GOAL ||
-        currentRoute == Routes.MEASUREMENTS
+        currentRoute == Routes.MEASUREMENTS ||
+        currentRoute == Routes.CRASH_LOGS
 
     Scaffold(
         modifier = modifier,
@@ -237,6 +240,20 @@ fun WeightTrackApp(
                     healthConnectState = healthConnectState,
                     busy = busy,
                     viewModel = viewModel,
+                    onOpenCrashLogs = { navController.navigate(Routes.CRASH_LOGS) },
+                )
+            }
+
+            composable(Routes.CRASH_LOGS) {
+                val viewModel: CrashLogViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                CrashLogScreen(
+                    state = state,
+                    onOpen = viewModel::open,
+                    onClose = viewModel::close,
+                    onDelete = viewModel::delete,
+                    onDeleteAll = viewModel::deleteAll,
+                    onBack = { navController.popBackStack() },
                 )
             }
 

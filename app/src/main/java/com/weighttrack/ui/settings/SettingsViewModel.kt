@@ -13,11 +13,13 @@ import com.weighttrack.data.io.BackupService
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
+import com.weighttrack.diagnostics.CrashLogStore
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.notifications.ReminderScheduler
 import com.weighttrack.widget.WidgetUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -25,6 +27,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.time.DayOfWeek
 import java.time.ZonedDateTime
 import javax.inject.Inject
@@ -41,6 +44,7 @@ class SettingsViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
     private val backupService: BackupService,
     private val reminderScheduler: ReminderScheduler,
+    private val crashLogStore: CrashLogStore,
     private val widgetUpdater: WidgetUpdater,
     val healthConnect: HealthConnectSync,
 ) : ViewModel() {
@@ -60,8 +64,18 @@ class SettingsViewModel @Inject constructor(
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
+    private val _crashReportCount = MutableStateFlow(0)
+    val crashReportCount: StateFlow<Int> = _crashReportCount.asStateFlow()
+
     init {
         refreshHealthConnect()
+        refreshCrashReportCount()
+    }
+
+    fun refreshCrashReportCount() {
+        viewModelScope.launch {
+            _crashReportCount.value = withContext(Dispatchers.IO) { crashLogStore.count() }
+        }
     }
 
     fun consumeMessage() {
