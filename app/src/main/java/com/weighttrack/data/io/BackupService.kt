@@ -57,6 +57,26 @@ class BackupService @Inject constructor(
 
     suspend fun exportJson(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
+            val (text, count) = buildBackup()
+            writeText(uri, text)
+            count
+        }
+    }
+
+    /**
+     * The backup as text, for a caller that will place the file itself.
+     *
+     * The scheduled backup writes into a folder rather than into a document somebody picked, so
+     * it needs the content without a destination. Deliberately the same call underneath: a backup
+     * the app takes and one taken by hand must not be able to differ.
+     */
+    suspend fun exportedJson(): Result<String> = withContext(Dispatchers.IO) {
+        runCatching { buildBackup().first }
+    }
+
+    /** The whole export and how many readings are in it. */
+    private suspend fun buildBackup(): Pair<String, Int> {
+        run {
             val entries = weightRepository.observeEntries().first()
             val measurements = measurementRepository.observeAll().first()
             val goals = goalRepository.observeAll().first()
@@ -85,10 +105,11 @@ class BackupService @Inject constructor(
                     milestoneStepGrams = settings.milestoneStepGrams,
                 ),
             )
-            writeText(uri, BackupCodec.encode(backup))
-            entries.size
+            return BackupCodec.encode(backup) to entries.size
         }
     }
+
+
 
     /**
      * A message for the person, not the log.

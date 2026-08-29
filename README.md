@@ -41,6 +41,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own, bringing your whole history across rather than the last month of it
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
+- A weekly copy of everything into a folder you choose, keeping the last four, since there is deliberately no cloud to fall back on
 - Adaptive expenditure: what you actually burn, measured from your own weight and intake rather than a formula, and a calorie target that follows it
 - An optional food diary: calories and macros by meal, daily targets in grams or percent with a different one for any day of the week, copy yesterday, and a quick add for the meal that has no label
 - An optional food database with recipes, Open Food Facts lookups and no ads anywhere near it

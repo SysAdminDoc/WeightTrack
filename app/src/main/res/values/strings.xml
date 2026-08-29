@@ -741,4 +741,10 @@
     <string name="scale_bond_lost">This scale has forgotten the pairing, which happens after a factory reset or a battery change. Your phone still holds its half, so it connects and then goes quiet. Forget the scale in Android\'s Bluetooth settings and pair it again.</string>
     <string name="scale_open_bluetooth_settings">Open Bluetooth settings</string>
     <string name="scale_allow">Allow</string>
+    <string name="settings_automatic_backup">Automatic backup</string>
+    <string name="settings_automatic_backup_explained">Pick a folder and WeightTrack writes a copy of everything into it once a week, keeping the last four. Cloud backup is switched off on purpose, so this is the only copy that exists unless you make one yourself.</string>
+    <string name="settings_last_backup">Last copy taken %1$s</string>
+    <string name="settings_choose_backup_folder">Choose a folder</string>
+    <string name="settings_change_backup_folder">Change the folder</string>
+    <string name="settings_turn_off_automatic_backup">Turn it off</string>
 </resources>

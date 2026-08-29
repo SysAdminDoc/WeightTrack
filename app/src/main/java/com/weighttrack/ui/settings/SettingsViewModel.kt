@@ -67,6 +67,7 @@ class SettingsViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val progressPhotoRepository: com.weighttrack.data.repo.ProgressPhotoRepository,
     private val backupService: BackupService,
+    private val autoBackupScheduler: com.weighttrack.data.io.AutoBackupScheduler,
     private val reminderScheduler: ReminderScheduler,
     private val weeklySummaryScheduler: WeeklySummaryScheduler,
     private val crashLogStore: CrashLogStore,
@@ -100,6 +101,7 @@ class SettingsViewModel @Inject constructor(
 
     init {
         refreshHealthConnect()
+        refreshAutoBackup()
         refreshCrashReportCount()
     }
 
@@ -410,6 +412,46 @@ class SettingsViewModel @Inject constructor(
                 // put the next reading and no way to make a profile to fix it.
                 _message.value = strings[R.string.settings_there_has_to_be_somebody_add]
             }
+        }
+    }
+
+    // ---- automatic backup ----
+
+    /** Where the weekly copy goes, and when the last one was written. */
+    data class AutoBackupState(val folder: String? = null, val lastAt: Long? = null)
+
+    private val _autoBackup = MutableStateFlow(AutoBackupState())
+    val autoBackup: StateFlow<AutoBackupState> = _autoBackup.asStateFlow()
+
+    fun refreshAutoBackup() {
+        viewModelScope.launch {
+            _autoBackup.value = AutoBackupState(
+                folder = settingsRepository.autoBackupFolder(),
+                lastAt = settingsRepository.lastAutoBackup(),
+            )
+        }
+    }
+
+    /**
+     * Takes the folder somebody picked and holds on to the right to write to it.
+     *
+     * Without taking the permission the folder stops working the next time the app starts, and
+     * the weekly job would fail forever with nothing on screen to explain why.
+     */
+    fun useAutoBackupFolder(uri: android.net.Uri, holdOnTo: (android.net.Uri) -> Unit) {
+        viewModelScope.launch {
+            holdOnTo(uri)
+            settingsRepository.setAutoBackupFolder(uri.toString())
+            autoBackupScheduler.reschedule()
+            refreshAutoBackup()
+        }
+    }
+
+    fun turnOffAutoBackup() {
+        viewModelScope.launch {
+            settingsRepository.setAutoBackupFolder(null)
+            autoBackupScheduler.reschedule()
+            refreshAutoBackup()
         }
     }
 

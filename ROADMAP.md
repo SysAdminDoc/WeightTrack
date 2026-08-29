@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — Automatic local backup on a schedule, with the last N kept and a restore entry point
-  Why: ROADMAP line 51 names "automatic local backups" as the mitigation for the top cause of 1-star reviews and it was never built; trale #176 (5 reactions) and openScale #338 ask for the same.
-  Evidence: ROADMAP.md line 51; https://github.com/QuantumPhysique/trale/issues/176 ; https://github.com/oliexdev/openScale/issues/338 ; data/io/BackupService.kt (manual only)
-  Touches: new data/io/AutoBackup.kt + WorkManager worker (weekly, into a SAF folder the user picks, keep 4), ui/settings backup section (last backup time, folder, restore list)
-  Acceptance: after the worker runs, the chosen folder holds `weighttrack-<date>.json` and older files beyond four are removed; restoring one round-trips readings, measurements, goals, settings and the food side; a unit test covers the retention rule.
-  Complexity: M
-
 - [ ] P1 — Encrypt the WebDAV password and the USDA key at rest
   Why: both sit in plain DataStore; a backup-excluded file on an encrypted phone is not nothing, but a credential to the user's own server deserves the Keystore.
   Evidence: app/src/main/java/com/weighttrack/data/sync/SyncPreferences.kt:132; data/prefs/SettingsRepository.kt:248; https://developer.android.com/jetpack/androidx/releases/datastore (datastore-tink 1.3.0-alpha07, 2026-03-11)

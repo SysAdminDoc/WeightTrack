@@ -67,6 +67,7 @@ import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.repo.Profile
 import com.weighttrack.core.sync.SyncAddress
 import com.weighttrack.data.sync.SyncMode
+import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.security.AppLockAvailability
@@ -156,6 +157,20 @@ fun SettingsScreen(
             )
         } else {
             viewModel.notifyTestSent(false)
+        }
+    }
+
+    val autoBackupFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.useAutoBackupFolder(uri) { picked ->
+                context.contentResolver.takePersistableUriPermission(
+                    picked,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
         }
     }
 
@@ -529,6 +544,7 @@ fun SettingsScreen(
         }
 
         item {
+            val autoBackup by viewModel.autoBackup.collectAsStateWithLifecycle()
             SettingsSection {
                 SectionHeading(stringResource(R.string.settings_your_data))
                 Spacer(Modifier.height(4.dp))
@@ -548,6 +564,52 @@ fun SettingsScreen(
                     onClick = { restoreLauncher.launch(arrayOf("application/json", "*/*")) },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.settings_restore_from_a_backup)) }
+
+                Spacer(Modifier.height(14.dp))
+                Text(
+                    text = stringResource(R.string.settings_automatic_backup),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_automatic_backup_explained),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                autoBackup.lastAt?.let { at ->
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(
+                            R.string.settings_last_backup,
+                            DateFormatters.fullDate(
+                                java.time.Instant.ofEpochMilli(at)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .toLocalDate(),
+                            ),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = { autoBackupFolderLauncher.launch(null) }) {
+                        Text(
+                            stringResource(
+                                if (autoBackup.folder == null) {
+                                    R.string.settings_choose_backup_folder
+                                } else {
+                                    R.string.settings_change_backup_folder
+                                },
+                            ),
+                        )
+                    }
+                    if (autoBackup.folder != null) {
+                        TextButton(onClick = viewModel::turnOffAutoBackup) {
+                            Text(stringResource(R.string.settings_turn_off_automatic_backup))
+                        }
+                    }
+                }
 
                 Spacer(Modifier.height(14.dp))
                 Text(stringResource(R.string.settings_spreadsheets_and_other_apps), style = MaterialTheme.typography.bodySmall)

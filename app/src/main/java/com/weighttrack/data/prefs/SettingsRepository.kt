@@ -86,6 +86,17 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setMilestoneStepGrams(grams: Int) = stamped { it[Keys.MILESTONE_STEP_GRAMS] = grams }
 
+    /** The folder the weekly copy goes into, or null when nobody has chosen one. */
+    suspend fun autoBackupFolder(): String? = dataStore.data.first()[Keys.AUTO_BACKUP_FOLDER]
+
+    suspend fun setAutoBackupFolder(uri: String?) = edit {
+        if (uri == null) it.remove(Keys.AUTO_BACKUP_FOLDER) else it[Keys.AUTO_BACKUP_FOLDER] = uri
+    }
+
+    suspend fun lastAutoBackup(): Long? = dataStore.data.first()[Keys.LAST_AUTO_BACKUP]
+
+    suspend fun setLastAutoBackup(at: Long) = edit { it[Keys.LAST_AUTO_BACKUP] = at }
+
     suspend fun healthChangesToken(profileId: Long): String? =
         dataStore.data.first()[Keys.healthChangesToken(profileId)]
 
@@ -263,6 +274,9 @@ class SettingsRepository @Inject constructor(
          */
         fun healthChangesToken(profileId: Long) =
             stringPreferencesKey("health_changes_token_$profileId")
+
+        val AUTO_BACKUP_FOLDER = stringPreferencesKey("auto_backup_folder")
+        val LAST_AUTO_BACKUP = longPreferencesKey("last_auto_backup")
 
         val SCALE_ADDRESS = stringPreferencesKey("scale_address")
         val SCALE_NAME = stringPreferencesKey("scale_name")
