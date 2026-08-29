@@ -54,6 +54,29 @@ fun interface HealthConnectClientSource {
     fun client(): HealthConnectClient?
 }
 
+/**
+ * What came back from Health Connect, including why nothing did.
+ *
+ * Every read here used to answer with an empty list whatever had happened, so a withdrawn
+ * permission, a provider that fell over and a person who genuinely has no step counts were all
+ * the same answer: "no data". That is the one answer nobody can argue with, and it was wrong
+ * two times out of three.
+ */
+sealed interface HealthOutcome<out T> {
+    data class Ok<T>(val value: T) : HealthOutcome<T>
+
+    /** No Health Connect on this phone at all. */
+    data object NotAvailable : HealthOutcome<Nothing>
+
+    /** Installed, but this app may not read that. */
+    data object NotAllowed : HealthOutcome<Nothing>
+
+    /** It was asked and it went wrong. */
+    data class Failed(val cause: Throwable) : HealthOutcome<Nothing>
+
+    fun valueOrNull(): T? = (this as? Ok)?.value
+}
+
 enum class HealthConnectAvailability {
     INSTALLED,
     UPDATE_REQUIRED,
@@ -251,11 +274,11 @@ class HealthConnectSync @Inject constructor(
      * eleven at night belongs to the next morning's weigh-in and an aggregate sliced by calendar
      * day would file most of it under the evening before.
      */
-    suspend fun readSleepHours(days: Long = 120): Map<LocalDate, Double> =
+    suspend fun readSleepHours(days: Long = 120): HealthOutcome<Map<LocalDate, Double>> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val client = clientOrNull() ?: return@runCatching emptyMap()
-                if (!hasSleepPermission()) return@runCatching emptyMap()
+                val client = clientOrNull() ?: return@withContext HealthOutcome.NotAvailable
+                if (!hasSleepPermission()) return@withContext HealthOutcome.NotAllowed
                 val zone = ZoneId.systemDefault()
                 val end = LocalDate.now().plusDays(1).atStartOfDay()
                 val start = end.minusDays(days)
@@ -281,7 +304,8 @@ class HealthConnectSync @Inject constructor(
                     byMorning[morning] = (byMorning[morning] ?: 0.0) + hours
                 }
                 byMorning.toMap()
-            }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }.getOrDefault(emptyMap())
+            }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }
+                .fold({ HealthOutcome.Ok(it) }, { HealthOutcome.Failed(it) })
         }
 
     suspend fun hasHydrationPermission(): Boolean = hasGranted(hydrationPermissions)
@@ -300,34 +324,36 @@ class HealthConnectSync @Inject constructor(
      * watch" and "you did not move" are different things, and showing the second when the
      * first happened makes the whole card a lie.
      */
-    suspend fun readDailyActivity(days: Long = 30): List<DailyActivity> = withContext(Dispatchers.IO) {
-        runCatching {
-            val client = clientOrNull() ?: return@runCatching emptyList()
-            if (!hasActivityPermissions()) return@runCatching emptyList()
-            val end = LocalDate.now().plusDays(1).atStartOfDay()
-            val start = end.minusDays(days)
-            client.aggregateGroupByPeriod(
-                AggregateGroupByPeriodRequest(
-                    metrics = setOf(
-                        StepsRecord.COUNT_TOTAL,
-                        ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+    suspend fun readDailyActivity(days: Long = 30): HealthOutcome<List<DailyActivity>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val client = clientOrNull() ?: return@withContext HealthOutcome.NotAvailable
+                if (!hasActivityPermissions()) return@withContext HealthOutcome.NotAllowed
+                val end = LocalDate.now().plusDays(1).atStartOfDay()
+                val start = end.minusDays(days)
+                client.aggregateGroupByPeriod(
+                    AggregateGroupByPeriodRequest(
+                        metrics = setOf(
+                            StepsRecord.COUNT_TOTAL,
+                            ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                        ),
+                        timeRangeFilter = TimeRangeFilter.between(start, end),
+                        timeRangeSlicer = Period.ofDays(1),
                     ),
-                    timeRangeFilter = TimeRangeFilter.between(start, end),
-                    timeRangeSlicer = Period.ofDays(1),
-                ),
-            ).mapNotNull { bucket ->
-                val steps = bucket.result[StepsRecord.COUNT_TOTAL]
-                val kcal = bucket.result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
-                    ?.inKilocalories
-                if (steps == null && kcal == null) return@mapNotNull null
-                DailyActivity(
-                    date = bucket.startTime.toLocalDate(),
-                    steps = steps,
-                    activeKilocalories = kcal,
-                )
-            }
-        }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }.getOrDefault(emptyList())
-    }
+                ).mapNotNull { bucket ->
+                    val steps = bucket.result[StepsRecord.COUNT_TOTAL]
+                    val kcal = bucket.result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
+                        ?.inKilocalories
+                    if (steps == null && kcal == null) return@mapNotNull null
+                    DailyActivity(
+                        date = bucket.startTime.toLocalDate(),
+                        steps = steps,
+                        activeKilocalories = kcal,
+                    )
+                }
+            }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }
+                .fold({ HealthOutcome.Ok(it) }, { HealthOutcome.Failed(it) })
+        }
 
     /**
      * Pulls new readings in, then pushes ours out.

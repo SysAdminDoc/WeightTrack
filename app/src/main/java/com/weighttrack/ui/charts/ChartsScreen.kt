@@ -340,6 +340,13 @@ private fun ActivityCard(activity: ActivityState) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            // Not the same as having nothing recorded, and saying so would be telling somebody
+            // who walks every day that they do not.
+            ActivityStatus.FAILED -> Text(
+                text = stringResource(R.string.charts_could_not_read_movement),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             ActivityStatus.READY -> {
                 val accent = MaterialTheme.colorScheme.secondary
                 val stepDays = activity.days.filter { it.steps != null }

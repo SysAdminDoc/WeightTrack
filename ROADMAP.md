@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — Surface Health Connect failures instead of returning false
-  Why: roughly fifteen `runCatching` sites in `HealthConnectSync` swallow the exception and return `false` or an empty list, so a revoked permission or an SDK error looks like "nothing to sync" for ever.
-  Evidence: app/src/main/java/com/weighttrack/health/HealthConnectSync.kt (repo scan 2026-08-29); https://github.com/Monkopedia/health-disconnect/issues (#93 "a metric that fails to read is indistinguishable from no data")
-  Touches: health/HealthConnectSync.kt (return a sealed result with a reason), ui/settings Health Connect card (show last error and time), ui/charts (steps/sleep cards show "could not read" rather than empty)
-  Acceptance: with the permission revoked after grant, the Settings card reads "access was removed" with a re-grant button; the charts card distinguishes "no data" from "could not read"; a test asserts each failure branch produces a distinct reason.
-  Complexity: M
-
 - [ ] P1 — Use Health Connect changes tokens so deletions in the scale's app reach WeightTrack and sync stops full-scanning
   Why: a reading deleted in Withings or Renpho is never deleted here (upsert only), and every sync rereads five years against the rate limit.
   Evidence: https://developer.android.com/health-and-fitness/health-connect/sync-data ; https://developer.android.com/health-and-fitness/health-connect/rate-limiting ; HealthConnectSync.kt has no `getChangesToken`/`getChanges`

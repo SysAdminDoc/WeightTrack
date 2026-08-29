@@ -8,6 +8,7 @@ import com.weighttrack.domain.ProgressCalculator
 import com.weighttrack.domain.ProgressSnapshot
 import com.weighttrack.health.DailyActivity
 import com.weighttrack.health.HealthConnectAvailability
+import com.weighttrack.health.HealthOutcome
 import com.weighttrack.health.HealthConnectSync
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,6 +27,14 @@ enum class ActivityStatus {
     UNAVAILABLE,
     NOT_PERMITTED,
     NO_DATA,
+
+    /**
+     * Health Connect was asked and something went wrong.
+     *
+     * Kept apart from [NO_DATA] on purpose. Telling somebody who walks every day that they have
+     * no step counts is worse than telling them nothing, because it is an answer and it is wrong.
+     */
+    FAILED,
     READY,
 }
 
@@ -92,12 +101,25 @@ class ChartsViewModel @Inject constructor(
             }
             // Far enough back for a weekly comparison to have anything to compare. Thirty
             // days is four weeks, which is fewer than the six the maths insists on.
-            val days = healthConnect.readDailyActivity(days = ASSOCIATION_DAYS)
-            _activity.value = ActivityState(
-                status = if (days.isEmpty()) ActivityStatus.NO_DATA else ActivityStatus.READY,
-                days = days.takeLast(ACTIVITY_CARD_DAYS),
-            )
-            refreshAssociations(days)
+            when (val read = healthConnect.readDailyActivity(days = ASSOCIATION_DAYS)) {
+                is HealthOutcome.Ok -> {
+                    _activity.value = ActivityState(
+                        status = if (read.value.isEmpty()) {
+                            ActivityStatus.NO_DATA
+                        } else {
+                            ActivityStatus.READY
+                        },
+                        days = read.value.takeLast(ACTIVITY_CARD_DAYS),
+                    )
+                    refreshAssociations(read.value)
+                }
+                HealthOutcome.NotAvailable ->
+                    _activity.value = ActivityState(ActivityStatus.UNAVAILABLE)
+                HealthOutcome.NotAllowed ->
+                    _activity.value = ActivityState(ActivityStatus.NOT_PERMITTED)
+                is HealthOutcome.Failed ->
+                    _activity.value = ActivityState(ActivityStatus.FAILED)
+            }
         }
     }
 
@@ -114,7 +136,11 @@ class ChartsViewModel @Inject constructor(
         val stepsByDate: Map<LocalDate, Double> = days
             .mapNotNull { day -> day.steps?.let { day.date to it.toDouble() } }
             .toMap()
+        // Sleep has its own grant, so refusing it costs this one card and nothing else. An
+        // empty map here means no association rather than a wrong one.
         val sleepByDate = healthConnect.readSleepHours(days = ASSOCIATION_DAYS)
+            .valueOrNull()
+            .orEmpty()
         _associations.value = AssociationState(
             steps = Insights.weeklyAssociation(series, stepsByDate),
             sleep = Insights.weeklyAssociation(series, sleepByDate),

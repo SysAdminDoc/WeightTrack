@@ -711,4 +711,7 @@
     <string name="chartsscreen_steps_a_day">%1$,d a day</string>
     <string name="history_body_fat">%1$.1f%% fat</string>
     <string name="settings_at_time">At %1$02d:%2$02d</string>
+    <string name="charts_could_not_read_movement">Health Connect could not be read just now. This is not the same as having nothing recorded, and it is worth trying again later.</string>
+    <string name="settings_health_access_withdrawn">WeightTrack\'s access to Health Connect was removed, so nothing has been exchanged since. Your readings here are untouched.</string>
+    <string name="settings_health_reconnect">Allow access again</string>
 </resources>

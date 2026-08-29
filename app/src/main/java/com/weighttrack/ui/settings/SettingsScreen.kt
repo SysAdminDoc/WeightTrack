@@ -834,8 +834,24 @@ private fun HealthConnectCard(
                         ) { Text(stringResource(R.string.settings_allow_the_rest)) }
                     }
                 } else {
+                    if (state.accessWithdrawn) {
+                        Text(
+                            text = stringResource(R.string.settings_health_access_withdrawn),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                    }
                     Button(onClick = onRequestPermissions, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.settings_connect))
+                        Text(
+                            stringResource(
+                                if (state.accessWithdrawn) {
+                                    R.string.settings_health_reconnect
+                                } else {
+                                    R.string.settings_connect
+                                },
+                            ),
+                        )
                     }
                 }
             }

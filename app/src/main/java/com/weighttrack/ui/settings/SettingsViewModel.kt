@@ -46,6 +46,13 @@ data class HealthConnectState(
      * False on any install that connected before those existed, which is every one of them.
      */
     val grantedEverything: Boolean = false,
+    /**
+     * Somebody connected once and the access has gone since.
+     *
+     * Worth saying rather than quietly showing the Connect button again, because from where they
+     * are sitting the sync simply stopped and nothing said why.
+     */
+    val accessWithdrawn: Boolean = false,
     val syncing: Boolean = false,
 )
 
@@ -127,10 +134,14 @@ class SettingsViewModel @Inject constructor(
 
     fun refreshHealthConnect() {
         viewModelScope.launch {
+            val granted = healthConnect.hasPermissions()
             _healthConnectState.value = HealthConnectState(
                 availability = healthConnect.availability(),
-                granted = healthConnect.hasPermissions(),
+                granted = granted,
                 grantedEverything = healthConnect.hasEverything(),
+                // A profile holds the claim from the moment somebody connects, so a claim with
+                // no permission behind it is access that was taken away rather than never given.
+                accessWithdrawn = !granted && profileRepository.healthConnectId() != null,
             )
         }
     }
