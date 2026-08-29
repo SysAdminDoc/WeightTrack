@@ -64,31 +64,41 @@ enum class ScaleProblem {
  *
  * Two kinds turn up. Xiaomi's put the weight in the advertisement, so a scan is the whole
  * conversation. Everything else has to be connected to, and the scan only finds it.
+ *
+ * An interface because the weigh-in it drives cannot be exercised on an emulator or in a test
+ * otherwise, and the part of it worth testing is what the view model does with the events.
  */
+interface ScaleScanner {
+    /** Whether this build could scan right now, and if not, why not. */
+    fun problem(): ScaleProblem?
+
+    /** The permissions a scan needs on this Android version. */
+    fun requiredPermissions(): List<String>
+
+    fun scan(): Flow<ScaleScanEvent>
+}
+
 @Singleton
-class ScaleScanner @Inject constructor(
+class BluetoothScaleScanner @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) {
+) : ScaleScanner {
     private val adapter: BluetoothAdapter?
         get() = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter
 
-    /** Whether this build could scan right now, and if not, why not. */
-    fun problem(): ScaleProblem? {
+    override fun problem(): ScaleProblem? {
         val adapter = adapter ?: return ScaleProblem.NO_BLUETOOTH_HARDWARE
         if (!hasScanPermission()) return ScaleProblem.PERMISSION_MISSING
         if (!adapter.isEnabled) return ScaleProblem.BLUETOOTH_OFF
         return null
     }
 
-    fun hasScanPermission(): Boolean = requiredPermissions().all { granted(it) }
+    private fun hasScanPermission(): Boolean = requiredPermissions().all { granted(it) }
 
     /**
-     * The permissions a scan needs on this Android version.
-     *
      * Before Android 12 a scan counted as a location request, which is why the older versions
      * ask for a location permission to read a weight.
      */
-    fun requiredPermissions(): List<String> =
+    override fun requiredPermissions(): List<String> =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
         } else {
@@ -98,7 +108,7 @@ class ScaleScanner @Inject constructor(
     private fun granted(permission: String): Boolean =
         ContextCompat.checkSelfPermission(context, permission) == PackageManager.PERMISSION_GRANTED
 
-    fun scan(): Flow<ScaleScanEvent> = callbackFlow {
+    override fun scan(): Flow<ScaleScanEvent> = callbackFlow {
         problem()?.let {
             trySendBlocking(ScaleScanEvent.Failed(it))
             close()
@@ -111,6 +121,10 @@ class ScaleScanner @Inject constructor(
             return@callbackFlow
         }
 
+        // A scale advertises several times a second, and every result would otherwise send two
+        // events. Only the first sighting of an address is announced.
+        val announced = mutableSetOf<String>()
+
         val callback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
                 emit(result)
@@ -121,7 +135,7 @@ class ScaleScanner @Inject constructor(
             }
 
             override fun onScanFailed(errorCode: Int) {
-                trySendBlocking(ScaleScanEvent.Failed(ScaleProblem.SCAN_FAILED))
+                trySend(ScaleScanEvent.Failed(ScaleProblem.SCAN_FAILED))
             }
 
             private fun emit(result: ScanResult) {
@@ -145,8 +159,14 @@ class ScaleScanner @Inject constructor(
                 val kind = if (broadcast != null) ScaleKind.BROADCAST else ScaleKind.STANDARD_SERVICE
                 val device = ScaleDevice(result.device.address, name, kind)
 
-                trySendBlocking(ScaleScanEvent.Found(device))
-                broadcast?.let { trySendBlocking(ScaleScanEvent.Broadcast(device, it)) }
+                // trySend, never trySendBlocking: Android delivers these on the main looper,
+                // and the collector runs there too, so blocking to wait for room in the buffer
+                // would be waiting on the only thread that can empty it. A dropped
+                // advertisement costs nothing; another arrives a fraction of a second later.
+                if (announced.add(device.address)) {
+                    trySend(ScaleScanEvent.Found(device))
+                }
+                broadcast?.let { trySend(ScaleScanEvent.Broadcast(device, it)) }
             }
         }
 

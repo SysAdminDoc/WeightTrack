@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.weighttrack.core.math.GoalProjectionTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:56:29.430Z" hostname="DESKTOP-VKVTAS0" time="0.008">
+<testsuite name="com.weighttrack.core.math.GoalProjectionTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-08-29T11:24:48.930Z" hostname="DESKTOP-VKVTAS0" time="0.008">
   <properties/>
   <testcase name="no date is offered when the trend is flat" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
   <testcase name="progress never leaves the zero to one range" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
@@ -11,8 +11,8 @@
   <testcase name="maintain reports holding inside the band" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="gain goals project upward" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="projection needs a trend to work from" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
-  <testcase name="a goal equal to the start weight is already complete" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
-  <testcase name="an uncertain rate that might be flat drops the pessimistic bound" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
+  <testcase name="a goal equal to the start weight is already complete" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
+  <testcase name="an uncertain rate that might be flat drops the pessimistic bound" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="losing at a steady rate projects a date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="no date is offered when the trend moves away from the goal" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="required rate for a chosen date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>

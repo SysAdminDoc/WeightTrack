@@ -13,12 +13,14 @@ import com.weighttrack.ble.ScaleScanEvent
 import com.weighttrack.ble.ScaleScanner
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightUnit
+import com.weighttrack.core.scale.AssembledReading
 import com.weighttrack.core.scale.ScaleReading
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -84,7 +86,10 @@ class ScaleViewModel @Inject constructor(
 
     private var scanJob: Job? = null
     private var connectJob: Job? = null
+    private var settleJob: Job? = null
     private var lastKnownGrams: Int? = null
+    private var rememberedAddress: String? = null
+    private var rejectedGrams: Int? = null
 
     val requiredPermissions: List<String> get() = scanner.requiredPermissions()
 
@@ -92,6 +97,9 @@ class ScaleViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsRepository.settings.first()
             lastKnownGrams = weightRepository.latest()?.grams
+            // Read once. Looking it up per scan result would put a datastore round trip on the
+            // path an advertising scale hits several times a second.
+            rememberedAddress = settings.scaleAddress
             _state.update {
                 it.copy(weightUnit = settings.weightUnit, rememberedName = settings.scaleName)
             }
@@ -118,6 +126,7 @@ class ScaleViewModel @Inject constructor(
             )
         }
         scanJob?.cancel()
+        settleJob?.cancel()
         scanJob = viewModelScope.launch {
             scanner.scan().collect(::onScanEvent)
         }
@@ -136,10 +145,9 @@ class ScaleViewModel @Inject constructor(
                         current.copy(devices = current.devices + event.device)
                     }
                 }
-                val remembered = settingsRepository.settings.first().scaleAddress
                 if (
                     event.device.kind == ScaleKind.STANDARD_SERVICE &&
-                    event.device.address == remembered &&
+                    event.device.address == rememberedAddress &&
                     _state.value.connectedTo == null
                 ) {
                     connectTo(event.device)
@@ -157,7 +165,12 @@ class ScaleViewModel @Inject constructor(
                     )
                 }
                 if (event.broadcast.isFinal) {
-                    onReading(event.broadcast.reading, event.device)
+                    // A broadcasting scale sends everything it has in one frame, so nothing
+                    // better is coming.
+                    onReading(
+                        AssembledReading(event.broadcast.reading, revisesPrevious = false),
+                        event.device,
+                    )
                 }
             }
         }
@@ -173,14 +186,17 @@ class ScaleViewModel @Inject constructor(
             connection.connect(device.address).collect { event ->
                 when (event) {
                     is ScaleConnectionEvent.Connected -> Unit
-                    is ScaleConnectionEvent.Measured -> onReading(event.reading, device)
-                    is ScaleConnectionEvent.Failed -> _state.update {
+                    is ScaleConnectionEvent.Measured -> onReading(event.assembled, device)
+                    is ScaleConnectionEvent.Failed -> {
                         // A reading already in hand outlives the connection dropping: the scale
-                        // hanging up right after sending is normal behaviour, not a failure.
-                        if (it.reading != null) {
-                            it
+                        // hanging up right after sending is normal behaviour, not a failure, and
+                        // it means nothing more is coming, so there is nothing left to wait for.
+                        if (_state.value.reading != null) {
+                            settle(device, immediately = true)
                         } else {
-                            it.copy(stage = ScaleStage.BLOCKED, problem = event.reason)
+                            _state.update {
+                                it.copy(stage = ScaleStage.BLOCKED, problem = event.reason)
+                            }
                         }
                     }
                 }
@@ -188,25 +204,56 @@ class ScaleViewModel @Inject constructor(
         }
     }
 
-    private suspend fun onReading(reading: ScaleReading, device: ScaleDevice) {
-        if (_state.value.reading != null) return
-        val match = ScaleReadingRouter.match(reading.grams, lastKnownGrams)
+    /**
+     * A reading came off the scale.
+     *
+     * Deliberately not a suspending function called from inside the scan or connection
+     * collector. The next thing that has to happen is stopping those very collectors, and a
+     * coroutine that cancels itself and then suspends never reaches its own next line.
+     */
+    private fun onReading(assembled: AssembledReading, device: ScaleDevice) {
+        // A second, unrelated weigh-in is ignored; a better version of this one is not.
+        if (_state.value.reading != null && !assembled.revisesPrevious) return
+        // Somebody has already said this one is not theirs. A scale goes on broadcasting the
+        // same settled weight for a while, so without this the rejected reading comes straight
+        // back the moment the search starts again and cannot be got rid of.
+        if (assembled.reading.grams == rejectedGrams) return
+        val match = ScaleReadingRouter.match(assembled.reading.grams, lastKnownGrams)
         if (match == ScaleMatch.IMPLAUSIBLE) return
 
-        scanJob?.cancel()
-        connectJob?.cancel()
-        settingsRepository.setScale(device.address, device.name)
         _state.update {
             it.copy(
                 stage = ScaleStage.MEASURED,
-                reading = reading,
+                reading = assembled.reading,
                 match = match,
                 liveGrams = null,
                 connectedTo = device,
                 rememberedName = device.name,
             )
         }
-        if (ScaleReadingRouter.recordsWithoutAsking(match)) save()
+        settle(device, immediately = false)
+    }
+
+    /**
+     * Waits a moment before recording, in case a better reading is a heartbeat behind.
+     *
+     * A body composition scale sends the weight and then the body fat, so recording the instant
+     * the weight lands would store a weigh-in with the composition missing. The wait restarts
+     * each time a better reading arrives, and is skipped when the scale hangs up, because then
+     * nothing more is coming.
+     */
+    private fun settle(device: ScaleDevice, immediately: Boolean) {
+        settleJob?.cancel()
+        // On viewModelScope on purpose: this outlives the scan and connection jobs it stops.
+        settleJob = viewModelScope.launch {
+            if (!immediately) delay(SETTLE_MILLIS)
+            scanJob?.cancel()
+            connectJob?.cancel()
+            settingsRepository.setScale(device.address, device.name)
+            rememberedAddress = device.address
+            val match = _state.value.match ?: return@launch
+            if (ScaleReadingRouter.recordsWithoutAsking(match)) save()
+        }
     }
 
     /** Records the reading. Also the yes to "that does not look like you". */
@@ -220,18 +267,23 @@ class ScaleViewModel @Inject constructor(
                 bodyFatPercent = reading.bodyFatPercent,
                 source = EntrySource.SCALE,
             )
-            surfaceUpdater.refresh()
+            // Recorded, so say so before touching the widgets and the watch. Those are a
+            // follow-up, and a slow one must not hold up the confirmation for a weight that is
+            // already in the log.
             _state.update { it.copy(stage = ScaleStage.SAVED, savedGrams = reading.grams) }
+            surfaceUpdater.refresh()
         }
     }
 
     /** The no to "that does not look like you". Nothing is recorded and the scan starts again. */
     fun discard() {
+        rejectedGrams = _state.value.reading?.grams
         start()
     }
 
     fun forgetScale() {
         viewModelScope.launch {
+            rejectedGrams = null
             settingsRepository.setScale(null, null)
             _state.update { it.copy(rememberedName = null) }
             start()
@@ -241,6 +293,12 @@ class ScaleViewModel @Inject constructor(
     override fun onCleared() {
         scanJob?.cancel()
         connectJob?.cancel()
+        settleJob?.cancel()
         super.onCleared()
+    }
+
+    companion object {
+        /** How long to wait for a body composition to follow a weight. */
+        const val SETTLE_MILLIS = 1_200L
     }
 }

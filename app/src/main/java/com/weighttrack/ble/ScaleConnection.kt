@@ -6,13 +6,16 @@ import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothGattDescriptor
 import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothGatt.GATT_SUCCESS
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.BluetoothStatusCodes
 import android.content.Context
+import android.os.SystemClock
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.content.ContextCompat
+import com.weighttrack.core.scale.AssembledReading
 import com.weighttrack.core.scale.BodyCompositionAssembler
-import com.weighttrack.core.scale.ScaleReading
 import com.weighttrack.core.scale.StandardScaleParser
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
@@ -26,8 +29,8 @@ import javax.inject.Singleton
 sealed interface ScaleConnectionEvent {
     data object Connected : ScaleConnectionEvent
 
-    /** A finished reading, weight and whatever body composition came with it. */
-    data class Measured(val reading: ScaleReading) : ScaleConnectionEvent
+    /** A reading, which may be a better version of the one just before it. */
+    data class Measured(val assembled: AssembledReading) : ScaleConnectionEvent
 
     data class Failed(val reason: ScaleProblem) : ScaleConnectionEvent
 }
@@ -39,11 +42,15 @@ sealed interface ScaleConnectionEvent {
  * its configuration descriptor; enabling it locally is not enough and is a common reason a scale
  * looks connected and then says nothing.
  */
+interface ScaleConnection {
+    fun connect(address: String): Flow<ScaleConnectionEvent>
+}
+
 @Singleton
-class ScaleConnection @Inject constructor(
+class BluetoothScaleConnection @Inject constructor(
     @param:ApplicationContext private val context: Context,
-) {
-    fun connect(address: String): Flow<ScaleConnectionEvent> = callbackFlow {
+) : ScaleConnection {
+    override fun connect(address: String): Flow<ScaleConnectionEvent> = callbackFlow {
         if (!hasConnectPermission()) {
             trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.PERMISSION_MISSING))
             close()
@@ -67,6 +74,7 @@ class ScaleConnection @Inject constructor(
         // Subscribing to more than one characteristic at a time is the classic way to lose an
         // indication: the stack runs one descriptor write at a time.
         val pending = ArrayDeque<BluetoothGattCharacteristic>()
+        val subscribed = mutableSetOf<UUID>()
 
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -83,7 +91,7 @@ class ScaleConnection @Inject constructor(
                         }
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
-                        assembler.flush().forEach {
+                        assembler.flush(SystemClock.elapsedRealtime()).forEach {
                             trySendBlocking(ScaleConnectionEvent.Measured(it))
                         }
                         trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))
@@ -113,6 +121,9 @@ class ScaleConnection @Inject constructor(
                 descriptor: BluetoothGattDescriptor,
                 status: Int,
             ) {
+                // A refused write is worth noting but not worth stopping for: the other
+                // characteristic may still be the one carrying the weight.
+                if (status != GATT_SUCCESS) subscribed.remove(descriptor.characteristic.uuid)
                 subscribeNext(gatt)
             }
 
@@ -136,45 +147,73 @@ class ScaleConnection @Inject constructor(
             }
 
             private fun deliver(uuid: UUID, value: ByteArray) {
+                val now = SystemClock.elapsedRealtime()
                 val readings = when (uuid) {
                     WEIGHT_MEASUREMENT ->
                         StandardScaleParser.parseWeightMeasurement(value)
-                            ?.let(assembler::onWeightMeasurement)
+                            ?.let { assembler.onWeightMeasurement(it, now) }
                             .orEmpty()
                     BODY_COMPOSITION_MEASUREMENT ->
                         StandardScaleParser.parseBodyComposition(value)
-                            ?.let(assembler::onBodyComposition)
+                            ?.let { assembler.onBodyComposition(it, now) }
                             .orEmpty()
                     else -> emptyList()
                 }
                 readings.forEach { trySendBlocking(ScaleConnectionEvent.Measured(it)) }
             }
 
+            /**
+             * Subscribes one characteristic and waits for the write to come back.
+             *
+             * One at a time because the stack runs one descriptor write at a time. Every path
+             * that cannot subscribe this one moves straight on to the next rather than
+             * returning, or a scale missing a configuration descriptor on the first
+             * characteristic would silently leave the second unsubscribed and the screen would
+             * wait for a weight that never comes.
+             */
             private fun subscribeNext(gatt: BluetoothGatt) {
-                val characteristic = pending.removeFirstOrNull() ?: return
-                if (
-                    ContextCompat.checkSelfPermission(
-                        context,
-                        Manifest.permission.BLUETOOTH_CONNECT,
-                    ) != PackageManager.PERMISSION_GRANTED
-                ) {
-                    return
+                while (true) {
+                    val characteristic = pending.removeFirstOrNull() ?: break
+                    if (
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.BLUETOOTH_CONNECT,
+                        ) != PackageManager.PERMISSION_GRANTED
+                    ) {
+                        break
+                    }
+                    val descriptor = characteristic.getDescriptor(CLIENT_CONFIG) ?: continue
+                    gatt.setCharacteristicNotification(characteristic, true)
+                    subscribed.add(characteristic.uuid)
+                    val enable = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
+                    val written = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        // This overload answers with a BluetoothStatusCodes value, not the GATT
+                        // status the callbacks use.
+                        gatt.writeDescriptor(descriptor, enable) == BluetoothStatusCodes.SUCCESS
+                    } else {
+                        @Suppress("DEPRECATION")
+                        descriptor.value = enable
+                        @Suppress("DEPRECATION")
+                        gatt.writeDescriptor(descriptor)
+                    }
+                    // A successful write comes back through onDescriptorWrite, which asks for
+                    // the next one. A refused one is not coming back, so carry on here.
+                    if (written) return
+                    subscribed.remove(characteristic.uuid)
                 }
-                gatt.setCharacteristicNotification(characteristic, true)
-                val descriptor = characteristic.getDescriptor(CLIENT_CONFIG) ?: return
-                val enable = BluetoothGattDescriptor.ENABLE_INDICATION_VALUE
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    gatt.writeDescriptor(descriptor, enable)
-                } else {
-                    @Suppress("DEPRECATION")
-                    descriptor.value = enable
-                    @Suppress("DEPRECATION")
-                    gatt.writeDescriptor(descriptor)
+                if (subscribed.isEmpty()) {
+                    trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))
+                    close()
                 }
             }
         }
 
         val gatt = device.connectGatt(context, false, callback)
+        if (gatt == null) {
+            // Nothing will ever call back, so the screen would wait forever.
+            trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))
+            close()
+        }
         awaitClose {
             if (
                 ContextCompat.checkSelfPermission(

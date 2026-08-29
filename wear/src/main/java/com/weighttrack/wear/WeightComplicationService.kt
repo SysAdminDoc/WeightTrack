@@ -26,7 +26,9 @@ class WeightComplicationService : SuspendingComplicationDataSourceService() {
         complication(type, "82.5 kg", "-0.4 kg", "82.5 kg, -0.4 kg this week")
 
     override suspend fun onComplicationRequest(request: ComplicationRequest): ComplicationData? {
-        val summary = WearSummaryStore(applicationContext).summary.first()
+        val summary = runCatching {
+            WearSummaryStore(applicationContext).summary.first()
+        }.getOrNull()
         return complication(
             type = request.complicationType,
             headline = WearGlanceText.headline(summary),

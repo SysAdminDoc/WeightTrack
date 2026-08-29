@@ -11,11 +11,7 @@ import com.weighttrack.core.sync.WearWeightLog
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.AndroidEntryPoint
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.tasks.await
 import android.net.Uri
 import java.time.Instant
@@ -24,9 +20,13 @@ import javax.inject.Inject
 /**
  * Takes what the watch sends.
  *
- * Android starts this service for the delivery and stops it again, so the work runs on its own
- * scope rather than a lifecycle one. Readings arrive as data items, which the Data Layer holds
- * until they have been delivered, so one logged with the phone out of range is not lost.
+ * Readings arrive as data items, which the Data Layer holds until they have been delivered, so
+ * one logged with the phone out of range is not lost.
+ *
+ * The work blocks the callback rather than being launched. Android is free to stop this service
+ * the moment the callback returns, and anything still running on a scope the service owns would
+ * be cancelled halfway through writing the reading, losing it with nothing in the log. These
+ * callbacks arrive on a background thread of the service, not the main one.
  */
 @AndroidEntryPoint
 class PhoneWearListenerService : WearableListenerService() {
@@ -39,16 +39,9 @@ class PhoneWearListenerService : WearableListenerService() {
 
     @Inject lateinit var wearSummaryBuilder: WearSummaryBuilder
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-
-    override fun onDestroy() {
-        scope.cancel()
-        super.onDestroy()
-    }
-
     override fun onMessageReceived(event: MessageEvent) {
         if (event.path == WearSync.PATH_REQUEST_SUMMARY) {
-            scope.launch { wearBridge.publish(wearSummaryBuilder.current()) }
+            runBlocking { wearBridge.publish(wearSummaryBuilder.current()) }
         } else {
             super.onMessageReceived(event)
         }
@@ -67,7 +60,7 @@ class PhoneWearListenerService : WearableListenerService() {
         }
         if (logged.isEmpty()) return
 
-        scope.launch {
+        runBlocking {
             logged.forEach { (log, _) -> record(log) }
             surfaceUpdater.refresh()
             // Recorded, so the item has done its job. Left in place it would be redelivered

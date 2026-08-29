@@ -1,16 +1,16 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.weighttrack.core.math.BodyMetricsTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:56:29.424Z" hostname="DESKTOP-VKVTAS0" time="0.005">
+<testsuite name="com.weighttrack.core.math.BodyMetricsTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-08-29T11:24:48.921Z" hostname="DESKTOP-VKVTAS0" time="0.007">
   <properties/>
-  <testcase name="mass split rejects impossible percentages" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
+  <testcase name="mass split rejects impossible percentages" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
   <testcase name="mifflin st jeor for men" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
-  <testcase name="healthy weight range brackets a healthy bmi" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
+  <testcase name="healthy weight range brackets a healthy bmi" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
   <testcase name="expenditure scales the basal rate by activity" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
-  <testcase name="waist to height ratio and its categories" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
+  <testcase name="waist to height ratio and its categories" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
   <testcase name="bmi is mass over height squared" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="basal rate rejects impossible inputs" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="a larger waist reads as a higher body fat percentage" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
-  <testcase name="calorie target reflects the desired rate of change" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
-  <testcase name="katch mcardle works from lean mass alone" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
+  <testcase name="calorie target reflects the desired rate of change" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
+  <testcase name="katch mcardle works from lean mass alone" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
   <testcase name="bmi categories follow the who boundaries" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="navy body fat for men" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="navy estimate declines when the waist is not larger than the neck" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>

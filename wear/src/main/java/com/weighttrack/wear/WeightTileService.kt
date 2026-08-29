@@ -44,7 +44,12 @@ class WeightTileService : TileService() {
         requestParams: RequestBuilders.TileRequest,
     ): ListenableFuture<TileBuilders.Tile> = CallbackToFutureAdapter.getFuture { completer ->
         scope.launch {
-            val summary = WearSummaryStore(applicationContext).summary.first()
+            // A datastore read throws rather than emits on a corrupt or unreadable file. Left
+            // uncaught, the coroutine dies and the future is never completed, which the
+            // carousel shows as a permanently blank card with nothing in the log.
+            val summary = runCatching {
+                WearSummaryStore(applicationContext).summary.first()
+            }.getOrNull()
             completer.set(
                 weightTile(
                     headline = WearGlanceText.headline(summary),
