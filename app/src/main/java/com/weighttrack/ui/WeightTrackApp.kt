@@ -58,6 +58,7 @@ import com.weighttrack.ui.measurements.MeasurementsScreen
 import com.weighttrack.ui.measurements.MeasurementsViewModel
 import com.weighttrack.ui.navigation.Routes
 import com.weighttrack.ui.photos.PhotosScreen
+import com.weighttrack.ui.barcode.ScanScreen
 import com.weighttrack.ui.food.FoodScreen
 import com.weighttrack.ui.food.FoodViewModel
 import com.weighttrack.ui.photos.PhotosViewModel
@@ -98,7 +99,8 @@ fun WeightTrackApp(
         currentRoute == Routes.FASTING ||
         currentRoute == Routes.PHOTOS ||
         currentRoute == Routes.SCALE ||
-        currentRoute == Routes.FOODS
+        currentRoute == Routes.FOODS ||
+        currentRoute == Routes.SCAN
 
     Scaffold(
         modifier = modifier,
@@ -331,8 +333,21 @@ fun WeightTrackApp(
                     onDelete = viewModel::delete,
                     onAddCustom = viewModel::addCustom,
                     onDeleteRecipe = viewModel::deleteRecipe,
+                    onScan = { navController.navigate(Routes.SCAN) },
                     onSetUsdaKey = viewModel::setUsdaKey,
                     onDismissMessage = viewModel::dismissMessage,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.SCAN) {
+                val viewModel: FoodViewModel = hiltViewModel()
+                ScanScreen(
+                    reader = viewModel.barcodeReader,
+                    onScanned = { code ->
+                        viewModel.lookUpBarcode(code)
+                        navController.popBackStack()
+                    },
                     onBack = { navController.popBackStack() },
                 )
             }

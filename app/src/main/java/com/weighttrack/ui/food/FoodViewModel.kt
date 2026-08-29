@@ -59,6 +59,8 @@ class FoodViewModel @Inject constructor(
     private val foodRepository: FoodRepository,
     private val clients: FoodClients,
     private val settingsRepository: SettingsRepository,
+    /** Whichever reader this build has: ML Kit in the Play flavour, ZXing in the F-Droid one. */
+    val barcodeReader: com.weighttrack.barcode.BarcodeReader,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -142,12 +144,15 @@ class FoodViewModel @Inject constructor(
     fun lookUpBarcode(barcode: String, onResult: (Food?) -> Unit = {}) {
         viewModelScope.launch {
             foodRepository.byBarcode(barcode)?.let {
+                // Already here, so no request and no signal needed.
+                message.value = "${it.label} is already in your foods."
                 onResult(it)
                 return@launch
             }
             when (val result = clients.openFoodFacts().byBarcode(barcode)) {
                 is OpenFoodFactsClient.Result.Found -> {
                     val id = foodRepository.cache(result.value)
+                    message.value = "${result.value.label} added to your foods."
                     onResult(foodRepository.byId(id))
                 }
                 is OpenFoodFactsClient.Result.RateLimited -> {

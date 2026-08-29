@@ -42,6 +42,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
 - An optional food database with recipes, Open Food Facts lookups and no ads anywhere near it
+- Barcode scanning in both builds, ML Kit on Play and ZXing on F-Droid, so neither goes without it
 - Profiles for a household, each with their own history, goal and reminder, and a shared scale that works out whose reading it just took
 - Bluetooth scales, read straight into the log: the standard weight and body composition services, Xiaomi's broadcast format that needs no pairing, and the Renpho, eufy and Beurer/Sanitas protocols
 - A Wear OS watch app: the trend on a tile and on a watch face, and a weight logged with the crown
@@ -64,7 +65,7 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 209 unit tests
+./gradlew testPlayDebugUnitTest   # 213 unit tests
 ./gradlew :core:testDebugUnitTest # 181 more, the maths, the scale protocols and the food clients
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```

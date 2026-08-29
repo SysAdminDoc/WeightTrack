@@ -62,6 +62,7 @@ fun FoodScreen(
     onDelete: (Food) -> Unit,
     onAddCustom: (String, String?, Double, Double?, Double?, Double?, Double?) -> Unit,
     onDeleteRecipe: (Recipe) -> Unit,
+    onScan: () -> Unit,
     onSetUsdaKey: (String) -> Unit,
     onDismissMessage: () -> Unit,
     onBack: () -> Unit,
@@ -106,12 +107,14 @@ fun FoodScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { adding = true }) { Text("Add a food") }
-                        OutlinedButton(
-                            onClick = onSearchOnline,
-                            enabled = state.hasQuery && !state.searchingOnline,
-                        ) { Text("Look it up online") }
+                        Button(onClick = onScan) { Text("Scan a barcode") }
+                        OutlinedButton(onClick = { adding = true }) { Text("Add a food") }
                     }
+                    Spacer(Modifier.height(6.dp))
+                    OutlinedButton(
+                        onClick = onSearchOnline,
+                        enabled = state.hasQuery && !state.searchingOnline,
+                    ) { Text("Look it up online") }
                     if (state.searchingOnline) {
                         Spacer(Modifier.height(8.dp))
                         CircularProgressIndicator()

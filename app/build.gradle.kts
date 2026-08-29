@@ -115,6 +115,21 @@ dependencies {
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.exifinterface)
 
+    implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
+
+    // Barcode reading is the one job with a genuinely better proprietary option and a
+    // genuinely good free one, so each flavour gets the right one rather than the F-Droid
+    // build going without.
+    "playImplementation"(libs.mlkit.barcode.scanning)
+    "fossImplementation"(libs.zxing.core)
+
+    // Reading a barcode is tested against ones this generates, so the writer is a test
+    // dependency in both flavours.
+    testImplementation(libs.zxing.core)
+
     // The Wear Data Layer is Google Play services, so it exists only in the Play flavour.
     // The F-Droid build binds a no-op WearBridge instead and carries no Google dependency.
     "playImplementation"(libs.play.services.wearable)

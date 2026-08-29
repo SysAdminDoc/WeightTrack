@@ -28,6 +28,13 @@
         android:maxSdkVersion="30" />
     <uses-feature android:name="android.hardware.bluetooth_le" android:required="false" />
 
+    <!--
+      Reading a barcode. The frame is looked at for a number and thrown away: nothing is saved,
+      nothing is uploaded, and the camera runs only while the scanning screen is open.
+    -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera.any" android:required="false" />
+
     <!-- Health Connect. Only the types with a feature behind them are declared. -->
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
