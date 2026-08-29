@@ -114,6 +114,16 @@ class WaterWidget : GlanceAppWidget() {
     }
 }
 
+/**
+ * A word from the resource file.
+ *
+ * Glance has no `stringResource`, so this is the equivalent. It exists so the widgets are
+ * translated along with the rest of the app rather than staying in English on the home screen.
+ */
+@androidx.compose.runtime.Composable
+private fun words(@androidx.annotation.StringRes id: Int, vararg arguments: Any): String =
+    androidx.glance.LocalContext.current.getString(id, *arguments)
+
 @Composable
 private fun WaterWidgetContent(data: WaterWidgetData) {
     Column(
@@ -125,7 +135,7 @@ private fun WaterWidgetContent(data: WaterWidgetData) {
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
         Text(
-            text = "WATER",
+            text = words(com.weighttrack.R.string.widget_water),
             style = TextStyle(
                 color = GlanceTheme.colors.onSurfaceVariant,
                 fontSize = 10.sp,
@@ -149,7 +159,10 @@ private fun WaterWidgetContent(data: WaterWidgetData) {
         }
         Spacer(GlanceModifier.height(2.dp))
         Text(
-            text = "Tap to add ${VolumeFormatter.full(data.servingMl, data.unit)}",
+            text = words(
+                com.weighttrack.R.string.widget_tap_to_add,
+                VolumeFormatter.full(data.servingMl, data.unit),
+            ),
             style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 12.sp),
         )
     }

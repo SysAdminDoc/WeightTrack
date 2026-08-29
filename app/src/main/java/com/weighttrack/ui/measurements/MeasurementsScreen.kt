@@ -194,7 +194,7 @@ private fun MeasurementRow(
             Text(
                 text = measurement
                     ?.let { "Updated ${DateFormatters.sinceDay(it.localDate, today)}" }
-                    ?: "Not measured yet",
+                    ?: stringResource(R.string.measurementsscreen_not_measured_yet),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

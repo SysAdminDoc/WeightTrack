@@ -97,11 +97,11 @@ fun HistoryScreen(
         if (state.entries.isEmpty()) {
             EmptyState(
                 icon = Icons.Outlined.History,
-                title = if (state.query.isBlank()) "Nothing logged yet" else "No matches",
+                title = if (state.query.isBlank()) stringResource(R.string.historyscreen_nothing_logged_yet) else stringResource(R.string.historyscreen_no_matches),
                 message = if (state.query.isBlank()) {
-                    "Readings you log will show up here, newest first. Tap one to edit it, hold to select several."
+                    stringResource(R.string.historyscreen_readings_you_log_will_show_up)
                 } else {
-                    "Nothing matches \"${state.query}\"."
+                    stringResource(R.string.historyscreen_nothing_matches, state.query)
                 },
                 modifier = Modifier.padding(top = 48.dp),
             )
@@ -233,7 +233,7 @@ private fun HistoryRow(
                 val details = buildList {
                     add(DateFormatters.time(entry.timestamp))
                     if (entry.source != EntrySource.MANUAL) add(sourceLabel(entry.source))
-                    entry.bodyFatPercent?.let { add(String.format(locale, "%.1f%% fat", it)) }
+                    entry.bodyFatPercent?.let { add(stringResource(R.string.history_body_fat, it)) }
                     entry.tags.forEach { add(tagLabel(it)) }
                 }
                 Text(

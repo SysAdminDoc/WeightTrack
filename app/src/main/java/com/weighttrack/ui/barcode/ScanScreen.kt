@@ -130,7 +130,7 @@ fun ScanScreen(
             Spacer(Modifier.height(12.dp))
             Text(
                 text = found?.let { "Read $it" }
-                    ?: "Hold the barcode inside the frame. Reading with ${reader.name}.",
+                    ?: stringResource(R.string.scanscreen_hold_barcode_inside_frame_reading_with, reader.name),
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
             )

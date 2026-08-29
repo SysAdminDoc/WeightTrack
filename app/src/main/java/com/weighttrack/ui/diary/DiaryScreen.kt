@@ -139,7 +139,7 @@ fun DiaryScreen(
                             text = if (left.isOver) {
                                 "${-left.kcalRounded} over"
                             } else {
-                                "${left.kcalRounded} left of ${state.target!!.kcal.roundToInt()}"
+                                stringResource(R.string.diaryscreen_left, left.kcalRounded, state.target!!.kcal.roundToInt())
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (left.isOver) {
@@ -157,7 +157,7 @@ fun DiaryScreen(
                             Text(stringResource(R.string.diary_copy_the_day_before))
                         }
                         OutlinedButton(onClick = { editingTarget = true }) {
-                            Text(if (state.target == null) "Set a target" else "Target")
+                            Text(if (state.target == null) stringResource(R.string.diaryscreen_set_target) else "Target")
                         }
                     }
                 }
@@ -175,12 +175,12 @@ fun DiaryScreen(
                         Text(
                             // No formula and no activity multiplier. Their own body measured it.
                             text = if (state.expenditureConfident) {
-                                "Worked out from ${estimate.loggedDays} days of food and what your weight actually did, not from a formula."
+                                stringResource(R.string.diaryscreen_worked_out_from_days_food_what, estimate.loggedDays)
                             } else {
                                 // Hedged rather than stated. The arithmetic ran, but a fortnight
                                 // with gaps in the food or a large swing in weight is not yet a
                                 // fact about anybody's metabolism.
-                                "Still settling. It is worked out from ${estimate.loggedDays} days of food out of ${estimate.days}, and it will steady as you log more."
+                                stringResource(R.string.diaryscreen_still_settling_worked_out_from_days, estimate.loggedDays, estimate.days)
                             },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -189,9 +189,9 @@ fun DiaryScreen(
                             Spacer(Modifier.height(8.dp))
                             Text(
                                 text = if (recommended.cappedAtMinimum) {
-                                    "Your goal would need less than ${recommended.rounded} kcal a day, which is further than this app will suggest going. Give it longer instead."
+                                    stringResource(R.string.diaryscreen_your_goal_would_need_less_than, recommended.rounded)
                                 } else {
-                                    "Eat about ${recommended.rounded} kcal a day to keep going at that rate."
+                                    stringResource(R.string.diaryscreen_eat_about_kcal_day_keep_going, recommended.rounded)
                                 },
                                 style = MaterialTheme.typography.bodyMedium,
                             )
@@ -231,7 +231,7 @@ fun DiaryScreen(
                                     Text(entry.name, style = MaterialTheme.typography.bodyLarge)
                                     Text(
                                         text = entry.grams
-                                            ?.let { "${it.roundToInt()} g · ${entry.nutrients.kcal.roundToInt()} kcal" }
+                                            ?.let { stringResource(R.string.diaryscreen_g_kcal, it.roundToInt(), entry.nutrients.kcal.roundToInt()) }
                                             ?: "${entry.nutrients.kcal.roundToInt()} kcal",
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -303,9 +303,9 @@ private fun MacroRow(day: DayLog, target: MacroTarget?) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         // Only what is actually known. A day with one quick-add in it has no honest protein
         // figure, and printing zero would be a claim nobody made.
-        LabelledValue("Protein", macroText(total.proteinG, target?.proteinG))
-        LabelledValue("Carbs", macroText(total.carbsG, target?.carbsG))
-        LabelledValue("Fat", macroText(total.fatG, target?.fatG))
+        LabelledValue(stringResource(R.string.diaryscreen_protein), macroText(total.proteinG, target?.proteinG))
+        LabelledValue(stringResource(R.string.diaryscreen_carbs), macroText(total.carbsG, target?.carbsG))
+        LabelledValue(stringResource(R.string.diaryscreen_fat), macroText(total.fatG, target?.fatG))
     }
 }
 
@@ -413,7 +413,7 @@ private fun AddFromFoodsDialog(
                     Text(
                         text = amount
                             ?.let { "${food.kcalForGrams(it)} kcal" }
-                            ?: "Enter how much of it.",
+                            ?: stringResource(R.string.diaryscreen_enter_how_much),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -522,7 +522,7 @@ private fun TargetDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MacroBasis.entries.forEach { option ->
                         SegmentButton(
-                            label = if (option == MacroBasis.GRAMS) "Grams" else "Percent",
+                            label = if (option == MacroBasis.GRAMS) stringResource(R.string.diaryscreen_grams) else "Percent",
                             selected = basis == option,
                             onClick = { basis = option },
                         )

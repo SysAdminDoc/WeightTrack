@@ -532,7 +532,7 @@ fun SettingsScreen(
             SettingsSection {
                 SectionHeading(stringResource(R.string.settings_your_data))
                 Spacer(Modifier.height(4.dp))
-                LabelledValue("Readings stored", entryCount.toString())
+                LabelledValue(stringResource(R.string.settingsscreen_readings_stored), entryCount.toString())
                 Text(
                     text = stringResource(R.string.settings_weighttrack_has_no_account_and_no),
                     style = MaterialTheme.typography.bodySmall,
@@ -559,7 +559,7 @@ fun SettingsScreen(
                 Spacer(Modifier.height(6.dp))
                 OutlinedButton(
                     onClick = {
-                        exportMeasurementsLauncher.launch("weighttrack-measurements-${LocalDate.now()}.csv")
+                        exportMeasurementsLauncher.launch("weighttrack-measurements-" + LocalDate.now() + ".csv")
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.settings_export_measurements_as_csv)) }
@@ -640,8 +640,8 @@ fun SettingsScreen(
             SettingsSection {
                 SectionHeading(stringResource(R.string.settings_about))
                 Spacer(Modifier.height(6.dp))
-                LabelledValue("Version", BuildConfig.VERSION_NAME)
-                LabelledValue("Build", if (BuildConfig.FOSS_ONLY) "F-Droid" else "Play")
+                LabelledValue(stringResource(R.string.settingsscreen_version), BuildConfig.VERSION_NAME)
+                LabelledValue(stringResource(R.string.settingsscreen_build), if (BuildConfig.FOSS_ONLY) "F-Droid" else "Play")
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = stringResource(R.string.settings_free_and_open_source_under_the),
@@ -722,17 +722,23 @@ private fun ReminderCard(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     SettingsSection {
-        SectionHeading(who?.let { "Weigh-in reminder for $it" } ?: "Weigh-in reminder")
+        SectionHeading(who?.let { stringResource(R.string.settingsscreen_weigh_in_reminder_for, it) } ?: stringResource(R.string.settingsscreen_weigh_in_reminder))
         Spacer(Modifier.height(6.dp))
         ToggleRow(
-            label = who?.let { "Remind $it to weigh in" } ?: "Remind me to weigh in",
+            label = who?.let { stringResource(R.string.settingsscreen_remind_weigh_in, it) } ?: stringResource(R.string.settingsscreen_remind_me_weigh_in),
             checked = profile.reminderEnabled,
             onCheckedChange = onToggle,
         )
         if (profile.reminderEnabled) {
             Spacer(Modifier.height(6.dp))
             TextButton(onClick = onEditTime) {
-                Text(String.format(locale, "At %02d:%02d", profile.reminderHour, profile.reminderMinute))
+                Text(
+                    stringResource(
+                        R.string.settings_at_time,
+                        profile.reminderHour,
+                        profile.reminderMinute,
+                    ),
+                )
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 DayOfWeek.entries.forEach { day ->
@@ -810,7 +816,7 @@ private fun HealthConnectCard(
                         onClick = onSync,
                         enabled = !state.syncing,
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text(if (state.syncing) "Syncing" else "Sync now") }
+                    ) { Text(if (state.syncing) stringResource(R.string.settingsscreen_syncing) else stringResource(R.string.settingsscreen_sync_now)) }
                     if (!state.grantedEverything) {
                         // Anybody who connected before food, water and steps existed granted
                         // only weight. Without this the app would keep quietly failing to write

@@ -148,8 +148,8 @@ fun HomeScreen(
                 icon = Icons.Outlined.LocalDrink,
                 title = stringResource(R.string.home_water),
                 subtitle = waterSummary
-                    ?.let { "${VolumeFormatter.full(it.totalMl, it.unit)} of ${VolumeFormatter.full(it.targetMl, it.unit)} today" }
-                    ?: "Track what you drink",
+                    ?.let { stringResource(R.string.homescreen_today, VolumeFormatter.full(it.totalMl, it.unit), VolumeFormatter.full(it.targetMl, it.unit)) }
+                    ?: stringResource(R.string.homescreen_track_what_you_drink),
                 onClick = onOpenWater,
             )
         }
@@ -343,9 +343,9 @@ private fun GoalCard(
             ) {
                 Text(
                     text = if (goal.direction == GoalDirection.GAIN) {
-                        "${WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit)} to gain"
+                        stringResource(R.string.homescreen_gain, WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit))
                     } else {
-                        "${WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit)} to go"
+                        stringResource(R.string.homescreen_go, WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit))
                     },
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.primary,

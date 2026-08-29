@@ -233,7 +233,7 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Sex.entries.forEach { sex ->
             SegmentButton(
-                label = if (sex == Sex.MALE) "Male" else "Female",
+                label = if (sex == Sex.MALE) stringResource(R.string.onboardingscreen_male) else "Female",
                 selected = state.sex == sex,
                 onClick = { viewModel.setSex(sex) },
             )
@@ -301,9 +301,9 @@ private fun GoalStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
     if (current != null && goal != null && goal != current) {
         Text(
             text = if (goal < current) {
-                "That is ${WeightFormatter.full(abs(current - goal), state.weightUnit)} to lose."
+                stringResource(R.string.onboardingscreen_that_lose, WeightFormatter.full(abs(current - goal), state.weightUnit))
             } else {
-                "That is ${WeightFormatter.full(abs(goal - current), state.weightUnit)} to gain."
+                stringResource(R.string.onboardingscreen_that_gain, WeightFormatter.full(abs(goal - current), state.weightUnit))
             },
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,

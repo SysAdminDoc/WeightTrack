@@ -82,7 +82,7 @@ fun GoalScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(if (state.hasExistingGoal) "Edit goal" else "Set a goal") },
+                title = { Text(if (state.hasExistingGoal) stringResource(R.string.goalscreen_edit_goal) else stringResource(R.string.goalscreen_set_goal_2)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
@@ -199,7 +199,7 @@ fun GoalScreen(
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { showDatePicker = true }) {
-                        Text(state.targetDate?.let { DateFormatters.fullDate(it) } ?: "Pick a date")
+                        Text(state.targetDate?.let { DateFormatters.fullDate(it) } ?: stringResource(R.string.goalscreen_pick_date))
                     }
                     if (state.targetDate != null) {
                         TextButton(onClick = { onTargetDateChange(null) }) { Text(stringResource(R.string.goal_clear)) }
@@ -229,7 +229,7 @@ fun GoalScreen(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
-                Text(if (state.hasExistingGoal) "Save goal" else "Set goal")
+                Text(if (state.hasExistingGoal) stringResource(R.string.goalscreen_save_goal) else stringResource(R.string.goalscreen_set_goal))
             }
 
             if (state.hasExistingGoal) {

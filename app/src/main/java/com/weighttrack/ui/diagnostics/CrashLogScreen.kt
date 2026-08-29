@@ -84,7 +84,13 @@ fun CrashLogScreen(
         if (state.reports.isEmpty()) {
             EmptyState(
                 icon = Icons.Outlined.BugReport,
-                title = if (state.loaded) "No crashes recorded" else "Loading",
+                title = stringResource(
+                    if (state.loaded) {
+                        R.string.crashlogscreen_no_crashes_recorded
+                    } else {
+                        R.string.common_loading
+                    },
+                ),
                 message = stringResource(R.string.diagnostics_if_weighttrack_ever_closes_unexpectedly_the),
                 modifier = Modifier.fillMaxSize().padding(padding).padding(top = 48.dp),
             )
@@ -191,12 +197,15 @@ fun shareActivityLogText(context: Context, body: String) {
 private fun shareReport(context: Context, report: CrashReport, body: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "WeightTrack crash ${report.formattedTime()}")
+        putExtra(
+            Intent.EXTRA_SUBJECT,
+            context.getString(R.string.crashlogscreen_weighttrack_crash, report.formattedTime()),
+        )
         putExtra(Intent.EXTRA_TEXT, body)
     }
     runCatching {
         context.startActivity(
-            Intent.createChooser(intent, "Share crash report")
+            Intent.createChooser(intent, context.getString(R.string.crashlogscreen_share_crash_report))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
         )
     }

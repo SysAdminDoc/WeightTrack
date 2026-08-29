@@ -302,7 +302,7 @@ class DiaryViewModel @Inject constructor(
             message.value = if (day == null) {
                 strings[R.string.diary_target_set_to_kcal, recommended.rounded]
             } else {
-                "${day.label} set to ${recommended.rounded} kcal."
+                strings[R.string.diary_day_set_to, day.label, recommended.rounded]
             }
         }
     }

@@ -120,16 +120,16 @@ fun ScaleScreen(
                             WeightFormatter.full(reading.grams, state.weightUnit),
                         )
                         reading.bodyFatPercent?.let {
-                            LabelledValue("Body fat", String.format("%.1f%%", it))
+                            LabelledValue(stringResource(R.string.scalescreen_body_fat), String.format("%.1f%%", it))
                         }
                         reading.muscleMassGrams?.let {
-                            LabelledValue("Muscle", WeightFormatter.full(it, state.weightUnit))
+                            LabelledValue(stringResource(R.string.scalescreen_muscle), WeightFormatter.full(it, state.weightUnit))
                         }
                         reading.bodyWaterMassGrams?.let {
-                            LabelledValue("Water", WeightFormatter.full(it, state.weightUnit))
+                            LabelledValue(stringResource(R.string.scalescreen_water), WeightFormatter.full(it, state.weightUnit))
                         }
                         reading.basalMetabolismKcal?.let {
-                            LabelledValue("Resting burn", WeightFormatter.calories(it))
+                            LabelledValue(stringResource(R.string.scalescreen_resting_burn), WeightFormatter.calories(it))
                         }
                     }
                 }
@@ -206,7 +206,7 @@ fun ScaleScreen(
                                 if (state.problem == ScaleProblem.PERMISSION_MISSING) {
                                     "Allow"
                                 } else {
-                                    "Try again"
+                                    stringResource(R.string.scalescreen_try_again)
                                 },
                             )
                         }
@@ -251,7 +251,7 @@ fun ScaleScreen(
             if (state.rememberedName != null) {
                 item {
                     SectionCard {
-                        LabelledValue("Remembered scale", state.rememberedName)
+                        LabelledValue(stringResource(R.string.scalescreen_remembered_scale), state.rememberedName)
                         TextButton(onClick = onForgetScale) { Text(stringResource(R.string.scale_forget_it)) }
                     }
                 }

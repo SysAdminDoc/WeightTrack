@@ -194,7 +194,7 @@ fun FastingScreen(
                             )
                             Text(
                                 text = if (active == null) {
-                                    "Not fasting"
+                                    stringResource(R.string.fastingscreen_not_fasting)
                                 } else {
                                     "of ${formatTarget(active.targetMinutes)}"
                                 },
@@ -208,9 +208,9 @@ fun FastingScreen(
                         val remaining = active.remaining(instant)
                         Text(
                             text = if (remaining == null) {
-                                "Target reached. Keep going or stop whenever you like."
+                                stringResource(R.string.fastingscreen_target_reached_keep_going_or_stop)
                             } else {
-                                "${formatDuration(remaining)} to go, started ${DateFormatters.time(active.start)}"
+                                stringResource(R.string.fastingscreen_go_started, formatDuration(remaining), DateFormatters.time(active.start))
                             },
                             style = MaterialTheme.typography.bodyMedium,
                             color = if (remaining == null) {
@@ -279,10 +279,10 @@ fun FastingScreen(
                     SectionCard {
                         SectionHeading(stringResource(R.string.fasting_recent_fasts))
                         Spacer(Modifier.height(4.dp))
-                        LabelledValue("Recorded", state.history.recorded.toString())
-                        LabelledValue("Hit the target", state.history.reached.toString())
+                        LabelledValue(stringResource(R.string.fastingscreen_recorded), state.history.recorded.toString())
+                        LabelledValue(stringResource(R.string.fastingscreen_hit_target), state.history.reached.toString())
                         state.history.longest?.let {
-                            LabelledValue("Longest", formatDuration(it))
+                            LabelledValue(stringResource(R.string.fastingscreen_longest), formatDuration(it))
                         }
                     }
                 }
@@ -356,7 +356,7 @@ private fun EditFastDialog(
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text(if (fast.isRunning) "Edit running fast" else "Edit fast") },
+        title = { Text(if (fast.isRunning) stringResource(R.string.fastingscreen_edit_running_fast) else stringResource(R.string.fastingscreen_edit_fast)) },
         text = {
             Column {
                 LabelledValue(
@@ -369,7 +369,7 @@ private fun EditFastDialog(
                     label = stringResource(R.string.fasting_ended),
                     value = finish
                         ?.let { DateFormatters.shortDate(it.toLocalDate()) + " at " + formatClock(it) }
-                        ?: "Still running",
+                        ?: stringResource(R.string.fastingscreen_still_running),
                 )
                 if (finish != null) {
                     TextButton(onClick = { editingEnd = true }) { Text(stringResource(R.string.fasting_change_end)) }

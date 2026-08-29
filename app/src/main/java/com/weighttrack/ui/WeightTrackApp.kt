@@ -207,6 +207,7 @@ fun WeightTrackApp(
                 val waterSummary by viewModel.waterSummary.collectAsStateWithLifecycle()
                 val shareState = com.weighttrack.ui.home.rememberShareState()
                 val scope = rememberCoroutineScope()
+                val cardFailed = stringResource(R.string.share_card_failed)
                 val context = LocalContext.current
                 val shareContent = com.weighttrack.ui.home.milestoneCardFor(
                     snapshot,
@@ -224,7 +225,7 @@ fun WeightTrackApp(
                             scope.launch {
                                 val intent = viewModel.shareCard(snapshot, include)
                                 if (intent == null) {
-                                    snackbarHostState.showSnackbar("Could not make the card.")
+                                    snackbarHostState.showSnackbar(cardFailed)
                                 } else {
                                     // Android's own share sheet and nothing else. Where it goes
                                     // is the person's business.
@@ -271,14 +272,19 @@ fun WeightTrackApp(
                 val viewModel: HistoryViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val undoCount by viewModel.undoAvailable.collectAsStateWithLifecycle()
+                // Read here rather than inside the effect: stringResource is composition, and the
+                // effect runs outside it.
+                val deletedOne = stringResource(R.string.history_reading_deleted)
+                val deletedMany = stringResource(R.string.history_readings_deleted, undoCount)
+                val undoLabel = stringResource(R.string.common_undo)
 
                 // Deletion is immediate with an undo, never a confirmation dialog.
                 LaunchedEffect(undoCount) {
                     if (undoCount > 0) {
-                        val label = if (undoCount == 1) "Reading deleted" else "$undoCount readings deleted"
+                        val label = if (undoCount == 1) deletedOne else deletedMany
                         val result = snackbarHostState.showSnackbar(
                             message = label,
-                            actionLabel = "Undo",
+                            actionLabel = undoLabel,
                             duration = androidx.compose.material3.SnackbarDuration.Short,
                         )
                         if (result == SnackbarResult.ActionPerformed) {

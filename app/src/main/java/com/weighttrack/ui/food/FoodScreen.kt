@@ -161,7 +161,7 @@ fun FoodScreen(
             if (shown.isNotEmpty()) {
                 item {
                     SectionCard {
-                        SectionHeading(if (state.hasQuery) "Matching foods" else "Your foods")
+                        SectionHeading(if (state.hasQuery) stringResource(R.string.foodscreen_matching_foods) else stringResource(R.string.foodscreen_your_foods))
                         if (needsOpenFoodFactsCredit(shown)) {
                             Spacer(Modifier.height(4.dp))
                             Text(
@@ -306,9 +306,9 @@ private fun FoodRow(food: Food, trailing: @Composable () -> Unit) {
                 Text(food.label, style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = buildString {
-                        append("${food.per100g.kcal.roundToInt()} kcal per 100 g")
-                        food.per100g.proteinG?.let { append(" · ${it.roundToInt()} g protein") }
-                        food.servingGrams?.let { append(" · serving ${it.roundToInt()} g") }
+                        append(stringResource(R.string.foodscreen_kcal_per_g, food.per100g.kcal.roundToInt()))
+                        food.per100g.proteinG?.let { append(stringResource(R.string.foodscreen_g_protein, it.roundToInt())) }
+                        food.servingGrams?.let { append(stringResource(R.string.foodscreen_serving_g, it.roundToInt())) }
                     },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -353,12 +353,12 @@ private fun AddFoodDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 NumberlessField(name, { name = it }, "Name")
-                NumberlessField(brand, { brand = it }, "Brand (optional)")
-                NumberField(kcal, { kcal = it }, "Calories per 100 g")
-                NumberField(protein, { protein = it }, "Protein g (optional)")
-                NumberField(carbs, { carbs = it }, "Carbohydrate g (optional)")
-                NumberField(fat, { fat = it }, "Fat g (optional)")
-                NumberField(serving, { serving = it }, "One serving in g (optional)")
+                NumberlessField(brand, { brand = it }, stringResource(R.string.foodscreen_brand_optional))
+                NumberField(kcal, { kcal = it }, stringResource(R.string.foodscreen_calories_per_g))
+                NumberField(protein, { protein = it }, stringResource(R.string.foodscreen_protein_g_optional))
+                NumberField(carbs, { carbs = it }, stringResource(R.string.foodscreen_carbohydrate_g_optional))
+                NumberField(fat, { fat = it }, stringResource(R.string.foodscreen_fat_g_optional))
+                NumberField(serving, { serving = it }, stringResource(R.string.foodscreen_one_serving_in_g_optional))
                 if (!valid) {
                     Spacer(Modifier.height(6.dp))
                     Text(
@@ -467,7 +467,7 @@ internal fun keepNumeric(text: String): String {
  * given the same key twice does not merely look wrong, it throws.
  */
 internal fun foodKey(food: Food): String =
-    if (food.id != 0L) "food-${food.id}" else "shelf-${food.barcode.orEmpty()}-${food.name}"
+    if (food.id != 0L) "food-" + food.id else "shelf-" + food.barcode.orEmpty() + "-" + food.name
 
 /**
  * Whether a list of foods carries Open Food Facts data and so has to credit it.

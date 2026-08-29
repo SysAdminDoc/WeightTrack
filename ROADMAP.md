@@ -114,13 +114,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: fake client emits a `DeletionChange` for a record previously imported; the local row is gone and `DeletionCoverageTest` sees the tombstone; an expired token falls back to one full read and stores a fresh token.
   Complexity: M
 
-- [ ] P1 — Move the remaining literal strings into resources and widen the guard test
-  Why: the snackbar in the navigation host, the crash screen and the backup error messages are English literals that survive `NoHardcodedTextTest` because it scans `ui/` for specific parameter names only.
-  Evidence: app/src/main/java/com/weighttrack/ui/WeightTrackApp.kt:278-281 ("Reading deleted", "Undo"); ui/diagnostics/CrashLogScreen.kt:79,167; data/io/BackupService.kt:97-121; app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt
-  Touches: those four files, res/values/strings.xml, NoHardcodedTextTest (scan all of app/src/main for `showSnackbar(`, `createChooser(`, `error("`, `Text("` with a literal)
-  Acceptance: `NoHardcodedTextTest` fails when a literal `showSnackbar(message = "x")` is planted anywhere under app/src/main and passes at HEAD; the pseudolocale build shows decorated text for the undo snackbar.
-  Complexity: S
-
 - [ ] P1 — TalkBack semantics for the trend chart, the water ring and the milestone card, and 48 dp targets everywhere
   Why: the three custom-drawn surfaces expose nothing to a screen reader, there is one `semantics {}` block in the app and no `minimumInteractiveComponentSize()`; Happy Scale's 2026.5.3 shipped a VoiceOver pass and openScale #1455 shows the same gap being reported.
   Evidence: repo scan 2026-08-29 (ui/components/TrendChart.kt, ui/water, share/MilestoneImage.kt; `WeightKeypad.kt:140` is the only semantics block); https://developer.android.com/develop/ui/compose/accessibility ; https://github.com/oliexdev/openScale/issues/1455

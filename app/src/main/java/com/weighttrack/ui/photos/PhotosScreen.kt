@@ -153,9 +153,9 @@ fun PhotosScreen(
 
             Text(
                 text = if (state.selectedIds.size == 1) {
-                    "Pick one more to compare."
+                    stringResource(R.string.photosscreen_pick_one_more_compare)
                 } else {
-                    "Tap two photos to compare them."
+                    stringResource(R.string.photosscreen_tap_two_photos_compare_them)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -208,7 +208,7 @@ private fun ComparisonCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        text = photo.weightGrams?.let { WeightFormatter.full(it, unit) } ?: "No weight",
+                        text = photo.weightGrams?.let { WeightFormatter.full(it, unit) } ?: stringResource(R.string.photosscreen_no_weight),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }

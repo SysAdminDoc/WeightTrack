@@ -90,7 +90,7 @@ fun LogWeightScreen(
         modifier = modifier,
         topBar = {
             TopAppBar(
-                title = { Text(if (state.isEditing) "Edit reading" else "Log weight") },
+                title = { Text(if (state.isEditing) stringResource(R.string.logweightscreen_edit_reading) else stringResource(R.string.logweightscreen_log_weight)) },
                 navigationIcon = {
                     IconButton(onClick = onClose) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.common_close))
@@ -159,7 +159,7 @@ fun LogWeightScreen(
                 shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
-                Text(if (state.isEditing) "Save changes" else "Save weight")
+                Text(if (state.isEditing) stringResource(R.string.logweightscreen_save_changes) else stringResource(R.string.logweightscreen_save_weight))
             }
 
             SectionCard {
@@ -181,7 +181,7 @@ fun LogWeightScreen(
                     }
                 }
                 TextButton(onClick = { showAllTags = !showAllTags }) {
-                    Text(if (showAllTags) "Fewer tags" else "More tags")
+                    Text(if (showAllTags) stringResource(R.string.logweightscreen_fewer_tags) else stringResource(R.string.logweightscreen_more_tags))
                 }
                 if (!showDetails) {
                     OutlinedButton(

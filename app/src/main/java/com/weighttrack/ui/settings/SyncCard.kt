@@ -67,14 +67,14 @@ fun SyncCard(
                 }
             }
             SyncMode.FOLDER -> {
-                LabelledValue("Folder", folderName ?: "Chosen")
+                LabelledValue(stringResource(R.string.synccard_folder), folderName ?: "Chosen")
                 SyncStatus(settings, syncing, onSyncNow, onTurnOff, onBackgroundChange)
                 Spacer(Modifier.height(6.dp))
                 TextButton(onClick = onPickFolder) { Text(stringResource(R.string.settings_pick_a_different_folder)) }
             }
             SyncMode.WEBDAV -> {
-                LabelledValue("Server", settings.webDavUrl.orEmpty())
-                LabelledValue("Username", settings.webDavUser.orEmpty())
+                LabelledValue(stringResource(R.string.synccard_server), settings.webDavUrl.orEmpty())
+                LabelledValue(stringResource(R.string.synccard_username), settings.webDavUser.orEmpty())
                 if (needsLocalNetwork) {
                     // Without this grant the socket never opens and every sync times out, which
                     // reads exactly like the server being switched off.
@@ -140,7 +140,7 @@ private fun SyncStatus(
     Spacer(Modifier.height(8.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Button(onClick = onSyncNow, enabled = !syncing) {
-            Text(if (syncing) "Syncing" else "Sync now")
+            Text(if (syncing) stringResource(R.string.synccard_syncing) else stringResource(R.string.synccard_sync_now))
         }
         OutlinedButton(onClick = onTurnOff) { Text(stringResource(R.string.settings_turn_off)) }
     }

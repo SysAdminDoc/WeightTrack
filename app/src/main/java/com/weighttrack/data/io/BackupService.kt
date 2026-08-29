@@ -1,6 +1,7 @@
 package com.weighttrack.data.io
 
 import android.content.Context
+import com.weighttrack.R
 import android.net.Uri
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
@@ -19,7 +20,7 @@ data class ImportSummary(
     val imported: Int,
     val skipped: Int,
     val measurements: Int = 0,
-    val problems: List<String> = emptyList(),
+    val problems: List<RowProblem> = emptyList(),
 )
 
 /**
@@ -89,13 +90,21 @@ class BackupService @Inject constructor(
         }
     }
 
+    /**
+     * A message for the person, not the log.
+     *
+     * These come back through a Result and end up on the settings screen, so they are the app
+     * talking rather than a stack trace, and they belong in the resource file with the rest.
+     */
+    private fun say(id: Int, vararg arguments: Any): String = context.getString(id, *arguments)
+
     suspend fun importCsv(uri: Uri, fallbackUnit: WeightUnit): Result<ImportSummary> =
         withContext(Dispatchers.IO) {
             runCatching {
                 val text = readText(uri)
-                val table = Csv.parse(text) ?: error("That file does not look like a CSV export.")
+                val table = Csv.parse(text) ?: error(say(R.string.import_not_a_csv))
                 val mapping = WeightCsvImporter.detect(table, fallbackUnit)
-                    ?: error("Could not find a date column and a weight column in that file.")
+                    ?: error(say(R.string.import_no_columns))
                 val result = WeightCsvImporter.import(table, mapping)
                 weightRepository.upsertAll(result.entries)
                 ImportSummary(
@@ -111,7 +120,7 @@ class BackupService @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val table = Csv.parse(readText(uri))
-                    ?: error("That file does not look like a CSV export.")
+                    ?: error(say(R.string.import_not_a_csv))
                 WeightCsvImporter.preview(table, fallbackUnit)
             }
         }
@@ -119,7 +128,7 @@ class BackupService @Inject constructor(
     suspend fun importJson(uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
         runCatching {
             val backup = BackupCodec.decode(readText(uri))
-                ?: error("That file is not a WeightTrack backup.")
+                ?: error(say(R.string.import_not_a_backup))
             val entries = backup.entries.mapNotNull(BackupCodec::backupToEntry)
             val measurements = backup.measurements.mapNotNull(BackupCodec::backupToMeasurement)
             weightRepository.upsertAll(entries)
@@ -171,11 +180,11 @@ class BackupService @Inject constructor(
         context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
             stream.write(text.toByteArray(Charsets.UTF_8))
             stream.flush()
-        } ?: error("Could not write to that file.")
+        } ?: error(say(R.string.file_could_not_write))
     }
 
     private fun readText(uri: Uri): String =
         context.contentResolver.openInputStream(uri)?.use { stream ->
             stream.readBytes().toString(Charsets.UTF_8)
-        } ?: error("Could not read that file.")
+        } ?: error(say(R.string.file_could_not_read))
 }

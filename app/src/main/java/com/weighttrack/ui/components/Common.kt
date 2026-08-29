@@ -133,7 +133,7 @@ fun GoalProgressBar(
 ) {
     val animated by animateFloatAsState(
         targetValue = progress.coerceIn(0f, 1f),
-        label = "goalProgress",
+        label = "GoalProgress",
     )
     Box(
         modifier

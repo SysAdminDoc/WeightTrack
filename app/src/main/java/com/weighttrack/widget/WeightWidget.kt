@@ -115,6 +115,16 @@ class WeightWidget : GlanceAppWidget() {
     }
 }
 
+/**
+ * A word from the resource file.
+ *
+ * Glance has no `stringResource`, so this is the equivalent. It exists so the widgets are
+ * translated along with the rest of the app rather than staying in English on the home screen.
+ */
+@androidx.compose.runtime.Composable
+private fun words(@androidx.annotation.StringRes id: Int, vararg arguments: Any): String =
+    androidx.glance.LocalContext.current.getString(id, *arguments)
+
 @androidx.compose.runtime.Composable
 private fun WidgetContent(data: WidgetData) {
     Column(
@@ -126,7 +136,7 @@ private fun WidgetContent(data: WidgetData) {
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
         Text(
-            text = "TREND",
+            text = words(com.weighttrack.R.string.widget_trend),
             style = TextStyle(
                 color = GlanceTheme.colors.onSurfaceVariant,
                 fontSize = 10.sp,
@@ -137,7 +147,7 @@ private fun WidgetContent(data: WidgetData) {
 
         if (data.hidden) {
             Text(
-                text = "Locked",
+                text = words(com.weighttrack.R.string.widget_locked),
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontSize = 18.sp,
@@ -145,7 +155,7 @@ private fun WidgetContent(data: WidgetData) {
                 ),
             )
             Text(
-                text = "Open WeightTrack",
+                text = words(com.weighttrack.R.string.widget_open_weighttrack),
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
             )
             return@Column
@@ -153,7 +163,7 @@ private fun WidgetContent(data: WidgetData) {
 
         if (data.trendGrams == null) {
             Text(
-                text = "Tap to log",
+                text = words(com.weighttrack.R.string.widget_tap_to_log),
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontSize = 18.sp,
@@ -181,7 +191,7 @@ private fun WidgetContent(data: WidgetData) {
         data.weekChangeGrams?.let { change ->
             Spacer(GlanceModifier.height(2.dp))
             Text(
-                text = "${WeightFormatter.delta(change, data.unit)} this week",
+                text = words(com.weighttrack.R.string.widget_this_week, WeightFormatter.delta(change, data.unit)),
                 style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 12.sp),
             )
         }
@@ -189,7 +199,7 @@ private fun WidgetContent(data: WidgetData) {
         data.lastLogged?.let { date ->
             Spacer(GlanceModifier.height(2.dp))
             Text(
-                text = "Weighed ${DateFormatters.sinceDay(date)}",
+                text = words(com.weighttrack.R.string.widget_weighed, DateFormatters.sinceDay(date)),
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
             )
         }

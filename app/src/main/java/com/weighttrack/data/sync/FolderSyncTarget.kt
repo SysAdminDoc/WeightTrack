@@ -82,12 +82,12 @@ class FolderSyncTarget(
                 // claiming to be the same device.
                 val existing = folder.findFile(name)?.takeIf { it.isFile }
                 val file = existing ?: folder.createFile(MIME, name)
-                    ?: error("Could not create $name in that folder.")
+                    ?: error(say(com.weighttrack.R.string.sync_could_not_create, name))
                 // "wt" truncates. Without it a shorter document leaves the tail of the longer one
                 // it replaced, and the file stops being readable JSON.
                 context.contentResolver.openOutputStream(file.uri, "wt")?.use {
                     it.write(content.encodeToByteArray())
-                } ?: error("Could not write to $name.")
+                } ?: error(say(com.weighttrack.R.string.sync_could_not_write, name))
                 Unit
             }.fold(
                 { SyncOutcome.Ok(Unit) },

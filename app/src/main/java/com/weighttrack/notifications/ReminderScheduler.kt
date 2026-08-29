@@ -125,10 +125,10 @@ object Notifications {
         val manager = context.getSystemService<NotificationManager>() ?: return
         val channel = NotificationChannel(
             CHANNEL_REMINDERS,
-            "Weigh-in reminders",
+            context.getString(com.weighttrack.R.string.reminder_channel_name),
             NotificationManager.IMPORTANCE_DEFAULT,
         ).apply {
-            description = "A daily nudge to step on the scale."
+            description = context.getString(com.weighttrack.R.string.reminder_channel_description)
             setShowBadge(false)
         }
         manager.createNotificationChannel(channel)

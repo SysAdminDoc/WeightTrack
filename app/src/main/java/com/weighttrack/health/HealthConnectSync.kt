@@ -340,8 +340,8 @@ class HealthConnectSync @Inject constructor(
     suspend fun sync(sinceDays: Long = 365 * 5): Result<HealthConnectSyncResult> =
         withContext(Dispatchers.IO) {
             runCatching {
-                val client = clientOrNull() ?: error("Health Connect is not available on this device.")
-                if (!hasPermissions()) error("WeightTrack has not been granted Health Connect access.")
+                val client = clientOrNull() ?: error(context.getString(com.weighttrack.R.string.health_not_available))
+                if (!hasPermissions()) error(context.getString(com.weighttrack.R.string.health_not_granted))
 
                 val zone = ZoneId.systemDefault()
                 val start = Instant.now().minus(sinceDays, ChronoUnit.DAYS)

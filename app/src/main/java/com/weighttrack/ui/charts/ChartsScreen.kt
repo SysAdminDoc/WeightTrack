@@ -295,8 +295,8 @@ private fun ConsistencyCard(snapshot: ProgressSnapshot) {
     SectionCard {
         SectionHeading(stringResource(R.string.charts_logging))
         Spacer(Modifier.height(8.dp))
-        LabelledValue("Days weighed", "$logged of the last $total")
-        LabelledValue("Current streak", if (streak == 0) "None right now" else "$streak days")
+        LabelledValue(stringResource(R.string.chartsscreen_days_weighed), stringResource(R.string.chartsscreen_last, logged, total))
+        LabelledValue(stringResource(R.string.chartsscreen_current_streak), if (streak == 0) stringResource(R.string.chartsscreen_none_right_now) else "$streak days")
         Column {
             Text(
                 text = stringResource(R.string.charts_the_trend_copes_fine_with_missed),
@@ -365,12 +365,12 @@ private fun ActivityCard(activity: ActivityState) {
                     Spacer(Modifier.height(8.dp))
                 }
                 activity.averageSteps?.let {
-                    LabelledValue("Average steps", "%,d a day".format(it))
+                    LabelledValue(stringResource(R.string.chartsscreen_average_steps), stringResource(R.string.chartsscreen_steps_a_day, it))
                 }
                 activity.averageActiveKilocalories?.let {
-                    LabelledValue("Active calories", "${it.roundToInt()} a day")
+                    LabelledValue(stringResource(R.string.chartsscreen_active_calories), stringResource(R.string.chartsscreen_day, it.roundToInt()))
                 }
-                LabelledValue("Days recorded", activity.days.size.toString())
+                LabelledValue(stringResource(R.string.chartsscreen_days_recorded), activity.days.size.toString())
                 Text(
                     text = stringResource(R.string.charts_shown_for_context_beside_the_trend),
                     style = MaterialTheme.typography.bodySmall,

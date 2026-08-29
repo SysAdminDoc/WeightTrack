@@ -1,5 +1,6 @@
 package com.weighttrack.ui.charts
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
@@ -27,11 +28,17 @@ fun AssociationCard(associations: AssociationState) {
         SectionHeading(stringResource(R.string.charts_what_moved_with_your_weight))
         Spacer(Modifier.height(4.dp))
         associations.steps?.takeIf { it.isNotable }?.let {
-            Text(text = stepsSentence(it), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = stringResource(stepsSentence(it), it.weeks),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Spacer(Modifier.height(6.dp))
         }
         associations.sleep?.takeIf { it.isNotable }?.let {
-            Text(text = sleepSentence(it), style = MaterialTheme.typography.bodyMedium)
+            Text(
+                text = stringResource(sleepSentence(it), it.weeks),
+                style = MaterialTheme.typography.bodyMedium,
+            )
             Spacer(Modifier.height(6.dp))
         }
         Text(
@@ -44,14 +51,22 @@ fun AssociationCard(associations: AssociationState) {
     }
 }
 
-internal fun stepsSentence(association: Insights.Association): String = if (association.isInverse) {
-    "Over ${association.weeks} weeks, the weeks you walked more were the weeks your weight came down faster."
+/**
+ * Which sentence describes this association.
+ *
+ * Answers with the resource rather than the words, so the choice stays a plain function a test can
+ * check, and the words themselves stay in the file translators work from.
+ */
+@StringRes
+internal fun stepsSentence(association: Insights.Association): Int = if (association.isInverse) {
+    R.string.associationcard_over_weeks_weeks_you_walked_more_2
 } else {
-    "Over ${association.weeks} weeks, the weeks you walked more were the weeks your weight went up more. Worth a look at what else those weeks had in common."
+    R.string.associationcard_over_weeks_weeks_you_walked_more
 }
 
-internal fun sleepSentence(association: Insights.Association): String = if (association.isInverse) {
-    "Over ${association.weeks} weeks, the weeks you slept more were the weeks your weight came down faster."
+@StringRes
+internal fun sleepSentence(association: Insights.Association): Int = if (association.isInverse) {
+    R.string.associationcard_over_weeks_weeks_you_slept_more_2
 } else {
-    "Over ${association.weeks} weeks, the weeks you slept more were the weeks your weight went up more."
+    R.string.associationcard_over_weeks_weeks_you_slept_more
 }

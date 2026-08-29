@@ -82,10 +82,10 @@ class WeeklySummaryScheduler @Inject constructor(
             manager.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_SUMMARY,
-                    "Weekly summary",
+                    context.getString(com.weighttrack.R.string.summary_channel_name),
                     NotificationManager.IMPORTANCE_LOW,
                 ).apply {
-                    description = "A short read on how the week went."
+                    description = context.getString(com.weighttrack.R.string.summary_channel_description)
                     setShowBadge(false)
                 },
             )

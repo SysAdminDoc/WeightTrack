@@ -111,6 +111,16 @@ class SettingsViewModel @Inject constructor(
         refreshHealthConnect()
     }
 
+    /** Says which row would not read and why, in the reader's language. */
+    private fun describe(problem: com.weighttrack.data.io.RowProblem): String = strings[
+        when (problem.field) {
+            com.weighttrack.data.io.RowProblem.Field.WEIGHT -> R.string.settings_import_bad_weight
+            com.weighttrack.data.io.RowProblem.Field.DATE -> R.string.settings_import_bad_date
+        },
+        problem.row,
+        problem.value,
+    ]
+
     fun consumeMessage() {
         _message.value = null
     }
@@ -274,9 +284,11 @@ class SettingsViewModel @Inject constructor(
             onSuccess = { summary ->
                 buildString {
                     append(strings[R.string.settings_imported_readings, summary.imported])
-                    if (summary.skipped > 0) append(", skipped ${summary.skipped} unreadable rows")
+                    if (summary.skipped > 0) {
+                        append(strings[R.string.settings_import_skipped, summary.skipped])
+                    }
                     append(".")
-                    summary.problems.firstOrNull()?.let { append(" $it") }
+                    summary.problems.firstOrNull()?.let { append(" ").append(describe(it)) }
                 }
             },
             onFailure = { strings[R.string.settings_import_failed, it.message.orEmpty()] },
@@ -338,9 +350,13 @@ class SettingsViewModel @Inject constructor(
         val time = "%02d:%02d".format(next.hour, next.minute)
         val today = ZonedDateTime.now(next.zone).toLocalDate()
         return when (next.toLocalDate()) {
-            today -> "today at $time"
-            today.plusDays(1) -> "tomorrow at $time"
-            else -> "on ${next.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() }} at $time"
+            today -> strings[R.string.settings_today_at, time]
+            today.plusDays(1) -> strings[R.string.settings_tomorrow_at, time]
+            else -> strings[
+                R.string.settings_on_day_at,
+                next.dayOfWeek.name.lowercase().replaceFirstChar { it.uppercase() },
+                time,
+            ]
         }
     }
 

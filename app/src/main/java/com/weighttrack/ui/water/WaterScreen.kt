@@ -135,7 +135,7 @@ fun WaterScreen(
             item {
                 SectionCard {
                     SectionHeading(
-                        if (state.date == today) "Today's total" else "Total for the day",
+                        if (state.date == today) stringResource(R.string.waterscreen_today_s_total) else stringResource(R.string.waterscreen_total_for_day),
                     )
                     Spacer(Modifier.height(4.dp))
                     Row(verticalAlignment = Alignment.Bottom) {
@@ -155,9 +155,9 @@ fun WaterScreen(
                     Spacer(Modifier.height(8.dp))
                     Text(
                         text = if (state.targetReached) {
-                            "Target reached. Anything more is a bonus."
+                            stringResource(R.string.waterscreen_target_reached_anything_more_bonus)
                         } else {
-                            "${VolumeFormatter.full(state.remainingMl, state.unit)} to go out of ${VolumeFormatter.full(state.targetMl, state.unit)}."
+                            stringResource(R.string.waterscreen_go_out, VolumeFormatter.full(state.remainingMl, state.unit), VolumeFormatter.full(state.targetMl, state.unit))
                         },
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (state.targetReached) {

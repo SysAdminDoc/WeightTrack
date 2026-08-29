@@ -1,8 +1,11 @@
 package com.weighttrack.ui.charts
 
+import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.core.math.Insights
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * What the card actually says.
@@ -10,14 +13,19 @@ import org.junit.Test
  * The wording is the whole feature here. A sentence that reads as advice, or as a cause, is a
  * defect however correct the arithmetic behind it.
  */
+@RunWith(RobolectricTestRunner::class)
 class AssociationSentenceTest {
 
     private fun association(coefficient: Double, weeks: Int = 8) =
         Insights.Association(coefficient = coefficient, weeks = weeks)
 
+    /** Resolves what the card would actually show, so these read the shipped English. */
+    private fun words(id: Int, weeks: Int = 8): String =
+        ApplicationProvider.getApplicationContext<android.content.Context>().getString(id, weeks)
+
     @Test
     fun `walking more alongside losing faster is described as happening together`() {
-        val sentence = stepsSentence(association(-0.8))
+        val sentence = words(stepsSentence(association(-0.8)))
 
         assertThat(sentence).contains("the weeks you walked more")
         assertThat(sentence).contains("came down faster")
@@ -28,7 +36,7 @@ class AssociationSentenceTest {
 
     @Test
     fun `the other direction is not dressed up as good news`() {
-        val sentence = stepsSentence(association(0.8))
+        val sentence = words(stepsSentence(association(0.8)))
 
         assertThat(sentence).contains("went up more")
         assertThat(sentence.lowercase()).doesNotContain("because")
@@ -36,17 +44,17 @@ class AssociationSentenceTest {
 
     @Test
     fun `sleep reads the same way round`() {
-        assertThat(sleepSentence(association(-0.7))).contains("came down faster")
-        assertThat(sleepSentence(association(0.7))).contains("went up more")
-        assertThat(sleepSentence(association(-0.7)).lowercase()).doesNotContain("should")
+        assertThat(words(sleepSentence(association(-0.7)))).contains("came down faster")
+        assertThat(words(sleepSentence(association(0.7)))).contains("went up more")
+        assertThat(words(sleepSentence(association(-0.7))).lowercase()).doesNotContain("should")
     }
 
     @Test
     fun `how many weeks it is made of is always said`() {
         // Six weeks of one person's numbers is a small thing, and saying so is the difference
         // between a note and a claim.
-        assertThat(stepsSentence(association(-0.8, weeks = 6))).contains("6 weeks")
-        assertThat(sleepSentence(association(-0.8, weeks = 11))).contains("11 weeks")
+        assertThat(words(stepsSentence(association(-0.8, weeks = 6)), weeks = 6)).contains("6 weeks")
+        assertThat(words(sleepSentence(association(-0.8, weeks = 11)), weeks = 11)).contains("11 weeks")
     }
 
     @Test

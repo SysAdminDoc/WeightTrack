@@ -34,8 +34,18 @@ data class ImportPreview(
 data class ImportResult(
     val entries: List<WeightEntry>,
     val skippedRows: Int,
-    val problems: List<String>,
+    val problems: List<RowProblem>,
 )
+
+/**
+ * A row the importer could not use.
+ *
+ * Kept as what went wrong rather than a sentence about it, so the screen can say it in the
+ * reader's language. The importer has no Context and no business holding English.
+ */
+data class RowProblem(val row: Int, val field: Field, val value: String) {
+    enum class Field { WEIGHT, DATE }
+}
 
 /**
  * Reads a weight log exported by another app.
@@ -178,7 +188,7 @@ object WeightCsvImporter {
         zone: ZoneId = ZoneId.systemDefault(),
     ): ImportResult {
         val entries = ArrayList<WeightEntry>()
-        val problems = ArrayList<String>()
+        val problems = ArrayList<RowProblem>()
         var skipped = 0
 
         table.rows.forEachIndexed { index, row ->
@@ -191,14 +201,18 @@ object WeightCsvImporter {
             val weightValue = parseNumber(rawWeight)
             if (weightValue == null || weightValue <= 0) {
                 skipped++
-                if (problems.size < 5) problems += "Row ${index + 2}: could not read the weight \"$rawWeight\""
+                if (problems.size < 5) {
+                    problems += RowProblem(index + 2, RowProblem.Field.WEIGHT, rawWeight)
+                }
                 return@forEachIndexed
             }
             val rawTime = mapping.timeIndex?.let { table.value(row, it) }
             val dateTime = parseDateTime(rawDate, rawTime, mapping.dayFirstDates, zone)
             if (dateTime == null) {
                 skipped++
-                if (problems.size < 5) problems += "Row ${index + 2}: could not read the date \"$rawDate\""
+                if (problems.size < 5) {
+                    problems += RowProblem(index + 2, RowProblem.Field.DATE, rawDate)
+                }
                 return@forEachIndexed
             }
 

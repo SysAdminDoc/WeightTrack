@@ -84,7 +84,7 @@ The bundled offline food list is committed, so a normal build needs no network. 
 
 Every word the app shows lives in `app/src/main/res/values/strings.xml`. To add a language, copy that file to `values-<code>/strings.xml` and translate the values, leaving the names alone. Placeholders like `%1$s` have to stay, and they can move within a sentence if that reads better in your language, which is the reason whole sentences are kept in one string rather than glued together in code.
 
-A test walks the screens and fails the build if anybody adds text that cannot be translated, so the English file stays the complete list rather than drifting out of date. Debug builds carry Android's pseudo-languages: switch the app to "Accented English" in its language settings and anything still written in the source stands out as plain text among the decorated words.
+A test reads every Kotlin file in the app and fails the build if anybody adds text that cannot be translated, so the English file stays the complete list rather than drifting out of date. It covers the widgets and the notifications as well as the screens, and it catches a sentence put into a variable before it is shown. Debug builds carry Android's pseudo-languages: switch the app to "Accented English" in its language settings and anything still written in the source stands out as plain text among the decorated words.
 
 Nothing ships in any language but English yet, and no machine translation is used here on purpose. This app tells people things about their own weight and eating, and wording that is almost right is worse than wording in a language they will at least read carefully.
 

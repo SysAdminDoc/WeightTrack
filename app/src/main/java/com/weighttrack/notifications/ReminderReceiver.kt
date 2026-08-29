@@ -87,8 +87,11 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, Notifications.CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(who?.let { "Time to weigh in, $it" } ?: "Time to weigh in")
-            .setContentText("One reading keeps the trend line honest.")
+            .setContentTitle(
+                who?.let { context.getString(R.string.reminder_title_for, it) }
+                    ?: context.getString(R.string.reminder_title),
+            )
+            .setContentText(context.getString(R.string.reminder_body))
             .setAutoCancel(true)
             .setContentIntent(openApp)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -129,8 +132,8 @@ class ReminderReceiver : BroadcastReceiver() {
             ) return false
             val notification = NotificationCompat.Builder(context, Notifications.CHANNEL_REMINDERS)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Reminders are working")
-                .setContentText("This is what your weigh-in reminder will look like.")
+                .setContentTitle(context.getString(R.string.reminder_test_title))
+                .setContentText(context.getString(R.string.reminder_test_body))
                 .setAutoCancel(true)
                 .build()
             return runCatching {
