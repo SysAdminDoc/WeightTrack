@@ -1,9 +1,11 @@
 package com.weighttrack.diagnostics
 
 import android.os.Build
+import android.os.Process
 import com.weighttrack.BuildConfig
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.system.exitProcess
 
 /**
  * Catches whatever killed the app and leaves a report behind.
@@ -29,7 +31,16 @@ class CrashReporter @Inject constructor(
             // misleading exception and could stop the system handler from ever running,
             // leaving the app frozen instead of closing.
             runCatching { store.write(throwable, thread.name, buildInfo()) }
-            previousHandler?.uncaughtException(thread, throwable)
+            val previous = previousHandler
+            if (previous != null) {
+                previous.uncaughtException(thread, throwable)
+            } else {
+                // Android always installs one, but if it ever did not, returning here would
+                // leave the process alive with a dead main thread: a frozen black screen
+                // instead of an app that closes.
+                Process.killProcess(Process.myPid())
+                exitProcess(EXIT_CRASH)
+            }
         }
     }
 
@@ -37,5 +48,10 @@ class CrashReporter @Inject constructor(
         appendLine("App: WeightTrack ${BuildConfig.VERSION_NAME} (${BuildConfig.BUILD_TYPE}, ${BuildConfig.FLAVOR})")
         appendLine("Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
         append("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+    }
+
+    private companion object {
+        /** Any non-zero status; the process is being torn down after an unhandled crash. */
+        const val EXIT_CRASH = 10
     }
 }

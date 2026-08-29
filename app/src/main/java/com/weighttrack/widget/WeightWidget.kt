@@ -23,6 +23,7 @@ import androidx.glance.text.TextStyle
 import androidx.glance.action.actionStartActivity
 import com.weighttrack.MainActivity
 import com.weighttrack.core.math.TrendEngine
+import com.weighttrack.core.math.TrendSeries
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
@@ -49,12 +50,40 @@ interface WidgetEntryPoint {
     fun settingsRepository(): SettingsRepository
 }
 
-private data class WidgetData(
+internal data class WidgetData(
     val trendGrams: Int?,
     val unit: WeightUnit,
     val weekChangeGrams: Double?,
     val lastLogged: LocalDate?,
+    /** True when the app lock is on, in which case the widget shows nothing readable. */
+    val hidden: Boolean = false,
 )
+
+/**
+ * Decides what the widget may show.
+ *
+ * Separated from the Android plumbing so the one rule that matters can be tested: with the app
+ * lock on, a widget that still printed the trend weight would put on the home screen exactly
+ * what the lock exists to hide.
+ */
+internal fun buildWidgetData(
+    appLockEnabled: Boolean,
+    unit: WeightUnit,
+    series: TrendSeries?,
+): WidgetData {
+    if (appLockEnabled) {
+        return WidgetData(trendGrams = null, unit = unit, weekChangeGrams = null, lastLogged = null, hidden = true)
+    }
+    if (series == null) {
+        return WidgetData(trendGrams = null, unit = unit, weekChangeGrams = null, lastLogged = null)
+    }
+    return WidgetData(
+        trendGrams = series.latestTrendGrams?.roundToInt(),
+        unit = unit,
+        weekChangeGrams = series.changeOverDays(7),
+        lastLogged = series.lastMeasured?.date,
+    )
+}
 
 class WeightWidget : GlanceAppWidget() {
 
@@ -74,16 +103,8 @@ class WeightWidget : GlanceAppWidget() {
         )
         val settings = entryPoint.settingsRepository().settings.first()
         val daily = entryPoint.weightRepository().observeDailyWeights().first()
-        if (daily.isEmpty()) {
-            return WidgetData(null, settings.weightUnit, null, null)
-        }
-        val series = TrendEngine.computeSeries(daily, settings.trendWindowDays)
-        return WidgetData(
-            trendGrams = series.latestTrendGrams?.roundToInt(),
-            unit = settings.weightUnit,
-            weekChangeGrams = series.changeOverDays(7),
-            lastLogged = series.lastMeasured?.date,
-        )
+        val series = if (daily.isEmpty()) null else TrendEngine.computeSeries(daily, settings.trendWindowDays)
+        return buildWidgetData(settings.appLockEnabled, settings.weightUnit, series)
     }
 
     companion object {
@@ -113,6 +134,22 @@ private fun WidgetContent(data: WidgetData) {
             ),
         )
         Spacer(GlanceModifier.height(2.dp))
+
+        if (data.hidden) {
+            Text(
+                text = "Locked",
+                style = TextStyle(
+                    color = GlanceTheme.colors.onSurface,
+                    fontSize = 18.sp,
+                    fontWeight = FontWeight.Medium,
+                ),
+            )
+            Text(
+                text = "Open WeightTrack",
+                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
+            )
+            return@Column
+        }
 
         if (data.trendGrams == null) {
             Text(

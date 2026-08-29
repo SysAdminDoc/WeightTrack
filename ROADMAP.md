@@ -86,20 +86,6 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 ## Phase 2: v0.3.x, hardware and habits
 
-### P0 defects found by review of the app lock and crash reports
-
-- [ ] Enabling the app lock toggle immediately throws up the lock screen, because `locked` starts true and nothing clears it while the feature is off. Turning it on mid-session must not lock the person out of the screen they are standing on.
-- [ ] There is no escape hatch: the toggle lives behind the lock, so if the device screen lock is removed after enabling, authentication can never succeed and the history is unreachable. Do not gate the app when `AppLockSupport.availability` is not AVAILABLE.
-- [ ] The home screen widget shows trend weight, weekly change and last weigh-in date regardless of the app lock, so the data the lock hides is on the home screen anyway.
-- [ ] No FLAG_SECURE while the app lock is on, so the recents switcher keeps a thumbnail of the unlocked screen.
-- [ ] Rotation and other configuration changes fire ON_STOP, so the app re-locks and re-prompts on every rotate. Skip the lock when the activity is only changing configuration.
-- [ ] After a cancelled prompt, leaving and returning does not prompt again: `locked` never changes so the LaunchedEffect key does not change.
-- [ ] Settings caches biometric availability for the life of the composition, so setting a device screen lock and coming back still shows "no screen lock". Refresh it on resume.
-- [ ] The crash report count in Settings goes stale after clearing reports, because it is only read in the view model's init.
-- [ ] Tapping a crash report whose file has gone does nothing at all and leaves the selection set.
-- [ ] Two crashes in the same millisecond overwrite each other, since the filename is only the epoch millisecond.
-- [ ] If there was no previous uncaught exception handler, the reporter swallows the crash and leaves the process frozen instead of letting it die.
-
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync
 - [ ] Progress photos: camera or gallery, side-by-side compare with weight overlay, stored locally, optional app lock
 - [ ] Bluetooth scales, foreground "step on the scale" screen. Order: standard Weight Scale / Body Composition services (0x181D / 0x181B), Xiaomi Mi Scale 2 broadcast decoding (no pairing), then Renpho, Eufy, Beurer/Sanitas re-implemented from openScale's protocol docs. Auto-assign to a profile by weight range.

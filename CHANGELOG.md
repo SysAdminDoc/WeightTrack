@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- App lock hardening after a review pass. Turning the lock on no longer throws the lock screen up in your face while you are still in Settings. Rotating the phone no longer asks for your fingerprint again. The window is marked secure, so the unlocked screen stays out of the recents switcher and out of screenshots. The home screen widget now hides your weight while the lock is on, instead of showing on the home screen exactly what the lock was hiding. And if the device screen lock is ever removed, WeightTrack opens normally rather than locking you out of your own history for good.
+- Crash reports no longer overwrite each other when two crashes land in the same millisecond, the count in Settings refreshes after you clear them, and a report whose file has gone says so instead of ignoring the tap.
 - Water tracking. A screen with today's total against a target you pick, one big button for a serving, quick amounts for a glass or a bottle, a per-day history you can correct, and the last fortnight at a glance. There is a home screen widget that adds a serving with one tap without opening the app, and each drink is written to Health Connect as a hydration record. Millilitres or fluid ounces, following the weight unit you already chose.
 - Upgrading keeps everything. The new water table arrives through a proper database migration rather than a reset, verified against a real version 1 database.
 - App lock. Turn it on in Settings and WeightTrack asks for your fingerprint, face or screen lock every time you come back to it. The lock screen shows nothing but a padlock, so a phone left on a desk gives away no readings. Devices with no screen lock set say so instead of offering a toggle that could not work.

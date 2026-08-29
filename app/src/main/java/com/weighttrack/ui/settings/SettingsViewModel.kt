@@ -78,6 +78,15 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Re-reads everything that can change while the screen sits in the background: the crash
+     * count after someone clears it, and whether the device has gained or lost a screen lock.
+     */
+    fun onScreenResumed() {
+        refreshCrashReportCount()
+        refreshHealthConnect()
+    }
+
     fun consumeMessage() {
         _message.value = null
     }

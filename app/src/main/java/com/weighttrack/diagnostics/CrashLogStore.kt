@@ -62,11 +62,20 @@ class CrashLogStore(private val directory: File) {
             append(stackTraceOf(throwable))
         }
         // Epoch millis keeps filename order and chronological order the same, which is what
-        // lets listing avoid opening every file just to sort them.
-        val file = File(directory, "$FILE_PREFIX${timestamp.toEpochMilli()}$FILE_SUFFIX")
+        // lets listing avoid opening every file just to sort them. Two crashes inside the same
+        // millisecond, or a clock that stepped backwards, would collide on the name and the
+        // second write would silently replace the first, so the next free slot is taken
+        // instead. Moving forward rather than adding a suffix keeps the name parseable and
+        // the ordering honest.
+        var millis = timestamp.toEpochMilli()
+        var file = File(directory, "$FILE_PREFIX$millis$FILE_SUFFIX")
+        while (file.exists()) {
+            millis++
+            file = File(directory, "$FILE_PREFIX$millis$FILE_SUFFIX")
+        }
         file.writeText(body)
         prune()
-        CrashReport(file.name, timestamp, summarise(throwable))
+        CrashReport(file.name, Instant.ofEpochMilli(millis), summarise(throwable))
     }.getOrNull()
 
     /** Newest first. Files that are not reports, or whose names carry no timestamp, are ignored. */

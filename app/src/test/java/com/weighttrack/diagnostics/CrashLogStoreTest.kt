@@ -107,6 +107,39 @@ class CrashLogStoreTest {
     }
 
     @Test
+    fun `two crashes in the same millisecond both survive`() {
+        // A crash loop can fire several times inside one millisecond. Sharing a filename would
+        // mean the second write silently replaced the first, losing the earlier report.
+        val moment = Instant.ofEpochMilli(1_700_000_000_000)
+        val first = store.write(boom("first"), "main", buildInfo, moment)!!
+        val second = store.write(boom("second"), "main", buildInfo, moment)!!
+        val third = store.write(boom("third"), "main", buildInfo, moment)!!
+
+        assertThat(setOf(first.id, second.id, third.id)).hasSize(3)
+        assertThat(store.count()).isEqualTo(3)
+        assertThat(store.list().map { it.summary }).containsExactly(
+            "java.lang.IllegalStateException: first",
+            "java.lang.IllegalStateException: second",
+            "java.lang.IllegalStateException: third",
+        )
+        // Every report must still be readable through the id it was reported under.
+        assertThat(store.read(first.id)).contains("first")
+        assertThat(store.read(second.id)).contains("second")
+        assertThat(store.read(third.id)).contains("third")
+    }
+
+    @Test
+    fun `a clock that steps backwards does not overwrite a newer report`() {
+        val later = store.write(boom("later"), "main", buildInfo, Instant.ofEpochMilli(5_000))!!
+        // The device clock corrects backwards onto an occupied slot.
+        val earlier = store.write(boom("earlier"), "main", buildInfo, Instant.ofEpochMilli(5_000))!!
+
+        assertThat(earlier.id).isNotEqualTo(later.id)
+        assertThat(store.count()).isEqualTo(2)
+        assertThat(store.read(later.id)).contains("later")
+    }
+
+    @Test
     fun `deleting one report leaves the rest`() {
         val first = store.write(boom("first"), "main", buildInfo, Instant.ofEpochMilli(1_000))!!
         store.write(boom("second"), "main", buildInfo, Instant.ofEpochMilli(2_000))

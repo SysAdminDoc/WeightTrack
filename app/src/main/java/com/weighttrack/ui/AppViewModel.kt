@@ -9,7 +9,11 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /** App-wide settings, held above the navigation graph because the theme depends on them. */
@@ -38,6 +42,31 @@ class AppViewModel @Inject constructor(
     private val _lockError = MutableStateFlow<String?>(null)
     val lockError: StateFlow<String?> = _lockError.asStateFlow()
 
+    /**
+     * Changes every time the app is re-locked, so the screen can prompt again.
+     *
+     * Without it, someone who dismisses the prompt once is left on a lock screen that never
+     * asks again, because `locked` was already true and nothing observable changed.
+     */
+    private val _promptRequest = MutableStateFlow(0)
+    val promptRequest: StateFlow<Int> = _promptRequest.asStateFlow()
+
+    init {
+        viewModelScope.launch {
+            var previouslyEnabled: Boolean? = null
+            settings.filterNotNull()
+                .map { it.appLockEnabled }
+                .distinctUntilChanged()
+                .collect { enabled ->
+                    // Switching the lock on from inside the app must not immediately throw up
+                    // the lock screen: the person is demonstrably right there. Only a later
+                    // trip to the background should ask them to authenticate.
+                    if (previouslyEnabled == false && enabled) unlock()
+                    previouslyEnabled = enabled
+                }
+        }
+    }
+
     fun unlock() {
         _lockError.value = null
         _locked.value = false
@@ -45,6 +74,7 @@ class AppViewModel @Inject constructor(
 
     fun lock() {
         _locked.value = true
+        _promptRequest.value += 1
     }
 
     fun onUnlockFailed(message: String?) {

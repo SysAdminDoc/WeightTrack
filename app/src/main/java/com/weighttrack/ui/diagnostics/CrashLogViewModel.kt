@@ -43,6 +43,14 @@ class CrashLogViewModel @Inject constructor(
     fun open(report: CrashReport) {
         viewModelScope.launch {
             val body = withContext(Dispatchers.IO) { store.read(report.id) }
+            if (body == null) {
+                // The file went while the list was on screen, most likely pruned by a later
+                // crash. Silently doing nothing looks like a broken tap, so the list is
+                // refreshed instead and the row disappears.
+                _state.update { it.copy(openReportId = null, openReportBody = null) }
+                refresh()
+                return@launch
+            }
             _state.update { it.copy(openReportId = report.id, openReportBody = body) }
         }
     }

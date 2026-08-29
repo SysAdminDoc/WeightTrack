@@ -34,6 +34,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -46,6 +47,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.Lifecycle
 import com.weighttrack.BuildConfig
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.math.UnitConverter
@@ -81,6 +85,17 @@ fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    // Someone can set a screen lock, or clear crash reports, and come straight back here while
+    // this composition is still alive. Without a resume hook the screen keeps showing stale
+    // answers to both questions.
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.onScreenResumed()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     var showReminderTime by remember { mutableStateOf(false) }
     var heightText by remember(settings.profile.heightMm, settings.lengthUnit) {
         mutableStateOf(
@@ -362,9 +377,7 @@ fun SettingsScreen(
         }
 
         item {
-            val lockAvailability = remember(context) {
-                AppLockSupport.availability(BiometricManager.from(context))
-            }
+            val lockAvailability = AppLockSupport.availability(BiometricManager.from(context))
             SettingsSection {
                 SectionHeading("Privacy")
                 Spacer(Modifier.height(4.dp))
