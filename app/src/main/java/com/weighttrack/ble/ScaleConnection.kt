@@ -1,6 +1,7 @@
 package com.weighttrack.ble
 
 import android.Manifest
+import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
@@ -17,6 +18,8 @@ import androidx.core.content.ContextCompat
 import com.weighttrack.core.scale.AssembledReading
 import com.weighttrack.core.scale.BodyCompositionAssembler
 import com.weighttrack.core.scale.StandardScaleParser
+import com.weighttrack.core.scale.VendorScaleProtocol
+import com.weighttrack.core.scale.VendorScales
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.trySendBlocking
@@ -32,6 +35,9 @@ sealed interface ScaleConnectionEvent {
     /** A reading, which may be a better version of the one just before it. */
     data class Measured(val assembled: AssembledReading) : ScaleConnectionEvent
 
+    /** A weight still moving about, worth showing and not worth storing. */
+    data class Live(val grams: Int) : ScaleConnectionEvent
+
     data class Failed(val reason: ScaleProblem) : ScaleConnectionEvent
 }
 
@@ -43,14 +49,18 @@ sealed interface ScaleConnectionEvent {
  * looks connected and then says nothing.
  */
 interface ScaleConnection {
-    fun connect(address: String): Flow<ScaleConnectionEvent>
+    fun connect(device: ScaleDevice): Flow<ScaleConnectionEvent>
 }
 
 @Singleton
 class BluetoothScaleConnection @Inject constructor(
     @param:ApplicationContext private val context: Context,
 ) : ScaleConnection {
-    override fun connect(address: String): Flow<ScaleConnectionEvent> = callbackFlow {
+    override fun connect(device: ScaleDevice): Flow<ScaleConnectionEvent> = callbackFlow {
+        val address = device.address
+        // A fresh state machine per connection. These hold half-assembled frames, so reusing
+        // one across connections would splice two weigh-ins together.
+        val vendor: VendorScaleProtocol? = VendorScales.forName(device.name)
         if (!hasConnectPermission()) {
             trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.PERMISSION_MISSING))
             close()
@@ -63,8 +73,8 @@ class BluetoothScaleConnection @Inject constructor(
             close()
             return@callbackFlow
         }
-        val device = runCatching { adapter.getRemoteDevice(address) }.getOrNull()
-        if (device == null) {
+        val remote = runCatching { adapter.getRemoteDevice(address) }.getOrNull()
+        if (remote == null) {
             trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))
             close()
             return@callbackFlow
@@ -75,6 +85,10 @@ class BluetoothScaleConnection @Inject constructor(
         // indication: the stack runs one descriptor write at a time.
         val pending = ArrayDeque<BluetoothGattCharacteristic>()
         val subscribed = mutableSetOf<UUID>()
+        val writes = ArrayDeque<ByteArray>()
+        var writeTarget: BluetoothGattCharacteristic? = null
+        var writeInFlight = false
+        var gattRef: BluetoothGatt? = null
 
         val callback = object : BluetoothGattCallback() {
             override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
@@ -102,11 +116,19 @@ class BluetoothScaleConnection @Inject constructor(
 
             override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                 pending.clear()
-                listOf(
-                    WEIGHT_SCALE_SERVICE to WEIGHT_MEASUREMENT,
-                    BODY_COMPOSITION_SERVICE to BODY_COMPOSITION_MEASUREMENT,
-                ).forEach { (service, characteristic) ->
+                val wanted = if (vendor != null) {
+                    listOf(vendor.serviceUuid to vendor.notifyUuid)
+                } else {
+                    listOf(
+                        WEIGHT_SCALE_SERVICE to WEIGHT_MEASUREMENT,
+                        BODY_COMPOSITION_SERVICE to BODY_COMPOSITION_MEASUREMENT,
+                    )
+                }
+                wanted.forEach { (service, characteristic) ->
                     gatt.getService(service)?.getCharacteristic(characteristic)?.let(pending::add)
+                }
+                writeTarget = vendor?.let {
+                    gatt.getService(it.serviceUuid)?.getCharacteristic(it.writeUuid)
                 }
                 if (pending.isEmpty()) {
                     trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))
@@ -148,6 +170,19 @@ class BluetoothScaleConnection @Inject constructor(
 
             private fun deliver(uuid: UUID, value: ByteArray) {
                 val now = SystemClock.elapsedRealtime()
+                if (vendor != null) {
+                    val step = vendor.onNotification(value, System.currentTimeMillis())
+                    step.liveGrams?.let { trySendBlocking(ScaleConnectionEvent.Live(it)) }
+                    step.readings.forEach {
+                        trySendBlocking(
+                            ScaleConnectionEvent.Measured(
+                                AssembledReading(it, revisesPrevious = false),
+                            ),
+                        )
+                    }
+                    step.writes.forEach(::enqueueWrite)
+                    return
+                }
                 val readings = when (uuid) {
                     WEIGHT_MEASUREMENT ->
                         StandardScaleParser.parseWeightMeasurement(value)
@@ -204,11 +239,68 @@ class BluetoothScaleConnection @Inject constructor(
                 if (subscribed.isEmpty()) {
                     trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))
                     close()
+                    return
+                }
+                // Everything is listening, so the opening frames can go out.
+                vendor?.onConnected(System.currentTimeMillis())?.forEach(::enqueueWrite)
+            }
+
+            override fun onCharacteristicWrite(
+                gatt: BluetoothGatt,
+                characteristic: BluetoothGattCharacteristic,
+                status: Int,
+            ) {
+                writeInFlight = false
+                drainWrites()
+            }
+
+            /**
+             * Vendor protocols answer a frame with another frame.
+             *
+             * Queued because the stack carries one write at a time, exactly like the descriptor
+             * writes above; firing them together loses all but the first.
+             */
+            private fun enqueueWrite(bytes: ByteArray) {
+                writes.add(bytes)
+                drainWrites()
+            }
+
+            private fun drainWrites() {
+                if (writeInFlight) return
+                val target = writeTarget ?: return
+                val next = writes.removeFirstOrNull() ?: return
+                if (
+                    ContextCompat.checkSelfPermission(
+                        context,
+                        Manifest.permission.BLUETOOTH_CONNECT,
+                    ) != PackageManager.PERMISSION_GRANTED
+                ) {
+                    return
+                }
+                val gatt = gattRef ?: return
+                writeInFlight = true
+                val sent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                    gatt.writeCharacteristic(
+                        target,
+                        next,
+                        BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT,
+                    ) == BluetoothStatusCodes.SUCCESS
+                } else {
+                    @Suppress("DEPRECATION")
+                    target.value = next
+                    @Suppress("DEPRECATION")
+                    gatt.writeCharacteristic(target)
+                }
+                if (!sent) {
+                    writeInFlight = false
                 }
             }
         }
 
-        val gatt = device.connectGatt(context, false, callback)
+        // The transport is named rather than left to the stack to guess: a scale is low energy
+        // only, and letting it choose can land on the classic transport and never connect.
+        val gatt = remote.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
+        gattRef = gatt
         if (gatt == null) {
             // Nothing will ever call back, so the screen would wait forever.
             trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.CONNECTION_LOST))

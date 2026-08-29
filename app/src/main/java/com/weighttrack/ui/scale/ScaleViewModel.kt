@@ -146,7 +146,7 @@ class ScaleViewModel @Inject constructor(
                     }
                 }
                 if (
-                    event.device.kind == ScaleKind.STANDARD_SERVICE &&
+                    event.device.kind != ScaleKind.BROADCAST &&
                     event.device.address == rememberedAddress &&
                     _state.value.connectedTo == null
                 ) {
@@ -183,9 +183,12 @@ class ScaleViewModel @Inject constructor(
             it.copy(stage = ScaleStage.WAITING_FOR_WEIGHT, connectedTo = device, problem = null)
         }
         connectJob = viewModelScope.launch {
-            connection.connect(device.address).collect { event ->
+            connection.connect(device).collect { event ->
                 when (event) {
                     is ScaleConnectionEvent.Connected -> Unit
+                    is ScaleConnectionEvent.Live -> _state.update {
+                        if (it.reading == null) it.copy(liveGrams = event.grams) else it
+                    }
                     is ScaleConnectionEvent.Measured -> onReading(event.assembled, device)
                     is ScaleConnectionEvent.Failed -> {
                         // A reading already in hand outlives the connection dropping: the scale

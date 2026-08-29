@@ -14,6 +14,7 @@ import android.os.ParcelUuid
 import androidx.core.content.ContextCompat
 import com.weighttrack.core.scale.MiScaleParser
 import com.weighttrack.core.scale.ScaleBroadcast
+import com.weighttrack.core.scale.VendorScales
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.trySendBlocking
@@ -39,6 +40,9 @@ enum class ScaleKind {
 
     /** Speaks the standard weight or body composition service over a connection. */
     STANDARD_SERVICE,
+
+    /** Speaks one of the vendor protocols, recognised by the name it advertises. */
+    VENDOR,
 }
 
 sealed interface ScaleScanEvent {
@@ -156,7 +160,14 @@ class BluetoothScaleScanner @Inject constructor(
                         MiScaleParser.parse(short, payload)
                     }
                 }
-                val kind = if (broadcast != null) ScaleKind.BROADCAST else ScaleKind.STANDARD_SERVICE
+                // Matched on the name, not the service: Beurer's diagnostic scales advertise
+                // a vendor service beside the standard ones, and going by service alone would
+                // take a standard-profile scale down a vendor path it does not speak.
+                val kind = when {
+                    broadcast != null -> ScaleKind.BROADCAST
+                    VendorScales.forName(name) != null -> ScaleKind.VENDOR
+                    else -> ScaleKind.STANDARD_SERVICE
+                }
                 val device = ScaleDevice(result.device.address, name, kind)
 
                 // trySend, never trySendBlocking: Android delivers these on the main looper,
@@ -170,7 +181,7 @@ class BluetoothScaleScanner @Inject constructor(
             }
         }
 
-        val filters = SERVICE_UUIDS.map { (_, uuid) ->
+        val filters = VendorScales.serviceUuids.map { uuid ->
             ScanFilter.Builder().setServiceUuid(ParcelUuid(uuid)).build()
         }
         val settings = ScanSettings.Builder()

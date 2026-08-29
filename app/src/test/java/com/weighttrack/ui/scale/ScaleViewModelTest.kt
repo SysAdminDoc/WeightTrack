@@ -78,8 +78,8 @@ class ScaleViewModelTest {
     }
 
     private val connection = object : ScaleConnection {
-        override fun connect(address: String): Flow<ScaleConnectionEvent> {
-            connectedAddress = address
+        override fun connect(device: ScaleDevice): Flow<ScaleConnectionEvent> {
+            connectedAddress = device.address
             return connectionEvents
         }
     }
