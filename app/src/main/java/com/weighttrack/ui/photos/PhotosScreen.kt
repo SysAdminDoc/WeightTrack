@@ -1,6 +1,8 @@
 package com.weighttrack.ui.photos
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -9,6 +11,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -39,13 +42,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.weighttrack.core.model.WeightUnit
@@ -55,8 +60,13 @@ import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.format.WeightFormatter
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.io.File
 import java.time.LocalDate
+import kotlin.math.max
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -280,27 +290,77 @@ private fun PhotoTile(
     }
 }
 
-/**
- * Decodes the file straight to a bitmap.
- *
- * No image library: these are a handful of local files, and pulling in a loader to read a file
- * the app already owns would be more moving parts than the feature needs.
- */
 @Composable
 private fun PhotoImage(file: File, modifier: Modifier = Modifier) {
-    val bitmap = remember(file.path, file.lastModified()) {
-        runCatching { android.graphics.BitmapFactory.decodeFile(file.path) }.getOrNull()
+    BoxWithConstraints(modifier) {
+        val density = LocalDensity.current
+        val targetWidth = with(density) { maxWidth.roundToPx() }.coerceAtLeast(1)
+        val targetHeight = with(density) { maxHeight.roundToPx() }.coerceAtLeast(1)
+        val bitmap by produceState<Bitmap?>(
+            initialValue = null,
+            file.path,
+            file.lastModified(),
+            targetWidth,
+            targetHeight,
+        ) {
+            value = decodeSampledBitmap(file, targetWidth, targetHeight)
+        }
+        if (bitmap == null) {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainerHigh))
+        } else {
+            Image(
+                bitmap = bitmap!!.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop,
+            )
+        }
     }
-    if (bitmap == null) {
-        Box(modifier.background(MaterialTheme.colorScheme.surfaceContainerHigh))
-        return
+}
+
+/**
+ * Reads only enough pixels for the rendered box and always does the file work off the caller's
+ * thread. Camera JPEGs routinely decode to tens of megabytes when read at their original size.
+ */
+internal suspend fun decodeSampledBitmap(
+    file: File,
+    requestedWidth: Int,
+    requestedHeight: Int,
+    dispatcher: CoroutineDispatcher = Dispatchers.IO,
+): Bitmap? = withContext(dispatcher) {
+    if (requestedWidth <= 0 || requestedHeight <= 0) return@withContext null
+    if (!file.isFile || file.length() == 0L) return@withContext null
+
+    val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+    BitmapFactory.decodeFile(file.path, bounds)
+    if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@withContext null
+
+    var sampleSize = 1
+    while (
+        bounds.outWidth / (sampleSize * 2) >= requestedWidth &&
+        bounds.outHeight / (sampleSize * 2) >= requestedHeight
+    ) {
+        sampleSize *= 2
     }
-    Image(
-        bitmap = bitmap.asImageBitmap(),
-        contentDescription = null,
-        modifier = modifier,
-        contentScale = ContentScale.Crop,
-    )
+
+    val decoded = runCatching {
+        BitmapFactory.decodeFile(
+            file.path,
+            BitmapFactory.Options().apply { inSampleSize = sampleSize },
+        )
+    }.getOrNull() ?: return@withContext null
+
+    val scale = max(
+        requestedWidth.toFloat() / decoded.width,
+        requestedHeight.toFloat() / decoded.height,
+    ).coerceAtMost(1f)
+    val outputWidth = (decoded.width * scale).roundToInt().coerceAtLeast(1)
+    val outputHeight = (decoded.height * scale).roundToInt().coerceAtLeast(1)
+    if (outputWidth == decoded.width && outputHeight == decoded.height) {
+        decoded
+    } else {
+        Bitmap.createScaledBitmap(decoded, outputWidth, outputHeight, true).also { decoded.recycle() }
+    }
 }
 
 private fun captureUri(context: Context, file: File): android.net.Uri =

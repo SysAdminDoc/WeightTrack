@@ -88,7 +88,6 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 ### P0 defects found by the third review pass (fasting, photos, lock)
 
-- [ ] Progress photos decode full-resolution bitmaps on the composition thread, one per grid tile, with no `inSampleSize`. A 12 MP JPEG is about 48 MB decoded and the visible grid wants 400 MB or more, so tiles silently render as blank grey boxes while the heap sits at its ceiling and something unrelated dies later. Each decode is also 100 to 300 ms of blocked UI thread. Sample the bitmaps down to the tile size and decode off the main thread.
 - [ ] A camera capture is lost if the process dies while the camera app is in front. The target file lives only in an in-memory `MutableStateFlow`, so the restored view model reads null and drops the photo, leaving the JPEG on disk as an orphan that `deleteAll` will never remove. Put it in `SavedStateHandle`. The public `pendingCapture` flow is also dead code, nothing reads it.
 - [ ] `ProgressPhotoRepository.observeAll` has no `flowOn`, so `mkdirs()` and `isFile` run on the main thread for every row on every emission.
 - [ ] A photo imported from the gallery is filed under today with today's weight, ignoring when it was actually taken. The camera path is correct; only the gallery path is wrong against "with a date and the weight at that time". Read the EXIF date, or ask.

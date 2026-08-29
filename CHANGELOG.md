@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Progress photo tiles now decode a display-sized sample in the background instead of expanding every camera image at full resolution on the interface thread.
 - Weekly summaries now verify notification access at the point where Android posts them, and water logging keeps its local-date behavior on every supported Android version.
 - Weekly summary. Pick a day and a time and WeightTrack sends one short note on how the week went, leading with a milestone if you crossed one. In a week with too few readings to say anything honest it stays quiet rather than sending you a notification with nothing in it.
 - Progress photos. Add them from the camera or the gallery, and pick any two to see them side by side with the dates and the weight change between them. Pictures are copied into the app's own storage rather than referenced, so they keep working, they sit behind the app lock, and they are excluded from backup like the rest of your data. Nothing is ever uploaded.
