@@ -36,6 +36,13 @@
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
     <!-- Health Connect. Only the types with a feature behind them are declared. -->
+    <!--
+      Reading further back than the last thirty days. Without it Health Connect answers with a
+      month whatever window is asked for, so somebody arriving with years of scale history would
+      inherit almost none of it and nothing would say why. Refusing it costs the older readings
+      and nothing else.
+    -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_BODY_FAT" />

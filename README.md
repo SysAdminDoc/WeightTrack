@@ -38,7 +38,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Rate of change per week and the daily calorie balance it implies
 - Plateau detection that explains what a plateau actually is
 - Week-by-week change bars, and a weekday pattern that shows whether Mondays always read heavy
-- Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own
+- Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own, bringing your whole history across rather than the last month of it
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
 - Adaptive expenditure: what you actually burn, measured from your own weight and intake rather than a formula, and a calorie target that follows it

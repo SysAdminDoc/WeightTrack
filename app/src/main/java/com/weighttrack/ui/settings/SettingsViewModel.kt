@@ -312,10 +312,10 @@ class SettingsViewModel @Inject constructor(
     fun onHealthConnectPermissionResult(granted: Set<String>) {
         // Weight sync only needs the core set. Treating a declined optional read as a
         // refused connection would report a working sync as unauthorised.
-        val allowed = granted.containsAll(healthConnect.corePermissions)
+        val allowed = granted.containsAll(HealthConnectSync.corePermissions)
         _healthConnectState.value = _healthConnectState.value.copy(
             granted = allowed,
-            grantedEverything = granted.containsAll(healthConnect.permissions),
+            grantedEverything = granted.containsAll(HealthConnectSync.permissions),
         )
         if (allowed) {
             syncHealthConnect()

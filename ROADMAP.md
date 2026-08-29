@@ -98,13 +98,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0 — Declare and request READ_HEALTH_DATA_HISTORY so the first connect imports more than 30 days
-  Why: without it every read is capped to 30 days before the grant, which makes the five-year window above meaningless and is the exact "sync missing days" complaint that sank Libra; ROADMAP line 73 already called for it.
-  Evidence: https://developer.android.com/health-and-fitness/health-connect/get-started ; app/src/main/AndroidManifest.xml (permission absent); https://www.appbrain.com/app/libra-weight-manager/net.cachapa.libra
-  Touches: AndroidManifest.xml, health/HealthConnectSync.kt (`hasEverything`, permission set), ui/settings Health Connect card copy, Play health declaration text in README
-  Acceptance: the permission appears in the Health Connect grant sheet; a device with a 90-day-old reading imports it on first sync; refusing it still syncs the last 30 days.
-  Complexity: S
-
 - [ ] P0 — Ask for ACCESS_LOCAL_NETWORK before a WebDAV sync to a private address on Android 17
   Why: targeting API 37 on Android 17 (released 2026-06-16) makes every socket to a LAN address fail until the runtime permission is granted, so a home Nextcloud or NAS stops syncing with a generic error.
   Evidence: https://developer.android.com/privacy-and-security/local-network-permission ; https://developer.android.com/about/versions/17/behavior-changes-17 ; AndroidManifest.xml (permission absent)

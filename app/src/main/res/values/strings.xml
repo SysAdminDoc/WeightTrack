@@ -329,7 +329,7 @@
     <string name="settings_health_connect_needs_updating_before_weighttrack">Health Connect needs updating before WeightTrack can talk to it.</string>
     <string name="settings_update">Update</string>
     <string name="settings_pulls_readings_in_from_withings_renpho">Pulls readings in from Withings, Renpho, Samsung Health, Fitbit and anything else that writes weight, and sends yours back out. Records are matched on both sides, so nothing is ever imported twice.</string>
-    <string name="settings_meals_drinks_and_steps_are_not">Meals, drinks and steps are not shared yet. They each need their own permission.</string>
+    <string name="settings_meals_drinks_and_steps_are_not">Readings older than a month, meals, drinks and steps are not shared yet. They each need their own permission.</string>
     <string name="settings_allow_the_rest">Allow the rest</string>
     <string name="settings_connect">Connect</string>
     <string name="settings_name">Name</string>

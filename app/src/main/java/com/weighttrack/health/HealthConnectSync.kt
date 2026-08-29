@@ -92,53 +92,7 @@ class HealthConnectSync @Inject constructor(
     private suspend fun syncProfileId(): Long =
         profileRepository.healthConnectId() ?: profileRepository.activeId()
 
-    /**
-     * What weight sync itself needs. Kept separate from the full set so that adding a new
-     * optional permission later cannot make an existing user's working sync report itself as
-     * unauthorised until they re-grant everything.
-     */
-    val corePermissions: Set<String> = setOf(
-        HealthPermission.getReadPermission(WeightRecord::class),
-        HealthPermission.getWritePermission(WeightRecord::class),
-        HealthPermission.getReadPermission(BodyFatRecord::class),
-        HealthPermission.getWritePermission(BodyFatRecord::class),
-        HealthPermission.getReadPermission(HeightRecord::class),
-    )
-
-    /** Writing water. Refusing it costs the hydration records and nothing else. */
-    val hydrationPermissions: Set<String> = setOf(
-        HealthPermission.getWritePermission(HydrationRecord::class),
-    )
-
-    /**
-     * Writing food. Refusing it costs the nutrition records and nothing else.
-     *
-     * Only write. Reading other apps' meals back would double every day for anybody who logs in
-     * two places, and there is no way to tell a duplicate from a second helping.
-     */
-    val nutritionPermissions: Set<String> = setOf(
-        HealthPermission.getWritePermission(NutritionRecord::class),
-    )
-
-    /** Read-only extras. Nothing breaks when these are refused. */
-    val activityPermissions: Set<String> = setOf(
-        HealthPermission.getReadPermission(StepsRecord::class),
-        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
-    )
-
-    /**
-     * Sleep, read only, and its own grant.
-     *
-     * Asked for separately because plenty of people are happy to share step counts and not the
-     * hours they were in bed. Refusing it costs one card and nothing else.
-     */
-    val sleepPermissions: Set<String> = setOf(
-        HealthPermission.getReadPermission(SleepSessionRecord::class),
-    )
-
-    val permissions: Set<String> =
-        corePermissions + hydrationPermissions + nutritionPermissions + activityPermissions +
-            sleepPermissions
+    suspend fun hasHistoryPermission(): Boolean = hasGranted(historyPermissions)
 
     suspend fun hasNutritionPermission(): Boolean = runCatching {
         clientOrNull()?.permissionController?.getGrantedPermissions()
@@ -502,6 +456,69 @@ class HealthConnectSync @Inject constructor(
     }
 
     companion object {
+
+    /**
+     * What weight sync itself needs. Kept separate from the full set so that adding a new
+     * optional permission later cannot make an existing user's working sync report itself as
+     * unauthorised until they re-grant everything.
+     */
+    val corePermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(WeightRecord::class),
+        HealthPermission.getWritePermission(WeightRecord::class),
+        HealthPermission.getReadPermission(BodyFatRecord::class),
+        HealthPermission.getWritePermission(BodyFatRecord::class),
+        HealthPermission.getReadPermission(HeightRecord::class),
+    )
+
+    /** Writing water. Refusing it costs the hydration records and nothing else. */
+    val hydrationPermissions: Set<String> = setOf(
+        HealthPermission.getWritePermission(HydrationRecord::class),
+    )
+
+    /**
+     * Writing food. Refusing it costs the nutrition records and nothing else.
+     *
+     * Only write. Reading other apps' meals back would double every day for anybody who logs in
+     * two places, and there is no way to tell a duplicate from a second helping.
+     */
+    val nutritionPermissions: Set<String> = setOf(
+        HealthPermission.getWritePermission(NutritionRecord::class),
+    )
+
+    /** Read-only extras. Nothing breaks when these are refused. */
+    val activityPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+    )
+
+    /**
+     * Sleep, read only, and its own grant.
+     *
+     * Asked for separately because plenty of people are happy to share step counts and not the
+     * hours they were in bed. Refusing it costs one card and nothing else.
+     */
+    val sleepPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(SleepSessionRecord::class),
+    )
+
+    /**
+     * Reading further back than the last thirty days.
+     *
+     * Health Connect answers with a month unless this is granted, no matter what window the
+     * query asks for. For somebody arriving with four years of weigh-ins in their scale's app,
+     * a month is nearly all of their history missing, and nothing about the answer says so.
+     *
+     * Deliberately outside [corePermissions]: refusing it leaves weight sync working on the
+     * last thirty days rather than reporting itself as unauthorised.
+     */
+    val historyPermissions: Set<String> = setOf(
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
+    )
+
+    val permissions: Set<String> =
+        corePermissions + historyPermissions + hydrationPermissions + nutritionPermissions +
+            activityPermissions + sleepPermissions
+
         private const val BATCH_SIZE = 200
 
         /** Shorter than this is a nap, and a nap is not a night's sleep. */

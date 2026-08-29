@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Connecting Health Connect now asks to read further back than the last month. Health Connect holds every read to thirty days unless an app asks for more, so the years of weigh-ins sitting in somebody's scale app were never going to arrive however far back the app looked. Refusing it leaves weight syncing exactly as it was, on the last thirty days. Anybody who connected before this existed gets the offer under "Allow the rest".
 - Reading your history out of Health Connect no longer stops after the first thousand readings. Health Connect answers a query one page at a time, and the app was reading the first page and treating it as the lot, so somebody arriving with years of weigh-ins in their scale's app got a few of them and no sign the rest existed. Sleep is read the same way and had the same hole.
 
 ## 0.3.0

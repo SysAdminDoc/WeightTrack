@@ -66,6 +66,7 @@ import androidx.biometric.BiometricManager
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.repo.Profile
 import com.weighttrack.health.HealthConnectAvailability
+import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.security.AppLockAvailability
 import com.weighttrack.security.AppLockSupport
 import com.weighttrack.notifications.ReminderReceiver
@@ -498,7 +499,7 @@ fun SettingsScreen(
         item {
             HealthConnectCard(
                 state = healthConnectState,
-                onRequestPermissions = { healthConnectLauncher.launch(viewModel.healthConnect.permissions) },
+                onRequestPermissions = { healthConnectLauncher.launch(HealthConnectSync.permissions) },
                 onSync = viewModel::syncHealthConnect,
                 onInstall = { openHealthConnectListing(context) },
             )
