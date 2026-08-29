@@ -106,12 +106,20 @@ object AdaptiveExpenditure {
 
         val days = windowDays
         val gramsPerDay = slopePerDay(readings) ?: return null
-        val changeKg = gramsPerDay * (days - 1) / 1_000.0
+        val kgPerDay = gramsPerDay / 1_000.0
+        // What the window covers, first reading to last. A span, not a count: fourteen days have
+        // thirteen nights between them. Reported to the person, and never used as the rate.
+        val changeKg = kgPerDay * (days - 1)
         val meanIntake = logged.values.average()
 
         // Eating below what you burn shows up as weight going down, so a fall adds to the
         // estimate and a rise takes away from it.
-        val burned = meanIntake - changeKg * KCAL_PER_KG / days
+        //
+        // The daily rate is used directly here. Working the total change out first and then
+        // dividing it by the number of days puts a factor of (days - 1) / days through the
+        // answer: about seven per cent of the deficit missing on a fortnight, and a different
+        // answer from the same body depending on how long a window it was asked about.
+        val burned = meanIntake - kgPerDay * KCAL_PER_KG
         if (burned <= 0) return null
 
         return Estimate(

@@ -11,14 +11,17 @@ class AdaptiveExpenditureTest {
 
     /** A fortnight of daily weights falling at a steady rate, smoothed the way the app does. */
     private fun series(startGrams: Int, gramsPerDay: Double, days: Int = 14): TrendSeries {
+        val from = today.minusDays(days.toLong() - 1)
         val daily = (0 until days).map { day ->
-            DailyWeight(start.plusDays(day.toLong()), (startGrams + gramsPerDay * day).toInt())
+            DailyWeight(from.plusDays(day.toLong()), (startGrams + gramsPerDay * day).toInt())
         }
         return TrendEngine.computeSeries(daily, TrendEngine.DEFAULT_WINDOW_DAYS)
     }
 
-    private fun intake(kcal: Double, days: Int = 14): Map<LocalDate, Double> =
-        (0 until days).associate { start.plusDays(it.toLong()) to kcal }
+    private fun intake(kcal: Double, days: Int = 14): Map<LocalDate, Double> {
+        val from = today.minusDays(days.toLong() - 1)
+        return (0 until days).associate { from.plusDays(it.toLong()) to kcal }
+    }
 
     @Test
     fun `eating below what you burn shows up as the difference`() {
@@ -30,7 +33,11 @@ class AdaptiveExpenditureTest {
             today = today,
         )!!
 
-        assertThat(estimate.rounded).isWithin(120).of(2_550)
+        // Worked by hand: 71.4 g a day is 0.0714 kg, and 0.0714 x 7700 is 549.8 kcal of deficit.
+        // Eating 2000 means burning 2549.8. Tight on purpose. A loose tolerance here hid a
+        // factor of (days - 1) / days in the arithmetic, which is 39 kcal on a fortnight and
+        // grows with the window.
+        assertThat(estimate.kcalPerDay).isWithin(1.0).of(2_549.8)
         assertThat(estimate.loggedDays).isEqualTo(14)
         assertThat(estimate.meanIntakeKcal).isWithin(1e-9).of(2_000.0)
         assertThat(estimate.trendChangeKg).isLessThan(0.0)
@@ -170,5 +177,51 @@ class AdaptiveExpenditureTest {
                 windowDays = 7,
             ),
         ).isNull()
+    }
+
+    @Test
+    fun `the same body gets the same answer whatever window is asked about`() {
+        // The same rate, the same intake, twice the history. What somebody burns is a fact about
+        // them, not about how far back the app happened to look.
+        val fortnight = AdaptiveExpenditure.estimate(
+            series = series(85_000, -71.4, days = 28),
+            intakeByDate = intake(2_000.0, days = 28),
+            today = today,
+            windowDays = 14,
+        )!!
+        val month = AdaptiveExpenditure.estimate(
+            series = series(85_000, -71.4, days = 28),
+            intakeByDate = intake(2_000.0, days = 28),
+            today = today,
+            windowDays = 28,
+        )!!
+
+        assertThat(fortnight.kcalPerDay).isWithin(1.0).of(month.kcalPerDay)
+    }
+
+    @Test
+    fun `the reported change is the span of the window, not one day more`() {
+        // Fourteen days have thirteen nights between them. Reporting the change over fourteen
+        // would overstate a fortnight's loss by a day's worth every time.
+        val estimate = AdaptiveExpenditure.estimate(
+            series = series(85_000, -100.0),
+            intakeByDate = intake(2_000.0),
+            today = today,
+        )!!
+
+        assertThat(estimate.trendChangeKg).isWithin(0.02).of(-1.3)
+    }
+
+    @Test
+    fun `gaining a known amount reads back as the matching surplus`() {
+        // The other direction, worked by hand the same way: 50 g a day is 385 kcal of surplus,
+        // so somebody eating 2500 burns about 2115.
+        val estimate = AdaptiveExpenditure.estimate(
+            series = series(85_000, 50.0),
+            intakeByDate = intake(2_500.0),
+            today = today,
+        )!!
+
+        assertThat(estimate.kcalPerDay).isWithin(1.0).of(2_115.0)
     }
 }
