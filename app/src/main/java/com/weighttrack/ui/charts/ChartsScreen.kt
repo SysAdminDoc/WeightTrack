@@ -54,10 +54,12 @@ import java.time.format.TextStyle
 import kotlin.math.abs
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.roundToInt
 
 @Composable
 fun ChartsScreen(
     snapshot: ProgressSnapshot,
+    activity: ActivityState,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -146,6 +148,8 @@ fun ChartsScreen(
         if (weekdays.size >= 3) {
             item { WeekdayCard(weekdays, unit) }
         }
+
+        item { ActivityCard(activity) }
 
         item { ConsistencyCard(snapshot) }
     }
@@ -295,6 +299,80 @@ private fun ConsistencyCard(snapshot: ProgressSnapshot) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+/**
+ * Movement alongside the weight, read from Health Connect.
+ *
+ * Days with no record are simply absent rather than drawn as zero, because a day the watch was
+ * on the charger is not a day of no steps, and a chart that says otherwise is worse than no
+ * chart at all.
+ */
+@Composable
+private fun ActivityCard(activity: ActivityState) {
+    SectionCard {
+        SectionHeading("Movement")
+        Spacer(Modifier.height(6.dp))
+        when (activity.status) {
+            ActivityStatus.LOADING -> Text(
+                text = "Checking Health Connect.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ActivityStatus.UNAVAILABLE -> Text(
+                text = "Health Connect is not available on this device, so there are no step or calorie figures to show.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ActivityStatus.NOT_PERMITTED -> Text(
+                text = "Connect Health Connect in Settings and allow steps and active calories, and your movement will show up here against the weight trend.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ActivityStatus.NO_DATA -> Text(
+                text = "Nothing recorded in the last month. Steps come from whatever writes them, usually a watch or your phone.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            ActivityStatus.READY -> {
+                val accent = MaterialTheme.colorScheme.secondary
+                val stepDays = activity.days.filter { it.steps != null }
+                if (stepDays.isNotEmpty()) {
+                    val maximum = max(stepDays.maxOf { it.steps ?: 0L }, 1L)
+                    Canvas(Modifier.fillMaxWidth().height(90.dp)) {
+                        val slot = size.width / stepDays.size
+                        val barWidth = (slot * 0.6f).coerceAtMost(20f)
+                        stepDays.forEachIndexed { index, day ->
+                            val fraction = (day.steps ?: 0L).toFloat() / maximum
+                            val barHeight = (fraction * size.height).coerceAtLeast(2f)
+                            drawRoundRect(
+                                color = accent,
+                                topLeft = Offset(
+                                    index * slot + (slot - barWidth) / 2f,
+                                    size.height - barHeight,
+                                ),
+                                size = Size(barWidth, barHeight),
+                                cornerRadius = CornerRadius(3f, 3f),
+                            )
+                        }
+                    }
+                    Spacer(Modifier.height(8.dp))
+                }
+                activity.averageSteps?.let {
+                    LabelledValue("Average steps", "%,d a day".format(it))
+                }
+                activity.averageActiveKilocalories?.let {
+                    LabelledValue("Active calories", "${it.roundToInt()} a day")
+                }
+                LabelledValue("Days recorded", activity.days.size.toString())
+                Text(
+                    text = "Shown for context beside the trend. Steps are one input to the weight, not a cause of it.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }

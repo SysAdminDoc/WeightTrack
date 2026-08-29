@@ -4,12 +4,15 @@ import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
+import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
+import androidx.health.connect.client.records.StepsRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
+import androidx.health.connect.client.request.AggregateGroupByPeriodRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Mass
@@ -24,6 +27,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import java.time.Instant
+import java.time.LocalDate
+import java.time.Period
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
@@ -34,6 +39,13 @@ enum class HealthConnectAvailability {
     UPDATE_REQUIRED,
     NOT_SUPPORTED,
 }
+
+/** One day of movement, as Health Connect reported it. Nulls mean "not recorded". */
+data class DailyActivity(
+    val date: LocalDate,
+    val steps: Long?,
+    val activeKilocalories: Double?,
+)
 
 data class HealthConnectSyncResult(
     val imported: Int,
@@ -56,7 +68,12 @@ class HealthConnectSync @Inject constructor(
     private val settingsRepository: SettingsRepository,
 ) {
 
-    val permissions: Set<String> = setOf(
+    /**
+     * What weight sync itself needs. Kept separate from the full set so that adding a new
+     * optional permission later cannot make an existing user's working sync report itself as
+     * unauthorised until they re-grant everything.
+     */
+    val corePermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getWritePermission(WeightRecord::class),
         HealthPermission.getReadPermission(BodyFatRecord::class),
@@ -64,6 +81,14 @@ class HealthConnectSync @Inject constructor(
         HealthPermission.getReadPermission(HeightRecord::class),
         HealthPermission.getWritePermission(HydrationRecord::class),
     )
+
+    /** Read-only extras. Nothing breaks when these are refused. */
+    val activityPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(StepsRecord::class),
+        HealthPermission.getReadPermission(ActiveCaloriesBurnedRecord::class),
+    )
+
+    val permissions: Set<String> = corePermissions + activityPermissions
 
     fun availability(): HealthConnectAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
@@ -82,11 +107,51 @@ class HealthConnectSync @Inject constructor(
 
     fun permissionContract() = PermissionController.createRequestPermissionResultContract()
 
-    suspend fun hasPermissions(): Boolean {
+    suspend fun hasPermissions(): Boolean = hasGranted(corePermissions)
+
+    suspend fun hasActivityPermissions(): Boolean = hasGranted(activityPermissions)
+
+    private suspend fun hasGranted(required: Set<String>): Boolean {
         val client = clientOrNull() ?: return false
         return runCatching {
-            client.permissionController.getGrantedPermissions().containsAll(permissions)
+            client.permissionController.getGrantedPermissions().containsAll(required)
         }.getOrDefault(false)
+    }
+
+    /**
+     * Daily steps and active calories, so movement can be read against the weight trend.
+     *
+     * Days with no record are left out rather than reported as zero: "you did not wear the
+     * watch" and "you did not move" are different things, and showing the second when the
+     * first happened makes the whole card a lie.
+     */
+    suspend fun readDailyActivity(days: Long = 30): List<DailyActivity> = withContext(Dispatchers.IO) {
+        runCatching {
+            val client = clientOrNull() ?: return@runCatching emptyList()
+            if (!hasActivityPermissions()) return@runCatching emptyList()
+            val end = LocalDate.now().plusDays(1).atStartOfDay()
+            val start = end.minusDays(days)
+            client.aggregateGroupByPeriod(
+                AggregateGroupByPeriodRequest(
+                    metrics = setOf(
+                        StepsRecord.COUNT_TOTAL,
+                        ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL,
+                    ),
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    timeRangeSlicer = Period.ofDays(1),
+                ),
+            ).mapNotNull { bucket ->
+                val steps = bucket.result[StepsRecord.COUNT_TOTAL]
+                val kcal = bucket.result[ActiveCaloriesBurnedRecord.ACTIVE_CALORIES_TOTAL]
+                    ?.inKilocalories
+                if (steps == null && kcal == null) return@mapNotNull null
+                DailyActivity(
+                    date = bucket.startTime.toLocalDate(),
+                    steps = steps,
+                    activeKilocalories = kcal,
+                )
+            }
+        }.getOrDefault(emptyList())
     }
 
     /**

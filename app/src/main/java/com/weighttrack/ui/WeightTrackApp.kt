@@ -40,6 +40,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.weighttrack.ui.charts.ChartsScreen
+import com.weighttrack.ui.charts.ChartsViewModel
 import com.weighttrack.ui.diagnostics.CrashLogScreen
 import com.weighttrack.ui.diagnostics.CrashLogViewModel
 import com.weighttrack.ui.goal.GoalScreen
@@ -187,9 +188,10 @@ fun WeightTrackApp(
             }
 
             composable(Routes.CHARTS) {
-                val viewModel: HomeViewModel = hiltViewModel()
+                val viewModel: ChartsViewModel = hiltViewModel()
                 val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
-                ChartsScreen(snapshot = snapshot)
+                val activity by viewModel.activity.collectAsStateWithLifecycle()
+                ChartsScreen(snapshot = snapshot, activity = activity)
             }
 
             composable(Routes.HISTORY) {
