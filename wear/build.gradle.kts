@@ -98,6 +98,11 @@ dependencies {
     implementation(libs.androidx.wear.compose.material3)
     implementation(libs.androidx.wear.compose.foundation)
 
+    implementation(libs.androidx.wear.tiles)
+    implementation(libs.androidx.wear.protolayout.expression)
+    implementation(libs.androidx.watchface.complications.data.source.ktx)
+    implementation(libs.androidx.concurrent.futures.ktx)
+
     implementation(libs.play.services.wearable)
     implementation(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.datastore.preferences)

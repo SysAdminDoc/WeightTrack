@@ -3,6 +3,7 @@ package com.weighttrack.wear
 import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.WearableListenerService
+import androidx.wear.tiles.TileService
 import com.weighttrack.core.sync.WearSync
 import kotlinx.coroutines.runBlocking
 
@@ -21,5 +22,10 @@ class WearSummaryListenerService : WearableListenerService() {
         }?.dataItem?.data ?: return
 
         runBlocking { WearSummaryStore(applicationContext).save(payload) }
+
+        // The figures change when a reading is logged, not on a clock, so both glanceable
+        // surfaces are told rather than left to poll.
+        TileService.getUpdater(applicationContext).requestUpdate(WeightTileService::class.java)
+        WeightComplicationService.requestUpdate(applicationContext)
     }
 }

@@ -27,6 +27,7 @@ protolayout = "1.4.2"
 watchfaceComplications = "1.3.0"
 wear = "1.4.0"
 wearToolingPreview = "1.0.0"
+concurrentFutures = "1.3.0"
 junit4 = "4.13.2"
 androidxTestJunit = "1.3.0"
 androidxTestRunner = "1.7.0"
@@ -90,6 +91,7 @@ androidx-wear-tooling-preview = { module = "androidx.wear:wear-tooling-preview",
 androidx-wear-compose-material3 = { module = "androidx.wear.compose:compose-material3", version.ref = "wearCompose" }
 androidx-wear-compose-foundation = { module = "androidx.wear.compose:compose-foundation", version.ref = "wearCompose" }
 androidx-wear-tiles = { module = "androidx.wear.tiles:tiles", version.ref = "wearTiles" }
+androidx-concurrent-futures-ktx = { module = "androidx.concurrent:concurrent-futures-ktx", version.ref = "concurrentFutures" }
 androidx-wear-tiles-tooling = { module = "androidx.wear.tiles:tiles-tooling", version.ref = "wearTiles" }
 androidx-wear-tiles-tooling-preview = { module = "androidx.wear.tiles:tiles-tooling-preview", version.ref = "wearTiles" }
 androidx-wear-protolayout-material3 = { module = "androidx.wear.protolayout:protolayout-material3", version.ref = "protolayout" }

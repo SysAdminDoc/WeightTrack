@@ -41,6 +41,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
+- A Wear OS watch app: the trend on a tile and on a watch face, and a weight logged with the crown
 - A home screen widget, and a daily reminder that stays quiet on days you have already weighed in
 - AMOLED black by default, with light, dark and wallpaper-colour themes
 
@@ -57,10 +58,12 @@ Grab the APK from [Releases](https://github.com/SysAdminDoc/WeightTrack/releases
 Needs Android Studio or the command line SDK, with JDK 17 or newer.
 
 ```
-./gradlew assemblePlayDebug     # Play flavour
-./gradlew assembleFossDebug     # F-Droid flavour, no Google dependencies
-./gradlew testPlayDebugUnitTest # 158 unit tests
-./gradlew :core:testDebugUnitTest # 102 more, the pure maths
+./gradlew assemblePlayDebug       # Play flavour
+./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
+./gradlew :wear:assembleDebug     # the watch app
+./gradlew testPlayDebugUnitTest   # 163 unit tests
+./gradlew :core:testDebugUnitTest # 109 more, the pure maths
+./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
@@ -71,11 +74,13 @@ Kotlin, Jetpack Compose and Material 3, Room, Hilt, DataStore, WorkManager, Glan
 
 The maths lives in its own `core` module with no Android dependencies: the trend engine, goal projection, milestones, body composition formulas and unit conversion are all plain Kotlin and all covered by tests. Weight is stored as whole grams, so switching between kilograms, pounds and stones never changes a stored reading.
 
+The watch app is a separate module and a separate APK sharing the phone's application id, which is how Wear OS expects a companion to be published. It talks to the phone over the Data Layer, which is Google Play services, so the phone half of that lives in the Play flavour only and the F-Droid build carries no Google dependency and no watch.
+
 The chart is drawn directly on a Compose canvas rather than through a charting library, which is what lets the raw readings, the trend line, the goal line and the milestone marks share one coordinate space exactly.
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: Wear OS, progress photos, Bluetooth scales and an optional food log.
+See [ROADMAP.md](ROADMAP.md). Next up: Bluetooth scales, family profiles and an optional food log.
 
 ## License
 

@@ -4,6 +4,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.wear.WearBridge
+import com.weighttrack.wear.WearSummaryBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -20,6 +22,8 @@ import javax.inject.Inject
 @HiltViewModel
 class AppViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
+    private val wearBridge: WearBridge,
+    private val wearSummaryBuilder: WearSummaryBuilder,
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings?> = settingsRepository.settings
@@ -52,6 +56,13 @@ class AppViewModel @Inject constructor(
     val promptRequest: StateFlow<Int> = _promptRequest.asStateFlow()
 
     init {
+        // Opening the app is the moment to bring a watch up to date. Everything else that
+        // changes a reading goes through SurfaceUpdater, but a watch paired since the last
+        // weigh-in would otherwise have nothing until the next one.
+        if (wearBridge.isSupported) {
+            viewModelScope.launch { wearBridge.publish(wearSummaryBuilder.current()) }
+        }
+
         viewModelScope.launch {
             var previouslyEnabled: Boolean? = null
             settings.filterNotNull()

@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.weighttrack.core.math.GoalProjectionTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:29:06.916Z" hostname="DESKTOP-VKVTAS0" time="0.011">
+<testsuite name="com.weighttrack.core.math.GoalProjectionTest" tests="17" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:42:36.647Z" hostname="DESKTOP-VKVTAS0" time="0.007">
   <properties/>
-  <testcase name="no date is offered when the trend is flat" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.002"/>
+  <testcase name="no date is offered when the trend is flat" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
   <testcase name="progress never leaves the zero to one range" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
-  <testcase name="a target date in the past has no required rate" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.006"/>
-  <testcase name="the rate confidence interval brackets the projected date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
-  <testcase name="a reached goal reports no remaining date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
+  <testcase name="a target date in the past has no required rate" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.004"/>
+  <testcase name="the rate confidence interval brackets the projected date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
+  <testcase name="a reached goal reports no remaining date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
   <testcase name="gain goals reject a downward trend" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="no date is offered before there is enough data to fit a rate" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="maintain reports holding inside the band" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="gain goals project upward" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="projection needs a trend to work from" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
-  <testcase name="a goal equal to the start weight is already complete" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
+  <testcase name="a goal equal to the start weight is already complete" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
   <testcase name="an uncertain rate that might be flat drops the pessimistic bound" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
-  <testcase name="losing at a steady rate projects a date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.001"/>
+  <testcase name="losing at a steady rate projects a date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="no date is offered when the trend moves away from the goal" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="required rate for a chosen date" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
   <testcase name="an absurdly distant projection is withheld rather than shown" classname="com.weighttrack.core.math.GoalProjectionTest" time="0.0"/>
