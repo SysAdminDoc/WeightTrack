@@ -191,6 +191,29 @@ class HealthChangesTest {
     }
 
     @Test
+    fun `a reading this app wrote is not removed when it goes from Health Connect`() = runTest {
+        // Deliberate. A weigh-in logged here is the original; Health Connect holds a copy. Tidying
+        // the copy away should not delete somebody's own history, so the next sync writes it back.
+        val client = client()
+        profiles.ensureDefault()
+        weights.addFor(profileId = profiles.activeId(), grams = 82_000, timestamp = Instant.now())
+        sync(client).sync().getOrThrow()
+
+        val ours = client.readRecords(
+            androidx.health.connect.client.request.ReadRecordsRequest(
+                recordType = WeightRecord::class,
+                timeRangeFilter =
+                    androidx.health.connect.client.time.TimeRangeFilter.before(Instant.now().plusSeconds(60)),
+            ),
+        ).records
+        client.deleteRecords(WeightRecord::class, ours.map { it.metadata.id }, emptyList())
+        val second = sync(client).sync().getOrThrow()
+
+        assertThat(second.removed).isEqualTo(0)
+        assertThat(weights.entriesFor(profiles.activeId())).hasSize(1)
+    }
+
+    @Test
     fun `a token Health Connect no longer knows falls back to reading it all`() = runTest {
         val client = client()
         profiles.ensureDefault()

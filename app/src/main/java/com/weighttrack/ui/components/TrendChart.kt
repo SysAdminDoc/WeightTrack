@@ -50,13 +50,13 @@ import kotlin.math.min
 import kotlin.math.roundToInt
 import kotlin.math.roundToLong
 
-enum class ChartRange(val label: String, val days: Int?) {
-    WEEK("1W", 7),
-    MONTH("1M", 30),
-    QUARTER("3M", 90),
-    HALF_YEAR("6M", 180),
-    YEAR("1Y", 365),
-    ALL("All", null),
+enum class ChartRange(@androidx.annotation.StringRes val label: Int, val days: Int?) {
+    WEEK(R.string.range_week, 7),
+    MONTH(R.string.range_month, 30),
+    QUARTER(R.string.range_quarter, 90),
+    HALF_YEAR(R.string.range_half_year, 180),
+    YEAR(R.string.range_year, 365),
+    ALL(R.string.range_all, null),
 }
 
 /** Colours the chart needs, passed in so the drawing code stays free of theme lookups. */

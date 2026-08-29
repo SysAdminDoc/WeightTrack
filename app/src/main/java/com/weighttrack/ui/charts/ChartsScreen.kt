@@ -95,7 +95,7 @@ fun ChartsScreen(
                 ChartRange.entries.forEach { option ->
                     SegmentButton(
                         modifier = Modifier.weight(1f),
-                        label = option.label,
+                        label = stringResource(option.label),
                         selected = option == range,
                         onClick = { range = option },
                     )

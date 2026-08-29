@@ -39,13 +39,10 @@ class CanvasIsDescribedTest {
             // is a bitmap and never on screen as a node.
             if ("import androidx.compose.foundation.Canvas" !in source) continue
             Regex("""(?<![\w.])Canvas\(""").findAll(source).forEach { match ->
-                // Everything from the call up to the end of its modifier chain. Cutting at the
-                // first brace lands inside `.semantics { ... }`, which is where the description
-                // being looked for lives.
-                val body = source.substring(
-                    match.range.first,
-                    minOf(source.length, match.range.first + MODIFIER_WINDOW),
-                )
+                // The call's own brackets, found by matching them, so a description belonging to
+                // the composable after it cannot be read as this one's. A flat window let a
+                // labelled Spacer underneath an unlabelled Canvas pass the check.
+                val body = argumentsOf(source, source.indexOf('(', match.range.first))
                 if ("contentDescription" in body) return@forEach
                 val line = source.take(match.range.first).count { it == '\n' } + 1
                 undescribed += "${file.name}:$line"
@@ -55,8 +52,34 @@ class CanvasIsDescribedTest {
         assertThat(undescribed).isEmpty()
     }
 
-    private companion object {
-        /** Long enough to hold a wrapped modifier chain, short enough not to reach the next call. */
-        const val MODIFIER_WINDOW = 400
+    /**
+     * The text between a call's brackets, nesting included and nothing past them.
+     *
+     * A `Canvas(...)` with a trailing draw block carries its modifier inside the round brackets,
+     * so this is exactly the part that could describe it.
+     */
+    private fun argumentsOf(source: String, open: Int): String {
+        if (open < 0) return ""
+        var depth = 0
+        for (i in open until source.length) {
+            when (source[i]) {
+                '(' -> depth++
+                ')' -> {
+                    depth--
+                    if (depth == 0) return source.substring(open, i)
+                }
+            }
+        }
+        return ""
+    }
+
+    @Test
+    fun `the argument reader stops at the call it was given`() {
+        // Without this, a window running past the closing bracket accepts a description that
+        // belongs to the next composable and passes a canvas that has none.
+        val source = """Canvas(Modifier.height(4.dp)) { }
+            Spacer(Modifier.semantics { contentDescription = "x" })"""
+
+        assertThat(argumentsOf(source, source.indexOf('('))).doesNotContain("contentDescription")
     }
 }

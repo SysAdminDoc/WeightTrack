@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.weighttrack.R
+import com.weighttrack.ui.format.Labels
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.MacroBasis
 import com.weighttrack.core.nutrition.MacroTarget
@@ -222,7 +223,7 @@ fun DiaryScreen(
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            SectionHeading(meal.label)
+                            SectionHeading(stringResource(Labels.of(meal)))
                             Text(
                                 text = stringResource(R.string.diary_kcal_2, state.day.totalFor(meal).kcal.roundToInt()),
                                 style = MaterialTheme.typography.bodyMedium,
@@ -349,7 +350,7 @@ private fun AddFromFoodsDialog(
         val shown = if (results.isNotEmpty()) results else suggestions
         AlertDialog(
             onDismissRequest = onCancel,
-            title = { Text(stringResource(R.string.diary_add_to, meal.label.lowercase())) },
+            title = { Text(stringResource(R.string.diary_add_to, stringResource(Labels.of(meal)).lowercase())) },
             text = {
                 Column {
                     OutlinedTextField(
@@ -449,7 +450,7 @@ private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, Str
 
     AlertDialog(
         onDismissRequest = onCancel,
-        title = { Text(stringResource(R.string.diary_quick_add_to, meal.label.lowercase())) },
+        title = { Text(stringResource(R.string.diary_quick_add_to, stringResource(Labels.of(meal)).lowercase())) },
         text = {
             Column {
                 Text(

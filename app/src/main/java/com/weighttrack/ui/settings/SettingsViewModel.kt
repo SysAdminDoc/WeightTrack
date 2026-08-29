@@ -326,7 +326,18 @@ class SettingsViewModel @Inject constructor(
             SurfaceUpdater.refresh()
             _message.value = result.fold(
                 onSuccess = { summary ->
-                    strings[R.string.settings_health_connect_brought_in_sent_out, summary.imported, summary.exported]
+                    val message = strings[
+                        R.string.settings_health_connect_brought_in_sent_out,
+                        summary.imported,
+                        summary.exported,
+                    ]
+                    // A sync that removed readings deleted elsewhere said nothing about them, so
+                    // the count on screen looked like nothing had happened.
+                    if (summary.removed > 0) {
+                        message + strings[R.string.settings_health_connect_removed, summary.removed]
+                    } else {
+                        message
+                    }
                 },
                 onFailure = { strings[R.string.settings_health_connect_sync_failed, it.message.orEmpty()] },
             )

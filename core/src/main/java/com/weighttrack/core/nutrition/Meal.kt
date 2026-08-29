@@ -7,11 +7,11 @@ package com.weighttrack.core.nutrition
  * "lunch", "Lunch" and "lunch 2", and nothing groups. Anything that is not one of the three
  * meals is a snack, which is what it is.
  */
-enum class Meal(val label: String) {
-    BREAKFAST("Breakfast"),
-    LUNCH("Lunch"),
-    DINNER("Dinner"),
-    SNACK("Snacks"),
+enum class Meal {
+    BREAKFAST,
+    LUNCH,
+    DINNER,
+    SNACK,
     ;
 
     companion object {

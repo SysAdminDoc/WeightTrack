@@ -447,8 +447,14 @@ class HealthConnectSync @Inject constructor(
                 }
             }
             removed += weightRepository.deleteByHealthConnectIds(profileId, gone)
-            settingsRepository.setHealthChangesToken(profileId, response.nextChangesToken)
-            next = if (response.hasMore) response.nextChangesToken else null
+            // An empty token is a real answer and means the same as none. Storing it would make
+            // the next sync ask for changes since nowhere, which reads the whole window again.
+            val following = response.nextChangesToken.takeIf { it.isNotEmpty() }
+            settingsRepository.setHealthChangesToken(profileId, following)
+            // A provider handing back the token it was just given is making no progress. Walking
+            // it again re-reads the same page, and every row on it counts as imported a second
+            // time, so the number on the screen climbs while nothing happens.
+            next = if (response.hasMore && following != null && following != next) following else null
         }
         return Triple(imported, skipped, removed)
     }

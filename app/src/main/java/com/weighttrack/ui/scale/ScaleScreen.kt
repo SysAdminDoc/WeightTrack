@@ -251,7 +251,7 @@ fun ScaleScreen(
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Column(Modifier.weight(1f)) {
-                                Text(device.label, style = MaterialTheme.typography.titleMedium)
+                                Text(device.advertisedName ?: stringResource(R.string.scale_unnamed), style = MaterialTheme.typography.titleMedium)
                                 Text(
                                     text = device.address,
                                     style = MaterialTheme.typography.bodySmall,

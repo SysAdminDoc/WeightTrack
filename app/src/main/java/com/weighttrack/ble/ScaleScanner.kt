@@ -30,8 +30,13 @@ data class ScaleDevice(
     val name: String?,
     val kind: ScaleKind,
 ) {
-    /** What to call it on screen when the scale did not say. */
-    val label: String get() = name?.takeIf { it.isNotBlank() } ?: "Unnamed scale"
+    /**
+     * What the scale calls itself, when it says anything.
+     *
+     * Null rather than a name made up here: the words for a scale that did not introduce itself
+     * belong with the rest of the app's text, where they can be translated.
+     */
+    val advertisedName: String? get() = name?.takeIf { it.isNotBlank() }
 }
 
 enum class ScaleKind {

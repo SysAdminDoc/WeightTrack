@@ -220,7 +220,10 @@ class DiaryViewModel @Inject constructor(
             message.value = when {
                 copied.isEmpty() -> strings[R.string.diary_nothing_to_copy_from_the_day]
                 meal == null -> strings[R.string.diary_copied_things_from_yesterday, copied.size]
-                else -> strings[R.string.diary_copied_yesterday_s, meal.label.lowercase()]
+                else -> strings[
+                    R.string.diary_copied_yesterday_s,
+                    strings[com.weighttrack.ui.format.Labels.of(meal)].lowercase(),
+                ]
             }
         }
     }
@@ -302,15 +305,16 @@ class DiaryViewModel @Inject constructor(
             message.value = if (day == null) {
                 strings[R.string.diary_target_set_to_kcal, recommended.rounded]
             } else {
-                strings[R.string.diary_day_set_to, day.label, recommended.rounded]
+                strings[
+                    R.string.diary_day_set_to,
+                    com.weighttrack.ui.format.Labels.of(day),
+                    recommended.rounded,
+                ]
             }
         }
     }
 
     /** "Monday", not "MONDAY". */
-    private val java.time.DayOfWeek.label: String
-        get() = name.lowercase().replaceFirstChar { it.uppercase() }
-
     companion object {
         const val SUGGESTION_LIMIT = 12
 

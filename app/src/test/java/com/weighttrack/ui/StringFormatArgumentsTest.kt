@@ -165,6 +165,9 @@ class StringFormatArgumentsTest {
             val source = file.readText()
             for (match in call.findAll(source)) {
                 val name = match.groupValues[2]
+                // An enum constant holding a resource id, as the chart ranges do, is storing it
+                // rather than formatting it, and the values after it are the constant's own.
+                if (match.groupValues[1].all { it.isUpperCase() || it == '_' }) continue
                 val wants = expected[name] ?: continue
                 // The opening bracket of the call itself.
                 val open = source.indexOf('(', match.range.first)

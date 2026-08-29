@@ -30,6 +30,9 @@ class NoHardcodedTextTest {
         // The watch too. It was left out of the translation pass entirely, while the README said
         // this test reads every Kotlin file in the app.
         File("../wear/src/main/java/com/weighttrack"),
+        // And the pure module. It has no resources by design, which is exactly why English hid
+        // there: the four meal names sat on an enum and were drawn straight onto the diary.
+        File("../core/src/main/java/com/weighttrack/core"),
     )
 
     /** What sits immediately before a literal when somebody is about to be shown it. */
@@ -113,6 +116,8 @@ class NoHardcodedTextTest {
         // The watch is a separate module and easy to leave out, which is exactly what happened.
         assertThat(kotlinFiles().count { it.path.replace('\\', '/').contains("/wear/") })
             .isGreaterThan(3)
+        assertThat(kotlinFiles().count { it.path.replace('\\', '/').contains("/core/") })
+            .isGreaterThan(10)
         // Every package the sentence rule claims to watch has to exist, or it quietly watches
         // nothing at all.
         RENDERS_TEXT.forEach { part ->
