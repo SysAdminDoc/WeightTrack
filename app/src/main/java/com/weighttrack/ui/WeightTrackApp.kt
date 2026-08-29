@@ -284,7 +284,9 @@ fun WeightTrackApp(
                 val viewModel: FastingViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val editingFast by viewModel.editing.collectAsStateWithLifecycle()
-                val fastingNow by viewModel.now.collectAsStateWithLifecycle()
+                // Deliberately not delegated: reading the clock here would recompose the
+                // whole fasting screen once a second instead of just the timer card.
+                val fastingNow = viewModel.now.collectAsStateWithLifecycle()
                 val fastingMessage by viewModel.message.collectAsStateWithLifecycle()
                 FastingScreen(
                     state = state,

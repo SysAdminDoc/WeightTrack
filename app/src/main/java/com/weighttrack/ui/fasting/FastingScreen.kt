@@ -38,6 +38,7 @@ import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -94,7 +95,14 @@ internal fun formatTarget(minutes: Int): String {
 @Composable
 fun FastingScreen(
     state: FastingUiState,
-    now: Instant,
+    /**
+     * The ticking clock, deferred.
+     *
+     * Taken as a [State] rather than an [Instant] so this function does not read it. Reading it
+     * here would recompose the whole list every second, which is what splitting the clock out
+     * of the screen state was for; the read happens inside the timer card alone.
+     */
+    now: State<Instant>,
     onSelectPreset: (FastingPreset) -> Unit,
     onStart: () -> Unit,
     onStop: () -> Unit,
@@ -139,14 +147,16 @@ fun FastingScreen(
             item {
                 SectionCard {
                     val active = state.active
+                    // The one place the clock is read. Everything below draws from fixed values.
+                    val instant = now.value
                     Box(
                         Modifier.fillMaxWidth().height(220.dp),
                         contentAlignment = Alignment.Center,
                     ) {
-                        FastingRing(progress = active?.progress(now) ?: 0f)
+                        FastingRing(progress = active?.progress(instant) ?: 0f)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text(
-                                text = formatDuration(active?.elapsed(now) ?: Duration.ZERO),
+                                text = formatDuration(active?.elapsed(instant) ?: Duration.ZERO),
                                 style = HeroNumberStyle,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -163,7 +173,7 @@ fun FastingScreen(
                     }
                     if (active != null) {
                         Spacer(Modifier.height(4.dp))
-                        val remaining = active.remaining(now)
+                        val remaining = active.remaining(instant)
                         Text(
                             text = if (remaining == null) {
                                 "Target reached. Keep going or stop whenever you like."

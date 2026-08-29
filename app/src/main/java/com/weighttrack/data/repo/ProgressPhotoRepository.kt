@@ -67,10 +67,15 @@ class ProgressPhotoRepository @Inject constructor(
         zone: ZoneId = ZoneId.systemDefault(),
         now: Instant = Instant.now(),
     ): Instant? = withContext(Dispatchers.IO) {
-        val fromExif = runCatching {
-            context.contentResolver.openInputStream(source)?.use { exifTakenAt(it, zone) }
-        }.getOrNull()
-        plausibleCaptureTime(fromExif ?: mediaStoreTakenAt(source), now)
+        val fromExif = plausibleCaptureTime(
+            runCatching {
+                context.contentResolver.openInputStream(source)?.use { exifTakenAt(it, zone) }
+            }.getOrNull(),
+            now,
+        )
+        // A camera clock set to 1970 fails the plausibility check but the gallery may still know
+        // when the file arrived, so an unusable EXIF date falls through rather than ending here.
+        fromExif ?: plausibleCaptureTime(mediaStoreTakenAt(source), now)
     }
 
     private fun exifTakenAt(stream: InputStream, zone: ZoneId): Instant? {
