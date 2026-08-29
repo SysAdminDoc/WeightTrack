@@ -296,7 +296,7 @@ private fun ConsistencyCard(snapshot: ProgressSnapshot) {
         SectionHeading(stringResource(R.string.charts_logging))
         Spacer(Modifier.height(8.dp))
         LabelledValue(stringResource(R.string.chartsscreen_days_weighed), stringResource(R.string.chartsscreen_last, logged, total))
-        LabelledValue(stringResource(R.string.chartsscreen_current_streak), if (streak == 0) stringResource(R.string.chartsscreen_none_right_now) else "$streak days")
+        LabelledValue(stringResource(R.string.chartsscreen_current_streak), if (streak == 0) stringResource(R.string.chartsscreen_none_right_now) else stringResource(R.string.chartsscreen_streak_days, streak))
         Column {
             Text(
                 text = stringResource(R.string.charts_the_trend_copes_fine_with_missed),

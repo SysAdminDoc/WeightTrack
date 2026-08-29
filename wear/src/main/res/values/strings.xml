@@ -2,4 +2,22 @@
 <resources>
     <string name="app_name">WeightTrack</string>
     <string name="complication_label">Weight trend</string>
+    <string name="wear_locked">Locked</string>
+    <string name="wear_no_value">--</string>
+    <string name="wear_open_on_phone">Open WeightTrack on your phone</string>
+    <string name="wear_unlock_on_phone">Unlock on your phone</string>
+    <string name="wear_no_readings">No readings yet</string>
+    <string name="wear_trend_weight">Trend weight</string>
+    <string name="wear_this_week">%1$s this week</string>
+    <string name="wear_waiting_title">Waiting for your phone</string>
+    <string name="wear_waiting_body">Open WeightTrack on your phone once and the figures land here.</string>
+    <string name="wear_locked_on_phone">Locked on your phone</string>
+    <string name="wear_log_weight">Log weight</string>
+    <string name="wear_save">Save</string>
+    <string name="wear_cancel">Cancel</string>
+    <string name="wear_done">Done</string>
+    <string name="wear_tap_to_log">Tap to log</string>
+    <string name="wear_queued">Saved. It reaches your phone when they are next together.</string>
+    <string name="wear_failed">Could not save. Is WeightTrack installed on your phone?</string>
+    <string name="wear_trend_label">trend</string>
 </resources>

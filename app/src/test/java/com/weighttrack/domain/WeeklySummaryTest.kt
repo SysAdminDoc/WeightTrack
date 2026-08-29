@@ -6,8 +6,11 @@ import com.weighttrack.core.math.TrendSeries
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.core.model.WeightUnit
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 import java.time.LocalDate
 
+@RunWith(RobolectricTestRunner::class)
 class WeeklySummaryTest {
 
     private val today: LocalDate = LocalDate.of(2026, 6, 15)
@@ -37,32 +40,47 @@ class WeeklySummaryTest {
         milestone: Int? = null,
     ) = WeeklySummaryBuilder.build(series, WeightUnit.KG, direction, milestone, today)
 
+    /**
+     * What the notification would actually say.
+     *
+     * Resolved through the real resources, so these assertions are about the English that ships
+     * rather than about a sentence built in the test.
+     */
+    private val context: android.content.Context
+        get() = androidx.test.core.app.ApplicationProvider.getApplicationContext()
+
+    private fun WeeklySummary.headlineText(): String =
+        com.weighttrack.notifications.WeeklySummaryText.headline(context, this, WeightUnit.KG)
+
+    private fun WeeklySummary.detailText(): String =
+        com.weighttrack.notifications.WeeklySummaryText.detail(context, this, WeightUnit.KG)
+
     @Test
     fun `a week of losing reports the drop`() {
         val summary = build(series(85_000.0, 84_300.0))!!
-        assertThat(summary.headline).contains("Down")
-        assertThat(summary.headline).contains("0.7")
-        assertThat(summary.detail).contains("Heading the right way")
+        assertThat(summary.headlineText()).contains("Down")
+        assertThat(summary.headlineText()).contains("0.7")
+        assertThat(summary.detailText()).contains("Heading the right way")
     }
 
     @Test
     fun `a week of gaining against a loss goal says so plainly`() {
         val summary = build(series(84_000.0, 84_800.0))!!
-        assertThat(summary.headline).contains("Up")
-        assertThat(summary.detail).contains("Not moving toward the goal")
+        assertThat(summary.headlineText()).contains("Up")
+        assertThat(summary.detailText()).contains("Not moving toward the goal")
     }
 
     @Test
     fun `a flat week reads as steady rather than as a failure`() {
         val summary = build(series(84_000.0, 84_050.0))!!
-        assertThat(summary.headline).isEqualTo("Steady week")
+        assertThat(summary.headlineText()).isEqualTo("Steady week")
     }
 
     @Test
     fun `a milestone takes the headline`() {
         val summary = build(series(85_000.0, 84_300.0), milestone = 84_000)!!
-        assertThat(summary.headline).contains("Milestone reached")
-        assertThat(summary.headline).contains("84.0")
+        assertThat(summary.headlineText()).contains("Milestone reached")
+        assertThat(summary.headlineText()).contains("84.0")
     }
 
     @Test
@@ -85,26 +103,26 @@ class WeeklySummaryTest {
     @Test
     fun `a gain goal treats gaining as the right direction`() {
         val summary = build(series(84_000.0, 84_800.0), direction = GoalDirection.GAIN)!!
-        assertThat(summary.detail).contains("Heading the right way")
+        assertThat(summary.detailText()).contains("Heading the right way")
     }
 
     @Test
     fun `with no goal the summary does not judge the direction`() {
         val summary = build(series(85_000.0, 84_300.0), direction = null)!!
-        assertThat(summary.detail).doesNotContain("right way")
-        assertThat(summary.detail).doesNotContain("Not moving")
+        assertThat(summary.detailText()).doesNotContain("right way")
+        assertThat(summary.detailText()).doesNotContain("Not moving")
     }
 
     @Test
     fun `the detail counts the readings behind it`() {
         val summary = build(series(85_000.0, 84_300.0, weighedDays = 4))!!
         assertThat(summary.daysWeighed).isEqualTo(4)
-        assertThat(summary.detail).contains("4 readings")
+        assertThat(summary.detailText()).contains("4 readings")
     }
 
     @Test
     fun `one reading is described in the singular when it still qualifies`() {
         val summary = build(series(85_000.0, 84_300.0, weighedDays = 2))!!
-        assertThat(summary.detail).contains("2 readings")
+        assertThat(summary.detailText()).contains("2 readings")
     }
 }

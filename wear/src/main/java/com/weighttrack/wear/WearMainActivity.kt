@@ -21,6 +21,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.text.style.TextAlign
@@ -80,9 +81,9 @@ private fun SummaryScreen(
         when {
             summary == null -> Text(
                 text = if (phoneReachable) {
-                    "Waiting for your phone"
+                    stringResource(R.string.wear_waiting_title)
                 } else {
-                    "Open WeightTrack on your phone once and the figures land here."
+                    stringResource(R.string.wear_waiting_body)
                 },
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyMedium,
@@ -90,13 +91,13 @@ private fun SummaryScreen(
 
             summary.hidden -> Text(
                 // The lock is on. A weight on a wrist is exactly what it exists to hide.
-                text = "Locked on your phone",
+                text = stringResource(R.string.wear_locked_on_phone),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyMedium,
             )
 
             !summary.hasData -> Text(
-                text = "No readings yet",
+                text = stringResource(R.string.wear_no_readings),
                 textAlign = TextAlign.Center,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -109,7 +110,7 @@ private fun SummaryScreen(
                     style = MaterialTheme.typography.displaySmall,
                 )
                 Text(
-                    text = "trend",
+                    text = stringResource(R.string.wear_trend_label),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -136,7 +137,7 @@ private fun SummaryScreen(
         Button(
             onClick = onLog,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Log weight") },
+            label = { Text(stringResource(R.string.wear_log_weight)) },
         )
     }
 }
@@ -184,12 +185,12 @@ internal fun PickerScreen(
         Button(
             onClick = onSave,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Save") },
+            label = { Text(stringResource(R.string.wear_save)) },
         )
         Button(
             onClick = onCancel,
             modifier = Modifier.fillMaxWidth(),
-            label = { Text("Cancel") },
+            label = { Text(stringResource(R.string.wear_cancel)) },
         )
     }
 }
@@ -203,7 +204,7 @@ private fun MessageScreen(message: String, onDismiss: () -> Unit) {
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(10.dp))
-        Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), label = { Text("Done") })
+        Button(onClick = onDismiss, modifier = Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.wear_done)) })
     }
 }
 

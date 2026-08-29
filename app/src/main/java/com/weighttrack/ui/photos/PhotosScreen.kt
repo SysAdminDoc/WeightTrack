@@ -287,7 +287,7 @@ private fun PhotoTile(
             onClick = onLongClick,
             modifier = Modifier.align(Alignment.TopStart),
         ) {
-            Text("x", style = MaterialTheme.typography.labelSmall)
+            Text(stringResource(R.string.photos_remove), style = MaterialTheme.typography.labelSmall)
         }
     }
 }

@@ -22,6 +22,8 @@ data class CrashLogUiState(
     val loaded: Boolean = false,
     /** Whether anything has gone wrong quietly enough to be worth sending on. */
     val activityLogAvailable: Boolean = false,
+    /** The most recent entries, newest last, for reading on the screen itself. */
+    val activityLog: List<String> = emptyList(),
 )
 
 @HiltViewModel
@@ -40,9 +42,18 @@ class CrashLogViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val reports = withContext(Dispatchers.IO) { store.list() }
-            val hasActivity = withContext(Dispatchers.IO) { !runtimeLog.isEmpty() }
+            // The tail only. The file runs to half a megabyte and nobody scrolls that on a
+            // phone; what matters is what happened just before somebody came looking.
+            val recent = withContext(Dispatchers.IO) {
+                runtimeLog.read().lines().filter { it.isNotBlank() }.takeLast(RECENT_ENTRIES)
+            }
             _state.update {
-                it.copy(reports = reports, loaded = true, activityLogAvailable = hasActivity)
+                it.copy(
+                    reports = reports,
+                    loaded = true,
+                    activityLogAvailable = recent.isNotEmpty(),
+                    activityLog = recent,
+                )
             }
         }
     }
@@ -64,6 +75,11 @@ class CrashLogViewModel @Inject constructor(
 
     fun close() {
         _state.update { it.copy(openReportId = null, openReportBody = null) }
+    }
+
+    private companion object {
+        /** Enough to see what led up to a failure, few enough to read. */
+        const val RECENT_ENTRIES = 20
     }
 
     /**

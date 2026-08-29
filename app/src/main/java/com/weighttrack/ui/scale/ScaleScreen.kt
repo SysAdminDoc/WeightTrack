@@ -116,7 +116,7 @@ fun ScaleScreen(
                         SectionHeading(stringResource(R.string.scale_what_the_scale_measured))
                         Spacer(Modifier.height(4.dp))
                         LabelledValue(
-                            "Weight",
+                            stringResource(R.string.scalescreen_weight),
                             WeightFormatter.full(reading.grams, state.weightUnit),
                         )
                         reading.bodyFatPercent?.let {

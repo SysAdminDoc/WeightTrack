@@ -25,7 +25,12 @@ class NoHardcodedTextTest {
      * reminder notification, the widgets and the backup importer's messages all stayed in English
      * through a translation pass that was supposed to have found everything.
      */
-    private val sources = File("src/main/java/com/weighttrack")
+    private val sources = listOf(
+        File("src/main/java/com/weighttrack"),
+        // The watch too. It was left out of the translation pass entirely, while the README said
+        // this test reads every Kotlin file in the app.
+        File("../wear/src/main/java/com/weighttrack"),
+    )
 
     /** What sits immediately before a literal when somebody is about to be shown it. */
     private val sink = Regex(
@@ -34,6 +39,15 @@ class NoHardcodedTextTest {
             """\s*=|EXTRA_SUBJECT,|createChooser\([^,]+,|problems \+=)""" +
             """\s*(?:if \([^()]*\)\s*)?$""",
     )
+
+    /**
+     * The other half of a choice whose first half is a resource.
+     *
+     * `if (male) stringResource(R.string.male) else "Female"` reads as finished work and is half
+     * done. A dozen of these survived a translation pass, because the sink sits in front of the
+     * branch that was converted and there is nothing in front of the one that was not.
+     */
+    private val alternativeToResource = Regex("""R\.string\.\w+[^"]{0,200}?(?:else|\?:)\s*$""")
 
     /**
      * Literals that look like text and are not.
@@ -56,7 +70,8 @@ class NoHardcodedTextTest {
         return RENDERS_TEXT.any { path.contains(it) }
     }
 
-    private fun kotlinFiles() = sources.walkTopDown().filter { it.extension == "kt" }
+    private fun kotlinFiles() =
+        sources.asSequence().flatMap { it.walkTopDown() }.filter { it.extension == "kt" }
 
     /** Whether this literal is one somebody could be shown. */
     private fun isExempt(literal: SourceLiteral): Boolean {
@@ -93,8 +108,11 @@ class NoHardcodedTextTest {
     @Test
     fun `the source tree is where this test thinks it is`() {
         // If the module layout ever moves, this test would otherwise pass by finding nothing.
-        assertThat(sources.isDirectory).isTrue()
+        sources.forEach { assertThat(it.isDirectory).isTrue() }
         assertThat(kotlinFiles().count()).isGreaterThan(40)
+        // The watch is a separate module and easy to leave out, which is exactly what happened.
+        assertThat(kotlinFiles().count { it.path.replace('\\', '/').contains("/wear/") })
+            .isGreaterThan(3)
         // Every package the sentence rule claims to watch has to exist, or it quietly watches
         // nothing at all.
         RENDERS_TEXT.forEach { part ->
@@ -127,8 +145,15 @@ class NoHardcodedTextTest {
         val offenders = mutableListOf<String>()
         for (file in kotlinFiles()) {
             for (literal in kotlinStringLiterals(file.readText())) {
-                if (!sink.containsMatchIn(literal.prefix)) continue
-                if (!hasWords(literal.value, atLeast = 2)) continue
+                // Matched against the run-up rather than the literal's own line: a long call is
+                // wrapped by the formatter, and a literal on a line of its own then has nothing
+                // in front of it. Any one-word argument was invisible.
+                val shown = sink.containsMatchIn(literal.before) ||
+                    alternativeToResource.containsMatchIn(literal.before)
+                if (!shown) continue
+                // One letter is enough here. Something handed straight to a snackbar is text
+                // whatever its length, and requiring two let "x" through.
+                if (!hasWords(literal.value, atLeast = 1)) continue
                 if (isExempt(literal)) continue
                 offenders += "${file.name}:${literal.line} \"${literal.value}\""
             }

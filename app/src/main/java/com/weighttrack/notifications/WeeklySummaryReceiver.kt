@@ -14,6 +14,8 @@ import com.weighttrack.MainActivity
 import com.weighttrack.R
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.domain.ProgressCalculator
+import com.weighttrack.core.format.WeightFormatter
+import com.weighttrack.domain.WeeklySummary
 import com.weighttrack.domain.WeeklySummaryBuilder
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -63,7 +65,11 @@ class WeeklySummaryReceiver : BroadcastReceiver() {
                     today = today,
                 ) ?: return@launch
 
-                post(context, summary.headline, summary.detail)
+                post(
+                    context,
+                    WeeklySummaryText.headline(context, summary, snapshot.settings.weightUnit),
+                    WeeklySummaryText.detail(context, summary, snapshot.settings.weightUnit),
+                )
             } finally {
                 pendingResult.finish()
             }

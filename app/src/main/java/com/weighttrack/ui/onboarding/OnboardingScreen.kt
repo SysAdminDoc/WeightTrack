@@ -233,7 +233,13 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Sex.entries.forEach { sex ->
             SegmentButton(
-                label = if (sex == Sex.MALE) stringResource(R.string.onboardingscreen_male) else "Female",
+                label = stringResource(
+                    if (sex == Sex.MALE) {
+                        R.string.onboardingscreen_male
+                    } else {
+                        R.string.onboardingscreen_female
+                    },
+                ),
                 selected = state.sex == sex,
                 onClick = { viewModel.setSex(sex) },
             )

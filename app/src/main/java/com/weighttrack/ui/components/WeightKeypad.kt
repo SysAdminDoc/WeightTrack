@@ -104,7 +104,7 @@ fun WeightKeypad(
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             KeypadKey(
-                label = "C",
+                label = stringResource(R.string.keypad_clear),
                 modifier = Modifier.weight(1f),
                 onClick = onClear,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,

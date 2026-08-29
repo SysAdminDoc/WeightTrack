@@ -61,8 +61,9 @@ class RuntimeLog(
     /**
      * Appends one entry, trimming the file if it has grown past its cap.
      *
-     * [code] is for a status a server or a radio reported, an HTTP code or a GATT status. It is
-     * a number about the machinery and never a measurement.
+     * [code] is a number about the machinery: an HTTP status, a GATT status, or a count of what
+     * a sync moved. Never a measurement, and never anything that would identify a person or a
+     * thing they logged.
      *
      * Never throws. Failing to record a failure must not become a second one, and every caller
      * here is already on an unhappy path.

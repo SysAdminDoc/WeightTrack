@@ -31,9 +31,10 @@ class WeightComplicationService : SuspendingComplicationDataSourceService() {
         }.getOrNull()
         return complication(
             type = request.complicationType,
-            headline = WearGlanceText.headline(summary),
+            headline = WearGlanceText.headline(this, summary),
             shortDetail = WearGlanceText.shortDetail(summary),
-            longText = WearGlanceText.headline(summary) + ", " + WearGlanceText.detail(summary),
+            longText = WearGlanceText.headline(this, summary) + ", " +
+                WearGlanceText.detail(this, summary),
         )
     }
 

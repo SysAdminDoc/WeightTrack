@@ -1,9 +1,12 @@
 package com.weighttrack.wear
 
+import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.sync.WearSummary
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
 /**
  * The tile, built for real.
@@ -13,12 +16,17 @@ import org.junit.Test
  * than by casting down the element hierarchy, so the test asserts what the tile says instead of
  * how it is nested.
  */
+@RunWith(RobolectricTestRunner::class)
 class WeightTileServiceTest {
 
+    private val context: android.content.Context
+        get() = ApplicationProvider.getApplicationContext()
+
     private fun tileText(summary: WearSummary?): String = weightTile(
-        headline = WearGlanceText.headline(summary),
-        detail = WearGlanceText.detail(summary),
+        headline = WearGlanceText.headline(context, summary),
+        detail = WearGlanceText.detail(context, summary),
         packageName = "com.weighttrack",
+        tapToLog = context.getString(R.string.wear_tap_to_log),
     ).tileTimeline!!.timelineEntries.single().layout!!.toByteArray().decodeToString()
 
     @Test

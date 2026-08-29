@@ -157,7 +157,15 @@ fun DiaryScreen(
                             Text(stringResource(R.string.diary_copy_the_day_before))
                         }
                         OutlinedButton(onClick = { editingTarget = true }) {
-                            Text(if (state.target == null) stringResource(R.string.diaryscreen_set_target) else "Target")
+                            Text(
+                                stringResource(
+                                    if (state.target == null) {
+                                        R.string.diaryscreen_set_target
+                                    } else {
+                                        R.string.diaryscreen_target
+                                    },
+                                ),
+                            )
                         }
                     }
                 }
@@ -232,7 +240,10 @@ fun DiaryScreen(
                                     Text(
                                         text = entry.grams
                                             ?.let { stringResource(R.string.diaryscreen_g_kcal, it.roundToInt(), entry.nutrients.kcal.roundToInt()) }
-                                            ?: "${entry.nutrients.kcal.roundToInt()} kcal",
+                                            ?: stringResource(
+                                                R.string.diaryscreen_kcal_only,
+                                                entry.nutrients.kcal.roundToInt(),
+                                            ),
                                         style = MaterialTheme.typography.bodySmall,
                                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     )
@@ -522,7 +533,13 @@ private fun TargetDialog(
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     MacroBasis.entries.forEach { option ->
                         SegmentButton(
-                            label = if (option == MacroBasis.GRAMS) stringResource(R.string.diaryscreen_grams) else "Percent",
+                            label = stringResource(
+                                if (option == MacroBasis.GRAMS) {
+                                    R.string.diaryscreen_grams
+                                } else {
+                                    R.string.diaryscreen_percent
+                                },
+                            ),
                             selected = basis == option,
                             onClick = { basis = option },
                         )

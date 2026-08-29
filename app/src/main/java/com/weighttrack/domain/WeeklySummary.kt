@@ -20,9 +20,22 @@ data class WeeklySummary(
     val changeGrams: Double,
     val trendGrams: Int,
     val daysWeighed: Int,
-    val headline: String,
-    val detail: String,
-)
+    /** Which of the four things the week amounted to. */
+    val headline: Headline,
+    /** The milestone crossed, when [headline] is [Headline.MILESTONE]. */
+    val milestoneGrams: Int? = null,
+    /** How far the week moved, already made positive, for the headline to quote. */
+    val movementGrams: Double = 0.0,
+    /**
+     * Whether the week went the way the goal wants.
+     *
+     * Null when there is no goal, or the goal is to hold steady, in which case there is nothing
+     * to add and the summary says nothing rather than guessing.
+     */
+    val movingRight: Boolean? = null,
+) {
+    enum class Headline { MILESTONE, STEADY, DOWN, UP }
+}
 
 object WeeklySummaryBuilder {
 
@@ -47,11 +60,10 @@ object WeeklySummaryBuilder {
         val change = series.changeOverDays(7) ?: return null
 
         val headline = when {
-            milestoneReachedThisWeek != null ->
-                "Milestone reached: ${WeightFormatter.full(milestoneReachedThisWeek, unit)}"
-            abs(change) < MEANINGFUL_CHANGE_GRAMS -> "Steady week"
-            change < 0 -> "Down ${WeightFormatter.delta(abs(change), unit).removePrefix("+")} this week"
-            else -> "Up ${WeightFormatter.delta(abs(change), unit).removePrefix("+")} this week"
+            milestoneReachedThisWeek != null -> WeeklySummary.Headline.MILESTONE
+            abs(change) < MEANINGFUL_CHANGE_GRAMS -> WeeklySummary.Headline.STEADY
+            change < 0 -> WeeklySummary.Headline.DOWN
+            else -> WeeklySummary.Headline.UP
         }
 
         val movingRight = when (goalDirection) {
@@ -60,22 +72,18 @@ object WeeklySummaryBuilder {
             else -> abs(change) < MEANINGFUL_CHANGE_GRAMS
         }
 
-        val detail = buildString {
-            append("Trend is ${WeightFormatter.full(trend, unit)}")
-            append(" from $daysWeighed ")
-            append(if (daysWeighed == 1) "reading" else "readings")
-            append(".")
-            if (goalDirection != null && goalDirection != GoalDirection.MAINTAIN) {
-                append(if (movingRight) " Heading the right way." else " Not moving toward the goal this week.")
-            }
-        }
-
         return WeeklySummary(
             changeGrams = change,
             trendGrams = trend,
             daysWeighed = daysWeighed,
             headline = headline,
-            detail = detail,
+            milestoneGrams = milestoneReachedThisWeek,
+            movementGrams = abs(change),
+            // Nothing to say when there is no goal, or when the goal is to hold steady and the
+            // week already reads as steady or not.
+            movingRight = movingRight.takeIf {
+                goalDirection != null && goalDirection != GoalDirection.MAINTAIN
+            },
         )
     }
 

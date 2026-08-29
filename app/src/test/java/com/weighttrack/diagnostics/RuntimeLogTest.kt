@@ -74,6 +74,47 @@ class RuntimeLogTest {
     }
 
     @Test
+    fun `no line the app can write holds a weight`() {
+        val (log, _) = log()
+
+        // Every entry the app is capable of writing, with the worst a caller could pass for the
+        // one free number and the one free type.
+        LogArea.entries.forEach { area ->
+            LogEvent.entries.forEach { event ->
+                log.write(area, event)
+                log.write(area, event, code = 507)
+                log.write(area, event, cause = IllegalStateException("weighed 84.3 kg of Oreos"))
+            }
+        }
+
+        val text = log.read()
+        // A weight always reads as a decimal, in every unit this app shows.
+        assertThat(Regex("""\d+\.\d""").containsMatchIn(text)).isFalse()
+        assertThat(text).doesNotContain("84.3")
+        assertThat(text).doesNotContain("Oreos")
+        // A unit only ever appears next to a number, and no line should have that shape.
+        // ("background" contains "kg", which is why this looks for the pair.)
+        assertThat(Regex("""\d\s*(kg|lb|st|g|kcal)""").containsMatchIn(text)).isFalse()
+        // And every line is one line, so nothing can forge an entry either.
+        val expected = LogArea.entries.size * LogEvent.entries.size * 3
+        assertThat(text.trim().lines()).hasSize(expected)
+    }
+
+    @Test
+    fun `a number in a line is a status or a count, never a measurement`() {
+        val (log, _) = log()
+
+        log.write(LogArea.SYNC, LogEvent.WEBDAV_REQUEST_FAILED, code = 507)
+        log.write(LogArea.SYNC, LogEvent.SYNC_FINISHED, code = 12)
+
+        // Whole numbers only. A gram value could be an Int, so this is not proof on its own, but
+        // it does mean nothing formatted as a weight can appear.
+        Regex("""code=(\S+)""").findAll(log.read()).forEach { match ->
+            assertThat(match.groupValues[1].toIntOrNull()).isNotNull()
+        }
+    }
+
+    @Test
     fun `every event can be written and stays on one line`() {
         val (log, file) = log()
 

@@ -583,7 +583,6 @@
     <string name="chartsscreen_days_weighed">Days weighed</string>
     <string name="chartsscreen_last">%1$s of the last %2$s</string>
     <string name="chartsscreen_none_right_now">None right now</string>
-    <string name="common_goalprogress">goalProgress</string>
     <string name="crashlogscreen_no_crashes_recorded">No crashes recorded</string>
     <string name="crashlogscreen_share_crash_report">Share crash report</string>
     <string name="crashlogscreen_weighttrack_crash">WeightTrack crash %1$s</string>
@@ -612,12 +611,12 @@
     <string name="foodscreen_calories_per_g">Calories per 100 g</string>
     <string name="foodscreen_carbohydrate_g_optional">Carbohydrate g (optional)</string>
     <string name="foodscreen_fat_g_optional">Fat g (optional)</string>
-    <string name="foodscreen_g_protein"> · %1$s g protein</string>
+    <string name="foodscreen_g_protein">" · %1$s g protein"</string>
     <string name="foodscreen_kcal_per_g">%1$s kcal per 100 g</string>
     <string name="foodscreen_matching_foods">Matching foods</string>
     <string name="foodscreen_one_serving_in_g_optional">One serving in g (optional)</string>
     <string name="foodscreen_protein_g_optional">Protein g (optional)</string>
-    <string name="foodscreen_serving_g"> · serving %1$s g</string>
+    <string name="foodscreen_serving_g">" · serving %1$s g"</string>
     <string name="foodscreen_your_foods">Your foods</string>
     <string name="goalscreen_edit_goal">Edit goal</string>
     <string name="goalscreen_pick_date">Pick a date</string>
@@ -626,7 +625,7 @@
     <string name="goalscreen_set_goal_2">Set a goal</string>
     <string name="historyscreen_no_matches">No matches</string>
     <string name="historyscreen_nothing_logged_yet">Nothing logged yet</string>
-    <string name="historyscreen_nothing_matches">Nothing matches \\"%1$s\\".</string>
+    <string name="historyscreen_nothing_matches">Nothing matches \"%1$s\".</string>
     <string name="historyscreen_readings_you_log_will_show_up">Readings you log will show up here, newest first. Tap one to edit it, hold to select several.</string>
     <string name="homescreen_gain">%1$s to gain</string>
     <string name="homescreen_go">%1$s to go</string>
@@ -714,4 +713,25 @@
     <string name="charts_could_not_read_movement">Health Connect could not be read just now. This is not the same as having nothing recorded, and it is worth trying again later.</string>
     <string name="settings_health_access_withdrawn">WeightTrack\'s access to Health Connect was removed, so nothing has been exchanged since. Your readings here are untouched.</string>
     <string name="settings_health_reconnect">Allow access again</string>
+    <string name="chartsscreen_streak_days">%1$d days</string>
+    <string name="diaryscreen_target">Target</string>
+    <string name="diaryscreen_kcal_only">%1$d kcal</string>
+    <string name="diaryscreen_percent">Percent</string>
+    <string name="onboardingscreen_female">Female</string>
+    <string name="scalescreen_weight">Weight</string>
+    <string name="synccard_chosen">Chosen</string>
+    <string name="photos_remove">x</string>
+    <string name="keypad_clear">C</string>
+    <string name="summary_milestone">Milestone reached: %1$s</string>
+    <string name="summary_steady">Steady week</string>
+    <string name="summary_down">Down %1$s this week</string>
+    <string name="summary_up">Up %1$s this week</string>
+    <string name="summary_heading_right">Heading the right way.</string>
+    <string name="summary_not_toward_goal">Not moving toward the goal this week.</string>
+    <plurals name="summary_trend_from_readings">
+        <item quantity="one">Trend is %1$s from %2$d reading.</item>
+        <item quantity="other">Trend is %1$s from %2$d readings.</item>
+    </plurals>
+    <string name="diagnostics_recent_activity">Recent activity</string>
+    <string name="diagnostics_recent_activity_explained">What the app tried and how it went. It holds no readings, no food and no addresses, so it is safe to send on.</string>
 </resources>

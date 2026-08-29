@@ -81,7 +81,10 @@ fun CrashLogScreen(
             )
         },
     ) { padding ->
-        if (state.reports.isEmpty()) {
+        // No early return when there are no crashes. Most of what this screen is for never
+        // crashes anything: a sync that did nothing and a scale that went quiet both leave an
+        // activity log and no report at all.
+        if (state.reports.isEmpty() && state.activityLog.isEmpty()) {
             EmptyState(
                 icon = Icons.Outlined.BugReport,
                 title = stringResource(
@@ -102,12 +105,40 @@ fun CrashLogScreen(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            item {
-                Text(
-                    text = stringResource(R.string.diagnostics_these_stay_on_your_phone_tap),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            if (state.activityLog.isNotEmpty()) {
+                item {
+                    SectionCard {
+                        Text(
+                            text = stringResource(R.string.diagnostics_recent_activity),
+                            style = MaterialTheme.typography.titleSmall,
+                        )
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.diagnostics_recent_activity_explained),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        // Oldest at the top, so it reads as a sequence of events rather than a
+                        // list. What led up to a failure is usually the point.
+                        state.activityLog.forEach { line ->
+                            Text(
+                                text = line,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                            )
+                        }
+                    }
+                }
+            }
+            if (state.reports.isNotEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.diagnostics_these_stay_on_your_phone_tap),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             items(state.reports, key = { it.id }) { report ->
                 SectionCard(modifier = Modifier.clickable { onOpen(report) }) {

@@ -52,9 +52,10 @@ class WeightTileService : TileService() {
             }.getOrNull()
             completer.set(
                 weightTile(
-                    headline = WearGlanceText.headline(summary),
-                    detail = WearGlanceText.detail(summary),
+                    headline = WearGlanceText.headline(applicationContext, summary),
+                    detail = WearGlanceText.detail(applicationContext, summary),
                     packageName = packageName,
+                    tapToLog = getString(R.string.wear_tap_to_log),
                 ),
             )
         }
@@ -85,6 +86,7 @@ internal fun weightTile(
     headline: String,
     detail: String,
     packageName: String,
+    tapToLog: String,
 ): TileBuilders.Tile = TileBuilders.Tile.Builder()
     .setResourcesVersion(RESOURCES_VERSION)
     // The figures change when a reading is logged, not on a clock, so the tile is refreshed on
@@ -96,7 +98,7 @@ internal fun weightTile(
                 TimelineBuilders.TimelineEntry.Builder()
                     .setLayout(
                         LayoutElementBuilders.Layout.Builder()
-                            .setRoot(weightTileLayout(headline, detail, packageName))
+                            .setRoot(weightTileLayout(headline, detail, packageName, tapToLog))
                             .build(),
                     )
                     .build(),
@@ -109,6 +111,7 @@ private fun weightTileLayout(
     headline: String,
     detail: String,
     packageName: String,
+    tapToLog: String,
 ): LayoutElementBuilders.LayoutElement = LayoutElementBuilders.Box.Builder()
     .setWidth(expand())
     .setHeight(expand())
@@ -142,7 +145,7 @@ private fun weightTileLayout(
             .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(4f)).build())
             .addContent(tileText(detail, sizeSp = 13f, color = DETAIL_COLOR, maxLines = 2))
             .addContent(LayoutElementBuilders.Spacer.Builder().setHeight(dp(10f)).build())
-            .addContent(tileText("Tap to log", sizeSp = 13f, color = ACCENT_COLOR))
+            .addContent(tileText(tapToLog, sizeSp = 13f, color = ACCENT_COLOR))
             .build(),
     )
     .build()

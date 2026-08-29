@@ -1,11 +1,23 @@
 package com.weighttrack.wear
 
+import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.sync.WearSummary
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
 
+@RunWith(RobolectricTestRunner::class)
 class WearGlanceTextTest {
+
+    /**
+     * Resolved through the real resources, so these read what the watch would actually show.
+     * The watch was left in English through the translation pass; a padlock on a wrist is no use
+     * to somebody who cannot read the word next to it.
+     */
+    private val context: android.content.Context
+        get() = ApplicationProvider.getApplicationContext()
 
     private val loaded = WearSummary(
         trendGrams = 82_500,
@@ -18,8 +30,8 @@ class WearGlanceTextTest {
 
     @Test
     fun `the tile leads with the trend and the week`() {
-        assertThat(WearGlanceText.headline(loaded)).isEqualTo("82.5 kg")
-        assertThat(WearGlanceText.detail(loaded)).isEqualTo("-0.4 kg this week")
+        assertThat(WearGlanceText.headline(context, loaded)).isEqualTo("82.5 kg")
+        assertThat(WearGlanceText.detail(context, loaded)).isEqualTo("-0.4 kg this week")
         assertThat(WearGlanceText.hasFigures(loaded)).isTrue()
     }
 
@@ -28,16 +40,16 @@ class WearGlanceTextTest {
         val locked = WearSummary(weightUnit = WeightUnit.KG, hidden = true, trendGrams = 82_500)
 
         // Not "82.5 kg": a weight on a watch face is exactly what the lock exists to hide.
-        assertThat(WearGlanceText.headline(locked)).isEqualTo("Locked")
-        assertThat(WearGlanceText.detail(locked)).isEqualTo("Unlock on your phone")
+        assertThat(WearGlanceText.headline(context, locked)).isEqualTo("Locked")
+        assertThat(WearGlanceText.detail(context, locked)).isEqualTo("Unlock on your phone")
         assertThat(WearGlanceText.shortDetail(locked)).isEmpty()
         assertThat(WearGlanceText.hasFigures(locked)).isFalse()
     }
 
     @Test
     fun `nothing from the phone yet says what to do about it`() {
-        assertThat(WearGlanceText.headline(null)).isEqualTo("--")
-        assertThat(WearGlanceText.detail(null)).isEqualTo("Open WeightTrack on your phone")
+        assertThat(WearGlanceText.headline(context, null)).isEqualTo("--")
+        assertThat(WearGlanceText.detail(context, null)).isEqualTo("Open WeightTrack on your phone")
         assertThat(WearGlanceText.hasFigures(null)).isFalse()
     }
 
@@ -45,16 +57,16 @@ class WearGlanceTextTest {
     fun `a phone with no readings is not the same as no phone`() {
         val empty = WearSummary(weightUnit = WeightUnit.KG, entryCount = 0)
 
-        assertThat(WearGlanceText.headline(empty)).isEqualTo("--")
-        assertThat(WearGlanceText.detail(empty)).isEqualTo("No readings yet")
+        assertThat(WearGlanceText.headline(context, empty)).isEqualTo("--")
+        assertThat(WearGlanceText.detail(context, empty)).isEqualTo("No readings yet")
     }
 
     @Test
     fun `one reading gives a weight but no week`() {
         val single = loaded.copy(weekChangeGrams = null, entryCount = 1)
 
-        assertThat(WearGlanceText.headline(single)).isEqualTo("82.5 kg")
-        assertThat(WearGlanceText.detail(single)).isEqualTo("Trend weight")
+        assertThat(WearGlanceText.headline(context, single)).isEqualTo("82.5 kg")
+        assertThat(WearGlanceText.detail(context, single)).isEqualTo("Trend weight")
         assertThat(WearGlanceText.shortDetail(single)).isEmpty()
     }
 
@@ -62,7 +74,7 @@ class WearGlanceTextTest {
     fun `the figures follow the unit the phone is set to`() {
         val pounds = loaded.copy(weightUnit = WeightUnit.LB)
 
-        assertThat(WearGlanceText.headline(pounds)).isEqualTo("181.9 lb")
+        assertThat(WearGlanceText.headline(context, pounds)).isEqualTo("181.9 lb")
         assertThat(WearGlanceText.shortDetail(pounds)).isEqualTo("-0.9 lb")
     }
 }

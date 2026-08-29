@@ -73,8 +73,8 @@ class WearViewModel(application: Application) : AndroidViewModel(application) {
                 when (result) {
                     // Queued, not sent: the Data Layer holds it until the phone is in range, so
                     // promising it has arrived would be a lie on a walk.
-                    LogResult.QUEUED -> "Saved. It reaches your phone when they are next together."
-                    LogResult.FAILED -> "Could not save. Is WeightTrack installed on your phone?"
+                    LogResult.QUEUED -> getApplication<Application>().getString(R.string.wear_queued)
+                    LogResult.FAILED -> getApplication<Application>().getString(R.string.wear_failed)
                 },
             )
         }

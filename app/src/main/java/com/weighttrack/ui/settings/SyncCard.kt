@@ -67,7 +67,7 @@ fun SyncCard(
                 }
             }
             SyncMode.FOLDER -> {
-                LabelledValue(stringResource(R.string.synccard_folder), folderName ?: "Chosen")
+                LabelledValue(stringResource(R.string.synccard_folder), folderName ?: stringResource(R.string.synccard_chosen))
                 SyncStatus(settings, syncing, onSyncNow, onTurnOff, onBackgroundChange)
                 Spacer(Modifier.height(6.dp))
                 TextButton(onClick = onPickFolder) { Text(stringResource(R.string.settings_pick_a_different_folder)) }
