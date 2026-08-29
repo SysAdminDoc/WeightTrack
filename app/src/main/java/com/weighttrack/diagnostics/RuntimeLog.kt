@@ -35,6 +35,7 @@ enum class LogEvent {
     SCALE_SCAN_FAILED,
     SCALE_CONNECT_FAILED,
     SCALE_DISCONNECTED,
+    SCALE_BOND_LOST,
 }
 
 /**

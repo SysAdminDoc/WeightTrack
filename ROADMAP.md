@@ -114,13 +114,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: the stored file contains no plaintext password (asserted by a Robolectric test reading the file); an existing plaintext value is migrated on first read and the old key cleared.
   Complexity: M
 
-- [ ] P1 — Handle a scale that lost its bond
-  Why: Android 16 broadcasts `BluetoothDevice.ACTION_KEY_MISSING` when the peer's key is gone; today that reads as "connected and said nothing", which is exactly what the CHANGELOG asks users to report; ble-scale-sync 1.26.0 added the same recovery.
-  Evidence: https://developer.android.com/about/versions/16/behavior-changes-16 ; https://github.com/KristianP26/ble-scale-sync/releases/tag/v1.26.0 ; app/src/main/java/com/weighttrack/ble/ScaleConnection.kt
-  Touches: ble/ScaleConnection.kt (receiver for ACTION_KEY_MISSING on API 36+, `removeBond` then re-pair prompt), ui/scale/ScaleScreen.kt (`ScaleProblem.BondLost` with a "forget and pair again" action), strings.xml
-  Acceptance: a unit test drives the connection with the broadcast and asserts the `BondLost` problem; on the emulator the scale screen shows the action when the broadcast is sent with `adb shell am broadcast`.
-  Complexity: S
-
 - [ ] P1 — Explain the goal date: a "how this was worked out" view with the fitted window, rate, range and what would change it
   Why: Happy Scale 2026.5.3 (2026-06-02) made this its headline trend feature; the projection already refuses fake precision and the reasoning behind a refusal is the part people distrust.
   Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; core/src/main/java/com/weighttrack/core/math/GoalProjection.kt (all inputs already computed)

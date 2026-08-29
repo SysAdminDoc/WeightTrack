@@ -310,6 +310,34 @@ class BluetoothScaleConnection @Inject constructor(
             }
         }
 
+        // Android 16 and later says when the scale has forgotten the pairing. Without it a
+        // scale that has been factory reset looks exactly like one that is switched off, and
+        // the advice for the two is completely different.
+        val bondWatcher = if (Build.VERSION.SDK_INT >= ANDROID_16) {
+            object : android.content.BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: android.content.Intent) {
+                    val forgotten: BluetoothDevice? =
+                        intent.getParcelableExtra(BluetoothDevice.EXTRA_DEVICE, BluetoothDevice::class.java)
+                    if (forgotten?.address != address) return
+                    runtimeLog.write(
+                        com.weighttrack.diagnostics.LogArea.SCALE,
+                        com.weighttrack.diagnostics.LogEvent.SCALE_BOND_LOST,
+                    )
+                    trySendBlocking(ScaleConnectionEvent.Failed(ScaleProblem.BOND_LOST))
+                    close()
+                }
+            }.also {
+                ContextCompat.registerReceiver(
+                    context,
+                    it,
+                    android.content.IntentFilter(KEY_MISSING_ACTION),
+                    ContextCompat.RECEIVER_EXPORTED,
+                )
+            }
+        } else {
+            null
+        }
+
         // The transport is named rather than left to the stack to guess: a scale is low energy
         // only, and letting it choose can land on the classic transport and never connect.
         val gatt = remote.connectGatt(context, false, callback, BluetoothDevice.TRANSPORT_LE)
@@ -320,6 +348,7 @@ class BluetoothScaleConnection @Inject constructor(
             close()
         }
         awaitClose {
+            bondWatcher?.let { runCatching { context.unregisterReceiver(it) } }
             if (
                 ContextCompat.checkSelfPermission(
                     context,
@@ -340,6 +369,15 @@ class BluetoothScaleConnection @Inject constructor(
             PackageManager.PERMISSION_GRANTED
 
     private companion object {
+        /** Android 16, the first version that says a peer has forgotten its key. */
+        const val ANDROID_16 = 36
+
+        /**
+         * `BluetoothDevice.ACTION_KEY_MISSING`, spelled out because the constant is API 36 and
+         * this file compiles against minSdk 26. [ScaleBondTest] holds it to the platform value.
+         */
+        const val KEY_MISSING_ACTION = "android.bluetooth.device.action.KEY_MISSING"
+
         val WEIGHT_SCALE_SERVICE: UUID = shortUuid(0x181D)
         val WEIGHT_MEASUREMENT: UUID = shortUuid(0x2A9D)
         val BODY_COMPOSITION_SERVICE: UUID = shortUuid(0x181B)

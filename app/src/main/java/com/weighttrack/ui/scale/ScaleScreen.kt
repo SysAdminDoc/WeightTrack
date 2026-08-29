@@ -60,6 +60,7 @@ fun ScaleScreen(
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { onRetry() }
+    val screenContext = androidx.compose.ui.platform.LocalContext.current
 
     Scaffold(
         modifier = modifier,
@@ -195,19 +196,34 @@ fun ScaleScreen(
                         Spacer(Modifier.height(8.dp))
                         Button(
                             onClick = {
-                                if (state.problem == ScaleProblem.PERMISSION_MISSING) {
-                                    permissionLauncher.launch(permissions.toTypedArray())
-                                } else {
-                                    onRetry()
+                                when (state.problem) {
+                                    ScaleProblem.PERMISSION_MISSING ->
+                                        permissionLauncher.launch(permissions.toTypedArray())
+                                    // Only the system can drop a stale pairing, so the honest
+                                    // thing is to take somebody to where it is done.
+                                    ScaleProblem.BOND_LOST -> {
+                                        runCatching {
+                                            screenContext.startActivity(
+                                                android.content.Intent(
+                                                    android.provider.Settings
+                                                        .ACTION_BLUETOOTH_SETTINGS,
+                                                ),
+                                            )
+                                        }
+                                        Unit
+                                    }
+                                    else -> onRetry()
                                 }
                             },
                         ) {
                             Text(
-                                if (state.problem == ScaleProblem.PERMISSION_MISSING) {
-                                    "Allow"
-                                } else {
-                                    stringResource(R.string.scalescreen_try_again)
-                                },
+                                stringResource(
+                                    when (state.problem) {
+                                        ScaleProblem.PERMISSION_MISSING -> R.string.scale_allow
+                                        ScaleProblem.BOND_LOST -> R.string.scale_open_bluetooth_settings
+                                        else -> R.string.scalescreen_try_again
+                                    },
+                                ),
                             )
                         }
                     }
@@ -290,5 +306,6 @@ private fun explain(problem: ScaleProblem?): String = when (problem) {
         stringResource(R.string.scale_finding_a_scale_needs_permission_to)
     ScaleProblem.SCAN_FAILED -> stringResource(R.string.scale_android_would_not_start_the_search)
     ScaleProblem.CONNECTION_LOST -> stringResource(R.string.scale_the_scale_stopped_talking_before_it)
+    ScaleProblem.BOND_LOST -> stringResource(R.string.scale_bond_lost)
     null -> stringResource(R.string.scale_something_went_wrong)
 }

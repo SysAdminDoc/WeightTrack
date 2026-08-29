@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- A scale that has forgotten the pairing now says so. It happens after a factory reset and, on some scales, after a battery change: your phone still holds its half, so it connects, gets nowhere and drops, which looks exactly like a scale that is switched off. Android 16 and later tells the app which it is, and the app now passes that on with a button that takes you to the Bluetooth settings, since only the system can drop the stale pairing.
 - The charts now describe themselves to a screen reader. A drawing is a single blank node as far as TalkBack is concerned, so the trend chart, the week bars, the step bars and the fasting ring were all silent: the main thing on the screen was simply not there for anybody using one. Each now says what it shows, and the segmented buttons take a full-sized touch target without changing how they look.
 - Fixes to the translation work in this release, found by reviewing it. A search with no matches read "Nothing matches \apple\\" instead of using quotes, and a food row ran two facts together as "250 kcal per 100 g· 12 g protein", both because Android's resource compiler has escaping rules of its own that fail silently. The watch was missed entirely and is now translated too, along with the weekly summary notification, which the last note wrongly said was done. Fifteen more words were hiding in the half of a choice that was not converted.
 - The activity log is now shown on the Diagnostics screen rather than only being shareable, so you can read what happened without sending it anywhere first.

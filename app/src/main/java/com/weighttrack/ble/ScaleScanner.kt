@@ -61,6 +61,17 @@ enum class ScaleProblem {
     PERMISSION_MISSING,
     SCAN_FAILED,
     CONNECTION_LOST,
+
+    /**
+     * The scale has forgotten the pairing.
+     *
+     * A factory reset, a battery change on some models, or simply too many phones paired to it.
+     * The phone still holds its half, so it connects, gets nowhere, and drops: exactly what a
+     * scale that is switched off looks like. Android says which it is from Android 16 onwards,
+     * and there is nothing an app can do about it except say so, because the stale pairing has
+     * to be removed in the system's own Bluetooth settings.
+     */
+    BOND_LOST,
 }
 
 /**

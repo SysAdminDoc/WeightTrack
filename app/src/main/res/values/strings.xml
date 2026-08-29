@@ -738,4 +738,7 @@
     <string name="chart_weekly_description">Week by week change, %1$d weeks shown.</string>
     <string name="chart_steps_description">Daily steps, %1$d days shown.</string>
     <string name="fasting_ring_description">Fast progress, %1$d percent of the target.</string>
+    <string name="scale_bond_lost">This scale has forgotten the pairing, which happens after a factory reset or a battery change. Your phone still holds its half, so it connects and then goes quiet. Forget the scale in Android\'s Bluetooth settings and pair it again.</string>
+    <string name="scale_open_bluetooth_settings">Open Bluetooth settings</string>
+    <string name="scale_allow">Allow</string>
 </resources>
