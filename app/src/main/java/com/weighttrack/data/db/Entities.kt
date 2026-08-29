@@ -251,3 +251,36 @@ data class RecipeItemEntity(
     val foodId: Long,
     val grams: Double,
 )
+
+/**
+ * One thing eaten, on one day, by one person.
+ *
+ * The nutrition is copied onto the row rather than looked up through the food. A label
+ * corrected next month must not rewrite what last month's days added up to, and a food deleted
+ * must not take a day's total with it. The food identifier is kept only so "eat this again"
+ * knows what to offer.
+ */
+@Entity(
+    tableName = "food_log_entries",
+    indices = [
+        Index(value = ["profileId", "localDate"]),
+        Index(value = ["foodId"]),
+    ],
+)
+data class FoodLogEntryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
+    /** The day it counts towards, in the zone the person was standing in. */
+    val localDate: String,
+    val meal: String,
+    /** Null for a quick-add, and for anything whose food has since been deleted. */
+    val foodId: Long?,
+    val name: String,
+    /** Null for a quick-add, which is a number of calories and nothing else. */
+    val grams: Double?,
+    val kcal: Double,
+    val proteinG: Double?,
+    val carbsG: Double?,
+    val fatG: Double?,
+    val loggedAtUtcMillis: Long,
+)

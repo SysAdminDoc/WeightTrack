@@ -59,6 +59,8 @@ import com.weighttrack.ui.measurements.MeasurementsViewModel
 import com.weighttrack.ui.navigation.Routes
 import com.weighttrack.ui.photos.PhotosScreen
 import com.weighttrack.ui.barcode.ScanScreen
+import com.weighttrack.ui.diary.DiaryScreen
+import com.weighttrack.ui.diary.DiaryViewModel
 import com.weighttrack.ui.food.FoodScreen
 import com.weighttrack.ui.food.FoodViewModel
 import com.weighttrack.ui.photos.PhotosViewModel
@@ -100,7 +102,8 @@ fun WeightTrackApp(
         currentRoute == Routes.PHOTOS ||
         currentRoute == Routes.SCALE ||
         currentRoute == Routes.FOODS ||
-        currentRoute == Routes.SCAN
+        currentRoute == Routes.SCAN ||
+        currentRoute == Routes.DIARY
 
     Scaffold(
         modifier = modifier,
@@ -202,6 +205,7 @@ fun WeightTrackApp(
                     onOpenPhotos = { navController.navigate(Routes.PHOTOS) },
                     onOpenScale = { navController.navigate(Routes.SCALE) },
                     onOpenFoods = { navController.navigate(Routes.FOODS) },
+                    onOpenDiary = { navController.navigate(Routes.DIARY) },
                     nutritionEnabled = snapshot.settings.nutritionEnabled,
                     waterSummary = waterSummary,
                 )
@@ -316,6 +320,24 @@ fun WeightTrackApp(
                     onCancelEditing = viewModel::cancelEditing,
                     onSaveEdit = viewModel::saveEdit,
                     message = fastingMessage,
+                    onDismissMessage = viewModel::dismissMessage,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.DIARY) {
+                val viewModel: DiaryViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                DiaryScreen(
+                    state = state,
+                    suggestedMeal = viewModel.suggestedMeal(),
+                    onPreviousDay = viewModel::showPreviousDay,
+                    onNextDay = viewModel::showNextDay,
+                    onQueryChange = viewModel::setQuery,
+                    onLog = viewModel::log,
+                    onQuickAdd = viewModel::quickAdd,
+                    onCopyYesterday = viewModel::copyYesterday,
+                    onDelete = viewModel::delete,
                     onDismissMessage = viewModel::dismissMessage,
                     onBack = { navController.popBackStack() },
                 )

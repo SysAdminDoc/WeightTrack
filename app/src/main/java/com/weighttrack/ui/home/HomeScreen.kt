@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
@@ -68,6 +69,7 @@ fun HomeScreen(
     onOpenPhotos: () -> Unit,
     onOpenScale: () -> Unit,
     onOpenFoods: () -> Unit,
+    onOpenDiary: () -> Unit,
     /** Food logging is off until somebody asks for it, so the weight-only app stays clean. */
     nutritionEnabled: Boolean,
     waterSummary: WaterSummary?,
@@ -116,6 +118,14 @@ fun HomeScreen(
             item {
                 HomeActionRow(
                     icon = Icons.Outlined.Restaurant,
+                    title = "Food diary",
+                    subtitle = "What you ate today, by meal",
+                    onClick = onOpenDiary,
+                )
+            }
+            item {
+                HomeActionRow(
+                    icon = Icons.Outlined.MenuBook,
                     title = "Foods",
                     subtitle = "Your food database, recipes and lookups",
                     onClick = onOpenFoods,

@@ -11,6 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
 import com.weighttrack.data.db.FastDao
 import com.weighttrack.data.db.GoalDao
 import com.weighttrack.data.db.FoodDao
+import com.weighttrack.data.db.FoodLogDao
 import com.weighttrack.data.db.ProfileDao
 import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.MeasurementDao
@@ -96,4 +97,7 @@ object DataModule {
 
     @Provides
     fun provideFoodDao(database: WeightTrackDatabase): FoodDao = database.foodDao()
+
+    @Provides
+    fun provideFoodLogDao(database: WeightTrackDatabase): FoodLogDao = database.foodLogDao()
 }

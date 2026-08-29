@@ -473,6 +473,7 @@ interface ProfileDao {
         deleteWaterEntries(profile.id)
         deleteFasts(profile.id)
         deleteProgressPhotos(profile.id)
+        deleteFoodLog(profile.id)
         delete(profile)
     }
 
@@ -493,6 +494,9 @@ interface ProfileDao {
 
     @Query("DELETE FROM progress_photos WHERE profileId = :profileId")
     suspend fun deleteProgressPhotos(profileId: Long)
+
+    @Query("DELETE FROM food_log_entries WHERE profileId = :profileId")
+    suspend fun deleteFoodLog(profileId: Long)
 }
 
 /** A recipe with everything in it, which is the only useful way to read one. */
@@ -613,4 +617,66 @@ interface FoodDao {
 
     @Query("DELETE FROM recipes")
     suspend fun deleteAllRecipes()
+}
+
+/** A day's totals, summed in SQL so a screen never loads a month to add one day up. */
+data class DailyIntakeRow(
+    val localDate: String,
+    val kcal: Double,
+    val proteinG: Double?,
+    val carbsG: Double?,
+    val fatG: Double?,
+)
+
+@Dao
+interface FoodLogDao {
+
+    @Query(
+        "SELECT * FROM food_log_entries WHERE profileId = :profileId AND localDate = :localDate " +
+            "ORDER BY loggedAtUtcMillis ASC",
+    )
+    fun observeForDate(profileId: Long, localDate: String): Flow<List<FoodLogEntryEntity>>
+
+    @Query(
+        "SELECT * FROM food_log_entries WHERE profileId = :profileId AND localDate = :localDate " +
+            "ORDER BY loggedAtUtcMillis ASC",
+    )
+    suspend fun forDate(profileId: Long, localDate: String): List<FoodLogEntryEntity>
+
+    @Query(
+        """
+        SELECT localDate,
+               SUM(kcal) AS kcal,
+               SUM(proteinG) AS proteinG,
+               SUM(carbsG) AS carbsG,
+               SUM(fatG) AS fatG
+        FROM food_log_entries
+        WHERE profileId = :profileId
+        GROUP BY localDate
+        ORDER BY localDate DESC
+        LIMIT :days
+        """,
+    )
+    fun observeRecentDays(profileId: Long, days: Int): Flow<List<DailyIntakeRow>>
+
+    @Query("SELECT * FROM food_log_entries WHERE id = :id")
+    suspend fun byId(id: Long): FoodLogEntryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(entry: FoodLogEntryEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(entries: List<FoodLogEntryEntity>)
+
+    @Update
+    suspend fun update(entry: FoodLogEntryEntity)
+
+    @Delete
+    suspend fun delete(entry: FoodLogEntryEntity)
+
+    @Query("DELETE FROM food_log_entries WHERE profileId = :profileId AND localDate = :localDate")
+    suspend fun deleteForDate(profileId: Long, localDate: String)
+
+    @Query("DELETE FROM food_log_entries")
+    suspend fun deleteAll()
 }
