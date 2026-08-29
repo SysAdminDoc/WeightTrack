@@ -2,6 +2,7 @@ package com.weighttrack.ui.format
 
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.LengthUnit
+import com.weighttrack.core.model.VolumeUnit
 import com.weighttrack.core.model.WeightUnit
 import java.util.Locale
 import kotlin.math.abs
@@ -89,4 +90,21 @@ object LengthFormatter {
             String.format(Locale.getDefault(), "%d ft %.1f in", feet, inches)
         }
     }
+}
+
+object VolumeFormatter {
+
+    fun unitLabel(unit: VolumeUnit): String = when (unit) {
+        VolumeUnit.ML -> "ml"
+        VolumeUnit.FL_OZ -> "fl oz"
+    }
+
+    /** Millilitres read as whole numbers; fluid ounces need a decimal to stay useful. */
+    fun value(millilitres: Int, unit: VolumeUnit): String = when (unit) {
+        VolumeUnit.ML -> millilitres.toString()
+        VolumeUnit.FL_OZ -> String.format(Locale.getDefault(), "%.1f", UnitConverter.mlToFlOz(millilitres))
+    }
+
+    fun full(millilitres: Int, unit: VolumeUnit): String =
+        "${value(millilitres, unit)} ${unitLabel(unit)}"
 }

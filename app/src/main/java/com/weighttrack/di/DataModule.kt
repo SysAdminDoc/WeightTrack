@@ -9,6 +9,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.weighttrack.data.db.GoalDao
 import com.weighttrack.data.db.MeasurementDao
+import com.weighttrack.data.db.WaterDao
 import com.weighttrack.data.db.WeightEntryDao
 import com.weighttrack.data.db.WeightTrackDatabase
 import com.weighttrack.diagnostics.CrashLogStore
@@ -43,6 +44,9 @@ object DataModule {
 
     @Provides
     fun provideGoalDao(database: WeightTrackDatabase): GoalDao = database.goalDao()
+
+    @Provides
+    fun provideWaterDao(database: WeightTrackDatabase): WaterDao = database.waterDao()
 
     @Provides
     @Singleton

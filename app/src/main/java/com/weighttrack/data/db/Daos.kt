@@ -210,3 +210,48 @@ interface GoalDao {
         return insert(goal.copy(active = true))
     }
 }
+
+/** A day's water total, summed in SQL so the screen never loads a whole history to add it up. */
+data class DailyWaterRow(
+    val localDate: String,
+    val millilitres: Int,
+)
+
+@Dao
+interface WaterDao {
+
+    @Query("SELECT * FROM water_entries WHERE localDate = :localDate ORDER BY timestampUtcMillis DESC")
+    fun observeForDate(localDate: String): Flow<List<WaterEntryEntity>>
+
+    @Query("SELECT COALESCE(SUM(millilitres), 0) FROM water_entries WHERE localDate = :localDate")
+    fun observeTotalForDate(localDate: String): Flow<Int>
+
+    @Query("SELECT COALESCE(SUM(millilitres), 0) FROM water_entries WHERE localDate = :localDate")
+    suspend fun totalForDate(localDate: String): Int
+
+    @Query(
+        """
+        SELECT localDate, CAST(SUM(millilitres) AS INTEGER) AS millilitres
+        FROM water_entries
+        GROUP BY localDate
+        ORDER BY localDate DESC
+        LIMIT :days
+        """,
+    )
+    fun observeRecentDays(days: Int): Flow<List<DailyWaterRow>>
+
+    @Query("SELECT * FROM water_entries WHERE id = :id")
+    suspend fun byId(id: Long): WaterEntryEntity?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(entry: WaterEntryEntity): Long
+
+    @Delete
+    suspend fun delete(entry: WaterEntryEntity)
+
+    @Query("DELETE FROM water_entries WHERE localDate = :localDate")
+    suspend fun deleteForDate(localDate: String)
+
+    @Query("DELETE FROM water_entries")
+    suspend fun deleteAll()
+}

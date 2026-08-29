@@ -15,6 +15,22 @@ enum class LengthUnit {
     IN,
 }
 
+/**
+ * Water is stored in whole millilitres. The display unit is not a separate setting: someone
+ * weighing in pounds thinks in fluid ounces, so it follows the weight unit rather than adding
+ * one more thing to get wrong.
+ */
+enum class VolumeUnit {
+    ML,
+    FL_OZ,
+    ;
+
+    companion object {
+        fun forWeightUnit(unit: WeightUnit): VolumeUnit =
+            if (unit == WeightUnit.KG) ML else FL_OZ
+    }
+}
+
 enum class Sex {
     MALE,
     FEMALE,

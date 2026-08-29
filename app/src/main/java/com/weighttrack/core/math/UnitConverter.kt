@@ -1,6 +1,7 @@
 package com.weighttrack.core.math
 
 import com.weighttrack.core.model.LengthUnit
+import com.weighttrack.core.model.VolumeUnit
 import com.weighttrack.core.model.WeightUnit
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -18,6 +19,8 @@ object UnitConverter {
     const val GRAMS_PER_LB = 453.59237
     const val LB_PER_STONE = 14
     const val MM_PER_CM = 10.0
+    /** US fluid ounce, which is what a person logging water in the US means. */
+    const val ML_PER_FL_OZ = 29.5735295625
     const val MM_PER_INCH = 25.4
     const val INCHES_PER_FOOT = 12
 
@@ -62,6 +65,20 @@ object UnitConverter {
     fun displayToGrams(value: Double, unit: WeightUnit): Int = when (unit) {
         WeightUnit.KG -> kgToGrams(value)
         WeightUnit.LB, WeightUnit.ST_LB -> lbToGrams(value)
+    }
+
+    fun mlToFlOz(millilitres: Int): Double = millilitres / ML_PER_FL_OZ
+
+    fun flOzToMl(fluidOunces: Double): Int = (fluidOunces * ML_PER_FL_OZ).roundToInt()
+
+    fun mlToDisplay(millilitres: Int, unit: VolumeUnit): Double = when (unit) {
+        VolumeUnit.ML -> millilitres.toDouble()
+        VolumeUnit.FL_OZ -> mlToFlOz(millilitres)
+    }
+
+    fun displayToMl(value: Double, unit: VolumeUnit): Int = when (unit) {
+        VolumeUnit.ML -> value.roundToInt()
+        VolumeUnit.FL_OZ -> flOzToMl(value)
     }
 
     fun mmToCm(mm: Int): Double = mm / MM_PER_CM

@@ -35,6 +35,8 @@ data class AppSettings(
     val reminderMinute: Int = 30,
     val reminderDays: Set<DayOfWeek> = DayOfWeek.entries.toSet(),
     val appLockEnabled: Boolean = false,
+    val waterTargetMl: Int = 2_000,
+    val waterServingMl: Int = 250,
 )
 
 @Singleton
@@ -79,6 +81,14 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAppLockEnabled(enabled: Boolean) = edit { it[Keys.APP_LOCK_ENABLED] = enabled }
 
+    suspend fun setWaterTargetMl(millilitres: Int) = edit {
+        it[Keys.WATER_TARGET_ML] = millilitres.coerceIn(200, 10_000)
+    }
+
+    suspend fun setWaterServingMl(millilitres: Int) = edit {
+        it[Keys.WATER_SERVING_ML] = millilitres.coerceIn(25, 2_000)
+    }
+
     private suspend fun edit(block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit) {
         dataStore.edit(block)
     }
@@ -105,6 +115,8 @@ class SettingsRepository @Inject constructor(
             ?.toSet()
             ?: DayOfWeek.entries.toSet(),
         appLockEnabled = this[Keys.APP_LOCK_ENABLED] ?: false,
+        waterTargetMl = this[Keys.WATER_TARGET_ML] ?: 2_000,
+        waterServingMl = this[Keys.WATER_SERVING_ML] ?: 250,
     )
 
     private fun <T : Enum<T>> enumOrDefault(raw: String?, values: List<T>, fallback: T): T =
@@ -127,5 +139,7 @@ class SettingsRepository @Inject constructor(
         val REMINDER_MINUTE = intPreferencesKey("reminder_minute")
         val REMINDER_DAYS = stringSetPreferencesKey("reminder_days")
         val APP_LOCK_ENABLED = booleanPreferencesKey("app_lock_enabled")
+        val WATER_TARGET_ML = intPreferencesKey("water_target_ml")
+        val WATER_SERVING_ML = intPreferencesKey("water_serving_ml")
     }
 }

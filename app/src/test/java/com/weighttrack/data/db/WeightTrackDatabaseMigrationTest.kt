@@ -1,0 +1,165 @@
+package com.weighttrack.data.db
+
+import android.content.Context
+import android.database.sqlite.SQLiteDatabase
+import androidx.room.Room
+import androidx.test.core.app.ApplicationProvider
+import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import org.junit.After
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import java.io.File
+
+/**
+ * The upgrade path from the first release.
+ *
+ * Losing someone's weight history on an app update is the worst thing this app could do, and a
+ * destructive fallback would do exactly that in silence. This builds a real version 1 database
+ * from the schema Room itself exported, puts rows in it, then opens it with the current Room
+ * definition so the real auto-migration runs, and checks the rows are still there afterwards.
+ *
+ * Driving the version 1 tables from the exported `1.json` rather than hand-written DDL means
+ * the test cannot drift away from what version 1 actually shipped.
+ */
+@RunWith(RobolectricTestRunner::class)
+class WeightTrackDatabaseMigrationTest {
+
+    private val context: Context = ApplicationProvider.getApplicationContext()
+    private val databaseName = "migration-test.db"
+    private var database: WeightTrackDatabase? = null
+
+    @After
+    fun tearDown() {
+        database?.close()
+        context.deleteDatabase(databaseName)
+    }
+
+    private fun schemaFile(version: Int): File {
+        val relative = "schemas/com.weighttrack.data.db.WeightTrackDatabase/$version.json"
+        // Unit tests run from the module directory, but tolerate the repo root too.
+        return listOf(File(relative), File("app/$relative"))
+            .firstOrNull { it.isFile }
+            ?: error("Could not find the exported Room schema for version $version")
+    }
+
+    /** Recreates the version 1 database exactly as Room described it. */
+    private fun createVersionOneDatabase(): File {
+        val schema = Json.parseToJsonElement(schemaFile(1).readText())
+            .jsonObject.getValue("database").jsonObject
+
+        val file = context.getDatabasePath(databaseName)
+        file.parentFile?.mkdirs()
+        val db = SQLiteDatabase.openOrCreateDatabase(file, null)
+        schema.getValue("entities").jsonArray.forEach { entity ->
+            val table = entity.jsonObject.getValue("tableName").jsonPrimitive.content
+            val createSql = entity.jsonObject.getValue("createSql").jsonPrimitive.content
+            db.execSQL(createSql.replace("\${TABLE_NAME}", table))
+            // Room validates indices as well as columns, so a table without them is not a
+            // faithful version 1 database and the migration check fails for the wrong reason.
+            entity.jsonObject["indices"]?.jsonArray?.forEach { index ->
+                val indexSql = index.jsonObject.getValue("createSql").jsonPrimitive.content
+                db.execSQL(indexSql.replace("\${TABLE_NAME}", table))
+            }
+        }
+        // Room refuses to open a database whose recorded identity hash it does not recognise,
+        // so the setup queries that stamp it are part of being a genuine version 1 database.
+        schema["setupQueries"]?.jsonArray?.forEach { db.execSQL(it.jsonPrimitive.content) }
+        db.version = 1
+        db.close()
+        return file
+    }
+
+    private fun seedVersionOneRows() {
+        val db = SQLiteDatabase.openDatabase(
+            context.getDatabasePath(databaseName).path,
+            null,
+            SQLiteDatabase.OPEN_READWRITE,
+        )
+        db.execSQL(
+            """
+            INSERT INTO weight_entries
+            (timestampUtcMillis, zoneOffsetSeconds, localDate, grams, bodyFatPercent, note,
+             tags, source, clientRecordId, healthConnectId, updatedAtUtcMillis)
+            VALUES (1700000000000, 0, '2023-11-14', 82500, 21.5, 'a note', 'FASTED',
+                    'MANUAL', 'client-1', NULL, 0)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO measurements
+            (timestampUtcMillis, localDate, type, valueMm, note, updatedAtUtcMillis)
+            VALUES (1700000000000, '2023-11-14', 'WAIST', 880, NULL, 0)
+            """.trimIndent(),
+        )
+        db.execSQL(
+            """
+            INSERT INTO goals
+            (direction, startGrams, targetGrams, startDate, targetDate, milestoneStepGrams,
+             active, createdAtUtcMillis)
+            VALUES ('LOSE', 90000, 80000, '2023-11-01', NULL, 2000, 1, 0)
+            """.trimIndent(),
+        )
+        db.close()
+    }
+
+    /** Opens with the current definition, which is what actually runs the migration. */
+    private fun openCurrent(): WeightTrackDatabase =
+        Room.databaseBuilder(context, WeightTrackDatabase::class.java, databaseName)
+            .allowMainThreadQueries()
+            .build()
+            .also { database = it }
+
+    @Test
+    fun `version 1 data survives the upgrade`() = runTest {
+        createVersionOneDatabase()
+        seedVersionOneRows()
+
+        val db = openCurrent()
+
+        val entry = db.weightEntryDao().latest()
+        assertThat(entry).isNotNull()
+        assertThat(entry!!.grams).isEqualTo(82_500)
+        assertThat(entry.note).isEqualTo("a note")
+        assertThat(entry.clientRecordId).isEqualTo("client-1")
+        assertThat(entry.bodyFatPercent).isWithin(1e-9).of(21.5)
+
+        assertThat(db.measurementDao().latestPerType().single().valueMm).isEqualTo(880)
+        assertThat(db.goalDao().active()!!.targetGrams).isEqualTo(80_000)
+    }
+
+    @Test
+    fun `the water table exists and works after the upgrade`() = runTest {
+        createVersionOneDatabase()
+        seedVersionOneRows()
+
+        val db = openCurrent()
+        val dao = db.waterDao()
+        assertThat(dao.totalForDate("2026-01-01")).isEqualTo(0)
+
+        dao.insert(
+            WaterEntryEntity(
+                timestampUtcMillis = 1_800_000_000_000,
+                localDate = "2026-01-01",
+                millilitres = 250,
+                healthConnectId = null,
+                updatedAtUtcMillis = 0,
+            ),
+        )
+        assertThat(dao.totalForDate("2026-01-01")).isEqualTo(250)
+    }
+
+    @Test
+    fun `an empty version 1 database upgrades cleanly`() = runTest {
+        createVersionOneDatabase()
+
+        val db = openCurrent()
+        assertThat(db.weightEntryDao().count()).isEqualTo(0)
+        assertThat(db.waterDao().totalForDate("2026-01-01")).isEqualTo(0)
+    }
+}

@@ -2,4 +2,6 @@
 <resources>
     <string name="app_name">WeightTrack</string>
     <string name="widget_description">Your trend weight and the change this week.</string>
+    <string name="water_widget_label">WeightTrack water</string>
+    <string name="water_widget_description">Water so far today, and a tap to add a serving.</string>
 </resources>

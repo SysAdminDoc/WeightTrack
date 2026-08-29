@@ -68,3 +68,20 @@ data class GoalEntity(
     val active: Boolean,
     val createdAtUtcMillis: Long,
 )
+
+@Entity(
+    tableName = "water_entries",
+    indices = [
+        Index(value = ["timestampUtcMillis"]),
+        Index(value = ["localDate"]),
+    ],
+)
+data class WaterEntryEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestampUtcMillis: Long,
+    /** The day the drink counts towards, in the zone the person was standing in. */
+    val localDate: String,
+    val millilitres: Int,
+    val healthConnectId: String?,
+    val updatedAtUtcMillis: Long,
+)

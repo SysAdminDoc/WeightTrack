@@ -58,6 +58,8 @@ import com.weighttrack.ui.onboarding.OnboardingScreen
 import com.weighttrack.ui.onboarding.OnboardingViewModel
 import com.weighttrack.ui.settings.SettingsScreen
 import com.weighttrack.ui.settings.SettingsViewModel
+import com.weighttrack.ui.water.WaterScreen
+import com.weighttrack.ui.water.WaterViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,7 +83,8 @@ fun WeightTrackApp(
     val isFullScreenRoute = currentRoute == Routes.LOG_WITH_ARG ||
         currentRoute == Routes.GOAL ||
         currentRoute == Routes.MEASUREMENTS ||
-        currentRoute == Routes.CRASH_LOGS
+        currentRoute == Routes.CRASH_LOGS ||
+        currentRoute == Routes.WATER
 
     Scaffold(
         modifier = modifier,
@@ -172,11 +175,14 @@ fun WeightTrackApp(
             composable(Routes.HOME) {
                 val viewModel: HomeViewModel = hiltViewModel()
                 val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
+                val waterSummary by viewModel.waterSummary.collectAsStateWithLifecycle()
                 HomeScreen(
                     snapshot = snapshot,
                     onLogWeight = { navController.navigate(Routes.log()) },
                     onOpenGoal = { navController.navigate(Routes.GOAL) },
                     onOpenMeasurements = { navController.navigate(Routes.MEASUREMENTS) },
+                    onOpenWater = { navController.navigate(Routes.WATER) },
+                    waterSummary = waterSummary,
                 )
             }
 
@@ -241,6 +247,23 @@ fun WeightTrackApp(
                     busy = busy,
                     viewModel = viewModel,
                     onOpenCrashLogs = { navController.navigate(Routes.CRASH_LOGS) },
+                )
+            }
+
+            composable(Routes.WATER) {
+                val viewModel: WaterViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                WaterScreen(
+                    state = state,
+                    onAddServing = viewModel::addServing,
+                    onAdd = viewModel::add,
+                    onRemove = viewModel::remove,
+                    onClearDay = viewModel::clearDay,
+                    onPreviousDay = viewModel::showPreviousDay,
+                    onNextDay = viewModel::showNextDay,
+                    onSetTarget = viewModel::setTarget,
+                    onSetServing = viewModel::setServing,
+                    onBack = { navController.popBackStack() },
                 )
             }
 

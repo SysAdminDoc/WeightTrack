@@ -16,6 +16,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -43,6 +44,7 @@ import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.Sparkline
 import com.weighttrack.ui.components.StatTile
 import com.weighttrack.ui.format.DateFormatters
+import com.weighttrack.ui.format.VolumeFormatter
 import com.weighttrack.ui.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
@@ -57,6 +59,8 @@ fun HomeScreen(
     onLogWeight: () -> Unit,
     onOpenGoal: () -> Unit,
     onOpenMeasurements: () -> Unit,
+    onOpenWater: () -> Unit,
+    waterSummary: WaterSummary?,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -90,7 +94,24 @@ fun HomeScreen(
         item { HomeDivider() }
         snapshot.goal?.let { item { GoalCard(snapshot, onOpenGoal, today) } }
         item { HomeDivider() }
-        item { LogWeightRow(onLogWeight) }
+        item {
+            HomeActionRow(
+                icon = Icons.Outlined.MonitorWeight,
+                title = "Log weight",
+                subtitle = "Record your weight",
+                onClick = onLogWeight,
+            )
+        }
+        item {
+            HomeActionRow(
+                icon = Icons.Outlined.LocalDrink,
+                title = "Water",
+                subtitle = waterSummary
+                    ?.let { "${VolumeFormatter.full(it.totalMl, it.unit)} of ${VolumeFormatter.full(it.targetMl, it.unit)} today" }
+                    ?: "Track what you drink",
+                onClick = onOpenWater,
+            )
+        }
         item { BodyStatsCard(snapshot, onOpenMeasurements) }
     }
 }
@@ -314,25 +335,30 @@ private fun HomeDivider() {
 }
 
 @Composable
-private fun LogWeightRow(onLogWeight: () -> Unit) {
+private fun HomeActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(onClick = onLogWeight)
+            .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Icon(
-            imageVector = Icons.Outlined.MonitorWeight,
+            imageVector = icon,
             contentDescription = null,
             tint = MaterialTheme.colorScheme.secondary,
             modifier = Modifier.size(30.dp),
         )
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
-            Text("Log weight", style = MaterialTheme.typography.titleMedium)
+            Text(title, style = MaterialTheme.typography.titleMedium)
             Text(
-                "Record your weight",
+                subtitle,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

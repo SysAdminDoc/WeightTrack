@@ -17,5 +17,6 @@ class WidgetUpdater @Inject constructor(
 ) {
     suspend fun refresh() {
         WeightWidget.refresh(context)
+        WaterWidget.refresh(context)
     }
 }

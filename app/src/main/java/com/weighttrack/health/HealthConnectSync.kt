@@ -6,6 +6,7 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.HeightRecord
+import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.WeightRecord
 import androidx.health.connect.client.records.metadata.Device
 import androidx.health.connect.client.records.metadata.Metadata
@@ -13,6 +14,7 @@ import androidx.health.connect.client.request.ReadRecordsRequest
 import androidx.health.connect.client.time.TimeRangeFilter
 import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.units.Percentage
+import androidx.health.connect.client.units.Volume
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.data.prefs.SettingsRepository
@@ -60,6 +62,7 @@ class HealthConnectSync @Inject constructor(
         HealthPermission.getReadPermission(BodyFatRecord::class),
         HealthPermission.getWritePermission(BodyFatRecord::class),
         HealthPermission.getReadPermission(HeightRecord::class),
+        HealthPermission.getWritePermission(HydrationRecord::class),
     )
 
     fun availability(): HealthConnectAvailability =
@@ -192,6 +195,41 @@ class HealthConnectSync @Inject constructor(
             clientRecordId = clientRecordId,
         ),
     )
+
+    /**
+     * Sends one drink to Health Connect.
+     *
+     * Written as it happens rather than in a batch, because hydration is the one figure other
+     * apps read live. A failure is swallowed: the drink is already saved locally, and a
+     * blocking error over a glass of water would be worse than a missing record.
+     */
+    suspend fun writeHydration(
+        millilitres: Int,
+        instant: Instant,
+        clientRecordId: String,
+    ): Boolean = withContext(Dispatchers.IO) {
+        runCatching {
+            val client = clientOrNull() ?: return@runCatching false
+            if (!hasPermissions()) return@runCatching false
+            val zone = ZoneId.systemDefault()
+            client.insertRecords(
+                listOf(
+                    HydrationRecord(
+                        startTime = instant,
+                        startZoneOffset = zone.rules.getOffset(instant),
+                        endTime = instant.plusSeconds(1),
+                        endZoneOffset = zone.rules.getOffset(instant),
+                        volume = Volume.milliliters(millilitres.toDouble()),
+                        metadata = Metadata.manualEntry(
+                            device = Device(type = Device.TYPE_PHONE),
+                            clientRecordId = clientRecordId,
+                        ),
+                    ),
+                ),
+            )
+            true
+        }.getOrDefault(false)
+    }
 
     /** Body fat is written separately because Health Connect models it as its own record. */
     suspend fun exportBodyFat(): Result<Int> = withContext(Dispatchers.IO) {

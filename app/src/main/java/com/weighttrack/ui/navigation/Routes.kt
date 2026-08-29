@@ -16,6 +16,7 @@ object Routes {
     const val GOAL = "goal"
     const val MEASUREMENTS = "measurements"
     const val CRASH_LOGS = "crash-logs"
+    const val WATER = "water"
     const val LOG = "log"
     const val LOG_WITH_ARG = "log?entryId={entryId}"
     const val ENTRY_ID_ARG = "entryId"

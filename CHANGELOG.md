@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Water tracking. A screen with today's total against a target you pick, one big button for a serving, quick amounts for a glass or a bottle, a per-day history you can correct, and the last fortnight at a glance. There is a home screen widget that adds a serving with one tap without opening the app, and each drink is written to Health Connect as a hydration record. Millilitres or fluid ounces, following the weight unit you already chose.
+- Upgrading keeps everything. The new water table arrives through a proper database migration rather than a reset, verified against a real version 1 database.
 - App lock. Turn it on in Settings and WeightTrack asks for your fingerprint, face or screen lock every time you come back to it. The lock screen shows nothing but a padlock, so a phone left on a desk gives away no readings. Devices with no screen lock set say so instead of offering a toggle that could not work.
 - Crash reports. If the app ever closes unexpectedly, the exception, the thread, your app and Android versions and the full stack trace are written to a file in private storage. Settings has a reader that lists them, shows one in full and shares it as plain text. Nothing is uploaded on its own, the newest twenty are kept, and the files are excluded from backup and device transfer like everything else.
 
