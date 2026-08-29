@@ -86,11 +86,27 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 ## Phase 2: v0.3.x, hardware and habits
 
+### P0 defects found by the second review pass
+
+- [ ] `WRITE_HYDRATION` went into `corePermissions`, so an existing user who granted the original five Health Connect permissions now fails `containsAll` and their working weight sync reports itself as unauthorised. This is exactly the regression the core/optional split was meant to prevent.
+- [ ] `SettingsViewModel.onHealthConnectPermissionResult` checks the full permission set, so declining the optional steps read reports the whole connection as refused and never syncs.
+- [ ] `WaterViewModel.add` generates a client record id for Health Connect but never stores it on the local row, so `healthConnectId` is always null and no local row can be matched to the record it produced.
+- [ ] The water widget's one-tap add never writes a HydrationRecord, so the headline path skips Health Connect entirely.
+- [ ] `HomeViewModel` captures `LocalDate.now()` once, so the home water row keeps summing yesterday after midnight or a timezone change.
+- [ ] The water screen's add buttons always write to today even when a past day is selected, so the total does not move and the entry silently lands on the wrong day.
+- [ ] Toggling the app lock does not refresh the widget, so it keeps showing weight for up to half an hour after the lock goes on.
+- [ ] Settings still does not re-read biometric availability on resume: the resume hook only writes StateFlow values that conflate, so nothing recomposes.
+- [ ] `ChartsViewModel.refreshActivity` is only called from init, so granting the steps permission never makes the Movement card load until the process restarts.
+- [ ] The app lock fails open on a transient `BIOMETRIC_ERROR_HW_UNAVAILABLE`, opening the whole app with no prompt on a device that still has a working PIN. Only a genuinely absent credential should bypass the lock.
+- [ ] A clock that steps backwards onto a free slot can write a crash report that `prune` then immediately deletes, and the test that claims to cover this actually re-tests the same-millisecond case.
+- [ ] `VolumeUnit.forWeightUnit` gives fluid ounces to anyone weighing in stones; the UK uses millilitres.
+- [ ] `writeHydration` gates on the full permission set, so someone who granted hydration write but not height read gets no hydration records.
+- [ ] `WaterViewModel.hasHealthConnect` is unused and re-runs an availability check on every unrelated settings change.
+
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync
 - [ ] Progress photos: camera or gallery, side-by-side compare with weight overlay, stored locally, optional app lock
 - [ ] Bluetooth scales, foreground "step on the scale" screen. Order: standard Weight Scale / Body Composition services (0x181D / 0x181B), Xiaomi Mi Scale 2 broadcast decoding (no pairing), then Renpho, Eufy, Beurer/Sanitas re-implemented from openScale's protocol docs. Auto-assign to a profile by weight range.
 - [ ] Multiple profiles (family), each with its own Health Connect mapping and reminder
-- [ ] Fasting timer: presets (16:8, 18:6, OMAD, custom), editable and deletable fasts, optional zones, history with no limit
 - [ ] F-Droid submission
 
 ## Phase 3: v0.4.x, nutrition

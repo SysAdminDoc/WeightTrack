@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.MonitorWeight
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -60,6 +61,7 @@ fun HomeScreen(
     onOpenGoal: () -> Unit,
     onOpenMeasurements: () -> Unit,
     onOpenWater: () -> Unit,
+    onOpenFasting: () -> Unit,
     waterSummary: WaterSummary?,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
@@ -110,6 +112,14 @@ fun HomeScreen(
                     ?.let { "${VolumeFormatter.full(it.totalMl, it.unit)} of ${VolumeFormatter.full(it.targetMl, it.unit)} today" }
                     ?: "Track what you drink",
                 onClick = onOpenWater,
+            )
+        }
+        item {
+            HomeActionRow(
+                icon = Icons.Outlined.Timer,
+                title = "Fasting",
+                subtitle = "Time an eating window",
+                onClick = onOpenFasting,
             )
         }
         item { BodyStatsCard(snapshot, onOpenMeasurements) }

@@ -5,6 +5,7 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
@@ -22,7 +23,9 @@ import java.io.File
  * Losing someone's weight history on an app update is the worst thing this app could do, and a
  * destructive fallback would do exactly that in silence. This builds a real version 1 database
  * from the schema Room itself exported, puts rows in it, then opens it with the current Room
- * definition so the real auto-migration runs, and checks the rows are still there afterwards.
+ * definition so the whole real auto-migration chain runs, and checks the rows are still there
+ * afterwards. Opening with the current definition keeps this covering every future version
+ * step without being rewritten.
  *
  * Driving the version 1 tables from the exported `1.json` rather than hand-written DDL means
  * the test cannot drift away from what version 1 actually shipped.
@@ -152,6 +155,37 @@ class WeightTrackDatabaseMigrationTest {
             ),
         )
         assertThat(dao.totalForDate("2026-01-01")).isEqualTo(250)
+    }
+
+    @Test
+    fun `the fasting table exists and works after the upgrade`() = runTest {
+        createVersionOneDatabase()
+        seedVersionOneRows()
+
+        val db = openCurrent()
+        val dao = db.fastDao()
+        assertThat(dao.active()).isNull()
+
+        val id = dao.startFast(startUtcMillis = 1_800_000_000_000, targetMinutes = 16 * 60)
+        assertThat(id).isGreaterThan(0)
+        val active = dao.active()
+        assertThat(active).isNotNull()
+        assertThat(active!!.targetMinutes).isEqualTo(16 * 60)
+        assertThat(active.endUtcMillis).isNull()
+    }
+
+    @Test
+    fun `starting a second fast closes the first rather than leaving two open`() = runTest {
+        createVersionOneDatabase()
+        val db = openCurrent()
+        val dao = db.fastDao()
+
+        dao.startFast(startUtcMillis = 1_000, targetMinutes = 16 * 60)
+        dao.startFast(startUtcMillis = 5_000, targetMinutes = 18 * 60)
+
+        // Two open fasts would make "the current fast" ambiguous on the timer.
+        assertThat(dao.active()!!.targetMinutes).isEqualTo(18 * 60)
+        assertThat(dao.observeCompletedCount().first()).isEqualTo(1)
     }
 
     @Test

@@ -255,3 +255,56 @@ interface WaterDao {
     @Query("DELETE FROM water_entries")
     suspend fun deleteAll()
 }
+
+@Dao
+interface FastDao {
+
+    @Query("SELECT * FROM fasts WHERE endUtcMillis IS NULL ORDER BY startUtcMillis DESC LIMIT 1")
+    fun observeActive(): Flow<FastEntity?>
+
+    @Query("SELECT * FROM fasts WHERE endUtcMillis IS NULL ORDER BY startUtcMillis DESC LIMIT 1")
+    suspend fun active(): FastEntity?
+
+    @Query("SELECT * FROM fasts WHERE endUtcMillis IS NOT NULL ORDER BY startUtcMillis DESC")
+    fun observeCompleted(): Flow<List<FastEntity>>
+
+    @Query("SELECT * FROM fasts WHERE id = :id")
+    suspend fun byId(id: Long): FastEntity?
+
+    @Query("SELECT COUNT(*) FROM fasts WHERE endUtcMillis IS NOT NULL")
+    fun observeCompletedCount(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(fast: FastEntity): Long
+
+    @Update
+    suspend fun update(fast: FastEntity)
+
+    @Delete
+    suspend fun delete(fast: FastEntity)
+
+    @Query("DELETE FROM fasts")
+    suspend fun deleteAll()
+
+    /**
+     * Starts a fast, closing any that was left open.
+     *
+     * Two open fasts would make "the current fast" ambiguous and the timer would pick one at
+     * random, so the previous one is ended at the new start rather than abandoned.
+     */
+    @Transaction
+    suspend fun startFast(startUtcMillis: Long, targetMinutes: Int): Long {
+        active()?.let { open ->
+            update(open.copy(endUtcMillis = startUtcMillis, updatedAtUtcMillis = startUtcMillis))
+        }
+        return insert(
+            FastEntity(
+                startUtcMillis = startUtcMillis,
+                endUtcMillis = null,
+                targetMinutes = targetMinutes,
+                note = null,
+                updatedAtUtcMillis = startUtcMillis,
+            ),
+        )
+    }
+}

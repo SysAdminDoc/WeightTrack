@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import com.weighttrack.data.db.FastDao
 import com.weighttrack.data.db.GoalDao
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.WaterDao
@@ -47,6 +48,9 @@ object DataModule {
 
     @Provides
     fun provideWaterDao(database: WeightTrackDatabase): WaterDao = database.waterDao()
+
+    @Provides
+    fun provideFastDao(database: WeightTrackDatabase): FastDao = database.fastDao()
 
     @Provides
     @Singleton

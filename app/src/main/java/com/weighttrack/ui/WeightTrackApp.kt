@@ -41,6 +41,8 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.weighttrack.ui.charts.ChartsScreen
 import com.weighttrack.ui.charts.ChartsViewModel
+import com.weighttrack.ui.fasting.FastingScreen
+import com.weighttrack.ui.fasting.FastingViewModel
 import com.weighttrack.ui.diagnostics.CrashLogScreen
 import com.weighttrack.ui.diagnostics.CrashLogViewModel
 import com.weighttrack.ui.goal.GoalScreen
@@ -85,7 +87,8 @@ fun WeightTrackApp(
         currentRoute == Routes.GOAL ||
         currentRoute == Routes.MEASUREMENTS ||
         currentRoute == Routes.CRASH_LOGS ||
-        currentRoute == Routes.WATER
+        currentRoute == Routes.WATER ||
+        currentRoute == Routes.FASTING
 
     Scaffold(
         modifier = modifier,
@@ -183,6 +186,7 @@ fun WeightTrackApp(
                     onOpenGoal = { navController.navigate(Routes.GOAL) },
                     onOpenMeasurements = { navController.navigate(Routes.MEASUREMENTS) },
                     onOpenWater = { navController.navigate(Routes.WATER) },
+                    onOpenFasting = { navController.navigate(Routes.FASTING) },
                     waterSummary = waterSummary,
                 )
             }
@@ -265,6 +269,25 @@ fun WeightTrackApp(
                     onNextDay = viewModel::showNextDay,
                     onSetTarget = viewModel::setTarget,
                     onSetServing = viewModel::setServing,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.FASTING) {
+                val viewModel: FastingViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                val editingFast by viewModel.editing.collectAsStateWithLifecycle()
+                FastingScreen(
+                    state = state,
+                    onSelectPreset = viewModel::selectPreset,
+                    onStart = viewModel::start,
+                    onStop = viewModel::stop,
+                    onCancel = viewModel::cancel,
+                    onDelete = viewModel::delete,
+                    editing = editingFast,
+                    onStartEditing = viewModel::startEditing,
+                    onCancelEditing = viewModel::cancelEditing,
+                    onSaveEdit = viewModel::saveEdit,
                     onBack = { navController.popBackStack() },
                 )
             }

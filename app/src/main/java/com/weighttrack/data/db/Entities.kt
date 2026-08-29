@@ -85,3 +85,27 @@ data class WaterEntryEntity(
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
 )
+
+/**
+ * One fast. An open fast has a null end, and there is at most one of those at a time.
+ *
+ * Start and end are stored as instants rather than a duration so an edit can correct either
+ * end without the other drifting, which is the complaint people have about fasting apps that
+ * refuse to let you fix a forgotten stop.
+ */
+@Entity(
+    tableName = "fasts",
+    indices = [
+        Index(value = ["startUtcMillis"]),
+        Index(value = ["endUtcMillis"]),
+    ],
+)
+data class FastEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val startUtcMillis: Long,
+    val endUtcMillis: Long?,
+    /** The preset the fast was started against, in whole minutes. */
+    val targetMinutes: Int,
+    val note: String?,
+    val updatedAtUtcMillis: Long,
+)
