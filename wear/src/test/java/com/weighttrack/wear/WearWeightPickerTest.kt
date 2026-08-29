@@ -82,4 +82,17 @@ class WearWeightPickerTest {
         // A phone whose clock is behind the watch must not produce "logged -1 days ago".
         assertThat(at(-2)).isEqualTo("logged today")
     }
+
+    @Test
+    fun `a turn of the crown is at least one step and never a runaway`() {
+        assertThat(WearWeightPicker.rotarySteps(0f)).isEqualTo(0)
+        // A slow deliberate turn reports very few pixels and must still move the number.
+        assertThat(WearWeightPicker.rotarySteps(1f)).isEqualTo(1)
+        assertThat(WearWeightPicker.rotarySteps(-1f)).isEqualTo(-1)
+        assertThat(WearWeightPicker.rotarySteps(120f)).isEqualTo(3)
+        assertThat(WearWeightPicker.rotarySteps(-120f)).isEqualTo(-3)
+        // A flick of the bezel means "a long way", not four hundred grams in one frame.
+        assertThat(WearWeightPicker.rotarySteps(100_000f)).isEqualTo(10)
+        assertThat(WearWeightPicker.rotarySteps(-100_000f)).isEqualTo(-10)
+    }
 }

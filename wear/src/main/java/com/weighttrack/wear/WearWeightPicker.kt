@@ -3,6 +3,8 @@ package com.weighttrack.wear
 import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.WeightUnit
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 /**
  * The rotary weight picker, as numbers.
@@ -19,6 +21,9 @@ object WearWeightPicker {
 
     /** Where to open when the phone has never sent a reading. */
     const val FALLBACK_GRAMS = 75_000
+
+    private const val PIXELS_PER_STEP = 40f
+    private const val MAX_STEPS_PER_EVENT = 10
 
     fun stepsFor(grams: Int, unit: WeightUnit): Int =
         UnitConverter.stepForGrams(grams.coerceIn(MIN_GRAMS, MAX_GRAMS), unit)
@@ -37,6 +42,20 @@ object WearWeightPicker {
     fun decimals(unit: WeightUnit): Int = when (unit) {
         WeightUnit.KG -> 2
         WeightUnit.LB, WeightUnit.ST_LB -> 1
+    }
+
+    /**
+     * Whole picker steps for one turn of the crown.
+     *
+     * The crown reports scroll pixels, and a slow deliberate turn reports very few, so the
+     * smallest movement has to still be worth one step or the control feels dead. A fast spin
+     * is capped: someone flicking the bezel means "a long way", not four hundred grams a frame.
+     */
+    fun rotarySteps(scrollPixels: Float): Int {
+        if (scrollPixels == 0f) return 0
+        val direction = if (scrollPixels > 0) 1 else -1
+        val magnitude = (abs(scrollPixels) / PIXELS_PER_STEP).roundToInt().coerceIn(1, MAX_STEPS_PER_EVENT)
+        return direction * magnitude
     }
 
     /** The reading under the crown, in the person's unit. */

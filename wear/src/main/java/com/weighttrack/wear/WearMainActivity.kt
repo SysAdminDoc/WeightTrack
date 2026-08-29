@@ -34,7 +34,6 @@ import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.sync.WearSummary
 import java.time.LocalDate
-import kotlin.math.roundToInt
 
 class WearMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -149,7 +148,7 @@ private fun SummaryScreen(
  * times. The buttons stay for watches without a rotating crown.
  */
 @Composable
-private fun PickerScreen(
+internal fun PickerScreen(
     steps: Int,
     unit: WeightUnit,
     onNudge: (Int) -> Unit,
@@ -164,12 +163,7 @@ private fun PickerScreen(
             .fillMaxSize()
             .padding(horizontal = 12.dp, vertical = 24.dp)
             .onRotaryScrollEvent { event ->
-                // Scroll pixels, not steps: a slow turn should still move exactly one step.
-                val direction = if (event.verticalScrollPixels > 0) 1 else -1
-                val magnitude = (kotlin.math.abs(event.verticalScrollPixels) / 40f)
-                    .roundToInt()
-                    .coerceIn(1, 10)
-                onNudge(direction * magnitude)
+                onNudge(WearWeightPicker.rotarySteps(event.verticalScrollPixels))
                 true
             }
             .focusRequester(focusRequester)
