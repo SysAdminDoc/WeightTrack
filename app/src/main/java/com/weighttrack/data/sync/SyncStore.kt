@@ -65,7 +65,7 @@ class SyncStore @Inject constructor(
 
     /** This device's own view of everything, ready to be written to a file. */
     suspend fun snapshot(deviceId: String, now: Long): SyncDocument = withContext(Dispatchers.IO) {
-        val profiles = dao.profiles()
+        val profiles = nameAnythingUnnamed()
         val nameOf = profiles.associate { it.id to it.syncId }
         SyncDocument(
             deviceId = deviceId,
@@ -114,7 +114,7 @@ class SyncStore @Inject constructor(
         // that arrived here goes on travelling to a third device that has not seen it yet.
         deletions.recordAll(
             merged.deletions.map {
-                DeletionEntity(it.kind.name, it.syncId, it.deletedAtUtcMillis)
+                DeletionEntity(it.kind.name, it.syncId, it.deletedAtUtcMillis, it.profileSyncId)
             },
         )
         deletions.forgetBefore(now - SyncMerge.TOMBSTONE_LIFETIME_MILLIS)
@@ -150,20 +150,21 @@ class SyncStore @Inject constructor(
                     ),
                 )
                 added++
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                dao.updateProfile(
-                    existing.copy(
-                        name = remote.name,
-                        reminderEnabled = remote.reminderEnabled,
-                        reminderHour = remote.reminderHour,
-                        reminderMinute = remote.reminderMinute,
-                        reminderDays = remote.reminderDays,
-                        updatedAtUtcMillis = remote.updatedAtUtcMillis,
-                        // Whether this phone talks to Health Connect is a fact about this phone,
-                        // so it is never taken from another one.
-                    ),
+            } else {
+                val candidate = existing.copy(
+                    name = remote.name,
+                    reminderEnabled = remote.reminderEnabled,
+                    reminderHour = remote.reminderHour,
+                    reminderMinute = remote.reminderMinute,
+                    reminderDays = remote.reminderDays,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    // Whether this phone talks to Health Connect is a fact about this phone, so
+                    // it is never taken from another one.
                 )
-                updated++
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    dao.updateProfile(candidate)
+                    updated++
+                }
             }
         }
         return SyncChanges(added = added, updated = updated)
@@ -175,12 +176,16 @@ class SyncStore @Inject constructor(
         merged: SyncDocument,
         profileIdOf: Map<String, Long>,
     ): SyncChanges {
-        val local = dao.weights().associateBy { it.clientRecordId }
+        // Keyed on the profile as well as the name. A weigh-in's name is only unique within a
+        // profile: the same backup restored for two people, or the same file imported twice,
+        // gives both of them rows called the same thing. Keyed on the name alone, one person's
+        // correction lands on the other person's morning and a delete takes out both.
+        val local = dao.weights().associateBy { it.profileId to it.clientRecordId }
         val fresh = mutableListOf<WeightEntryEntity>()
         val revised = mutableListOf<WeightEntryEntity>()
         for (remote in merged.weights) {
             val profileId = profileIdOf[remote.profileSyncId] ?: continue
-            val existing = local[remote.syncId]
+            val existing = local[profileId to remote.syncId]
             if (existing == null) {
                 fresh += WeightEntryEntity(
                     profileId = profileId,
@@ -199,8 +204,8 @@ class SyncStore @Inject constructor(
                     healthConnectId = null,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                revised += existing.copy(
+            } else {
+                val candidate = existing.copy(
                     timestampUtcMillis = remote.timestampUtcMillis,
                     zoneOffsetSeconds = remote.zoneOffsetSeconds,
                     localDate = remote.localDate,
@@ -211,6 +216,13 @@ class SyncStore @Inject constructor(
                     source = remote.source,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
+                // The merge has already decided which version wins, including when two carry the
+                // same millisecond. Comparing what would be written against what is here keeps a
+                // sync that changes nothing reporting nothing, which a plain "newer or equal"
+                // would not: every record would be rewritten on every pass.
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
             }
         }
         if (fresh.isNotEmpty()) dao.insertWeights(fresh)
@@ -239,8 +251,8 @@ class SyncStore @Inject constructor(
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                 )
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                revised += existing.copy(
+            } else {
+                val candidate = existing.copy(
                     timestampUtcMillis = remote.timestampUtcMillis,
                     localDate = remote.localDate,
                     type = remote.type,
@@ -248,6 +260,13 @@ class SyncStore @Inject constructor(
                     note = remote.note,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
+                // The merge has already decided which version wins, including when two carry the
+                // same millisecond. Comparing what would be written against what is here keeps a
+                // sync that changes nothing reporting nothing, which a plain "newer or equal"
+                // would not: every record would be rewritten on every pass.
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
             }
         }
         if (fresh.isNotEmpty()) dao.insertMeasurements(fresh)
@@ -275,13 +294,20 @@ class SyncStore @Inject constructor(
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                 )
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                revised += existing.copy(
+            } else {
+                val candidate = existing.copy(
                     timestampUtcMillis = remote.timestampUtcMillis,
                     localDate = remote.localDate,
                     millilitres = remote.millilitres,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
+                // The merge has already decided which version wins, including when two carry the
+                // same millisecond. Comparing what would be written against what is here keeps a
+                // sync that changes nothing reporting nothing, which a plain "newer or equal"
+                // would not: every record would be rewritten on every pass.
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
             }
         }
         if (fresh.isNotEmpty()) dao.insertWater(fresh)
@@ -309,14 +335,21 @@ class SyncStore @Inject constructor(
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                 )
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                revised += existing.copy(
+            } else {
+                val candidate = existing.copy(
                     startUtcMillis = remote.startUtcMillis,
                     endUtcMillis = remote.endUtcMillis,
                     targetMinutes = remote.targetMinutes,
                     note = remote.note,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
+                // The merge has already decided which version wins, including when two carry the
+                // same millisecond. Comparing what would be written against what is here keeps a
+                // sync that changes nothing reporting nothing, which a plain "newer or equal"
+                // would not: every record would be rewritten on every pass.
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
             }
         }
         if (fresh.isNotEmpty()) dao.insertFasts(fresh)
@@ -348,8 +381,8 @@ class SyncStore @Inject constructor(
                     syncId = remote.syncId,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                revised += existing.copy(
+            } else {
+                val candidate = existing.copy(
                     direction = remote.direction,
                     startGrams = remote.startGrams,
                     targetGrams = remote.targetGrams,
@@ -359,6 +392,13 @@ class SyncStore @Inject constructor(
                     active = remote.active,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
+                // The merge has already decided which version wins, including when two carry the
+                // same millisecond. Comparing what would be written against what is here keeps a
+                // sync that changes nothing reporting nothing, which a plain "newer or equal"
+                // would not: every record would be rewritten on every pass.
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
             }
         }
         if (fresh.isNotEmpty()) dao.insertGoals(fresh)
@@ -374,14 +414,29 @@ class SyncStore @Inject constructor(
         // The table allows one row per profile and day, so a target arriving under a different
         // name for a day that already has one has to replace it rather than be inserted beside
         // it. Inserting would break the unique index and take the whole sync down with it.
-        val byDay = dao.macroTargets().associateBy { it.profileId to it.dayOfWeek }
+        // Kept up to date as the loop runs rather than read once at the top. Two devices that
+        // each set a Monday target independently put two Monday rows in the merged document, and
+        // a snapshot taken beforehand shows neither of them to a third device with no Monday row
+        // yet: both would be inserted, and the second insert breaks the unique index and takes
+        // the whole sync down.
+        val byDay = dao.macroTargets().associateBy { it.profileId to it.dayOfWeek }.toMutableMap()
         val fresh = mutableListOf<MacroTargetEntity>()
         val revised = mutableListOf<MacroTargetEntity>()
-        for (remote in merged.macroTargets) {
+        // One row per profile and day is all the table allows, so the merged list is reduced
+        // to one before any of it is applied. Two devices that each set a Monday target put two
+        // Monday rows in the document, and applying them one after the other means the second
+        // tries to correct a row the first has not inserted yet.
+        val perDay = merged.macroTargets
+            .groupBy { it.profileSyncId to it.dayOfWeek }
+            .values
+            .map { candidates ->
+                candidates.maxWith(compareBy({ it.updatedAtUtcMillis }, { it.syncId }))
+            }
+        for (remote in perDay) {
             val profileId = profileIdOf[remote.profileSyncId] ?: continue
             val existing = local[remote.syncId] ?: byDay[profileId to remote.dayOfWeek]
             if (existing == null) {
-                fresh += MacroTargetEntity(
+                val made = MacroTargetEntity(
                     profileId = profileId,
                     dayOfWeek = remote.dayOfWeek,
                     kcal = remote.kcal,
@@ -392,8 +447,12 @@ class SyncStore @Inject constructor(
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                 )
-            } else if (remote.updatedAtUtcMillis > existing.updatedAtUtcMillis) {
-                revised += existing.copy(
+                fresh += made
+                // Claimed at once, so a second target for the same day later in the same document
+                // replaces this one instead of colliding with it.
+                byDay[profileId to remote.dayOfWeek] = made
+            } else {
+                val candidate = existing.copy(
                     dayOfWeek = remote.dayOfWeek,
                     kcal = remote.kcal,
                     proteinG = remote.proteinG,
@@ -403,6 +462,13 @@ class SyncStore @Inject constructor(
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                 )
+                // The merge has already decided which version wins, including when two carry the
+                // same millisecond. Comparing what would be written against what is here keeps a
+                // sync that changes nothing reporting nothing, which a plain "newer or equal"
+                // would not: every record would be rewritten on every pass.
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
             }
         }
         if (fresh.isNotEmpty()) dao.insertMacroTargets(fresh)
@@ -424,31 +490,72 @@ class SyncStore @Inject constructor(
             SyncKind.GOAL to merged.goals.map { it.syncId }.toSet(),
             SyncKind.MACRO_TARGET to merged.macroTargets.map { it.syncId }.toSet(),
         )
-        fun gone(kind: SyncKind): List<String> = merged.deletions
+        // A tombstone naming a profile applies to that profile. One naming none applies
+        // wherever the name is found, which is what a file written before deletions carried a
+        // profile says, and what a profile's own deletion means.
+        val profileIdOf = dao.profiles().associate { it.syncId to it.id }
+        fun gone(kind: SyncKind): List<SyncDeletion> = merged.deletions
             .filter { it.kind == kind && it.syncId !in surviving.getValue(kind) }
-            .map { it.syncId }
 
         var removed = 0
-        gone(SyncKind.WEIGHT).ifNotEmpty { removed += it.size; dao.deleteWeights(it) }
-        gone(SyncKind.MEASUREMENT).ifNotEmpty { removed += it.size; dao.deleteMeasurements(it) }
-        gone(SyncKind.WATER).ifNotEmpty { removed += it.size; dao.deleteWater(it) }
-        gone(SyncKind.FAST).ifNotEmpty { removed += it.size; dao.deleteFasts(it) }
-        gone(SyncKind.GOAL).ifNotEmpty { removed += it.size; dao.deleteGoals(it) }
-        gone(SyncKind.MACRO_TARGET).ifNotEmpty { removed += it.size; dao.deleteMacroTargets(it) }
+        gone(SyncKind.WEIGHT).ifNotEmpty { rows ->
+            // Per profile. A name identifies a weigh-in only within one, so a single unscoped
+            // statement would delete one person's morning along with another's.
+            for ((owner, id) in profileIdOf) {
+                val names = rows.filter { it.profileSyncId.isBlank() || it.profileSyncId == owner }
+                    .map { it.syncId }
+                if (names.isNotEmpty()) dao.deleteWeights(id, names)
+            }
+            removed += rows.size
+        }
+        gone(SyncKind.MEASUREMENT).ifNotEmpty { removed += it.size; dao.deleteMeasurements(it.map { d -> d.syncId }) }
+        gone(SyncKind.WATER).ifNotEmpty { removed += it.size; dao.deleteWater(it.map { d -> d.syncId }) }
+        gone(SyncKind.FAST).ifNotEmpty { removed += it.size; dao.deleteFasts(it.map { d -> d.syncId }) }
+        gone(SyncKind.GOAL).ifNotEmpty { removed += it.size; dao.deleteGoals(it.map { d -> d.syncId }) }
+        gone(SyncKind.MACRO_TARGET).ifNotEmpty {
+            removed += it.size
+            dao.deleteMacroTargets(it.map { d -> d.syncId })
+        }
 
-        val profilesGone = gone(SyncKind.PROFILE)
+        val profilesGone = gone(SyncKind.PROFILE).map { it.syncId }
         if (profilesGone.isNotEmpty()) {
             val present = dao.profiles()
             val doomed = present.filter { it.syncId in profilesGone }
             // There has to be one left. An app with no profile has nowhere to put a reading, so
             // a delete that would empty the table is refused however many devices agree on it.
-            val allowed = if (doomed.size >= present.size) doomed.drop(1) else doomed
+            //
+            // Refusing quietly is not enough. Two people's phones, each deleting a different
+            // profile, both end up refusing the other's delete and holding a different survivor
+            // forever: no amount of syncing settles it, because both are tombstoned and neither
+            // will bring the other back. So the survivor is brought back to life properly, with
+            // a time later than the tombstone that buried it. Both devices then see a profile
+            // that was edited after it was deleted, which the merge already knows how to handle,
+            // and they agree again.
+            val emptying = doomed.size >= present.size
+            val allowed = if (emptying) doomed.drop(1) else doomed
+            if (emptying) {
+                doomed.firstOrNull()?.let { survivor ->
+                    val buried = merged.deletions
+                        .firstOrNull { it.kind == SyncKind.PROFILE && it.syncId == survivor.syncId }
+                        ?.deletedAtUtcMillis ?: 0
+                    dao.updateProfile(
+                        survivor.copy(updatedAtUtcMillis = maxOf(buried, survivor.updatedAtUtcMillis) + 1),
+                    )
+                }
+            }
             if (allowed.isNotEmpty()) {
                 // Everything belonging to them goes too. Nothing cascades in this schema, and
                 // rows left behind would sit there invisible and unreachable forever.
                 val names = allowed.map { it.syncId }
                 val ids = allowed.map { it.id }.toSet()
-                dao.deleteWeights(dao.weights().filter { it.profileId in ids }.map { it.clientRecordId })
+                for (owner in ids) {
+                    // Per profile, because a weigh-in's name is only unique within one and an
+                    // unscoped delete would take somebody else's rows out with these.
+                    dao.deleteWeights(
+                        owner,
+                        dao.weights().filter { it.profileId == owner }.map { it.clientRecordId },
+                    )
+                }
                 dao.deleteMeasurements(dao.measurements().filter { it.profileId in ids }.map { it.syncId })
                 dao.deleteWater(dao.water().filter { it.profileId in ids }.map { it.syncId })
                 dao.deleteFasts(dao.fasts().filter { it.profileId in ids }.map { it.syncId })
@@ -463,14 +570,29 @@ class SyncStore @Inject constructor(
         return SyncChanges(removed = removed)
     }
 
-    private inline fun List<String>.ifNotEmpty(block: (List<String>) -> Unit) {
+    private inline fun <T> List<T>.ifNotEmpty(block: (List<T>) -> Unit) {
         if (isNotEmpty()) block(this)
     }
 
     // ---- mapping ----
 
+    /**
+     * Gives a name to any profile that somehow has none, and writes it back.
+     *
+     * The migration names every row, so this should never do anything. Naming one here without
+     * storing it would be worse than leaving it: the profile would go out under a fresh random
+     * name every single sync and pile up duplicates on every other device.
+     */
+    private suspend fun nameAnythingUnnamed(): List<ProfileEntity> {
+        val profiles = dao.profiles()
+        val unnamed = profiles.filter { it.syncId.isBlank() }
+        if (unnamed.isEmpty()) return profiles
+        unnamed.forEach { dao.updateProfile(it.copy(syncId = newSyncId())) }
+        return dao.profiles()
+    }
+
     private fun ProfileEntity.toSync() = SyncProfile(
-        syncId = syncId.ifBlank { newSyncId() },
+        syncId = syncId,
         name = name,
         position = position,
         createdAtUtcMillis = createdAtUtcMillis,
@@ -554,6 +676,11 @@ class SyncStore @Inject constructor(
 
     private fun DeletionEntity.toSync(): SyncDeletion? {
         val known = runCatching { SyncKind.valueOf(kind) }.getOrNull() ?: return null
-        return SyncDeletion(kind = known, syncId = syncId, deletedAtUtcMillis = deletedAtUtcMillis)
+        return SyncDeletion(
+            kind = known,
+            syncId = syncId,
+            deletedAtUtcMillis = deletedAtUtcMillis,
+            profileSyncId = profileSyncId,
+        )
     }
 }

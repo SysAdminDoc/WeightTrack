@@ -60,14 +60,30 @@ class InsightsTest {
 
     @Test
     fun `numbers that have nothing to do with each other are not reported`() {
-        val series = series(days = 70)
-        // Steps that wander with no relation to a weight that never moves.
-        val steps = daily(70) { (5_000 + (it * 37) % 4_000).toDouble() }
+        // Both sides move, and they move independently. A weight that does not move at all has
+        // no variance and is refused before the threshold is ever consulted, which would let
+        // this pass with the threshold set to zero.
+        val daily = varyingSeries(12) { week -> -400.0 + (week * 613 % 700) }
+        val series = TrendEngine.computeSeries(daily, TrendEngine.DEFAULT_WINDOW_DAYS)
+        val steps = daily(84) { (5_000 + (it * 37) % 4_000).toDouble() }
 
-        val association = Insights.weeklyAssociation(series, steps)
+        val association = Insights.weeklyAssociation(series, steps)!!
 
-        // Either nothing to correlate, or a coefficient small enough not to be worth a card.
-        assertThat(association?.isNotable ?: false).isFalse()
+        // There was something to correlate, and it was not worth a card.
+        assertThat(association.isNotable).isFalse()
+        assertThat(kotlin.math.abs(association.coefficient))
+            .isLessThan(Insights.NOTABLE_CORRELATION)
+    }
+
+    @Test
+    fun `the threshold is what decides, not the absence of data`() {
+        // The contrast. The same shape of fixture, built so the two really do move together,
+        // comes back notable. Without this pair, a threshold of zero would go unnoticed.
+        val daily = varyingSeries(12) { week -> -100.0 - week * 120.0 }
+        val series = TrendEngine.computeSeries(daily, TrendEngine.DEFAULT_WINDOW_DAYS)
+        val steps = daily(84) { (4_000 + (it / 7) * 1_500).toDouble() }
+
+        assertThat(Insights.weeklyAssociation(series, steps)!!.isNotable).isTrue()
     }
 
     @Test

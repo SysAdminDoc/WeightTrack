@@ -31,8 +31,8 @@ class MacroTargetRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
-        profiles = ProfileRepository(database.profileDao(), testSettingsRepository())
-        targets = MacroTargetRepository(database.macroTargetDao(), profiles, DeletionRecorder(database.deletionDao()))
+        profiles = ProfileRepository(database.profileDao(), testSettingsRepository(), DeletionRecorder(database.deletionDao(), database.syncDao()))
+        targets = MacroTargetRepository(database.macroTargetDao(), profiles, DeletionRecorder(database.deletionDao(), database.syncDao()))
     }
 
     @After

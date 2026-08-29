@@ -253,8 +253,16 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE id = :id")
     suspend fun byId(id: Long): GoalEntity?
 
-    @Query("UPDATE goals SET active = 0 WHERE profileId = :profileId")
-    suspend fun deactivateAll(profileId: Long)
+    /**
+     * Retires every goal for a profile.
+     *
+     * Stamped, or sync cannot tell a retired goal from the active one it already holds: the other
+     * device goes on showing a goal that was put away, and once a new one is set it shows two.
+     */
+    @Query(
+        "UPDATE goals SET active = 0, updatedAtUtcMillis = :atUtcMillis WHERE profileId = :profileId",
+    )
+    suspend fun deactivateAll(profileId: Long, atUtcMillis: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(goal: GoalEntity): Long
@@ -274,7 +282,7 @@ interface GoalDao {
      */
     @Transaction
     suspend fun replaceActive(profileId: Long, goal: GoalEntity): Long {
-        deactivateAll(profileId)
+        deactivateAll(profileId, System.currentTimeMillis())
         return insert(goal.copy(profileId = profileId, active = true))
     }
 }

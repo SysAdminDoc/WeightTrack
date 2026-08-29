@@ -38,7 +38,12 @@ class SyncWorker @AssistedInject constructor(
     override suspend fun doWork(): Result {
         val settings = preferences.current()
         if (!settings.isOn || !settings.isReady || !settings.syncInBackground) return Result.success()
-        return when (engine.syncNow()) {
+        val outcome = runCatching { engine.syncNow() }.getOrElse {
+            // A worker that throws is a crash nobody asked for and nobody sees. Whatever went
+            // wrong is worth another go later rather than taking the process with it.
+            return Result.retry()
+        }
+        return when (outcome) {
             is SyncResult.Done -> Result.success()
             // Worth another go later: no signal, a server having a bad day.
             is SyncResult.Unreachable -> Result.retry()

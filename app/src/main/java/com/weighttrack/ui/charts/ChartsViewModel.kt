@@ -102,7 +102,15 @@ class ChartsViewModel @Inject constructor(
     }
 
     private suspend fun refreshAssociations(days: List<DailyActivity>) {
-        val series = snapshot.first { it.hasData }.series
+        // Whatever there is right now, rather than waiting for there to be something. Waiting
+        // parks a coroutine for the life of the view model on any phone with nothing logged
+        // yet, which is every phone on the day it is installed.
+        val current = snapshot.first()
+        if (!current.hasData) {
+            _associations.value = AssociationState()
+            return
+        }
+        val series = current.series
         val stepsByDate: Map<LocalDate, Double> = days
             .mapNotNull { day -> day.steps?.let { day.date to it.toDouble() } }
             .toMap()

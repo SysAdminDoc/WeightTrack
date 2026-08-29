@@ -1,5 +1,6 @@
 package com.weighttrack.data.repo
 
+import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.ProfileDao
 import com.weighttrack.data.db.ProfileEntity
 import com.weighttrack.data.db.WeightTrackDatabase
@@ -41,6 +42,7 @@ data class Profile(
 class ProfileRepository @Inject constructor(
     private val dao: ProfileDao,
     private val settingsRepository: SettingsRepository,
+    private val deletions: DeletionRecorder,
 ) {
     fun observeAll(): Flow<List<Profile>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain() } }
@@ -91,7 +93,9 @@ class ProfileRepository @Inject constructor(
         val existing = dao.byId(id) ?: return
         val trimmed = name.trim()
         if (trimmed.isBlank()) return
-        dao.update(existing.copy(name = trimmed))
+        // Stamped, or sync has no way to tell this apart from the row it already has and the new
+        // name never leaves the phone.
+        dao.update(existing.copy(name = trimmed, updatedAtUtcMillis = System.currentTimeMillis()))
     }
 
     /**
@@ -113,7 +117,15 @@ class ProfileRepository @Inject constructor(
         if (dao.count() <= 1) return null
         val existing = dao.byId(id) ?: return null
         val photos = dao.photoFileNames(id)
+        // Everything this person owned, named before it is gone. One tombstone for the profile is
+        // not enough: the other device holds their weigh-ins too, and with nothing to say those
+        // are deleted it hands the whole history back and the deleted person reappears.
+        val owned = deletions.namesOwnedBy(id)
         dao.deleteWithData(existing)
+        deletions.record(SyncKind.PROFILE, existing.syncId)
+        // Named from the row read a moment ago. By now the profile is gone, so there is nothing
+        // left to look its name up from.
+        owned.forEach { (kind, names) -> deletions.recordOwned(kind, names, existing.syncId) }
         if (settingsRepository.settings.first().activeProfileId == id) {
             dao.all().firstOrNull()?.let { settingsRepository.setActiveProfile(it.id) }
         }
@@ -161,6 +173,7 @@ class ProfileRepository @Inject constructor(
                 reminderHour = hour,
                 reminderMinute = minute,
                 reminderDays = days.joinToString(",") { it.name },
+                updatedAtUtcMillis = System.currentTimeMillis(),
             ),
         )
     }

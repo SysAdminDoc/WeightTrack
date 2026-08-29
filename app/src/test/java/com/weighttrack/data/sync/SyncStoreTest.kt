@@ -203,7 +203,7 @@ class SyncStoreTest {
         assertThat(tablet.syncDao().weights()).hasSize(1)
 
         // Deleted on the phone, with a tombstone the way the repositories write one.
-        phone.syncDao().deleteWeights(listOf("w1"))
+        phone.syncDao().deleteWeights(profileId, listOf("w1"))
         phone.deletionDao().record(DeletionEntity("WEIGHT", "w1", now + 1_000))
 
         sync(phoneStore, "aaa", tabletStore, "bbb")
@@ -221,7 +221,7 @@ class SyncStoreTest {
         sync(phoneStore, "aaa", tabletStore, "bbb")
 
         // Deleted on the phone, then corrected on the tablet afterwards.
-        phone.syncDao().deleteWeights(listOf("w1"))
+        phone.syncDao().deleteWeights(profileId, listOf("w1"))
         phone.deletionDao().record(DeletionEntity("WEIGHT", "w1", now))
         val onTablet = tablet.syncDao().weights().single()
         tablet.syncDao().updateWeights(
@@ -391,7 +391,7 @@ class SyncStoreTest {
         phone.syncDao().insertWeights(listOf(weight(profileId, "w1", 80_000)))
         sync(phoneStore, "aaa", tabletStore, "bbb")
 
-        phone.syncDao().deleteWeights(listOf("w1"))
+        phone.syncDao().deleteWeights(profileId, listOf("w1"))
         phone.deletionDao().record(DeletionEntity("WEIGHT", "w1", now + 1_000))
         sync(phoneStore, "aaa", tabletStore, "bbb")
 

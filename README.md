@@ -97,7 +97,11 @@ See [ROADMAP.md](ROADMAP.md). Next up: translations.
 
 Each device writes one file, named after itself, into a folder you choose. It reads every other device's file from the same folder and merges them. Nothing ever writes to a file it did not create, which is what stops a folder sync tool producing conflict copies that somebody then has to arbitrate by hand.
 
-Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Deletions are remembered for six months so they travel too, otherwise a phone that still holds the record hands it straight back. Two limits worth knowing: it relies on the devices roughly agreeing about the time, so a badly wrong clock can hold a stale edit in place, and a device left switched off for more than six months will bring back what it still holds.
+Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Deletions are remembered for six months so they travel too, otherwise a phone that still holds the record hands it straight back.
+
+What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, profiles and the settings that describe you. What does not, yet: the food diary and your own foods and recipes, and progress photos. Those stay on the phone that recorded them, so do not treat sync as a way to move a food log to a new phone.
+
+Two other limits worth knowing. It relies on the devices roughly agreeing about the time, so a badly wrong clock can hold a stale edit in place. And a device left switched off for more than six months will bring back what it still holds, because by then the deletions that would have removed it have been forgotten.
 
 ## License
 

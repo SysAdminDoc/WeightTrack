@@ -370,11 +370,19 @@ data class MacroTargetEntity(
  * These are written whether or not sync is switched on. Turning it on later would otherwise
  * bring back everything deleted before that moment.
  */
-@Entity(tableName = "deletions", primaryKeys = ["kind", "syncId"])
+@Entity(tableName = "deletions", primaryKeys = ["kind", "syncId", "profileSyncId"])
 data class DeletionEntity(
     val kind: String,
     val syncId: String,
     val deletedAtUtcMillis: Long,
+    /**
+     * Whose row it was.
+     *
+     * A record's name is only unique within a profile, so a deletion has to say which one or it
+     * takes another person's identically named row with it. Blank means "whoever holds it",
+     * which is what a profile's own deletion means.
+     */
+    @ColumnInfo(defaultValue = "''") val profileSyncId: String = "",
 )
 
 /**

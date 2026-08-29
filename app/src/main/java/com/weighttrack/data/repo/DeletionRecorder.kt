@@ -3,6 +3,7 @@ package com.weighttrack.data.repo
 import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.DeletionDao
 import com.weighttrack.data.db.DeletionEntity
+import com.weighttrack.data.db.SyncDao
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,18 +20,99 @@ import javax.inject.Singleton
 @Singleton
 class DeletionRecorder @Inject constructor(
     private val dao: DeletionDao,
+    private val syncDao: SyncDao,
 ) {
-    suspend fun record(kind: SyncKind, syncId: String, at: Long = System.currentTimeMillis()) {
+
+    /**
+     * What a profile owns, by the names its rows travel under.
+     *
+     * Read before the profile is deleted. Afterwards the rows are gone and nothing is left to say
+     * what they were called, so their deletion could never travel and the other device would hand
+     * the whole history back.
+     */
+    suspend fun namesOwnedBy(profileId: Long): List<Pair<SyncKind, List<String>>> = listOf(
+        SyncKind.WEIGHT to syncDao.weightNames(profileId),
+        SyncKind.MEASUREMENT to syncDao.measurementNames(profileId),
+        SyncKind.WATER to syncDao.waterNames(profileId),
+        SyncKind.FAST to syncDao.fastNames(profileId),
+        SyncKind.GOAL to syncDao.goalNames(profileId),
+        SyncKind.MACRO_TARGET to syncDao.macroTargetNames(profileId),
+    )
+
+    /**
+     * Remembers one deleted row.
+     *
+     * [profileId] is whose it was. A record's name is only unique within a profile, so a deletion
+     * that does not say which one takes another person's identically named row out with it. A
+     * profile's own deletion passes nothing, because a profile belongs to nobody but itself.
+     */
+    suspend fun record(
+        kind: SyncKind,
+        syncId: String,
+        at: Long = System.currentTimeMillis(),
+        profileId: Long? = null,
+    ) {
         if (syncId.isBlank()) return
-        dao.record(DeletionEntity(kind = kind.name, syncId = syncId, deletedAtUtcMillis = at))
+        dao.record(
+            DeletionEntity(
+                kind = kind.name,
+                syncId = syncId,
+                deletedAtUtcMillis = at,
+                profileSyncId = profileNameOf(profileId),
+            ),
+        )
     }
 
-    suspend fun record(kind: SyncKind, syncIds: List<String>, at: Long = System.currentTimeMillis()) {
+    suspend fun record(
+        kind: SyncKind,
+        syncIds: List<String>,
+        at: Long = System.currentTimeMillis(),
+        profileId: Long? = null,
+    ) {
+        val usable = syncIds.filter { it.isNotBlank() }
+        if (usable.isEmpty()) return
+        val owner = profileNameOf(profileId)
+        dao.recordAll(
+            usable.map {
+                DeletionEntity(
+                    kind = kind.name,
+                    syncId = it,
+                    deletedAtUtcMillis = at,
+                    profileSyncId = owner,
+                )
+            },
+        )
+    }
+
+    /**
+     * Remembers rows whose owner is named directly.
+     *
+     * For deleting a profile: by the time its rows are gone the profile is gone too, so there is
+     * nothing left to look the name up from. It has to be read first and handed in.
+     */
+    suspend fun recordOwned(
+        kind: SyncKind,
+        syncIds: List<String>,
+        profileSyncId: String,
+        at: Long = System.currentTimeMillis(),
+    ) {
         val usable = syncIds.filter { it.isNotBlank() }
         if (usable.isEmpty()) return
         dao.recordAll(
-            usable.map { DeletionEntity(kind = kind.name, syncId = it, deletedAtUtcMillis = at) },
+            usable.map {
+                DeletionEntity(
+                    kind = kind.name,
+                    syncId = it,
+                    deletedAtUtcMillis = at,
+                    profileSyncId = profileSyncId,
+                )
+            },
         )
+    }
+
+    private suspend fun profileNameOf(profileId: Long?): String {
+        if (profileId == null) return ""
+        return syncDao.profiles().firstOrNull { it.id == profileId }?.syncId.orEmpty()
     }
 
     /**

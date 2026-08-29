@@ -70,12 +70,13 @@ class GoalRepository @Inject constructor(
         )
     }
 
-    suspend fun clearActive() = dao.deactivateAll(profiles.activeId())
+    suspend fun clearActive() =
+        dao.deactivateAll(profiles.activeId(), System.currentTimeMillis())
 
     suspend fun delete(goal: Goal) {
         val existing = dao.byId(goal.id) ?: return
         dao.delete(existing)
-        deletions.record(SyncKind.GOAL, existing.syncId)
+        deletions.record(SyncKind.GOAL, existing.syncId, profileId = existing.profileId)
     }
 
     /** Read back off the stored row, so an edit cannot move a goal to another profile. */

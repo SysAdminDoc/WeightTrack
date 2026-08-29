@@ -3,6 +3,7 @@ package com.weighttrack.data
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.emptyPreferences
+import com.weighttrack.data.repo.DeletionRecorder
 import com.weighttrack.data.db.WeightTrackDatabase
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.ProfileRepository
@@ -35,4 +36,8 @@ internal fun testSettingsRepository(): SettingsRepository = SettingsRepository(I
 internal fun testProfileRepository(
     database: WeightTrackDatabase,
     settings: SettingsRepository = testSettingsRepository(),
-): ProfileRepository = ProfileRepository(database.profileDao(), settings)
+): ProfileRepository = ProfileRepository(
+    database.profileDao(),
+    settings,
+    DeletionRecorder(database.deletionDao(), database.syncDao()),
+)

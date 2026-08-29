@@ -59,7 +59,11 @@ class MacroTargetRepository @Inject constructor(
     suspend fun clear(day: DayOfWeek?) {
         val profileId = profiles.activeId()
         dao.forDay(profileId, day?.name)?.let {
-            deletions.record(com.weighttrack.core.sync.SyncKind.MACRO_TARGET, it.syncId)
+            deletions.record(
+                com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
+                it.syncId,
+                profileId = profileId,
+            )
         }
         dao.clear(profileId, day?.name)
     }
@@ -69,6 +73,7 @@ class MacroTargetRepository @Inject constructor(
         deletions.record(
             com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
             dao.all(profileId).map { it.syncId },
+            profileId = profileId,
         )
         dao.clearAll(profileId)
     }

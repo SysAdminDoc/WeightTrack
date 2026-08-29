@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 9,
+    version = 10,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -42,6 +42,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Nine gives every row that can be synced a name that travels, and adds the table that
         // remembers deletions.
         AutoMigration(from = 8, to = 9, spec = WeightTrackDatabase.AddSyncIds::class),
+        // Ten adds the profile to a deletion, because a record's name is only unique within one.
+        AutoMigration(from = 9, to = 10),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {

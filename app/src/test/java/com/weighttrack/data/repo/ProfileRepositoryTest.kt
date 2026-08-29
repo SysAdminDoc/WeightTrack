@@ -30,8 +30,8 @@ class ProfileRepositoryTest {
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
         settings = testSettingsRepository()
-        profiles = ProfileRepository(database.profileDao(), settings)
-        weights = WeightRepository(database.weightEntryDao(), profiles, DeletionRecorder(database.deletionDao()))
+        profiles = ProfileRepository(database.profileDao(), settings, DeletionRecorder(database.deletionDao(), database.syncDao()))
+        weights = WeightRepository(database.weightEntryDao(), profiles, DeletionRecorder(database.deletionDao(), database.syncDao()))
     }
 
     @After

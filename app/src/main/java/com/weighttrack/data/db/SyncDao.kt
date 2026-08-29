@@ -19,6 +19,27 @@ interface SyncDao {
     @Query("SELECT * FROM profiles ORDER BY position")
     suspend fun profiles(): List<ProfileEntity>
 
+    // What one profile owns, by the names its rows travel under. Read before the profile is
+    // deleted, so the deletions can be made to travel with it.
+
+    @Query("SELECT clientRecordId FROM weight_entries WHERE profileId = :profileId")
+    suspend fun weightNames(profileId: Long): List<String>
+
+    @Query("SELECT syncId FROM measurements WHERE profileId = :profileId")
+    suspend fun measurementNames(profileId: Long): List<String>
+
+    @Query("SELECT syncId FROM water_entries WHERE profileId = :profileId")
+    suspend fun waterNames(profileId: Long): List<String>
+
+    @Query("SELECT syncId FROM fasts WHERE profileId = :profileId")
+    suspend fun fastNames(profileId: Long): List<String>
+
+    @Query("SELECT syncId FROM goals WHERE profileId = :profileId")
+    suspend fun goalNames(profileId: Long): List<String>
+
+    @Query("SELECT syncId FROM macro_targets WHERE profileId = :profileId")
+    suspend fun macroTargetNames(profileId: Long): List<String>
+
     @Query("SELECT * FROM weight_entries")
     suspend fun weights(): List<WeightEntryEntity>
 
@@ -83,8 +104,15 @@ interface SyncDao {
     @Update
     suspend fun updateMacroTargets(rows: List<MacroTargetEntity>)
 
-    @Query("DELETE FROM weight_entries WHERE clientRecordId IN (:syncIds)")
-    suspend fun deleteWeights(syncIds: List<String>)
+    /**
+     * Removes weigh-ins by name, within one profile.
+     *
+     * Scoped, because a weigh-in's name is only unique within a profile. The same backup restored
+     * for two people, or the same file imported twice, gives both of them rows with identical
+     * names, and an unscoped delete would take one person's history out with the other's.
+     */
+    @Query("DELETE FROM weight_entries WHERE profileId = :profileId AND clientRecordId IN (:syncIds)")
+    suspend fun deleteWeights(profileId: Long, syncIds: List<String>)
 
     @Query("DELETE FROM measurements WHERE syncId IN (:syncIds)")
     suspend fun deleteMeasurements(syncIds: List<String>)

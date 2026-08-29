@@ -112,6 +112,17 @@ data class SyncDeletion(
     val kind: SyncKind,
     val syncId: String,
     val deletedAtUtcMillis: Long,
+    /**
+     * Whose row it was.
+     *
+     * A record's name is only unique within a profile: the same backup restored for two people,
+     * or the same file imported twice, gives both of them rows called the same thing. Without
+     * this, deleting one person's morning takes the other person's with it.
+     *
+     * Blank means "whoever holds it", which is what a profile's own tombstone says and what a
+     * file written before this field existed says.
+     */
+    val profileSyncId: String = "",
 )
 
 @Serializable

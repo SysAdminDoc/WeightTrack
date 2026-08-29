@@ -42,7 +42,7 @@ class FoodLogRepositoryTest {
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
         val settings = testSettingsRepository()
-        profiles = ProfileRepository(database.profileDao(), settings)
+        profiles = ProfileRepository(database.profileDao(), settings, DeletionRecorder(database.deletionDao(), database.syncDao()))
         foods = FoodRepository(database.foodDao(), OfflineFoodStore(ApplicationProvider.getApplicationContext()))
         log = FoodLogRepository(database.foodLogDao(), profiles)
     }

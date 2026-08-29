@@ -440,6 +440,11 @@ class SettingsViewModel @Inject constructor(
                     com.weighttrack.data.sync.SyncResult.NotSetUp ->
                         _message.value = "Pick somewhere to sync to first."
                 }
+            } catch (error: Exception) {
+                // Something in a file from another device, or a row that will not go where it
+                // is told. Whatever it is, it must not take the app down: the button is a thing
+                // somebody pressed, not a promise that every other device is well behaved.
+                _message.value = "Sync could not finish. Nothing was lost, and it will try again."
             } finally {
                 _syncing.value = false
             }

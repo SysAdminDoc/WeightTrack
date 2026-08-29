@@ -35,8 +35,13 @@ object SyncMerge {
         now: Long,
     ): SyncDocument {
         val deletions = mergeDeletions(documents, now)
-        fun gone(kind: SyncKind, syncId: String, updatedAt: Long): Boolean {
-            val deletedAt = deletions[kind to syncId] ?: return false
+        fun gone(kind: SyncKind, syncId: String, profile: String, updatedAt: Long): Boolean {
+            // A tombstone naming a profile applies to that profile only. One naming none applies
+            // wherever the name is found, which is what a profile's own tombstone means and what
+            // a file written before deletions carried a profile says.
+            val deletedAt = deletions[Key(kind, syncId, profile)]
+                ?: deletions[Key(kind, syncId, "")]
+                ?: return false
             // An edit made after the delete brings the record back, which is what somebody who
             // deleted a row on one phone and then corrected it on another actually meant.
             return deletedAt >= updatedAt
@@ -45,26 +50,37 @@ object SyncMerge {
         return SyncDocument(
             deviceId = deviceId,
             writtenAtUtcMillis = now,
+            // Profiles are named on their own; everything else is named within a profile, so
+            // two people who happen to hold rows with the same name keep their own.
             profiles = documents.newest({ it.profiles }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.PROFILE, it.syncId, it.updatedAtUtcMillis) },
-            weights = documents.newest({ it.weights }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.WEIGHT, it.syncId, it.updatedAtUtcMillis) },
+                .filterNot { gone(SyncKind.PROFILE, it.syncId, "", it.updatedAtUtcMillis) },
+            weights = documents
+                .newest({ it.weights }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.WEIGHT, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
             measurements = documents
-                .newest({ it.measurements }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.MEASUREMENT, it.syncId, it.updatedAtUtcMillis) },
-            water = documents.newest({ it.water }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.WATER, it.syncId, it.updatedAtUtcMillis) },
-            fasts = documents.newest({ it.fasts }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.FAST, it.syncId, it.updatedAtUtcMillis) },
-            goals = documents.newest({ it.goals }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.GOAL, it.syncId, it.updatedAtUtcMillis) },
+                .newest({ it.measurements }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.MEASUREMENT, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
+            water = documents
+                .newest({ it.water }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.WATER, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
+            fasts = documents
+                .newest({ it.fasts }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.FAST, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
+            goals = documents
+                .newest({ it.goals }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.GOAL, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
             macroTargets = documents
-                .newest({ it.macroTargets }, { it.syncId }, { it.updatedAtUtcMillis })
-                .filterNot { gone(SyncKind.MACRO_TARGET, it.syncId, it.updatedAtUtcMillis) },
+                .newest({ it.macroTargets }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.MACRO_TARGET, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
             settings = newestSettings(documents),
             deletions = deletions.map { (key, at) ->
-                SyncDeletion(kind = key.first, syncId = key.second, deletedAtUtcMillis = at)
-            }.sortedWith(compareBy({ it.kind }, { it.syncId })),
+                SyncDeletion(
+                    kind = key.kind,
+                    syncId = key.syncId,
+                    deletedAtUtcMillis = at,
+                    profileSyncId = key.profileSyncId,
+                )
+            }.sortedWith(compareBy({ it.kind }, { it.profileSyncId }, { it.syncId })),
         )
     }
 
@@ -104,18 +120,24 @@ object SyncMerge {
                 macroTargets.size
     }
 
+    /** What names a deleted record: its kind, its own name, and whose it was. */
+    private data class Key(val kind: SyncKind, val syncId: String, val profileSyncId: String)
+
+    /** A record's identity, which is the profile it belongs to and its own name. */
+    private fun owned(profileSyncId: String, syncId: String): String = "$profileSyncId/$syncId"
+
     private fun mergeDeletions(
         documents: List<SyncDocument>,
         now: Long,
-    ): Map<Pair<SyncKind, String>, Long> {
-        val kept = mutableMapOf<Pair<SyncKind, String>, Long>()
+    ): Map<Key, Long> {
+        val kept = mutableMapOf<Key, Long>()
         for (document in documents) {
             for (deletion in document.deletions) {
                 // Forgotten once they are old enough. A tombstone from the future is somebody's
                 // clock being wrong and is kept rather than discarded, which is the safe way
                 // round: it holds a delete in place instead of undoing one.
                 if (now - deletion.deletedAtUtcMillis > TOMBSTONE_LIFETIME_MILLIS) continue
-                val key = deletion.kind to deletion.syncId
+                val key = Key(deletion.kind, deletion.syncId, deletion.profileSyncId)
                 val existing = kept[key]
                 if (existing == null || deletion.deletedAtUtcMillis > existing) {
                     kept[key] = deletion.deletedAtUtcMillis
