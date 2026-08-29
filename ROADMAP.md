@@ -138,13 +138,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: a fixture where steps double in week two moves the estimate faster than the same intake and weight without steps; changing a goal from lose to maintain shifts the recommended intake immediately by the documented factor; a test proves steps never enter the kcal arithmetic directly.
   Complexity: M
 
-- [ ] P2 — Import Health Connect's lowest reading of the day as an option, and merge duplicate same-day readings
-  Why: Happy Scale imports only the lowest weight of the day from the health platform because a second weigh-in after breakfast is noise; multi-source households produce the same duplicates.
-  Evidence: https://happyscale.com/support ; health/HealthConnectSync.kt importWeights (imports every record)
-  Touches: health/HealthConnectSync.kt, data/prefs/SettingsRepository.kt (setting), ui/settings Health Connect card
-  Acceptance: with the option on, three same-day readings import as one at the lowest value; with it off all three import; existing rows are untouched either way.
-  Complexity: S
-
 - [ ] P2 — User-set maintain band, and a maintenance mode when a loss goal is reached
   Why: the maintain tolerance is a fixed 1 kg constant; trale #454 asks for a chosen band; Happy Scale is criticised for telling someone below their loss goal that the trend "improved".
   Evidence: core/src/main/java/com/weighttrack/core/math/GoalProjection.kt:47 ; https://github.com/QuantumPhysique/trale/issues/454 ; https://unimeal.reviews/weight-loss-apps/happy-scale/

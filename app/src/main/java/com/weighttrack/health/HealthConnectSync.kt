@@ -496,7 +496,14 @@ class HealthConnectSync @Inject constructor(
         }
         var imported = 0
         var skipped = 0
-        records.forEach { record -> if (take(record, zone)) imported++ else skipped++ }
+        val wanted = if (settingsRepository.settings.first().importLowestOfDay) {
+            val kept = lowestPerDay(records, zone)
+            skipped += records.size - kept.size
+            kept
+        } else {
+            records
+        }
+        wanted.forEach { record -> if (take(record, zone)) imported++ else skipped++ }
         return Triple(imported, skipped, 0)
     }
 
@@ -506,6 +513,20 @@ class HealthConnectSync @Inject constructor(
      * Shared by the first full read and by the incremental one afterwards, so a record arriving
      * through a change notification is treated exactly like one arriving through a query.
      */
+    /**
+     * One reading a day: the lowest.
+     *
+     * A second weigh-in after breakfast is not a second day's worth of information, it is the
+     * same morning plus a meal, and importing both drags the trend around for no reason. Which
+     * one to keep is a real choice and the lowest is the conventional answer, so this is an
+     * option rather than the behaviour.
+     */
+    internal fun lowestPerDay(records: List<WeightRecord>, zone: ZoneId): List<WeightRecord> =
+        records
+            .groupBy { it.time.atZone(zone).toLocalDate() }
+            .values
+            .mapNotNull { sameDay -> sameDay.minByOrNull { it.weight.inKilograms } }
+
     private suspend fun take(record: WeightRecord, zone: ZoneId): Boolean {
         val grams = (record.weight.inKilograms * 1000).toInt()
         if (grams <= 0) return false

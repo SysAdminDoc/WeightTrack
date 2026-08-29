@@ -148,6 +148,10 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    fun setImportLowestOfDay(only: Boolean) = viewModelScope.launch {
+        settingsRepository.setImportLowestOfDay(only)
+    }
+
     fun setWeightUnit(unit: WeightUnit) = viewModelScope.launch {
         settingsRepository.setWeightUnit(unit)
     }

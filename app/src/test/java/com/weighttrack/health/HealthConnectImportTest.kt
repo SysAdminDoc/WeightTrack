@@ -160,6 +160,60 @@ class HealthConnectImportTest {
         assertThat(weights.entriesFor(profiles.activeId())).hasSize(1_100)
     }
 
+    @Test
+    fun `with the option on, a day with several readings brings in the lowest`() = runTest {
+        // A second weigh-in after breakfast is the same morning plus a meal, and letting both in
+        // drags the trend around for no reason.
+        settings.setImportLowestOfDay(true)
+        val morning = Instant.parse("2026-08-29T07:00:00Z")
+        val records = listOf(80.4, 81.2, 80.9).map { kilograms ->
+            WeightRecord(
+                time = morning.plusSeconds((kilograms * 100).toLong()),
+                zoneOffset = java.time.ZoneOffset.UTC,
+                weight = Mass.kilograms(kilograms),
+                metadata = Metadata.manualEntry(clientRecordId = "scale-$kilograms"),
+            )
+        }
+
+        val result = syncWith(records)
+
+        assertThat(result.imported).isEqualTo(1)
+        assertThat(weights.entriesFor(profiles.activeId()).single().grams).isEqualTo(80_400)
+        assertThat(result.skipped).isEqualTo(2)
+    }
+
+    @Test
+    fun `with the option off, every reading arrives`() = runTest {
+        val morning = Instant.parse("2026-08-29T07:00:00Z")
+        val records = listOf(80.4, 81.2).map { kilograms ->
+            WeightRecord(
+                time = morning.plusSeconds((kilograms * 100).toLong()),
+                zoneOffset = java.time.ZoneOffset.UTC,
+                weight = Mass.kilograms(kilograms),
+                metadata = Metadata.manualEntry(clientRecordId = "scale-$kilograms"),
+            )
+        }
+
+        assertThat(syncWith(records).imported).isEqualTo(2)
+    }
+
+    @Test
+    fun `the option keeps one from each day, not one overall`() = runTest {
+        settings.setImportLowestOfDay(true)
+        val records = (0 until 3).flatMap { day ->
+            listOf(80.0 + day, 81.0 + day).map { kilograms ->
+                WeightRecord(
+                    time = Instant.parse("2026-08-29T07:00:00Z").minus(day.toLong(), ChronoUnit.DAYS),
+                    zoneOffset = java.time.ZoneOffset.UTC,
+                    weight = Mass.kilograms(kilograms),
+                    metadata = Metadata.manualEntry(clientRecordId = "d$day-$kilograms"),
+                )
+            }
+        }
+
+        assertThat(syncWith(records).imported).isEqualTo(3)
+    }
+
     private companion object {
         val START: Instant = Instant.parse("2026-08-29T07:00:00Z")
     }

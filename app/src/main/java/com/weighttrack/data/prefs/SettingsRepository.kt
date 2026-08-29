@@ -51,6 +51,8 @@ data class AppSettings(
     val nutritionEnabled: Boolean = false,
     /** Whoever uses the app supplies their own, since this one will not ship a shared key. */
     val usdaApiKey: String? = null,
+    /** Keep only the lowest weigh-in of each day when importing from Health Connect. */
+    val importLowestOfDay: Boolean = false,
     /** When the settings that describe the person last changed, for sync to compare. */
     val updatedAtUtcMillis: Long = 0,
     val scaleAddress: String? = null,
@@ -228,6 +230,7 @@ class SettingsRepository @Inject constructor(
         legacyReminderAdopted = this[Keys.LEGACY_REMINDER_ADOPTED] ?: false,
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
         usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
+        importLowestOfDay = this[Keys.IMPORT_LOWEST_OF_DAY] ?: false,
         scaleAddress = this[Keys.SCALE_ADDRESS],
         scaleName = this[Keys.SCALE_NAME],
     )
@@ -240,6 +243,10 @@ class SettingsRepository @Inject constructor(
     suspend fun setLegacyReminderAdopted() = edit { it[Keys.LEGACY_REMINDER_ADOPTED] = true }
 
     suspend fun setNutritionEnabled(enabled: Boolean) = edit { it[Keys.NUTRITION_ENABLED] = enabled }
+
+    suspend fun setImportLowestOfDay(only: Boolean) = edit {
+        it[Keys.IMPORT_LOWEST_OF_DAY] = only
+    }
 
     suspend fun setUsdaApiKey(key: String?) = edit {
         if (key == null) {
@@ -288,6 +295,7 @@ class SettingsRepository @Inject constructor(
         val LEGACY_REMINDER_ADOPTED = booleanPreferencesKey("legacy_reminder_adopted")
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
+        val IMPORT_LOWEST_OF_DAY = booleanPreferencesKey("import_lowest_of_day")
         /**
          * Where Health Connect got to last time, per profile.
          *

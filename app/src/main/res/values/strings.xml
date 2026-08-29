@@ -778,4 +778,6 @@
     </plurals>
     <string name="scale_pairing_lost_headline">The scale forgot this phone</string>
     <string name="settings_backup_folder_gone">The folder is no longer reachable, so no copy has been taken. Choose it again to start them up.</string>
+    <string name="settings_keep_lowest_of_day">Keep only the lowest reading each day</string>
+    <string name="settings_keep_lowest_of_day_explained">A second weigh-in after breakfast is the same morning plus a meal, not a second day. With this on, a day with several readings in Health Connect brings in the lowest one.</string>
 </resources>

@@ -533,6 +533,8 @@ fun SettingsScreen(
         item {
             HealthConnectCard(
                 state = healthConnectState,
+                lowestOfDay = settings.importLowestOfDay,
+                onLowestOfDayChange = viewModel::setImportLowestOfDay,
                 onRequestPermissions = {
                     // Only what this phone can actually grant, or an older Health Connect
                     // leaves the offer on screen for ever.
@@ -851,6 +853,8 @@ private fun ReminderCard(
 @Composable
 private fun HealthConnectCard(
     state: HealthConnectState,
+    lowestOfDay: Boolean,
+    onLowestOfDayChange: (Boolean) -> Unit,
     onRequestPermissions: () -> Unit,
     onSync: () -> Unit,
     onInstall: () -> Unit,
@@ -882,6 +886,17 @@ private fun HealthConnectCard(
                 )
                 Spacer(Modifier.height(10.dp))
                 if (state.granted) {
+                    ToggleRow(
+                        label = stringResource(R.string.settings_keep_lowest_of_day),
+                        checked = lowestOfDay,
+                        onCheckedChange = onLowestOfDayChange,
+                    )
+                    Text(
+                        text = stringResource(R.string.settings_keep_lowest_of_day_explained),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(10.dp))
                     Button(
                         onClick = onSync,
                         enabled = !state.syncing,
