@@ -53,7 +53,8 @@ class FastRepository @Inject constructor(
      * dialog that closes and changes nothing looks like it saved.
      */
     suspend fun update(fast: Fast): FastUpdateResult {
-        if (fast.end != null && fast.end.isBefore(fast.start)) return FastUpdateResult.BACKWARDS
+        val end = fast.end
+        if (end != null && end.isBefore(fast.start)) return FastUpdateResult.BACKWARDS
         val existing = dao.byId(fast.id) ?: return FastUpdateResult.MISSING
         dao.update(
             existing.copy(

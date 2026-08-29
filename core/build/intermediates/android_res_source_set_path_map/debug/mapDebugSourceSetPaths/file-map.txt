@@ -1,0 +1,9 @@
+com.weighttrack.core-pngs-0 C:\repos\WeightTrack\core\build\generated\res\pngs\debug
+com.weighttrack.core-updated_navigation_xml-1 C:\repos\WeightTrack\core\build\generated\updated_navigation_xml\debug
+com.weighttrack.core-mergeDebugResources-2 C:\repos\WeightTrack\core\build\intermediates\incremental\debug\mergeDebugResources\merged.dir
+com.weighttrack.core-mergeDebugResources-3 C:\repos\WeightTrack\core\build\intermediates\incremental\debug\mergeDebugResources\stripped.dir
+com.weighttrack.core-debug-4 C:\repos\WeightTrack\core\build\intermediates\merged_res\debug\mergeDebugResources
+com.weighttrack.core-debug-5 C:\repos\WeightTrack\core\build\intermediates\packaged_res\debug\packageDebugResources
+com.weighttrack.core-debug-6 C:\repos\WeightTrack\core\src\debug\res
+com.weighttrack.core-main-7 C:\repos\WeightTrack\core\src\main\res
+gradleHome-0 C:\Users\--\.gradle

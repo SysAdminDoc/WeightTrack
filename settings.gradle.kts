@@ -15,4 +15,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "WeightTrack"
+include(":core")
 include(":app")

@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite name="com.weighttrack.core.math.UnitConverterTest" tests="13" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:15:10.950Z" hostname="DESKTOP-VKVTAS0" time="0.002">
+  <properties/>
+  <testcase name="pounds use the international avoirdupois definition" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="kilograms round trip through grams" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="display conversion is symmetric for every length unit" classname="com.weighttrack.core.math.UnitConverterTest" time="0.001"/>
+  <testcase name="display conversion is symmetric for every weight unit" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="feet and inches split correctly" classname="com.weighttrack.core.math.UnitConverterTest" time="0.001"/>
+  <testcase name="snapping rounds to the increment the unit can express" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="stone conversion round trips" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="stones and pounds split correctly" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="centimetres round trip through millimetres" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="stone split never renders fourteen pounds" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="negative weights keep their sign on the stone component" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="unit switching does not drift the stored value" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <testcase name="inch split never renders twelve inches" classname="com.weighttrack.core.math.UnitConverterTest" time="0.0"/>
+  <system-out><![CDATA[]]></system-out>
+  <system-err><![CDATA[]]></system-err>
+</testsuite>

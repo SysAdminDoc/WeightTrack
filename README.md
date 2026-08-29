@@ -59,7 +59,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ```
 ./gradlew assemblePlayDebug     # Play flavour
 ./gradlew assembleFossDebug     # F-Droid flavour, no Google dependencies
-./gradlew testPlayDebugUnitTest # 157 unit tests
+./gradlew testPlayDebugUnitTest # 158 unit tests
+./gradlew :core:testDebugUnitTest # 102 more, the pure maths
 ```
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
@@ -68,7 +69,7 @@ Release builds are signed locally with a keystore described by `keystore.propert
 
 Kotlin, Jetpack Compose and Material 3, Room, Hilt, DataStore, WorkManager, Glance. Min SDK 26, target 37.
 
-The maths lives in `core/math` with no Android dependencies: the trend engine, goal projection, milestones, body composition formulas and unit conversion are all plain Kotlin and all covered by tests. Weight is stored as whole grams, so switching between kilograms, pounds and stones never changes a stored reading.
+The maths lives in its own `core` module with no Android dependencies: the trend engine, goal projection, milestones, body composition formulas and unit conversion are all plain Kotlin and all covered by tests. Weight is stored as whole grams, so switching between kilograms, pounds and stones never changes a stored reading.
 
 The chart is drawn directly on a Compose canvas rather than through a charting library, which is what lets the raw readings, the trend line, the goal line and the milestone marks share one coordinate space exactly.
 
