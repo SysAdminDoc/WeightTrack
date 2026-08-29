@@ -33,6 +33,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.weighttrack.R
@@ -223,7 +225,13 @@ private fun WeeklyChangeCard(
         }
         Spacer(Modifier.height(14.dp))
         val maxMagnitude = max(weekly.maxOf { abs(it.changeGrams) }, 1.0)
-        Canvas(Modifier.fillMaxWidth().height(84.dp)) {
+        val weeklyDescription = stringResource(R.string.chart_weekly_description, weekly.size)
+        Canvas(
+            Modifier
+                .fillMaxWidth()
+                .height(84.dp)
+                .semantics { contentDescription = weeklyDescription },
+        ) {
             val slot = size.width / weekly.size
             val barWidth = (slot * 0.6f).coerceAtMost(28f)
             val midY = size.height / 2f
@@ -352,7 +360,14 @@ private fun ActivityCard(activity: ActivityState) {
                 val stepDays = activity.days.filter { it.steps != null }
                 if (stepDays.isNotEmpty()) {
                     val maximum = max(stepDays.maxOf { it.steps ?: 0L }, 1L)
-                    Canvas(Modifier.fillMaxWidth().height(90.dp)) {
+                    val stepsDescription =
+                        stringResource(R.string.chart_steps_description, stepDays.size)
+                    Canvas(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(90.dp)
+                            .semantics { contentDescription = stepsDescription },
+                    ) {
                         val slot = size.width / stepDays.size
                         val barWidth = (slot * 0.6f).coerceAtMost(20f)
                         stepDays.forEachIndexed { index, day ->

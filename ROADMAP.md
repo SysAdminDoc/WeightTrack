@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — TalkBack semantics for the trend chart, the water ring and the milestone card, and 48 dp targets everywhere
-  Why: the three custom-drawn surfaces expose nothing to a screen reader, there is one `semantics {}` block in the app and no `minimumInteractiveComponentSize()`; Happy Scale's 2026.5.3 shipped a VoiceOver pass and openScale #1455 shows the same gap being reported.
-  Evidence: repo scan 2026-08-29 (ui/components/TrendChart.kt, ui/water, share/MilestoneImage.kt; `WeightKeypad.kt:140` is the only semantics block); https://developer.android.com/develop/ui/compose/accessibility ; https://github.com/oliexdev/openScale/issues/1455
-  Touches: ui/components/TrendChart.kt (contentDescription summarising trend, rate and last reading; `Modifier.semantics` with a `progressBarRangeInfo` on the goal), ui/water/WaterScreen.kt, ui/log/WeightKeypad.kt, ui/components/Common.kt (chips, icon buttons)
-  Acceptance: a Robolectric Compose test with `enableAccessibilityChecks()` passes on Home, Charts, Log and Water; `adb shell uiautomator dump` on the emulator shows a non-empty content-desc on the chart node.
-  Complexity: M
-
 - [ ] P1 — Automatic local backup on a schedule, with the last N kept and a restore entry point
   Why: ROADMAP line 51 names "automatic local backups" as the mitigation for the top cause of 1-star reviews and it was never built; trale #176 (5 reactions) and openScale #338 ask for the same.
   Evidence: ROADMAP.md line 51; https://github.com/QuantumPhysique/trale/issues/176 ; https://github.com/oliexdev/openScale/issues/338 ; data/io/BackupService.kt (manual only)

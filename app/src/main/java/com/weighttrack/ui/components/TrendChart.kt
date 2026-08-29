@@ -14,6 +14,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.weighttrack.R
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
@@ -127,10 +131,20 @@ fun TrendChart(
     val bottomGutter = with(density) { 22.dp.toPx() }
     val topPadding = with(density) { 12.dp.toPx() }
 
+    // A chart is a picture, and a screen reader announcing nothing at all is the same as it not
+    // being on the screen. The summary is what somebody would say if asked to read it aloud.
+    val description = stringResource(
+        R.string.chart_description,
+        WeightFormatter.full(visible.last().trendGrams.roundToInt(), unit),
+        visible.size,
+        WeightFormatter.full(bounds.start.roundToInt(), unit),
+        WeightFormatter.full(bounds.endInclusive.roundToInt(), unit),
+    )
     Canvas(
         modifier = modifier
             .fillMaxWidth()
             .height(height)
+            .semantics { contentDescription = description }
             .pointerInput(range, fullSpanDays) {
                 detectTransformGestures { _, _, gestureZoom, _ ->
                     zoom = (zoom * gestureZoom).coerceIn(1f, 8f)
@@ -448,7 +462,9 @@ fun Sparkline(
     days: Int = 30,
 ) {
     val points = remember(series, days) { series.points.takeLast(days) }
-    Canvas(modifier) {
+    // Decorative beside the figure it illustrates, which is already announced. Marked rather
+    // than left silent so a reader skips it instead of stopping on an unlabelled node.
+    Canvas(modifier.semantics { contentDescription = "" }) {
         if (points.size < 2) return@Canvas
         val minimum = points.minOf { it.trendGrams }
         val maximum = points.maxOf { it.trendGrams }

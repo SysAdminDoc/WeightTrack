@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -71,7 +72,9 @@ fun SegmentButton(
     val accent = MaterialTheme.colorScheme.primary
     Surface(
         onClick = onClick,
-        modifier = modifier.height(44.dp),
+        // 44 dp looks right and is under the 48 dp a finger needs. minimumInteractiveComponentSize
+        // grows the touch target without growing the box that is drawn.
+        modifier = modifier.height(44.dp).minimumInteractiveComponentSize(),
         shape = RoundedCornerShape(8.dp),
         color = if (selected) accent.copy(alpha = 0.10f) else Color.Transparent,
         contentColor = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,

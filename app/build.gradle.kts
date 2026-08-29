@@ -191,6 +191,8 @@ dependencies {
     // The Health Connect fake, so the import can be driven across real page boundaries.
     testImplementation(libs.androidx.health.connect.testing)
     testImplementation(libs.androidx.test.core)
+    // Compose under Robolectric, so the accessibility checks run in the ordinary test suite.
+    testImplementation(libs.androidx.compose.ui.test.junit4)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.work.testing)
 

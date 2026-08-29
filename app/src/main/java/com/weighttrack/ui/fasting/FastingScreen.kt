@@ -50,6 +50,8 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import com.weighttrack.R
 import com.weighttrack.core.model.Fast
@@ -67,6 +69,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
+import kotlin.math.roundToInt
 
 /** Hours and minutes. Seconds would make the number jitter without telling anyone anything. */
 internal fun formatDuration(duration: Duration): String {
@@ -496,7 +499,13 @@ private fun formatClock(value: LocalDateTime): String =
 private fun FastingRing(progress: Float) {
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     val fill = MaterialTheme.colorScheme.primary
-    Canvas(Modifier.size(200.dp)) {
+    // The caption beside it says the hours; this says how far round the ring has gone, which is
+    // the only thing the picture adds.
+    val description = stringResource(
+        R.string.fasting_ring_description,
+        (progress.coerceIn(0f, 1f) * 100).roundToInt(),
+    )
+    Canvas(Modifier.size(200.dp).semantics { contentDescription = description }) {
         val stroke = 14.dp.toPx()
         val inset = stroke / 2
         val arcSize = Size(size.width - stroke, size.height - stroke)
