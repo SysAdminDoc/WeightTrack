@@ -11,10 +11,11 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.fragment.app.FragmentActivity
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.notifications.Notifications
@@ -38,7 +39,7 @@ class MainActivity : FragmentActivity() {
         Notifications.ensureChannel(this)
 
         setContent {
-            val viewModel: AppViewModel = androidx.hilt.navigation.compose.hiltViewModel()
+            val viewModel: AppViewModel = hiltViewModel()
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             val locked by viewModel.locked.collectAsStateWithLifecycle()
             val lockError by viewModel.lockError.collectAsStateWithLifecycle()
