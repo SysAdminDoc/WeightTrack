@@ -46,6 +46,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - An optional food database with recipes, Open Food Facts lookups and no ads anywhere near it
 - Twenty two thousand common products bundled in the app, so the barcode scanner works in a shop with no signal
 - Sync between your own devices through a shared folder or your own Nextcloud, with no account and nothing of yours on anybody else's server
+- A milestone card you can share, drawn on the phone, that says how far you have come without saying what you weigh
 - Barcode scanning in both builds, ML Kit on Play and ZXing on F-Droid, so neither goes without it
 - Profiles for a household, each with their own history, goal and reminder, and a shared scale that works out whose reading it just took
 - Bluetooth scales, read straight into the log: the standard weight and body composition services, Xiaomi's broadcast format that needs no pairing, and the Renpho, eufy and Beurer/Sanitas protocols
@@ -69,8 +70,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 289 unit tests
-./gradlew :core:testDebugUnitTest # 264 more: the maths, the scale protocols, the food clients and the merge
+./gradlew testPlayDebugUnitTest   # 305 unit tests
+./gradlew :core:testDebugUnitTest # 276 more: the maths, the scale protocols, the food clients and the merge
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
@@ -90,7 +91,7 @@ The chart is drawn directly on a Compose canvas rather than through a charting l
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: a milestone card you can share, and translations.
+See [ROADMAP.md](ROADMAP.md). Next up: translations.
 
 ### How sync works
 

@@ -26,6 +26,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.graphics.Color
@@ -195,6 +198,37 @@ fun WeightTrackApp(
                 val viewModel: HomeViewModel = hiltViewModel()
                 val snapshot by viewModel.snapshot.collectAsStateWithLifecycle()
                 val waterSummary by viewModel.waterSummary.collectAsStateWithLifecycle()
+                val shareState = com.weighttrack.ui.home.rememberShareState()
+                val scope = rememberCoroutineScope()
+                val context = LocalContext.current
+                val shareContent = com.weighttrack.ui.home.milestoneCardFor(
+                    snapshot,
+                    shareState.includeWeight,
+                )
+                if (shareState.showing && shareContent != null) {
+                    com.weighttrack.ui.home.ShareProgressDialog(
+                        content = shareContent,
+                        includeWeight = shareState.includeWeight,
+                        onIncludeWeightChange = shareState::chooseIncludeWeight,
+                        onDismiss = shareState::close,
+                        onShare = {
+                            val include = shareState.includeWeight
+                            shareState.close()
+                            scope.launch {
+                                val intent = viewModel.shareCard(snapshot, include)
+                                if (intent == null) {
+                                    snackbarHostState.showSnackbar("Could not make the card.")
+                                } else {
+                                    // Android's own share sheet and nothing else. Where it goes
+                                    // is the person's business.
+                                    context.startActivity(
+                                        android.content.Intent.createChooser(intent, null),
+                                    )
+                                }
+                            }
+                        },
+                    )
+                }
                 HomeScreen(
                     snapshot = snapshot,
                     onLogWeight = { navController.navigate(Routes.log()) },
@@ -208,6 +242,7 @@ fun WeightTrackApp(
                     onOpenDiary = { navController.navigate(Routes.DIARY) },
                     nutritionEnabled = snapshot.settings.nutritionEnabled,
                     waterSummary = waterSummary,
+                    onShareProgress = shareState::open,
                 )
             }
 

@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Only the progress photo directory is shared, and only so the camera app can write the file it
-  was asked to capture. Nothing else in app storage is exposed.
+  Two directories, and only two. The progress photo directory so the camera app can write the
+  file it was asked to capture, and the share-card directory so the share sheet can read a card
+  on its way out. Nothing else in app storage is exposed, and both grants are per-URI and
+  temporary.
 -->
 <paths>
+    <!--
+      Where a milestone card is written before it goes to the share sheet. The cache, not the
+      pictures: somebody sharing a card wants to send it, not to find it in their gallery.
+    -->
+    <cache-path
+        name="share-cards"
+        path="share-cards/" />
+
     <files-path
         name="progress-photos"
         path="progress-photos/" />

@@ -73,6 +73,7 @@ fun HomeScreen(
     /** Food logging is off until somebody asks for it, so the weight-only app stays clean. */
     nutritionEnabled: Boolean,
     waterSummary: WaterSummary?,
+    onShareProgress: () -> Unit = {},
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -104,7 +105,7 @@ fun HomeScreen(
         item { HomeDivider() }
         item { RateCard(snapshot) }
         item { HomeDivider() }
-        snapshot.goal?.let { item { GoalCard(snapshot, onOpenGoal, today) } }
+        snapshot.goal?.let { item { GoalCard(snapshot, onOpenGoal, today, onShareProgress) } }
         item { HomeDivider() }
         item {
             HomeActionRow(
@@ -287,7 +288,12 @@ private fun RateCard(snapshot: ProgressSnapshot) {
 }
 
 @Composable
-private fun GoalCard(snapshot: ProgressSnapshot, onOpenGoal: () -> Unit, today: LocalDate) {
+private fun GoalCard(
+    snapshot: ProgressSnapshot,
+    onOpenGoal: () -> Unit,
+    today: LocalDate,
+    onShareProgress: () -> Unit,
+) {
     val goal = snapshot.goal ?: return
     val projection = snapshot.projection
     val unit = snapshot.settings.weightUnit
@@ -379,6 +385,15 @@ private fun GoalCard(snapshot: ProgressSnapshot, onOpenGoal: () -> Unit, today: 
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
+        }
+
+        // Offered rather than pushed. There is no prompt, no badge and no reminder to share:
+        // somebody who wants to will look for this, and somebody who does not should never be
+        // asked.
+        if (canShareProgress(snapshot)) {
+            androidx.compose.material3.TextButton(onClick = onShareProgress) {
+                Text("Share your progress")
+            }
         }
     }
 }
@@ -560,3 +575,7 @@ private fun changeColor(
 
 /** Grams-per-display-unit helper kept beside the screen that formats with it. */
 internal val gramsPerKg = UnitConverter.GRAMS_PER_KG
+
+/** Whether there is a story worth putting on a card yet. */
+internal fun canShareProgress(snapshot: ProgressSnapshot): Boolean =
+    milestoneCardFor(snapshot, includeWeight = false) != null

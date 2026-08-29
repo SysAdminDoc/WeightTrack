@@ -24,6 +24,7 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
+    private val shareCardStore: com.weighttrack.share.ShareCardStore,
     progressCalculator: ProgressCalculator,
     waterRepository: WaterRepository,
     settingsRepository: SettingsRepository,
@@ -53,6 +54,22 @@ class HomeViewModel @Inject constructor(
             unit = VolumeUnit.forWeightUnit(settings.weightUnit),
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
+
+    /**
+     * Builds a card and hands back something the share sheet can open.
+     *
+     * Null when there is nothing worth a card yet, or when the image could not be written. The
+     * screen says so rather than opening an empty share sheet.
+     */
+    suspend fun shareCard(
+        snapshot: com.weighttrack.domain.ProgressSnapshot,
+        includeWeight: Boolean,
+    ): android.content.Intent? {
+        val content = com.weighttrack.ui.home.milestoneCardFor(snapshot, includeWeight)
+            ?: return null
+        return shareCardStore.prepare(content)
+    }
+
 }
 
 /** Just enough water detail for the home row; the water screen owns the rest. */
