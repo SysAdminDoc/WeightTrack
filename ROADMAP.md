@@ -98,13 +98,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0 — Page through Health Connect weight reads and stop truncating long histories
-  Why: `sync(sinceDays = 365 * 5)` issues one `readRecords` call; Health Connect pages at 1000 records, so a five-year Withings history silently stops at the first page.
-  Evidence: app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:331-360 (no `pageToken`); https://developer.android.com/health-and-fitness/guides/health-connect/develop/read-data (pageToken may be "" not null)
-  Touches: health/HealthConnectSync.kt, HealthConnectSyncTest
-  Acceptance: a `FakeHealthConnectClient` seeded with 2,500 weights imports all 2,500; a test with a fake that returns `pageToken = ""` terminates.
-  Complexity: S
-
 - [ ] P0 — Declare and request READ_HEALTH_DATA_HISTORY so the first connect imports more than 30 days
   Why: without it every read is capped to 30 days before the grant, which makes the five-year window above meaningless and is the exact "sync missing days" complaint that sank Libra; ROADMAP line 73 already called for it.
   Evidence: https://developer.android.com/health-and-fitness/health-connect/get-started ; app/src/main/AndroidManifest.xml (permission absent); https://www.appbrain.com/app/libra-weight-manager/net.cachapa.libra

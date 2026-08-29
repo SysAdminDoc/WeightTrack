@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Reading your history out of Health Connect no longer stops after the first thousand readings. Health Connect answers a query one page at a time, and the app was reading the first page and treating it as the lot, so somebody arriving with years of weigh-ins in their scale's app got a few of them and no sign the rest existed. Sleep is read the same way and had the same hole.
+
 ## 0.3.0
 
 - Sync and backup now carry the food side too: your own foods, your recipes and your diary. Before this a new phone got every weigh-in and none of the eating, which is a poor surprise to have on the day you switch. A recipe arrives with its ingredients pointing at the right foods, and a meal keeps its own numbers even if the food behind it was deleted, so a day always adds up to what it added up to. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating.

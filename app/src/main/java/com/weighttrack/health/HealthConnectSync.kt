@@ -254,12 +254,16 @@ class HealthConnectSync @Inject constructor(
                 val zone = ZoneId.systemDefault()
                 val end = LocalDate.now().plusDays(1).atStartOfDay()
                 val start = end.minusDays(days)
-                val sessions = client.readRecords(
-                    ReadRecordsRequest(
-                        recordType = SleepSessionRecord::class,
-                        timeRangeFilter = TimeRangeFilter.between(start, end),
-                    ),
-                ).records
+                val sessions = readAllPages { token ->
+                    val page = client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = SleepSessionRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(start, end),
+                            pageToken = token,
+                        ),
+                    )
+                    page.records to page.pageToken
+                }
                 val byMorning = mutableMapOf<LocalDate, Double>()
                 for (session in sessions) {
                     val hours =
@@ -351,15 +355,20 @@ class HealthConnectSync @Inject constructor(
         start: Instant,
         zone: ZoneId,
     ): Pair<Int, Int> {
-        val response = client.readRecords(
-            ReadRecordsRequest(
-                recordType = WeightRecord::class,
-                timeRangeFilter = TimeRangeFilter.between(start, Instant.now()),
-            ),
-        )
+        val now = Instant.now()
+        val records = readAllPages { token ->
+            val page = client.readRecords(
+                ReadRecordsRequest(
+                    recordType = WeightRecord::class,
+                    timeRangeFilter = TimeRangeFilter.between(start, now),
+                    pageToken = token,
+                ),
+            )
+            page.records to page.pageToken
+        }
         var imported = 0
         var skipped = 0
-        response.records.forEach { record ->
+        records.forEach { record ->
             val grams = (record.weight.inKilograms * 1000).toInt()
             if (grams <= 0) {
                 skipped++
@@ -529,4 +538,41 @@ class HealthConnectSync @Inject constructor(
             }
         }
     }
+}
+
+/**
+ * How many pages one query will walk before giving up.
+ *
+ * A thousand records a page, so this reaches a hundred thousand readings. It exists because a
+ * provider that keeps handing back a token would otherwise loop for ever.
+ */
+internal const val MAX_RECORD_PAGES = 100
+
+/**
+ * Reads every page of a Health Connect query.
+ *
+ * One `readRecords` call answers with a single page and a token for the next. Reading once and
+ * stopping quietly truncated a long history: somebody arriving with five years of weigh-ins in
+ * their scale's app got the first page and no sign the rest existed.
+ *
+ * Two things end the walk besides running out of records. An empty string is a real answer from
+ * Health Connect and means the same as no token, and a provider that returns the token it was
+ * just given is making no progress, so re-reading that page would only duplicate it.
+ */
+internal suspend fun <T> readAllPages(
+    pageLimit: Int = MAX_RECORD_PAGES,
+    read: suspend (pageToken: String?) -> Pair<List<T>, String?>,
+): List<T> {
+    val all = mutableListOf<T>()
+    var token: String? = null
+    var pages = 0
+    while (pages < pageLimit) {
+        val (records, next) = read(token)
+        all += records
+        pages++
+        val following = next?.takeIf { it.isNotEmpty() }
+        if (following == null || following == token) break
+        token = following
+    }
+    return all
 }
