@@ -8,7 +8,7 @@ import com.weighttrack.data.repo.DailyWater
 import com.weighttrack.data.repo.WaterEntry
 import com.weighttrack.data.repo.WaterRepository
 import com.weighttrack.health.HealthConnectSync
-import com.weighttrack.widget.WidgetUpdater
+import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,7 +46,7 @@ class WaterViewModel @Inject constructor(
     private val waterRepository: WaterRepository,
     private val settingsRepository: SettingsRepository,
     private val healthConnect: HealthConnectSync,
-    private val widgetUpdater: WidgetUpdater,
+    private val SurfaceUpdater: SurfaceUpdater,
 ) : ViewModel() {
 
     /**
@@ -89,21 +89,21 @@ class WaterViewModel @Inject constructor(
                 waterRepository = waterRepository,
                 healthConnect = healthConnect,
             )
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
         }
     }
 
     fun remove(entry: WaterEntry) {
         viewModelScope.launch {
             waterRepository.delete(entry)
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
         }
     }
 
     fun clearDay() {
         viewModelScope.launch {
             waterRepository.clearDate(state.value.date)
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
         }
     }
 

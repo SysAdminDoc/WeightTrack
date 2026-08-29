@@ -1,4 +1,4 @@
-package com.weighttrack.ui.format
+package com.weighttrack.core.format
 
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.LengthUnit

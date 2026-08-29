@@ -4,7 +4,7 @@ import com.weighttrack.core.math.TrendSeries
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.core.model.WeightUnit
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import java.time.LocalDate
 import kotlin.math.abs
 import kotlin.math.roundToInt

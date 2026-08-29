@@ -37,7 +37,7 @@ import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.LengthFormatter
+import com.weighttrack.core.format.LengthFormatter
 import java.time.LocalDate
 
 @OptIn(ExperimentalMaterial3Api::class)

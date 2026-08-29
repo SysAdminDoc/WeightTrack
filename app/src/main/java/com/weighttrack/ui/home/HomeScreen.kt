@@ -46,8 +46,8 @@ import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.Sparkline
 import com.weighttrack.ui.components.StatTile
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.VolumeFormatter
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.VolumeFormatter
+import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
 import com.weighttrack.ui.theme.LocalTrendColors

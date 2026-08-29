@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.weighttrack.core.model.FastTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:15:10.954Z" hostname="DESKTOP-VKVTAS0" time="0.006">
+<testsuite name="com.weighttrack.core.model.FastTest" tests="9" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:29:06.963Z" hostname="DESKTOP-VKVTAS0" time="0.007">
   <properties/>
   <testcase name="a finished fast ignores now" classname="com.weighttrack.core.model.FastTest" time="0.003"/>
-  <testcase name="remaining time disappears once the target is passed" classname="com.weighttrack.core.model.FastTest" time="0.001"/>
+  <testcase name="remaining time disappears once the target is passed" classname="com.weighttrack.core.model.FastTest" time="0.0"/>
   <testcase name="a clock that moves backwards does not produce a negative fast" classname="com.weighttrack.core.model.FastTest" time="0.0"/>
   <testcase name="a running fast measures against now" classname="com.weighttrack.core.model.FastTest" time="0.0"/>
   <testcase name="a zero target does not divide by zero" classname="com.weighttrack.core.model.FastTest" time="0.001"/>
-  <testcase name="presets map back from stored minutes" classname="com.weighttrack.core.model.FastTest" time="0.0"/>
+  <testcase name="presets map back from stored minutes" classname="com.weighttrack.core.model.FastTest" time="0.001"/>
   <testcase name="progress runs from zero to one and stops there" classname="com.weighttrack.core.model.FastTest" time="0.001"/>
   <testcase name="the target is reached exactly on time" classname="com.weighttrack.core.model.FastTest" time="0.0"/>
   <testcase name="every preset has a sane target" classname="com.weighttrack.core.model.FastTest" time="0.0"/>

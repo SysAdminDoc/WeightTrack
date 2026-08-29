@@ -10,6 +10,7 @@
 local.properties
 /app/build
 /wear/build/
+/core/build/
 /.kotlin/
 *.apk
 *.aab

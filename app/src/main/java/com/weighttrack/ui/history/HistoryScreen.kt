@@ -45,7 +45,7 @@ import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.log.tagLabel
 import java.time.LocalDate
 

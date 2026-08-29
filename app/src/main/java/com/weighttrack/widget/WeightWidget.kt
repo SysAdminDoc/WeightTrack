@@ -28,7 +28,7 @@ import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors

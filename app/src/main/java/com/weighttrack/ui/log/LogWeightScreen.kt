@@ -49,7 +49,7 @@ import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.WeightKeypad
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
 import java.time.Instant

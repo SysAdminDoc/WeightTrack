@@ -36,7 +36,7 @@ import com.weighttrack.core.math.TrendSeries
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import java.time.LocalDate
 import java.time.temporal.ChronoUnit
 import kotlin.math.abs

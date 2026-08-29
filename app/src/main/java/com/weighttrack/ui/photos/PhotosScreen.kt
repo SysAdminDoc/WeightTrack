@@ -59,7 +59,7 @@ import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

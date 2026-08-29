@@ -46,7 +46,7 @@ import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.TrendChart
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.theme.LocalTrendColors
 import com.weighttrack.ui.theme.rememberTrendChartColors
 import java.time.LocalDate

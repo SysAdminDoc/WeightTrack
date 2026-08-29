@@ -45,7 +45,7 @@ import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.ui.format.VolumeFormatter
+import com.weighttrack.core.format.VolumeFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
 import java.time.LocalDate

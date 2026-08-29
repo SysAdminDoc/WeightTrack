@@ -114,6 +114,11 @@ dependencies {
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.documentfile)
     implementation(libs.androidx.exifinterface)
+
+    // The Wear Data Layer is Google Play services, so it exists only in the Play flavour.
+    // The F-Droid build binds a no-op WearBridge instead and carries no Google dependency.
+    "playImplementation"(libs.play.services.wearable)
+    "playImplementation"(libs.kotlinx.coroutines.play.services)
     implementation(libs.androidx.biometric)
 
     implementation(platform(libs.androidx.compose.bom))

@@ -30,7 +30,7 @@ import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WaterRepository
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.ui.water.WaterLogger
-import com.weighttrack.ui.format.VolumeFormatter
+import com.weighttrack.core.format.VolumeFormatter
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors

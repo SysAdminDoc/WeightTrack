@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.weighttrack.core.math.TrendEngineTest" tests="21" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:15:10.942Z" hostname="DESKTOP-VKVTAS0" time="0.007">
+<testsuite name="com.weighttrack.core.math.TrendEngineTest" tests="21" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:29:06.948Z" hostname="DESKTOP-VKVTAS0" time="0.008">
   <properties/>
-  <testcase name="daily aggregation sorts by date" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
+  <testcase name="daily aggregation sorts by date" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
   <testcase name="last measured ignores carried forward days" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
-  <testcase name="a gap compounds the smoothing factor over the elapsed days" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
+  <testcase name="a gap compounds the smoothing factor over the elapsed days" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
   <testcase name="steady loss is not a plateau" classname="com.weighttrack.core.math.TrendEngineTest" time="0.003"/>
   <testcase name="consecutive days reduce to the classic formula" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="a reading after a long gap moves the trend much further than a daily reading would" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
-  <testcase name="several readings on one day are averaged" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
+  <testcase name="several readings on one day are averaged" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
   <testcase name="a short flat stretch is not yet a plateau" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
-  <testcase name="a flat fortnight counts as a plateau" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
+  <testcase name="a flat fortnight counts as a plateau" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="trend follows a sustained loss downward" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
-  <testcase name="rate needs at least two points" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
+  <testcase name="rate needs at least two points" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
   <testcase name="alpha follows the hacker's diet time constant" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="empty input produces an empty series" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
-  <testcase name="trend carries forward unchanged on days with no reading" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
+  <testcase name="trend carries forward unchanged on days with no reading" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="series holds one point per calendar day including days with no reading" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="a single reading seeds the trend at that reading" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="rate converts to weekly and calorie terms" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="noisy data widens the standard error" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="deviation reports how far the last reading sat from the line" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
-  <testcase name="regression recovers the slope of a straight line" classname="com.weighttrack.core.math.TrendEngineTest" time="0.001"/>
+  <testcase name="regression recovers the slope of a straight line" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <testcase name="window setting is clamped to the supported range" classname="com.weighttrack.core.math.TrendEngineTest" time="0.0"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>

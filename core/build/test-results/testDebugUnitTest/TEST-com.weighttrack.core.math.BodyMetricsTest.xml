@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<testsuite name="com.weighttrack.core.math.BodyMetricsTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:15:10.905Z" hostname="DESKTOP-VKVTAS0" time="0.006">
+<testsuite name="com.weighttrack.core.math.BodyMetricsTest" tests="18" skipped="0" failures="0" errors="0" timestamp="2026-08-29T10:29:06.905Z" hostname="DESKTOP-VKVTAS0" time="0.008">
   <properties/>
   <testcase name="mass split rejects impossible percentages" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
   <testcase name="mifflin st jeor for men" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
@@ -15,10 +15,10 @@
   <testcase name="navy body fat for men" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="navy estimate declines when the waist is not larger than the neck" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="bmi rejects impossible inputs" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
-  <testcase name="navy estimate for women needs a hip measurement" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
+  <testcase name="navy estimate for women needs a hip measurement" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="navy body fat for women uses the hip measurement" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
   <testcase name="mifflin st jeor for women" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
-  <testcase name="fat and lean mass split the total" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.0"/>
+  <testcase name="fat and lean mass split the total" classname="com.weighttrack.core.math.BodyMetricsTest" time="0.001"/>
   <system-out><![CDATA[]]></system-out>
   <system-err><![CDATA[]]></system-err>
 </testsuite>

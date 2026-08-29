@@ -18,7 +18,7 @@ import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.notifications.ReminderScheduler
 import com.weighttrack.notifications.WeeklySummaryScheduler
-import com.weighttrack.widget.WidgetUpdater
+import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -47,7 +47,7 @@ class SettingsViewModel @Inject constructor(
     private val reminderScheduler: ReminderScheduler,
     private val weeklySummaryScheduler: WeeklySummaryScheduler,
     private val crashLogStore: CrashLogStore,
-    private val widgetUpdater: WidgetUpdater,
+    private val SurfaceUpdater: SurfaceUpdater,
     val healthConnect: HealthConnectSync,
 ) : ViewModel() {
 
@@ -178,7 +178,7 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.setAppLockEnabled(enabled)
             // Otherwise the home screen widget keeps showing the trend weight until Android
             // next feels like updating it, which can be half an hour.
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
             _message.value = if (enabled) {
                 "App lock is on. You will be asked to unlock each time you come back."
             } else {
@@ -246,7 +246,7 @@ class SettingsViewModel @Inject constructor(
             val result = healthConnect.sync()
             healthConnect.exportBodyFat()
             _healthConnectState.value = _healthConnectState.value.copy(syncing = false)
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
             _message.value = result.fold(
                 onSuccess = { summary ->
                     "Health Connect: brought in ${summary.imported}, sent out ${summary.exported}."
@@ -274,7 +274,7 @@ class SettingsViewModel @Inject constructor(
             _busy.value = true
             _message.value = runCatching { block() }
                 .getOrElse { "Something went wrong: ${it.message}" }
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
             _busy.value = false
         }
     }

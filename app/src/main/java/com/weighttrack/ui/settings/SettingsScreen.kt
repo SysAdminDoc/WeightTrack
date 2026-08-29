@@ -70,7 +70,7 @@ import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.ResumeEffect
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
-import com.weighttrack.ui.format.LengthFormatter
+import com.weighttrack.core.format.LengthFormatter
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle

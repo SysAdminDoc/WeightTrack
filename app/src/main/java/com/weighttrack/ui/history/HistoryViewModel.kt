@@ -6,7 +6,7 @@ import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
-import com.weighttrack.widget.WidgetUpdater
+import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,7 +35,7 @@ data class HistoryUiState(
 @HiltViewModel
 class HistoryViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
-    private val widgetUpdater: WidgetUpdater,
+    private val SurfaceUpdater: SurfaceUpdater,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
@@ -85,7 +85,7 @@ class HistoryViewModel @Inject constructor(
         val removed = state.value.entries.filter { it.id in ids }
         viewModelScope.launch {
             weightRepository.deleteByIds(ids.toList())
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
             pendingUndo.value = removed
             selectedIds.value = emptySet()
         }
@@ -94,7 +94,7 @@ class HistoryViewModel @Inject constructor(
     fun delete(entry: WeightEntry) {
         viewModelScope.launch {
             weightRepository.delete(entry)
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
             pendingUndo.value = listOf(entry)
         }
     }
@@ -110,7 +110,7 @@ class HistoryViewModel @Inject constructor(
         if (restore.isEmpty()) return
         viewModelScope.launch {
             weightRepository.upsertAll(restore.map { it.copy(id = 0) })
-            widgetUpdater.refresh()
+            SurfaceUpdater.refresh()
             pendingUndo.value = emptyList()
         }
     }

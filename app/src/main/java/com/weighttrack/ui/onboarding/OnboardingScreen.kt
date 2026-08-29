@@ -35,8 +35,8 @@ import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.WeightKeypad
 import com.weighttrack.ui.components.SegmentButton
-import com.weighttrack.ui.format.LengthFormatter
-import com.weighttrack.ui.format.WeightFormatter
+import com.weighttrack.core.format.LengthFormatter
+import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
 import kotlin.math.abs

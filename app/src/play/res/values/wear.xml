@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+        What this app can do, so the watch can tell whether the phone half is installed before
+        it offers to log anything.
+    -->
+    <string-array name="android_wear_capabilities">
+        <item>weighttrack_phone</item>
+    </string-array>
+</resources>

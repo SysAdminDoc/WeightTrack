@@ -30,6 +30,32 @@ object UnitConverter {
         WeightUnit.LB, WeightUnit.ST_LB -> 45 // ~0.1 lb
     }
 
+    /**
+     * The increment a picker moves by, in the display unit itself: 0.05 kg or 0.1 lb.
+     *
+     * [stepGrams] rounds the same increment to whole grams, which is right for snapping one
+     * value but wrong for a control that accumulates. 0.1 lb rounded to 45 g is short by about
+     * a third of a gram a turn, so a watch crown wound through a couple of hundred steps would
+     * land nearly a pound off. A picker counts steps and converts once, here.
+     */
+    fun stepDisplayValue(unit: WeightUnit): Double = when (unit) {
+        WeightUnit.KG -> 0.05
+        WeightUnit.LB, WeightUnit.ST_LB -> 0.1
+    }
+
+    /** Grams for a whole number of picker steps. */
+    fun gramsForStep(steps: Int, unit: WeightUnit): Int =
+        (steps * stepDisplayValue(unit) * gramsPerDisplayUnit(unit)).roundToInt()
+
+    /** The nearest picker step to a stored weight. */
+    fun stepForGrams(grams: Int, unit: WeightUnit): Int =
+        (grams / (stepDisplayValue(unit) * gramsPerDisplayUnit(unit))).roundToInt()
+
+    private fun gramsPerDisplayUnit(unit: WeightUnit): Double = when (unit) {
+        WeightUnit.KG -> GRAMS_PER_KG
+        WeightUnit.LB, WeightUnit.ST_LB -> GRAMS_PER_LB
+    }
+
     fun gramsToKg(grams: Int): Double = grams / GRAMS_PER_KG
 
     fun kgToGrams(kg: Double): Int = (kg * GRAMS_PER_KG).roundToInt()
