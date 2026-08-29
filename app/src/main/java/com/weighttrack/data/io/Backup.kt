@@ -145,6 +145,19 @@ data class BackupFile(
     val measurements: List<BackupMeasurement> = emptyList(),
     val goals: List<BackupGoal> = emptyList(),
     val settings: BackupSettings? = null,
+    /**
+     * The food side: your own foods, your recipes and your diary.
+     *
+     * Described with the sync types rather than a second set of its own. It is the same data, and
+     * two descriptions of it would drift apart the first time one of them changed.
+     *
+     * Absent from files written before this existed, and absent is not empty: a file with no food
+     * section leaves the food alone rather than clearing it.
+     */
+    val foods: List<com.weighttrack.core.sync.SyncFood>? = null,
+    val recipes: List<com.weighttrack.core.sync.SyncRecipe>? = null,
+    val recipeItems: List<com.weighttrack.core.sync.SyncRecipeItem>? = null,
+    val foodLog: List<com.weighttrack.core.sync.SyncFoodLogEntry>? = null,
 )
 
 object BackupCodec {

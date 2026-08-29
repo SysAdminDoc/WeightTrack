@@ -43,8 +43,16 @@ class FoodLogRepositoryTest {
         ).allowMainThreadQueries().build()
         val settings = testSettingsRepository()
         profiles = ProfileRepository(database.profileDao(), settings, DeletionRecorder(database.deletionDao(), database.syncDao()))
-        foods = FoodRepository(database.foodDao(), OfflineFoodStore(ApplicationProvider.getApplicationContext()))
-        log = FoodLogRepository(database.foodLogDao(), profiles)
+        foods = FoodRepository(
+            database.foodDao(),
+            OfflineFoodStore(ApplicationProvider.getApplicationContext()),
+            DeletionRecorder(database.deletionDao(), database.syncDao()),
+        )
+        log = FoodLogRepository(
+            database.foodLogDao(),
+            profiles,
+            DeletionRecorder(database.deletionDao(), database.syncDao()),
+        )
     }
 
     @After

@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 10,
+    version = 11,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -44,6 +44,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 8, to = 9, spec = WeightTrackDatabase.AddSyncIds::class),
         // Ten adds the profile to a deletion, because a record's name is only unique within one.
         AutoMigration(from = 9, to = 10),
+        // Eleven gives the food tables a name that travels, so a phone switch carries the diary.
+        AutoMigration(from = 10, to = 11, spec = WeightTrackDatabase.AddFoodSyncIds::class),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {
@@ -106,8 +108,34 @@ abstract class WeightTrackDatabase : RoomDatabase() {
         }
     }
 
+    /**
+     * Names the food rows so they can travel, the same way [AddSyncIds] did for the rest.
+     *
+     * Blank would make every row look like the same record to the merge, and a first sync would
+     * collapse a whole food database into one entry.
+     */
+    class AddFoodSyncIds : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            for (table in FOOD_TABLES) {
+                db.execSQL(
+                    "UPDATE $table SET syncId = lower(hex(randomblob(16))) " +
+                        "WHERE syncId IS NULL OR syncId = ''",
+                )
+            }
+            // A diary entry has no time of its own. When it was eaten is the truthful answer;
+            // a zero would make anything arriving from another device look newer.
+            db.execSQL(
+                "UPDATE food_log_entries SET updatedAtUtcMillis = loggedAtUtcMillis " +
+                    "WHERE updatedAtUtcMillis = 0",
+            )
+        }
+    }
+
     companion object {
         const val NAME = "weighttrack.db"
+
+        /** The food tables, whose rows also carry a name that travels. */
+        val FOOD_TABLES = listOf("foods", "recipes", "recipe_items", "food_log_entries")
 
         /** Every table whose rows carry a name that travels between devices. */
         val SYNCED_TABLES = listOf(

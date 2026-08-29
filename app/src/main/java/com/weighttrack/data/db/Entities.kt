@@ -271,6 +271,10 @@ data class FoodEntity(
     /** Zero until it has been eaten, which is what puts it in the recents list. */
     val lastUsedAtUtcMillis: Long = 0,
     val updatedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device. See the note on the weight entry.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
 
 /** Something cooked from other foods, whose nutrition is worked out rather than stored. */
@@ -281,6 +285,10 @@ data class RecipeEntity(
     /** What the whole recipe makes, so a portion can be worked out from it. */
     val servings: Int,
     val updatedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device. See the note on the weight entry.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
 
 @Entity(
@@ -292,6 +300,10 @@ data class RecipeItemEntity(
     val recipeId: Long,
     val foodId: Long,
     val grams: Double,
+    /**
+     * What this row is called on every device. See the note on the weight entry.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
 
 /**
@@ -325,6 +337,11 @@ data class FoodLogEntryEntity(
     val carbsG: Double?,
     val fatG: Double?,
     val loggedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device. See the note on the weight entry.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
+    @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
 )
 
 /**

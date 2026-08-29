@@ -30,6 +30,7 @@ data class ImportSummary(
  */
 @Singleton
 class BackupService @Inject constructor(
+    private val syncStore: com.weighttrack.data.sync.SyncStore,
     @param:ApplicationContext private val context: Context,
     private val weightRepository: WeightRepository,
     private val measurementRepository: MeasurementRepository,
@@ -59,8 +60,15 @@ class BackupService @Inject constructor(
             val measurements = measurementRepository.observeAll().first()
             val goals = goalRepository.observeAll().first()
             val settings = settingsRepository.settings.first()
+            // The food side comes from the same place sync reads it, so a backup and a sync
+            // carry the same thing and there is one description of what that is.
+            val everything = syncStore.snapshot("backup", Instant.now().toEpochMilli())
             val backup = BackupFile(
                 exportedAtUtcMillis = Instant.now().toEpochMilli(),
+                foods = everything.foods,
+                recipes = everything.recipes,
+                recipeItems = everything.recipeItems,
+                foodLog = everything.foodLog,
                 entries = entries.map(BackupCodec::entryToBackup),
                 measurements = measurements.map(BackupCodec::measurementToBackup),
                 goals = goals.map(BackupCodec::goalToBackup),
@@ -130,6 +138,25 @@ class BackupService @Inject constructor(
                         direction = goal.direction,
                     )
                 }
+            // Restored through the same path sync uses, which already knows how to bring a
+            // row in without duplicating one that is already here.
+            if (backup.foods != null || backup.recipes != null || backup.foodLog != null) {
+                val now = Instant.now().toEpochMilli()
+                syncStore.apply(
+                    com.weighttrack.core.sync.SyncDocument(
+                        deviceId = "backup",
+                        writtenAtUtcMillis = now,
+                        // The profiles as they are here. A backup carries no profiles of its own,
+                        // so the diary lands on whoever is on this phone.
+                        profiles = syncStore.snapshot("backup", now).profiles,
+                        foods = backup.foods.orEmpty(),
+                        recipes = backup.recipes.orEmpty(),
+                        recipeItems = backup.recipeItems.orEmpty(),
+                        foodLog = backup.foodLog.orEmpty(),
+                    ),
+                    now,
+                )
+            }
             ImportSummary(
                 imported = entries.size,
                 skipped = backup.entries.size - entries.size,

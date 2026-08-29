@@ -90,7 +90,6 @@ Kept optional so the weight-only experience stays clean. Off by default, one tog
 
 
 ## Phase 4: v0.4.x, sync and insights
-- [ ] Sync and backup should carry the food diary, your own foods and recipes. Weigh-ins and everything around them travel; food does not, and a phone switch loses it.
 
 
 ## Never

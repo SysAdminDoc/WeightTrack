@@ -40,6 +40,10 @@ data class SyncDocument(
     val fasts: List<SyncFast> = emptyList(),
     val goals: List<SyncGoal> = emptyList(),
     val macroTargets: List<SyncMacroTarget> = emptyList(),
+    val foods: List<SyncFood> = emptyList(),
+    val recipes: List<SyncRecipe> = emptyList(),
+    val recipeItems: List<SyncRecipeItem> = emptyList(),
+    val foodLog: List<SyncFoodLogEntry> = emptyList(),
     val settings: SyncSettings? = null,
     /**
      * What has been deleted, and when.
@@ -97,7 +101,12 @@ data class SyncDocument(
 
 /** Everything that can be deleted, named so a tombstone knows what it is about. */
 enum class SyncKind {
-    PROFILE, WEIGHT, MEASUREMENT, WATER, FAST, GOAL, MACRO_TARGET
+    PROFILE, WEIGHT, MEASUREMENT, WATER, FAST, GOAL, MACRO_TARGET,
+
+    // The food side. Foods and recipes belong to nobody in particular: a food is a fact about a
+    // product and a household cooking together shares its recipes. Only the eating belongs to a
+    // person.
+    FOOD, RECIPE, RECIPE_ITEM, FOOD_LOG,
 }
 
 /**
@@ -238,5 +247,79 @@ data class SyncSettings(
     val activityLevel: String,
     val trendWindowDays: Int,
     val milestoneStepGrams: Int,
+    val updatedAtUtcMillis: Long,
+)
+
+/**
+ * A food.
+ *
+ * Not scoped to a profile, deliberately. A food is a fact about a product rather than about a
+ * person, and a household cooking together shares them. What belongs to a person is the eating.
+ *
+ * Whether it is a favourite and when it was last eaten stay on the device that did the eating,
+ * because "recently used" is a fact about one person's phone.
+ */
+@Serializable
+data class SyncFood(
+    val syncId: String,
+    val name: String,
+    val brand: String? = null,
+    val barcode: String? = null,
+    val kcalPer100g: Double,
+    val proteinPer100g: Double? = null,
+    val carbsPer100g: Double? = null,
+    val fatPer100g: Double? = null,
+    val fibrePer100g: Double? = null,
+    val sugarPer100g: Double? = null,
+    val saltPer100g: Double? = null,
+    val servingGrams: Double? = null,
+    val origin: String,
+    val updatedAtUtcMillis: Long,
+)
+
+@Serializable
+data class SyncRecipe(
+    val syncId: String,
+    val name: String,
+    val servings: Int,
+    val updatedAtUtcMillis: Long,
+)
+
+/**
+ * One ingredient of a recipe.
+ *
+ * Both the recipe and the food are named by their travelling names rather than by a row number,
+ * which is the only way an ingredient means the same thing on two devices.
+ */
+@Serializable
+data class SyncRecipeItem(
+    val syncId: String,
+    val recipeSyncId: String,
+    val foodSyncId: String,
+    val grams: Double,
+    val updatedAtUtcMillis: Long,
+)
+
+/**
+ * One thing eaten, on one day, by one person.
+ *
+ * The nutrition travels on the row rather than being looked up through the food, exactly as it is
+ * stored: a label corrected next month must not rewrite what last month's days added up to.
+ */
+@Serializable
+data class SyncFoodLogEntry(
+    val syncId: String,
+    val profileSyncId: String,
+    val localDate: String,
+    val meal: String,
+    /** The food it came from, when it still exists. Null for a quick add. */
+    val foodSyncId: String? = null,
+    val name: String,
+    val grams: Double? = null,
+    val kcal: Double,
+    val proteinG: Double? = null,
+    val carbsG: Double? = null,
+    val fatG: Double? = null,
+    val loggedAtUtcMillis: Long,
     val updatedAtUtcMillis: Long,
 )

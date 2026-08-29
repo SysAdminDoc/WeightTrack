@@ -34,7 +34,11 @@ class FoodRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
-        foods = FoodRepository(database.foodDao(), OfflineFoodStore(ApplicationProvider.getApplicationContext()))
+        foods = FoodRepository(
+            database.foodDao(),
+            OfflineFoodStore(ApplicationProvider.getApplicationContext()),
+            DeletionRecorder(database.deletionDao(), database.syncDao()),
+        )
     }
 
     @After

@@ -58,6 +58,21 @@ interface SyncDao {
     @Query("SELECT * FROM macro_targets")
     suspend fun macroTargets(): List<MacroTargetEntity>
 
+    @Query("SELECT * FROM foods")
+    suspend fun foods(): List<FoodEntity>
+
+    @Query("SELECT * FROM recipes")
+    suspend fun recipes(): List<RecipeEntity>
+
+    @Query("SELECT * FROM recipe_items")
+    suspend fun recipeItems(): List<RecipeItemEntity>
+
+    @Query("SELECT * FROM food_log_entries")
+    suspend fun foodLog(): List<FoodLogEntryEntity>
+
+    @Query("SELECT syncId FROM food_log_entries WHERE profileId = :profileId")
+    suspend fun foodLogNames(profileId: Long): List<String>
+
     // Inserts abort rather than replace. Everything written here has been looked up by its
     // travelling name first, so a conflict would mean the lookup was wrong, and replacing would
     // quietly overwrite a row belonging to somebody else's profile.
@@ -104,6 +119,30 @@ interface SyncDao {
     @Update
     suspend fun updateMacroTargets(rows: List<MacroTargetEntity>)
 
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertFoods(rows: List<FoodEntity>)
+
+    @Update
+    suspend fun updateFoods(rows: List<FoodEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRecipes(rows: List<RecipeEntity>)
+
+    @Update
+    suspend fun updateRecipes(rows: List<RecipeEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRecipeItems(rows: List<RecipeItemEntity>)
+
+    @Update
+    suspend fun updateRecipeItems(rows: List<RecipeItemEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertFoodLog(rows: List<FoodLogEntryEntity>)
+
+    @Update
+    suspend fun updateFoodLog(rows: List<FoodLogEntryEntity>)
+
     /**
      * Removes weigh-ins by name, within one profile.
      *
@@ -128,6 +167,18 @@ interface SyncDao {
 
     @Query("DELETE FROM macro_targets WHERE syncId IN (:syncIds)")
     suspend fun deleteMacroTargets(syncIds: List<String>)
+
+    @Query("DELETE FROM foods WHERE syncId IN (:syncIds)")
+    suspend fun deleteFoods(syncIds: List<String>)
+
+    @Query("DELETE FROM recipes WHERE syncId IN (:syncIds)")
+    suspend fun deleteRecipes(syncIds: List<String>)
+
+    @Query("DELETE FROM recipe_items WHERE syncId IN (:syncIds)")
+    suspend fun deleteRecipeItems(syncIds: List<String>)
+
+    @Query("DELETE FROM food_log_entries WHERE syncId IN (:syncIds)")
+    suspend fun deleteFoodLog(syncIds: List<String>)
 
     /**
      * Removes profiles by their travelling name.

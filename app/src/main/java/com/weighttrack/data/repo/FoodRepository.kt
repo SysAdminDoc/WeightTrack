@@ -3,6 +3,7 @@ package com.weighttrack.data.repo
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.FoodOrigin
 import com.weighttrack.core.nutrition.Nutrients
+import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.FoodDao
 import com.weighttrack.data.food.OfflineFoodStore
 import com.weighttrack.data.db.FoodEntity
@@ -62,6 +63,7 @@ data class RecipeItem(val food: Food, val grams: Double) {
 class FoodRepository @Inject constructor(
     private val dao: FoodDao,
     private val offline: OfflineFoodStore,
+    private val deletions: DeletionRecorder,
 ) {
     /**
      * Somebody's own foods first, then the shelf that ships with the app.
@@ -113,12 +115,19 @@ class FoodRepository @Inject constructor(
                 id = existing.id,
                 favourite = existing.favourite,
                 lastUsedAtUtcMillis = existing.lastUsedAtUtcMillis,
+                // Carried forward, or the edit arrives on the other device as a second food
+                // rather than as a correction to the one already there.
+                syncId = existing.syncId,
             ),
         )
     }
 
     suspend fun delete(food: Food) {
-        dao.byId(food.id)?.let { dao.delete(it) }
+        val existing = dao.byId(food.id) ?: return
+        dao.delete(existing)
+        // A food belongs to the household rather than to one person, so its deletion names no
+        // profile.
+        deletions.record(SyncKind.FOOD, existing.syncId)
     }
 
     /**
@@ -149,7 +158,14 @@ class FoodRepository @Inject constructor(
             updatedAtUtcMillis = System.currentTimeMillis(),
         )
         val recipeId = if (id > 0) {
-            dao.updateRecipe(entity)
+            // The name it travels under is kept, and so are the ingredients being replaced: the
+            // other device still holds those rows and would put them back.
+            val existing = dao.recipeById(id)
+            deletions.record(
+                SyncKind.RECIPE_ITEM,
+                existing?.items.orEmpty().map { it.syncId },
+            )
+            dao.updateRecipe(entity.copy(syncId = existing?.recipe?.syncId ?: entity.syncId))
             id
         } else {
             dao.insertRecipe(entity)
@@ -162,7 +178,12 @@ class FoodRepository @Inject constructor(
     }
 
     suspend fun deleteRecipe(recipe: Recipe) {
-        dao.recipeById(recipe.id)?.let { dao.deleteRecipe(it.recipe) }
+        val existing = dao.recipeById(recipe.id) ?: return
+        // The ingredients go with it, and each of them has to be remembered separately: the
+        // other device holds them as rows of their own and would hand them back.
+        deletions.record(SyncKind.RECIPE_ITEM, existing.items.map { it.syncId })
+        dao.deleteRecipe(existing.recipe)
+        deletions.record(SyncKind.RECIPE, existing.recipe.syncId)
     }
 
     private suspend fun RecipeWithItems.toDomain(): Recipe = Recipe(

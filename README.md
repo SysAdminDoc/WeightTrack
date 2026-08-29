@@ -1,11 +1,11 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-35D6A0?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.3.0-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
-# WeightTrack v0.2.0
+# WeightTrack v0.3.0
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. Your readings stay on your phone and leave only when you export them.
 
@@ -70,7 +70,7 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 327 unit tests
+./gradlew testPlayDebugUnitTest   # 336 unit tests
 ./gradlew :core:testDebugUnitTest # 277 more: the maths, the scale protocols, the food clients and the merge
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
@@ -109,7 +109,7 @@ Each device writes one file, named after itself, into a folder you choose. It re
 
 Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Deletions are remembered for six months so they travel too, otherwise a phone that still holds the record hands it straight back.
 
-What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, profiles and the settings that describe you. What does not, yet: the food diary and your own foods and recipes, and progress photos. Those stay on the phone that recorded them, so do not treat sync as a way to move a food log to a new phone.
+What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and want a different mechanism. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
 
 Two other limits worth knowing. It relies on the devices roughly agreeing about the time, so a badly wrong clock can hold a stale edit in place. And a device left switched off for more than six months will bring back what it still holds, because by then the deletions that would have removed it have been forgotten.
 

@@ -16,8 +16,8 @@ android {
         applicationId = "com.weighttrack"
         minSdk = 26
         targetSdk = 37
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
@@ -94,6 +94,13 @@ android {
     testOptions {
         unitTests.isReturnDefaultValues = true
         unitTests.isIncludeAndroidResources = true
+    }
+
+    sourceSets {
+        // The exported schemas, so the migration tests can check an upgrade against the real
+        // shape of each old version rather than against the current one.
+        getByName("test") { assets.srcDirs("$projectDir/schemas") }
+        getByName("androidTest") { assets.srcDirs("$projectDir/schemas") }
     }
 
     packaging {
@@ -190,5 +197,7 @@ dependencies {
     androidTestImplementation(libs.androidx.test.runner)
     androidTestImplementation(libs.androidx.test.espresso.core)
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(libs.androidx.room.testing)
+    androidTestImplementation(libs.truth)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 }

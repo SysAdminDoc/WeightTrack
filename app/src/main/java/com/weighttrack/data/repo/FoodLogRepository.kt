@@ -56,6 +56,7 @@ data class DayLog(
 class FoodLogRepository @Inject constructor(
     private val dao: FoodLogDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     fun observeDay(date: LocalDate): Flow<DayLog> =
         profiles.activeProfileId
@@ -101,6 +102,7 @@ class FoodLogRepository @Inject constructor(
                 carbsG = nutrients.carbsG,
                 fatG = nutrients.fatG,
                 loggedAtUtcMillis = System.currentTimeMillis(),
+                updatedAtUtcMillis = System.currentTimeMillis(),
             ),
         )
     }
@@ -130,6 +132,7 @@ class FoodLogRepository @Inject constructor(
             carbsG = null,
             fatG = null,
             loggedAtUtcMillis = System.currentTimeMillis(),
+            updatedAtUtcMillis = System.currentTimeMillis(),
         ),
     )
 
@@ -167,16 +170,32 @@ class FoodLogRepository @Inject constructor(
                 proteinG = entry.nutrients.proteinG,
                 carbsG = entry.nutrients.carbsG,
                 fatG = entry.nutrients.fatG,
+                updatedAtUtcMillis = System.currentTimeMillis(),
             ),
         )
     }
 
     suspend fun delete(entry: FoodLogEntry) {
+        dao.byId(entry.id)?.let {
+            deletions.record(
+                com.weighttrack.core.sync.SyncKind.FOOD_LOG,
+                it.syncId,
+                profileId = it.profileId,
+            )
+        }
         dao.byId(entry.id)?.let { dao.delete(it) }
     }
 
-    suspend fun clearDay(date: LocalDate) =
-        dao.deleteForDate(profiles.activeId(), date.toString())
+    suspend fun clearDay(date: LocalDate) {
+        val profileId = profiles.activeId()
+        val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
+        dao.deleteForDate(profileId, date.toString())
+        deletions.record(
+            com.weighttrack.core.sync.SyncKind.FOOD_LOG,
+            gone,
+            profileId = profileId,
+        )
+    }
 
     suspend fun deleteAll() = dao.deleteAll()
 

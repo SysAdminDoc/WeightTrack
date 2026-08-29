@@ -3,6 +3,10 @@ package com.weighttrack.data.sync
 import com.weighttrack.core.sync.SyncDeletion
 import com.weighttrack.core.sync.SyncDocument
 import com.weighttrack.core.sync.SyncFast
+import com.weighttrack.core.sync.SyncFood
+import com.weighttrack.core.sync.SyncFoodLogEntry
+import com.weighttrack.core.sync.SyncRecipe
+import com.weighttrack.core.sync.SyncRecipeItem
 import com.weighttrack.core.sync.SyncGoal
 import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.core.sync.SyncMacroTarget
@@ -14,6 +18,10 @@ import com.weighttrack.core.sync.SyncWeight
 import com.weighttrack.data.db.DeletionDao
 import com.weighttrack.data.db.DeletionEntity
 import com.weighttrack.data.db.FastEntity
+import com.weighttrack.data.db.FoodEntity
+import com.weighttrack.data.db.FoodLogEntryEntity
+import com.weighttrack.data.db.RecipeEntity
+import com.weighttrack.data.db.RecipeItemEntity
 import com.weighttrack.data.db.GoalEntity
 import com.weighttrack.data.db.MacroTargetEntity
 import com.weighttrack.data.db.MeasurementEntity
@@ -84,6 +92,25 @@ class SyncStore @Inject constructor(
             macroTargets = dao.macroTargets().mapNotNull { row ->
                 nameOf[row.profileId]?.let { row.toSync(it) }
             },
+            foods = dao.foods().map { it.toSync() },
+            recipes = dao.recipes().map { it.toSync() },
+            // An ingredient names its recipe and its food by their travelling names. One whose
+            // recipe or food has gone is left out rather than written with a dangling reference.
+            recipeItems = run {
+                val recipeNames = dao.recipes().associate { it.id to it.syncId }
+                val foodNames = dao.foods().associate { it.id to it.syncId }
+                dao.recipeItems().mapNotNull { row ->
+                    val recipe = recipeNames[row.recipeId] ?: return@mapNotNull null
+                    val food = foodNames[row.foodId] ?: return@mapNotNull null
+                    row.toSync(recipe, food)
+                }
+            },
+            foodLog = run {
+                val foodNames = dao.foods().associate { it.id to it.syncId }
+                dao.foodLog().mapNotNull { row ->
+                    nameOf[row.profileId]?.let { row.toSync(it, row.foodId?.let(foodNames::get)) }
+                }
+            },
             deletions = deletions.all().mapNotNull { it.toSync() },
         )
     }
@@ -108,6 +135,11 @@ class SyncStore @Inject constructor(
         changes += applyFasts(merged, profileIdOf)
         changes += applyGoals(merged, profileIdOf)
         changes += applyMacroTargets(merged, profileIdOf)
+        changes += applyFoods(merged)
+        changes += applyRecipes(merged)
+        // After the foods and the recipes, because an ingredient points at both.
+        changes += applyRecipeItems(merged)
+        changes += applyFoodLog(merged, profileIdOf)
         changes += applyDeletions(merged)
 
         // Everybody else's tombstones are kept as if they were this device's own, so a deletion
@@ -476,6 +508,177 @@ class SyncStore @Inject constructor(
         return SyncChanges(added = fresh.size, updated = revised.size)
     }
 
+    // ---- the food side, which belongs to the household rather than to one person ----
+
+    private suspend fun applyFoods(merged: SyncDocument): SyncChanges {
+        val local = dao.foods().associateBy { it.syncId }
+        val fresh = mutableListOf<FoodEntity>()
+        val revised = mutableListOf<FoodEntity>()
+        for (remote in merged.foods) {
+            val existing = local[remote.syncId]
+            if (existing == null) {
+                fresh += FoodEntity(
+                    name = remote.name,
+                    brand = remote.brand,
+                    barcode = remote.barcode,
+                    kcalPer100g = remote.kcalPer100g,
+                    proteinPer100g = remote.proteinPer100g,
+                    carbsPer100g = remote.carbsPer100g,
+                    fatPer100g = remote.fatPer100g,
+                    fibrePer100g = remote.fibrePer100g,
+                    sugarPer100g = remote.sugarPer100g,
+                    saltPer100g = remote.saltPer100g,
+                    servingGrams = remote.servingGrams,
+                    origin = remote.origin,
+                    // Whether it is a favourite, and when it was last eaten, stay where they
+                    // were: "recently used" is a fact about one person's phone.
+                    favourite = false,
+                    lastUsedAtUtcMillis = 0,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    syncId = remote.syncId,
+                )
+            } else {
+                val candidate = existing.copy(
+                    name = remote.name,
+                    brand = remote.brand,
+                    barcode = remote.barcode,
+                    kcalPer100g = remote.kcalPer100g,
+                    proteinPer100g = remote.proteinPer100g,
+                    carbsPer100g = remote.carbsPer100g,
+                    fatPer100g = remote.fatPer100g,
+                    fibrePer100g = remote.fibrePer100g,
+                    sugarPer100g = remote.sugarPer100g,
+                    saltPer100g = remote.saltPer100g,
+                    servingGrams = remote.servingGrams,
+                    origin = remote.origin,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                )
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
+            }
+        }
+        if (fresh.isNotEmpty()) dao.insertFoods(fresh)
+        if (revised.isNotEmpty()) dao.updateFoods(revised)
+        return SyncChanges(added = fresh.size, updated = revised.size)
+    }
+
+    private suspend fun applyRecipes(merged: SyncDocument): SyncChanges {
+        val local = dao.recipes().associateBy { it.syncId }
+        val fresh = mutableListOf<RecipeEntity>()
+        val revised = mutableListOf<RecipeEntity>()
+        for (remote in merged.recipes) {
+            val existing = local[remote.syncId]
+            if (existing == null) {
+                fresh += RecipeEntity(
+                    name = remote.name,
+                    servings = remote.servings,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    syncId = remote.syncId,
+                )
+            } else {
+                val candidate = existing.copy(
+                    name = remote.name,
+                    servings = remote.servings,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                )
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
+            }
+        }
+        if (fresh.isNotEmpty()) dao.insertRecipes(fresh)
+        if (revised.isNotEmpty()) dao.updateRecipes(revised)
+        return SyncChanges(added = fresh.size, updated = revised.size)
+    }
+
+    private suspend fun applyRecipeItems(merged: SyncDocument): SyncChanges {
+        val recipeIdOf = dao.recipes().associate { it.syncId to it.id }
+        val foodIdOf = dao.foods().associate { it.syncId to it.id }
+        val local = dao.recipeItems().associateBy { it.syncId }
+        val fresh = mutableListOf<RecipeItemEntity>()
+        val revised = mutableListOf<RecipeItemEntity>()
+        for (remote in merged.recipeItems) {
+            // An ingredient without its recipe or its food is not an ingredient. Skipped rather
+            // than written pointing at nothing, which would show as a blank line in a recipe.
+            val recipeId = recipeIdOf[remote.recipeSyncId] ?: continue
+            val foodId = foodIdOf[remote.foodSyncId] ?: continue
+            val existing = local[remote.syncId]
+            if (existing == null) {
+                fresh += RecipeItemEntity(
+                    recipeId = recipeId,
+                    foodId = foodId,
+                    grams = remote.grams,
+                    syncId = remote.syncId,
+                )
+            } else {
+                val candidate = existing.copy(
+                    recipeId = recipeId,
+                    foodId = foodId,
+                    grams = remote.grams,
+                )
+                if (candidate != existing) revised += candidate
+            }
+        }
+        if (fresh.isNotEmpty()) dao.insertRecipeItems(fresh)
+        if (revised.isNotEmpty()) dao.updateRecipeItems(revised)
+        return SyncChanges(added = fresh.size, updated = revised.size)
+    }
+
+    private suspend fun applyFoodLog(
+        merged: SyncDocument,
+        profileIdOf: Map<String, Long>,
+    ): SyncChanges {
+        val foodIdOf = dao.foods().associate { it.syncId to it.id }
+        val local = dao.foodLog().associateBy { it.profileId to it.syncId }
+        val fresh = mutableListOf<FoodLogEntryEntity>()
+        val revised = mutableListOf<FoodLogEntryEntity>()
+        for (remote in merged.foodLog) {
+            val profileId = profileIdOf[remote.profileSyncId] ?: continue
+            // The food may not be here, and that is fine: the nutrition is on the row. A meal
+            // whose food was deleted still counts towards the day it was eaten.
+            val foodId = remote.foodSyncId?.let(foodIdOf::get)
+            val existing = local[profileId to remote.syncId]
+            if (existing == null) {
+                fresh += FoodLogEntryEntity(
+                    profileId = profileId,
+                    localDate = remote.localDate,
+                    meal = remote.meal,
+                    foodId = foodId,
+                    name = remote.name,
+                    grams = remote.grams,
+                    kcal = remote.kcal,
+                    proteinG = remote.proteinG,
+                    carbsG = remote.carbsG,
+                    fatG = remote.fatG,
+                    loggedAtUtcMillis = remote.loggedAtUtcMillis,
+                    syncId = remote.syncId,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                )
+            } else {
+                val candidate = existing.copy(
+                    localDate = remote.localDate,
+                    meal = remote.meal,
+                    foodId = foodId,
+                    name = remote.name,
+                    grams = remote.grams,
+                    kcal = remote.kcal,
+                    proteinG = remote.proteinG,
+                    carbsG = remote.carbsG,
+                    fatG = remote.fatG,
+                    loggedAtUtcMillis = remote.loggedAtUtcMillis,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                )
+                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                    revised += candidate
+                }
+            }
+        }
+        if (fresh.isNotEmpty()) dao.insertFoodLog(fresh)
+        if (revised.isNotEmpty()) dao.updateFoodLog(revised)
+        return SyncChanges(added = fresh.size, updated = revised.size)
+    }
+
     // ---- deletions ----
 
     private suspend fun applyDeletions(merged: SyncDocument): SyncChanges {
@@ -489,6 +692,10 @@ class SyncStore @Inject constructor(
             SyncKind.FAST to merged.fasts.map { it.syncId }.toSet(),
             SyncKind.GOAL to merged.goals.map { it.syncId }.toSet(),
             SyncKind.MACRO_TARGET to merged.macroTargets.map { it.syncId }.toSet(),
+            SyncKind.FOOD to merged.foods.map { it.syncId }.toSet(),
+            SyncKind.RECIPE to merged.recipes.map { it.syncId }.toSet(),
+            SyncKind.RECIPE_ITEM to merged.recipeItems.map { it.syncId }.toSet(),
+            SyncKind.FOOD_LOG to merged.foodLog.map { it.syncId }.toSet(),
         )
         // A tombstone naming a profile applies to that profile. One naming none applies
         // wherever the name is found, which is what a file written before deletions carried a
@@ -515,6 +722,16 @@ class SyncStore @Inject constructor(
         gone(SyncKind.MACRO_TARGET).ifNotEmpty {
             removed += it.size
             dao.deleteMacroTargets(it.map { d -> d.syncId })
+        }
+        gone(SyncKind.FOOD).ifNotEmpty { removed += it.size; dao.deleteFoods(it.map { d -> d.syncId }) }
+        gone(SyncKind.RECIPE).ifNotEmpty { removed += it.size; dao.deleteRecipes(it.map { d -> d.syncId }) }
+        gone(SyncKind.RECIPE_ITEM).ifNotEmpty {
+            removed += it.size
+            dao.deleteRecipeItems(it.map { d -> d.syncId })
+        }
+        gone(SyncKind.FOOD_LOG).ifNotEmpty {
+            removed += it.size
+            dao.deleteFoodLog(it.map { d -> d.syncId })
         }
 
         val profilesGone = gone(SyncKind.PROFILE).map { it.syncId }
@@ -563,6 +780,7 @@ class SyncStore @Inject constructor(
                 dao.deleteMacroTargets(
                     dao.macroTargets().filter { it.profileId in ids }.map { it.syncId },
                 )
+                dao.deleteFoodLog(dao.foodLog().filter { it.profileId in ids }.map { it.syncId })
                 dao.deleteProfiles(names)
                 removed += allowed.size
             }
@@ -673,6 +891,56 @@ class SyncStore @Inject constructor(
         basis = basis,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
+
+    private fun FoodEntity.toSync() = SyncFood(
+        syncId = syncId,
+        name = name,
+        brand = brand,
+        barcode = barcode,
+        kcalPer100g = kcalPer100g,
+        proteinPer100g = proteinPer100g,
+        carbsPer100g = carbsPer100g,
+        fatPer100g = fatPer100g,
+        fibrePer100g = fibrePer100g,
+        sugarPer100g = sugarPer100g,
+        saltPer100g = saltPer100g,
+        servingGrams = servingGrams,
+        origin = origin,
+        updatedAtUtcMillis = updatedAtUtcMillis,
+    )
+
+    private fun RecipeEntity.toSync() = SyncRecipe(
+        syncId = syncId,
+        name = name,
+        servings = servings,
+        updatedAtUtcMillis = updatedAtUtcMillis,
+    )
+
+    private fun RecipeItemEntity.toSync(recipeSyncId: String, foodSyncId: String) = SyncRecipeItem(
+        syncId = syncId,
+        recipeSyncId = recipeSyncId,
+        foodSyncId = foodSyncId,
+        grams = grams,
+        // An ingredient has no time of its own; the recipe it belongs to carries that.
+        updatedAtUtcMillis = 0,
+    )
+
+    private fun FoodLogEntryEntity.toSync(profileSyncId: String, foodSyncId: String?) =
+        SyncFoodLogEntry(
+            syncId = syncId,
+            profileSyncId = profileSyncId,
+            localDate = localDate,
+            meal = meal,
+            foodSyncId = foodSyncId,
+            name = name,
+            grams = grams,
+            kcal = kcal,
+            proteinG = proteinG,
+            carbsG = carbsG,
+            fatG = fatG,
+            loggedAtUtcMillis = loggedAtUtcMillis,
+            updatedAtUtcMillis = updatedAtUtcMillis,
+        )
 
     private fun DeletionEntity.toSync(): SyncDeletion? {
         val known = runCatching { SyncKind.valueOf(kind) }.getOrNull() ?: return null

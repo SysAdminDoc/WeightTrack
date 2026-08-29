@@ -72,6 +72,17 @@ object SyncMerge {
             macroTargets = documents
                 .newest({ it.macroTargets }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
                 .filterNot { gone(SyncKind.MACRO_TARGET, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
+            // Foods and recipes belong to nobody in particular, so they are named on their own.
+            foods = documents.newest({ it.foods }, { it.syncId }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.FOOD, it.syncId, "", it.updatedAtUtcMillis) },
+            recipes = documents.newest({ it.recipes }, { it.syncId }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.RECIPE, it.syncId, "", it.updatedAtUtcMillis) },
+            recipeItems = documents
+                .newest({ it.recipeItems }, { it.syncId }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.RECIPE_ITEM, it.syncId, "", it.updatedAtUtcMillis) },
+            foodLog = documents
+                .newest({ it.foodLog }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+                .filterNot { gone(SyncKind.FOOD_LOG, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
             settings = newestSettings(documents),
             deletions = deletions.map { (key, at) ->
                 SyncDeletion(
@@ -95,6 +106,7 @@ object SyncMerge {
         val profiles = merged.profiles.map { it.syncId }.toSet()
         return Orphans(
             weights = merged.weights.filterNot { it.profileSyncId in profiles },
+            foodLog = merged.foodLog.filterNot { it.profileSyncId in profiles },
             measurements = merged.measurements.filterNot { it.profileSyncId in profiles },
             water = merged.water.filterNot { it.profileSyncId in profiles },
             fasts = merged.fasts.filterNot { it.profileSyncId in profiles },
@@ -105,6 +117,7 @@ object SyncMerge {
 
     data class Orphans(
         val weights: List<SyncWeight>,
+        val foodLog: List<SyncFoodLogEntry>,
         val measurements: List<SyncMeasurement>,
         val water: List<SyncWater>,
         val fasts: List<SyncFast>,
@@ -113,11 +126,11 @@ object SyncMerge {
     ) {
         val isEmpty: Boolean
             get() = weights.isEmpty() && measurements.isEmpty() && water.isEmpty() &&
-                fasts.isEmpty() && goals.isEmpty() && macroTargets.isEmpty()
+                fasts.isEmpty() && goals.isEmpty() && macroTargets.isEmpty() && foodLog.isEmpty()
 
         val count: Int
             get() = weights.size + measurements.size + water.size + fasts.size + goals.size +
-                macroTargets.size
+                macroTargets.size + foodLog.size
     }
 
     /** What names a deleted record: its kind, its own name, and whose it was. */
