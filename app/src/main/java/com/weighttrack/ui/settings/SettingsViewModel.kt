@@ -350,6 +350,9 @@ class SettingsViewModel @Inject constructor(
     }
 
     fun onHealthConnectPermissionResult(granted: Set<String>) {
+        // Connecting is what starts the background job for somebody who syncs a scale through
+        // Health Connect and keeps no folder.
+        viewModelScope.launch { runCatching { syncScheduler.reschedule() } }
         // Weight sync only needs the core set. Treating a declined optional read as a
         // refused connection would report a working sync as unauthorised.
         val allowed = granted.containsAll(HealthConnectSync.corePermissions)

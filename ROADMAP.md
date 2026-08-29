@@ -102,13 +102,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P2
 
-- [ ] P2 — Sync Health Connect in the background, not only when somebody taps the button
-  Why: SyncWorker drives the folder and WebDAV sync only, so a reading added or deleted in the scale's app reaches WeightTrack when the person next opens Settings and taps Sync now. The widget, the watch and the trend are all stale until then.
-  Evidence: app/src/main/java/com/weighttrack/sync/SyncWorker.kt (no HealthConnectSync call); found reviewing the changes-token work 2026-08-29
-  Touches: sync/SyncWorker.kt, health/HealthConnectSync.kt, widget/SurfaceUpdater
-  Acceptance: with Health Connect connected, a reading inserted by another app appears in WeightTrack without opening Settings; the worker still returns success when Health Connect is not connected.
-  Complexity: M
-
 
 - [ ] P2 — GLP-1 log: dose, site with rotation, side effects, protein target and a clinician PDF, off by default
   Why: MyFitnessPal (free, 2026-04-28), Noom (free, 2026-06-24) and MyNetDiary (paid, 2026-05-05) all shipped this in 2026; no OSS tracker has it; the science says 1.2 to 1.6 g/kg protein and a lean-mass watch during the 10 to 13 percent loss these users see.

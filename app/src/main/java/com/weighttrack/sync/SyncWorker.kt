@@ -37,11 +37,19 @@ class SyncWorker @AssistedInject constructor(
     private val engine: SyncEngine,
     private val preferences: SyncPreferences,
     private val runtimeLog: RuntimeLog,
+    private val healthConnect: com.weighttrack.health.HealthConnectSync,
+    private val surfaces: com.weighttrack.widget.SurfaceUpdater,
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
+        // Health Connect first, and whether or not folder sync is set up. Everything the changes
+        // walk is for, a reading added or deleted in the scale's own app, used to reach the app
+        // only when somebody opened Settings and pressed the button, which meant the trend, the
+        // widget and the watch all sat stale until they did.
+        val health = syncHealthConnect()
+
         val settings = preferences.current()
-        if (!settings.isOn || !settings.isReady || !settings.syncInBackground) return Result.success()
+        if (!settings.isOn || !settings.isReady || !settings.syncInBackground) return health
         val outcome = runCatching { engine.syncNow() }.getOrElse {
             // A worker that throws is a crash nobody asked for and nobody sees. Whatever went
             // wrong is worth another go later rather than taking the process with it.
@@ -49,14 +57,42 @@ class SyncWorker @AssistedInject constructor(
             return Result.retry()
         }
         return when (outcome) {
-            is SyncResult.Done -> Result.success()
+            is SyncResult.Done -> health
             // Worth another go later: no signal, a server having a bad day.
             is SyncResult.Unreachable -> Result.retry()
             // A wrong password will still be wrong in an hour, and retrying would hammer somebody
             // else's server for nothing. The reason is on the settings screen for them to read.
             is SyncResult.Refused -> Result.success()
-            SyncResult.NotSetUp -> Result.success()
+            SyncResult.NotSetUp -> health
         }
+    }
+
+    /**
+     * Exchanges with Health Connect, when there is anything to exchange with.
+     *
+     * Answers success when it is not connected: that is not a failure and retrying would achieve
+     * nothing. A failure is worth another go, since the usual cause is the provider being busy.
+     */
+    private suspend fun syncHealthConnect(): Result {
+        if (healthConnect.availability() != com.weighttrack.health.HealthConnectAvailability.INSTALLED) {
+            return Result.success()
+        }
+        if (!healthConnect.hasPermissions()) return Result.success()
+        val result = runCatching { healthConnect.sync() }.getOrElse {
+            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
+            return Result.retry()
+        }
+        return result.fold(
+            onSuccess = { summary ->
+                // Only when something changed, so a quiet hourly run does not keep rebuilding
+                // the widget and waking the watch for nothing.
+                if (summary.imported > 0 || summary.removed > 0) {
+                    runCatching { surfaces.refresh() }
+                }
+                Result.success()
+            },
+            onFailure = { Result.retry() },
+        )
     }
 }
 
@@ -65,11 +101,19 @@ class SyncWorker @AssistedInject constructor(
 class SyncScheduler @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val preferences: SyncPreferences,
+    private val healthConnect: com.weighttrack.health.HealthConnectSync,
 ) {
     suspend fun reschedule() {
         val settings = preferences.current()
         val manager = WorkManager.getInstance(context)
-        if (settings.mode == SyncMode.OFF || !settings.syncInBackground) {
+        // Health Connect keeps the job alive on its own. Somebody who syncs a scale through it
+        // and keeps no folder would otherwise have nothing running, and a reading added on the
+        // scale would wait for them to open Settings.
+        val forHealth = healthConnect.availability() ==
+            com.weighttrack.health.HealthConnectAvailability.INSTALLED &&
+            healthConnect.hasPermissions()
+        val forSync = settings.mode != SyncMode.OFF && settings.syncInBackground
+        if (!forSync && !forHealth) {
             manager.cancelUniqueWork(WORK_NAME)
             return
         }
@@ -80,7 +124,11 @@ class SyncScheduler @Inject constructor(
                     // Asking for it either way is simpler and costs a folder sync nothing, since
                     // a phone with no connection at all is one nobody is syncing between.
                     .setRequiredNetworkType(
-                        if (settings.mode == SyncMode.WEBDAV) NetworkType.CONNECTED else NetworkType.NOT_REQUIRED,
+                        if (settings.mode == SyncMode.WEBDAV) {
+                            NetworkType.CONNECTED
+                        } else {
+                            NetworkType.NOT_REQUIRED
+                        },
                     )
                     .build(),
             )
