@@ -160,26 +160,46 @@ fun FoodScreen(
                 item {
                     SectionCard {
                         SectionHeading(if (state.hasQuery) "Matching foods" else "Your foods")
+                        if (shown.any { it.id == 0L }) {
+                            Spacer(Modifier.height(4.dp))
+                            Text(
+                                // The shelf that ships with the app is somebody else's work,
+                                // given away on the condition that it is credited. It gets
+                                // credited wherever it is shown, not only when it came off the
+                                // network.
+                                text = OpenFoodFactsClient.ATTRIBUTION,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
-                items(shown, key = { it.id }) { food ->
+                items(shown, key = { foodKey(it) }) { food ->
                     FoodRow(
                         food = food,
                         trailing = {
-                            IconButton(onClick = { onFavourite(food, !isFavourite(food, state)) }) {
-                                Icon(
-                                    imageVector = if (isFavourite(food, state)) {
-                                        Icons.Filled.Star
-                                    } else {
-                                        Icons.Outlined.StarBorder
-                                    },
-                                    contentDescription = "Favourite",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            if (food.origin == FoodOrigin.CUSTOM) {
-                                TextButton(onClick = { onDelete(food) }) {
-                                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                            if (food.id == 0L) {
+                                // Off the bundled shelf. There is nothing yet to favourite or
+                                // delete, so the only thing worth offering is keeping it.
+                                TextButton(onClick = { onKeep(food) }) { Text("Keep") }
+                            } else {
+                                IconButton(
+                                    onClick = { onFavourite(food, !isFavourite(food, state)) },
+                                ) {
+                                    Icon(
+                                        imageVector = if (isFavourite(food, state)) {
+                                            Icons.Filled.Star
+                                        } else {
+                                            Icons.Outlined.StarBorder
+                                        },
+                                        contentDescription = "Favourite",
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
+                                if (food.origin == FoodOrigin.CUSTOM) {
+                                    TextButton(onClick = { onDelete(food) }) {
+                                        Text("Delete", color = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             }
                         },
@@ -434,3 +454,12 @@ internal fun keepNumeric(text: String): String {
         }
     }
 }
+
+/**
+ * What tells one row in a food list from another.
+ *
+ * Not the identifier on its own. Everything off the bundled shelf carries a zero, and a lazy list
+ * given the same key twice does not merely look wrong, it throws.
+ */
+internal fun foodKey(food: Food): String =
+    if (food.id != 0L) "food-${food.id}" else "shelf-${food.barcode.orEmpty()}-${food.name}"

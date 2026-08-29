@@ -143,10 +143,18 @@ class FoodViewModel @Inject constructor(
     /** Looks a barcode up, on the phone first. */
     fun lookUpBarcode(barcode: String, onResult: (Food?) -> Unit = {}) {
         viewModelScope.launch {
-            foodRepository.byBarcode(barcode)?.let {
+            foodRepository.byBarcode(barcode)?.let { known ->
                 // Already here, so no request and no signal needed.
-                message.value = "${it.label} is already in your foods."
-                onResult(it)
+                if (known.id > 0) {
+                    message.value = "${known.label} is already in your foods."
+                    onResult(known)
+                    return@launch
+                }
+                // Off the bundled shelf. Kept, so it behaves like any other food from now on and
+                // so a correction to it sticks.
+                val id = foodRepository.cache(known)
+                message.value = "${known.label} added to your foods."
+                onResult(foodRepository.byId(id))
                 return@launch
             }
             when (val result = clients.openFoodFacts().byBarcode(barcode)) {

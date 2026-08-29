@@ -44,6 +44,7 @@ import com.weighttrack.data.repo.DayLog
 import com.weighttrack.data.repo.FoodLogEntry
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionCard
+import com.weighttrack.core.nutrition.OpenFoodFactsClient
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.food.keepNumeric
@@ -344,6 +345,16 @@ private fun AddFromFoodsDialog(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                    if (shown.any { it.id == 0L }) {
+                        Text(
+                            // Credited here too. The shelf shows up in this list as readily as
+                            // on the Foods screen.
+                            text = OpenFoodFactsClient.ATTRIBUTION,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.height(4.dp))
                     }
                     shown.take(8).forEach { candidate ->
                         TextButton(

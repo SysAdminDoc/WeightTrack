@@ -6,6 +6,7 @@ import com.google.common.truth.Truth.assertThat
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.FoodOrigin
 import com.weighttrack.core.nutrition.Nutrients
+import com.weighttrack.data.food.OfflineFoodStore
 import com.weighttrack.data.db.WeightTrackDatabase
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -33,7 +34,7 @@ class FoodRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
-        foods = FoodRepository(database.foodDao())
+        foods = FoodRepository(database.foodDao(), OfflineFoodStore(ApplicationProvider.getApplicationContext()))
     }
 
     @After
@@ -45,10 +46,15 @@ class FoodRepositoryTest {
     fun `a food is found by name or by brand`() = runTest {
         foods.add(oats)
 
-        assertThat(foods.search("oat").first()).hasSize(1)
-        assertThat(foods.search("quaker").first()).hasSize(1)
-        assertThat(foods.search("beans").first()).isEmpty()
+        // Their own foods only. The bundled shelf answers all three of these as well, which is
+        // the point of it, so counting everything back would be counting the shelf.
+        assertThat(foods.search("oat").first().mine()).hasSize(1)
+        assertThat(foods.search("quaker").first().mine()).hasSize(1)
+        assertThat(foods.search("beans").first().mine()).isEmpty()
     }
+
+    /** What this person has saved, as against what ships with the app. */
+    private fun List<Food>.mine(): List<Food> = filter { it.id > 0 }
 
     @Test
     fun `scanning the same tin twice does not make a second copy of it`() = runTest {
@@ -58,7 +64,7 @@ class FoodRepositoryTest {
         val second = foods.cache(scanned.copy(per100g = scanned.per100g.copy(kcal = 380.0)))
 
         assertThat(second).isEqualTo(first)
-        assertThat(foods.search("oats").first()).hasSize(1)
+        assertThat(foods.search("oats").first().mine()).hasSize(1)
         // What comes back may be better than what was cached, so the row is refreshed.
         assertThat(foods.byBarcode("5000108001111")!!.per100g.kcal).isWithin(1e-9).of(380.0)
     }
@@ -184,5 +190,59 @@ class FoodRepositoryTest {
         assertThat(foods.observeCustom().first().single().name).isEqualTo("Porridge oats")
         foods.delete(foods.byId(id)!!)
         assertThat(foods.observeCustom().first()).isEmpty()
+    }
+
+    @Test
+    fun `the bundled shelf answers a barcode nobody has saved`() = runTest {
+        val known = foods.search("chocolate").first().first { it.barcode != null }
+        // Straight off the shelf, so no signal and no request. A zero identifier says it is not
+        // in this person's foods yet.
+        val found = foods.byBarcode(known.barcode!!)
+        assertThat(found).isNotNull()
+        assertThat(found!!.id).isEqualTo(0L)
+    }
+
+    @Test
+    fun `their own copy of a product wins over the bundled one`() = runTest {
+        val shelf = foods.search("chocolate").first().first { it.barcode != null }
+        val mine = shelf.copy(
+            name = "My chocolate",
+            brand = null,
+            per100g = Nutrients(kcal = 111.0),
+            origin = FoodOrigin.CUSTOM,
+        )
+        foods.add(mine)
+
+        // Somebody who has corrected a label expects to see their version, not the packet's.
+        val found = foods.byBarcode(shelf.barcode!!)
+        assertThat(found!!.name).isEqualTo("My chocolate")
+        assertThat(found.per100g.kcal).isEqualTo(111.0)
+        assertThat(found.id).isGreaterThan(0L)
+    }
+
+    @Test
+    fun `a product is not offered twice over`() = runTest {
+        val shelf = foods.search("chocolate").first().first { it.barcode != null }
+        foods.add(shelf.copy(origin = FoodOrigin.CUSTOM))
+
+        val results = foods.search("chocolate").first()
+        // Once as theirs, never again as the bundled copy: the same tin listed twice reads as a
+        // duplicate rather than as a choice.
+        assertThat(results.count { it.barcode == shelf.barcode }).isEqualTo(1)
+        assertThat(results.first().id).isGreaterThan(0L)
+    }
+
+    @Test
+    fun `their own foods come first`() = runTest {
+        foods.add(oats.copy(name = "Chocolate oats"))
+        val results = foods.search("chocolate").first()
+        assertThat(results.first().name).isEqualTo("Chocolate oats")
+        assertThat(results.first().id).isGreaterThan(0L)
+    }
+
+    @Test
+    fun `the shelf never pushes the search past its limit`() = runTest {
+        val results = foods.search("chocolate", limit = 4).first()
+        assertThat(results.size).isAtMost(4)
     }
 }

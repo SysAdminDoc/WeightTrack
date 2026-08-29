@@ -4,6 +4,7 @@ import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.FoodOrigin
 import com.weighttrack.core.nutrition.Nutrients
 import com.weighttrack.data.db.FoodDao
+import com.weighttrack.data.food.OfflineFoodStore
 import com.weighttrack.data.db.FoodEntity
 import com.weighttrack.data.db.RecipeEntity
 import com.weighttrack.data.db.RecipeItemEntity
@@ -60,9 +61,27 @@ data class RecipeItem(val food: Food, val grams: Double) {
 @Singleton
 class FoodRepository @Inject constructor(
     private val dao: FoodDao,
+    private val offline: OfflineFoodStore,
 ) {
+    /**
+     * Somebody's own foods first, then the shelf that ships with the app.
+     *
+     * Their own always come first, however good a match the bundled one looks. Somebody who has
+     * corrected a label expects to see their version, and a product they have eaten before is
+     * almost always the one they mean.
+     */
     fun search(query: String, limit: Int = SEARCH_LIMIT): Flow<List<Food>> =
-        dao.search(query.trim(), limit).map { rows -> rows.map { it.toDomain() } }
+        dao.search(query.trim(), limit).map { rows ->
+            val mine = rows.map { it.toDomain() }
+            val room = limit - mine.size
+            if (room <= 0) return@map mine
+            val known = mine.mapNotNull { it.barcode }.toSet()
+            val names = mine.map { it.label.lowercase() }.toSet()
+            mine + offline.search(query, room)
+                // The same tin twice, once as theirs and once as the bundled copy, reads as a
+                // duplicate rather than as a choice.
+                .filterNot { it.barcode in known || it.label.lowercase() in names }
+        }
 
     fun observeRecent(limit: Int = RECENT_LIMIT): Flow<List<Food>> =
         dao.observeRecent(limit).map { rows -> rows.map { it.toDomain() } }
@@ -75,7 +94,14 @@ class FoodRepository @Inject constructor(
 
     suspend fun byId(id: Long): Food? = dao.byId(id)?.toDomain()
 
-    suspend fun byBarcode(barcode: String): Food? = dao.byBarcode(barcode.trim())?.toDomain()
+    /**
+     * A barcode, on the phone only.
+     *
+     * Their own foods, then the bundled shelf. Nothing here touches the network, so a scan in a
+     * shop with no signal still has a good chance of answering.
+     */
+    suspend fun byBarcode(barcode: String): Food? =
+        dao.byBarcode(barcode.trim())?.toDomain() ?: offline.byBarcode(barcode)
 
     /** Adds a food somebody typed in. */
     suspend fun add(food: Food): Long = dao.insert(food.toEntity())

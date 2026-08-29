@@ -44,6 +44,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Adaptive expenditure: what you actually burn, measured from your own weight and intake rather than a formula, and a calorie target that follows it
 - An optional food diary: calories and macros by meal, daily targets in grams or percent with a different one for any day of the week, copy yesterday, and a quick add for the meal that has no label
 - An optional food database with recipes, Open Food Facts lookups and no ads anywhere near it
+- Twenty two thousand common products bundled in the app, so the barcode scanner works in a shop with no signal
 - Barcode scanning in both builds, ML Kit on Play and ZXing on F-Droid, so neither goes without it
 - Profiles for a household, each with their own history, goal and reminder, and a shared scale that works out whose reading it just took
 - Bluetooth scales, read straight into the log: the standard weight and body composition services, Xiaomi's broadcast format that needs no pairing, and the Renpho, eufy and Beurer/Sanitas protocols
@@ -67,12 +68,14 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 231 unit tests
+./gradlew testPlayDebugUnitTest   # 250 unit tests
 ./gradlew :core:testDebugUnitTest # 202 more, the maths, the scale protocols and the food clients
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
+
+The bundled offline food list is committed, so a normal build needs no network. To rebuild it from a fresh Open Food Facts export, run `py -3.13 tools/build_offline_foods.py`. That reads about 1.2 GB straight off the wire, keeps the most-scanned products per market and writes `app/src/main/assets/offline_foods.db` with a digest beside it.
 
 ## How it is put together
 
@@ -91,3 +94,5 @@ See [ROADMAP.md](ROADMAP.md). Next up: an optional food log, sync without an acc
 ## License
 
 MIT. See [LICENSE](LICENSE).
+
+The bundled food list and the online lookups both come from Open Food Facts, shared under the Open Database Licence. The app credits it wherever those products are shown.

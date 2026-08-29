@@ -6,6 +6,7 @@ import com.google.common.truth.Truth.assertThat
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.nutrition.Meal
 import com.weighttrack.core.nutrition.Nutrients
+import com.weighttrack.data.food.OfflineFoodStore
 import com.weighttrack.data.db.WeightTrackDatabase
 import com.weighttrack.data.testProfileRepository
 import com.weighttrack.data.testSettingsRepository
@@ -42,7 +43,7 @@ class FoodLogRepositoryTest {
         ).allowMainThreadQueries().build()
         val settings = testSettingsRepository()
         profiles = ProfileRepository(database.profileDao(), settings)
-        foods = FoodRepository(database.foodDao())
+        foods = FoodRepository(database.foodDao(), OfflineFoodStore(ApplicationProvider.getApplicationContext()))
         log = FoodLogRepository(database.foodLogDao(), profiles)
     }
 
