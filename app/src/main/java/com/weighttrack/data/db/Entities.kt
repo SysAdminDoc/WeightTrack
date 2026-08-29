@@ -20,6 +20,26 @@ data class ProfileEntity(
     /** Sorted by this rather than by name, so switching does not reshuffle under a thumb. */
     val position: Int,
     val createdAtUtcMillis: Long,
+    /**
+     * The reminder settings live on the row rather than in preferences.
+     *
+     * Two people in a house weigh themselves at different times, and settings held under a
+     * key per profile would outlive the profile and quietly come back when the identifier
+     * was reused. Deleting the row takes the reminder with it.
+     */
+    @ColumnInfo(defaultValue = "0") val reminderEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "7") val reminderHour: Int = 7,
+    @ColumnInfo(defaultValue = "30") val reminderMinute: Int = 30,
+    /** Comma separated day names. Empty means every day. */
+    @ColumnInfo(defaultValue = "''") val reminderDays: String = "",
+    /**
+     * Whether this profile is the one Health Connect exchanges weights with.
+     *
+     * At most one may be. Health Connect has no idea which member of a household a weight
+     * belongs to, so pretending it can keep two people apart would mix them together on the
+     * way out and read somebody else's back in.
+     */
+    @ColumnInfo(defaultValue = "0") val healthConnectEnabled: Boolean = false,
 )
 
 /**

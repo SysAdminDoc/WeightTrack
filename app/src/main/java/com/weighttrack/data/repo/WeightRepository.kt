@@ -9,6 +9,7 @@ import com.weighttrack.data.db.toDomain
 import com.weighttrack.data.db.toEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import java.time.Instant
@@ -59,6 +60,43 @@ class WeightRepository @Inject constructor(
     suspend fun latest(): WeightEntry? = dao.latest(profiles.activeId())?.toDomain()
 
     suspend fun earliest(): WeightEntry? = dao.earliest(profiles.activeId())?.toDomain()
+
+    /** A named profile's last reading, for the reminder, which fires for somebody in particular. */
+    suspend fun latestFor(profileId: Long): WeightEntry? = dao.latest(profileId)?.toDomain()
+
+    /**
+     * Every reading of a named profile.
+     *
+     * Health Connect belongs to one person, who is not necessarily the one on screen, so its
+     * sync says which profile it means instead of taking whoever happens to be active.
+     */
+    suspend fun entriesFor(profileId: Long): List<WeightEntry> =
+        dao.observeAll(profileId).first().map { it.toDomain() }
+
+    suspend fun addFor(
+        profileId: Long,
+        grams: Int,
+        timestamp: Instant,
+        zone: ZoneId = ZoneId.systemDefault(),
+        bodyFatPercent: Double? = null,
+        source: EntrySource = EntrySource.MANUAL,
+        healthConnectId: String? = null,
+        clientRecordId: String = UUID.randomUUID().toString(),
+    ): Long {
+        val offset = zone.rules.getOffset(timestamp)
+        return dao.upsertByIdentity(
+            WeightEntry(
+                timestamp = timestamp,
+                zoneOffset = offset,
+                localDate = timestamp.atZone(zone).toLocalDate(),
+                grams = grams,
+                bodyFatPercent = bodyFatPercent,
+                source = source,
+                clientRecordId = clientRecordId,
+                healthConnectId = healthConnectId,
+            ).toEntity(profileId = profileId),
+        )
+    }
 
     /**
      * The most recent reading of every profile.

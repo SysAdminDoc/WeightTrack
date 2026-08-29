@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import java.time.DayOfWeek
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,6 +18,12 @@ data class Profile(
     val id: Long,
     val name: String,
     val position: Int,
+    val reminderEnabled: Boolean = false,
+    val reminderHour: Int = 7,
+    val reminderMinute: Int = 30,
+    /** Empty means every day. */
+    val reminderDays: Set<DayOfWeek> = DayOfWeek.entries.toSet(),
+    val healthConnectEnabled: Boolean = false,
 )
 
 /**
@@ -123,5 +130,80 @@ class ProfileRepository @Inject constructor(
         }
     }
 
-    private fun ProfileEntity.toDomain(): Profile = Profile(id = id, name = name, position = position)
+    /** The profile Health Connect exchanges weights with, or null when nobody has claimed it. */
+    val healthConnectProfileId: Flow<Long?> =
+        dao.observeAll().map { rows -> rows.firstOrNull { it.healthConnectEnabled }?.id }
+            .distinctUntilChanged()
+
+    suspend fun healthConnectId(): Long? = healthConnectProfileId.first()
+
+    suspend fun setReminder(
+        id: Long,
+        enabled: Boolean,
+        hour: Int,
+        minute: Int,
+        days: Set<DayOfWeek>,
+    ) {
+        val existing = dao.byId(id) ?: return
+        dao.update(
+            existing.copy(
+                reminderEnabled = enabled,
+                reminderHour = hour,
+                reminderMinute = minute,
+                reminderDays = days.joinToString(",") { it.name },
+            ),
+        )
+    }
+
+    /**
+     * Hands Health Connect to one profile, or to nobody.
+     *
+     * Exclusive on purpose. Health Connect stores weights for the person the phone belongs to
+     * and has no idea a household exists, so two profiles writing to it would interleave two
+     * people's readings and each would read the other's back.
+     */
+    suspend fun setHealthConnect(id: Long, enabled: Boolean) {
+        val existing = dao.byId(id) ?: return
+        if (enabled) {
+            dao.all().filter { it.healthConnectEnabled && it.id != id }
+                .forEach { dao.update(it.copy(healthConnectEnabled = false)) }
+        }
+        dao.update(existing.copy(healthConnectEnabled = enabled))
+    }
+
+    /**
+     * Moves the reminder that existed before profiles onto the first one.
+     *
+     * Runs once. Without it, anyone who had a daily reminder set loses it on the update and
+     * finds out by not being reminded, which is the worst way to find out.
+     */
+    suspend fun adoptLegacyReminder() {
+        val settings = settingsRepository.settings.first()
+        if (settings.legacyReminderAdopted) return
+        settingsRepository.setLegacyReminderAdopted()
+        if (!settings.reminderEnabled) return
+        val first = dao.all().firstOrNull() ?: return
+        if (first.reminderEnabled) return
+        setReminder(
+            id = first.id,
+            enabled = true,
+            hour = settings.reminderHour,
+            minute = settings.reminderMinute,
+            days = settings.reminderDays,
+        )
+    }
+
+    private fun ProfileEntity.toDomain(): Profile = Profile(
+        id = id,
+        name = name,
+        position = position,
+        reminderEnabled = reminderEnabled,
+        reminderHour = reminderHour,
+        reminderMinute = reminderMinute,
+        reminderDays = reminderDays.split(",")
+            .mapNotNull { name -> runCatching { DayOfWeek.valueOf(name.trim()) }.getOrNull() }
+            .toSet()
+            .ifEmpty { DayOfWeek.entries.toSet() },
+        healthConnectEnabled = healthConnectEnabled,
+    )
 }

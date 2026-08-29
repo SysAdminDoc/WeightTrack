@@ -323,6 +323,7 @@ fun WeightTrackApp(
                     onRetry = viewModel::start,
                     onConnect = viewModel::connectTo,
                     onSave = viewModel::save,
+                    onSaveToSuggested = viewModel::saveToSuggested,
                     onDiscard = viewModel::discard,
                     onForgetScale = viewModel::forgetScale,
                     onBack = { navController.popBackStack() },

@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.wear.WearBridge
 import com.weighttrack.wear.WearSummaryBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -22,6 +23,7 @@ import javax.inject.Inject
 @HiltViewModel
 class AppViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
+    private val profileRepository: ProfileRepository,
     private val wearBridge: WearBridge,
     private val wearSummaryBuilder: WearSummaryBuilder,
 ) : ViewModel() {
@@ -56,6 +58,13 @@ class AppViewModel @Inject constructor(
     val promptRequest: StateFlow<Int> = _promptRequest.asStateFlow()
 
     init {
+        viewModelScope.launch {
+            // A fresh install has no profile until something makes one, and anyone who had a
+            // daily reminder set before profiles existed would otherwise lose it silently.
+            profileRepository.ensureDefault()
+            profileRepository.adoptLegacyReminder()
+        }
+
         // Opening the app is the moment to bring a watch up to date. Everything else that
         // changes a reading goes through SurfaceUpdater, but a watch paired since the last
         // weigh-in would otherwise have nothing until the next one.

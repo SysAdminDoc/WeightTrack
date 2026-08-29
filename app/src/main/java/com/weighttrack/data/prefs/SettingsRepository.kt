@@ -44,6 +44,8 @@ data class AppSettings(
     /** The Bluetooth scale last used, so the next weigh-in does not start with a scan. */
     /** Whose readings the app is showing. */
     val activeProfileId: Long = 1L,
+    /** Whether the reminder that existed before profiles has been moved onto one. */
+    val legacyReminderAdopted: Boolean = false,
     val scaleAddress: String? = null,
     val scaleName: String? = null,
 )
@@ -138,6 +140,7 @@ class SettingsRepository @Inject constructor(
             ?: DayOfWeek.SUNDAY,
         weeklySummaryHour = this[Keys.WEEKLY_SUMMARY_HOUR] ?: 19,
         activeProfileId = this[Keys.ACTIVE_PROFILE_ID] ?: 1L,
+        legacyReminderAdopted = this[Keys.LEGACY_REMINDER_ADOPTED] ?: false,
         scaleAddress = this[Keys.SCALE_ADDRESS],
         scaleName = this[Keys.SCALE_NAME],
     )
@@ -146,6 +149,8 @@ class SettingsRepository @Inject constructor(
         values.firstOrNull { it.name == raw } ?: fallback
 
     suspend fun setActiveProfile(id: Long) = edit { it[Keys.ACTIVE_PROFILE_ID] = id }
+
+    suspend fun setLegacyReminderAdopted() = edit { it[Keys.LEGACY_REMINDER_ADOPTED] = true }
 
     /** Remembers a scale, or forgets it when the address is null. */
     suspend fun setScale(address: String?, name: String?) = edit {
@@ -181,6 +186,7 @@ class SettingsRepository @Inject constructor(
         val WEEKLY_SUMMARY_DAY = stringPreferencesKey("weekly_summary_day")
         val WEEKLY_SUMMARY_HOUR = intPreferencesKey("weekly_summary_hour")
         val ACTIVE_PROFILE_ID = longPreferencesKey("active_profile_id")
+        val LEGACY_REMINDER_ADOPTED = booleanPreferencesKey("legacy_reminder_adopted")
         val SCALE_ADDRESS = stringPreferencesKey("scale_address")
         val SCALE_NAME = stringPreferencesKey("scale_name")
     }

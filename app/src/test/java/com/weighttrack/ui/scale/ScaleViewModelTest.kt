@@ -124,6 +124,7 @@ class ScaleViewModelTest {
         scanner = scanner,
         connection = connection,
         weightRepository = weightRepository,
+        profileRepository = profiles,
         settingsRepository = settingsRepository,
         surfaceUpdater = surfaceUpdater,
     )

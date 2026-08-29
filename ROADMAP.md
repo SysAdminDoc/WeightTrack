@@ -84,10 +84,6 @@ Hacker's Diet exponential moving average: `trend[n] = trend[n-1] + alpha * (weig
 
 v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP, bans for abuse. Send a real User-Agent. ODbL license, so attribute in-app. For an offline database use their dump, never scrape.
 
-## Phase 2: v0.3.x, hardware and habits
-
-- [ ] Multiple profiles (family), each with its own Health Connect mapping and reminder
-
 ## Phase 3: v0.4.x, nutrition
 
 Kept optional so the weight-only experience stays clean. Off by default, one toggle to enable.

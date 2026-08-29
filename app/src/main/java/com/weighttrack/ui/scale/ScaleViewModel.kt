@@ -16,6 +16,8 @@ import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.scale.AssembledReading
 import com.weighttrack.core.scale.ScaleReading
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.data.repo.Profile
+import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -59,10 +61,20 @@ data class ScaleUiState(
     val match: ScaleMatch? = null,
     val weightUnit: WeightUnit = WeightUnit.KG,
     val savedGrams: Int? = null,
+    /**
+     * The profile this reading looks like, when it is not the one on screen.
+     *
+     * A shared scale is the reason profiles exist. Filing a reading under whoever happens to be
+     * open, when it plainly belongs to somebody else in the house, is the mistake worth avoiding.
+     */
+    val suggestedProfile: Profile? = null,
 ) {
     /** Whether the reading needs a yes before it is recorded. */
     val needsConfirming: Boolean
-        get() = reading != null && match != null && !ScaleReadingRouter.recordsWithoutAsking(match)
+        get() = reading != null &&
+            suggestedProfile == null &&
+            match != null &&
+            !ScaleReadingRouter.recordsWithoutAsking(match)
 }
 
 /**
@@ -77,6 +89,7 @@ class ScaleViewModel @Inject constructor(
     private val scanner: ScaleScanner,
     private val connection: ScaleConnection,
     private val weightRepository: WeightRepository,
+    private val profileRepository: ProfileRepository,
     private val settingsRepository: SettingsRepository,
     private val surfaceUpdater: SurfaceUpdater,
 ) : ViewModel() {
@@ -89,7 +102,10 @@ class ScaleViewModel @Inject constructor(
     private var settleJob: Job? = null
     private var lastKnownGrams: Int? = null
     private var rememberedAddress: String? = null
+    private var rememberedActiveId: Long = 1L
     private var rejectedGrams: Int? = null
+    private var lastKnownByProfile: Map<Long, Int> = emptyMap()
+    private var profiles: List<Profile> = emptyList()
 
     val requiredPermissions: List<String> get() = scanner.requiredPermissions()
 
@@ -97,9 +113,12 @@ class ScaleViewModel @Inject constructor(
         viewModelScope.launch {
             val settings = settingsRepository.settings.first()
             lastKnownGrams = weightRepository.latest()?.grams
+            profiles = profileRepository.observeAll().first()
+            lastKnownByProfile = weightRepository.latestPerProfile().mapValues { it.value.grams }
             // Read once. Looking it up per scan result would put a datastore round trip on the
             // path an advertising scale hits several times a second.
             rememberedAddress = settings.scaleAddress
+            rememberedActiveId = profileRepository.activeId()
             _state.update {
                 it.copy(weightUnit = settings.weightUnit, rememberedName = settings.scaleName)
             }
@@ -224,11 +243,19 @@ class ScaleViewModel @Inject constructor(
         val match = ScaleReadingRouter.match(assembled.reading.grams, lastKnownGrams)
         if (match == ScaleMatch.IMPLAUSIBLE) return
 
+        // On a shared scale the weight is the only thing that says who stood on it.
+        val activeId = profiles.firstOrNull { it.id == rememberedActiveId }?.id
+        val owner = ScaleReadingRouter.owner(assembled.reading.grams, lastKnownByProfile)
+        val suggested = owner
+            ?.takeIf { it != activeId }
+            ?.let { id -> profiles.firstOrNull { it.id == id } }
+
         _state.update {
             it.copy(
                 stage = ScaleStage.MEASURED,
                 reading = assembled.reading,
                 match = match,
+                suggestedProfile = suggested,
                 liveGrams = null,
                 connectedTo = device,
                 rememberedName = device.name,
@@ -255,6 +282,7 @@ class ScaleViewModel @Inject constructor(
             settingsRepository.setScale(device.address, device.name)
             rememberedAddress = device.address
             val match = _state.value.match ?: return@launch
+            if (_state.value.suggestedProfile != null) return@launch
             if (ScaleReadingRouter.recordsWithoutAsking(match)) save()
         }
     }
@@ -275,6 +303,16 @@ class ScaleViewModel @Inject constructor(
             // already in the log.
             _state.update { it.copy(stage = ScaleStage.SAVED, savedGrams = reading.grams) }
             surfaceUpdater.refresh()
+        }
+    }
+
+    /** Files the reading under the person it looks like instead of the one on screen. */
+    fun saveToSuggested() {
+        val suggested = _state.value.suggestedProfile ?: return
+        viewModelScope.launch {
+            profileRepository.setActive(suggested.id)
+            rememberedActiveId = suggested.id
+            save()
         }
     }
 

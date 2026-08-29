@@ -8,7 +8,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.core.content.getSystemService
-import com.weighttrack.data.prefs.AppSettings
+import androidx.core.net.toUri
+import com.weighttrack.data.repo.Profile
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -34,31 +35,39 @@ class ReminderScheduler @Inject constructor(
             true
         }
 
-    fun reschedule(settings: AppSettings, now: ZonedDateTime = ZonedDateTime.now()) {
-        cancel()
-        if (!settings.reminderEnabled) return
-        val next = ReminderSchedule.nextTrigger(
-            now = now,
-            hour = settings.reminderHour,
-            minute = settings.reminderMinute,
-            days = settings.reminderDays,
-        ) ?: return
-        schedule(next.toInstant().toEpochMilli())
+    /**
+     * Books the next reminder for everybody who wants one.
+     *
+     * Two people in a house weigh themselves at different times, so each profile gets its own
+     * alarm. The request code is derived from the identifier, which is what stops one profile's
+     * alarm replacing another's: an identical pending intent would silently overwrite it.
+     */
+    fun reschedule(profiles: List<Profile>, now: ZonedDateTime = ZonedDateTime.now()) {
+        profiles.forEach { profile ->
+            cancel(profile.id)
+            if (!profile.reminderEnabled) return@forEach
+            val next = nextTriggerAt(profile, now.zone) ?: return@forEach
+            schedule(profile.id, next.toInstant().toEpochMilli())
+        }
     }
 
-    fun nextTriggerAt(settings: AppSettings, zone: ZoneId = ZoneId.systemDefault()): ZonedDateTime? {
-        if (!settings.reminderEnabled) return null
+    /** Books the next one for a single profile, which is what the receiver needs after firing. */
+    fun reschedule(profile: Profile, now: ZonedDateTime = ZonedDateTime.now()) =
+        reschedule(listOf(profile), now)
+
+    fun nextTriggerAt(profile: Profile, zone: ZoneId = ZoneId.systemDefault()): ZonedDateTime? {
+        if (!profile.reminderEnabled) return null
         return ReminderSchedule.nextTrigger(
             now = ZonedDateTime.now(zone),
-            hour = settings.reminderHour,
-            minute = settings.reminderMinute,
-            days = settings.reminderDays,
+            hour = profile.reminderHour,
+            minute = profile.reminderMinute,
+            days = profile.reminderDays,
         )
     }
 
-    private fun schedule(triggerAtMillis: Long) {
+    private fun schedule(profileId: Long, triggerAtMillis: Long) {
         val manager = alarmManager ?: return
-        val pending = alarmIntent()
+        val pending = alarmIntent(profileId)
         // "AndAllowWhileIdle" is the part that matters: without it, Doze silently holds the
         // alarm until the device next wakes, which on a phone left on a bedside table can mean
         // the reminder never arrives at all.
@@ -77,20 +86,28 @@ class ReminderScheduler @Inject constructor(
         }
     }
 
-    fun cancel() {
-        alarmManager?.cancel(alarmIntent())
+    fun cancel(profileId: Long) {
+        alarmManager?.cancel(alarmIntent(profileId))
     }
 
-    private fun alarmIntent(): PendingIntent = PendingIntent.getBroadcast(
+    private fun alarmIntent(profileId: Long): PendingIntent = PendingIntent.getBroadcast(
         context,
-        REQUEST_CODE,
-        Intent(context, ReminderReceiver::class.java).setAction(ACTION_REMIND),
+        REQUEST_CODE + profileId.toInt(),
+        Intent(context, ReminderReceiver::class.java)
+            .setAction(ACTION_REMIND)
+            // In the data, not an extra: pending intents are matched ignoring extras, so two
+            // profiles carrying only an extra would be the same intent and one would win.
+            .setData("weighttrack://reminder/$profileId".toUri()),
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
     companion object {
         const val REQUEST_CODE = 4201
         const val ACTION_REMIND = "com.weighttrack.action.REMIND"
+
+        /** Which profile an alarm was booked for, or null when it did not say. */
+        fun profileIdOf(intent: Intent): Long? =
+            intent.data?.lastPathSegment?.toLongOrNull()
     }
 }
 

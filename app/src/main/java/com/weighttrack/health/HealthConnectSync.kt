@@ -21,6 +21,7 @@ import androidx.health.connect.client.units.Volume
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
@@ -66,7 +67,18 @@ class HealthConnectSync @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val weightRepository: WeightRepository,
     private val settingsRepository: SettingsRepository,
+    private val profileRepository: ProfileRepository,
 ) {
+
+    /**
+     * Whose readings Health Connect exchanges.
+     *
+     * A household that has claimed it for one person syncs that person, whoever is on screen.
+     * With nobody claiming it, which is every single-profile install, it follows the active
+     * profile exactly as it did before profiles existed.
+     */
+    private suspend fun syncProfileId(): Long =
+        profileRepository.healthConnectId() ?: profileRepository.activeId()
 
     /**
      * What weight sync itself needs. Kept separate from the full set so that adding a new
@@ -212,7 +224,8 @@ class HealthConnectSync @Inject constructor(
                 skipped++
                 return@forEach
             }
-            weightRepository.add(
+            weightRepository.addFor(
+                profileId = syncProfileId(),
                 grams = grams,
                 timestamp = record.time,
                 zone = zone,
@@ -227,7 +240,7 @@ class HealthConnectSync @Inject constructor(
 
     private suspend fun exportWeights(client: HealthConnectClient, zone: ZoneId): Int {
         val settings = settingsRepository.settings.first()
-        val entries = weightRepository.observeEntries().first()
+        val entries = weightRepository.entriesFor(syncProfileId())
             .filter { it.source != EntrySource.HEALTH_CONNECT }
         if (entries.isEmpty()) return 0
 
@@ -309,7 +322,7 @@ class HealthConnectSync @Inject constructor(
         runCatching {
             val client = clientOrNull() ?: return@runCatching 0
             val zone = ZoneId.systemDefault()
-            val records = weightRepository.observeEntries().first()
+            val records = weightRepository.entriesFor(syncProfileId())
                 .filter { it.bodyFatPercent != null && it.source != EntrySource.HEALTH_CONNECT }
                 .map { entry ->
                     BodyFatRecord(

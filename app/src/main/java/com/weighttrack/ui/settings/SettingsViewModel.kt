@@ -149,18 +149,37 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setProfile(settings.value.profile.copy(activityLevel = level))
     }
 
-    /** Any reminder change reschedules immediately, so the setting and the alarm cannot drift. */
+    /**
+     * Any reminder change reschedules immediately, so the setting and the alarm cannot drift.
+     *
+     * The reminder belongs to the profile on screen, not to the phone: two people in a house
+     * weigh themselves at different times.
+     */
     fun setReminder(enabled: Boolean, hour: Int, minute: Int, days: Set<DayOfWeek>) {
         viewModelScope.launch {
-            settingsRepository.setReminder(enabled, hour, minute, days)
-            val updated = settingsRepository.settings.first()
+            val id = activeProfileId.value
+            profileRepository.setReminder(id, enabled, hour, minute, days)
+            val updated = profileRepository.observeAll().first().firstOrNull { it.id == id }
+                ?: return@launch
             reminderScheduler.reschedule(updated)
             _message.value = if (!enabled) {
-                "Reminders turned off."
+                "Reminders turned off for " + updated.name + "."
             } else {
                 reminderScheduler.nextTriggerAt(updated)
-                    ?.let { next -> "Next reminder ${describeNext(next)}." }
+                    ?.let { next -> "Next reminder for " + updated.name + " " + describeNext(next) + "." }
                     ?: "Pick at least one day for the reminder."
+            }
+        }
+    }
+
+    /** Hands Health Connect to the profile on screen, or takes it away. */
+    fun setHealthConnectProfile(enabled: Boolean) {
+        viewModelScope.launch {
+            profileRepository.setHealthConnect(activeProfileId.value, enabled)
+            _message.value = if (enabled) {
+                "Health Connect now exchanges weights for this profile only."
+            } else {
+                "Health Connect is no longer tied to a profile, so nothing is synced."
             }
         }
     }

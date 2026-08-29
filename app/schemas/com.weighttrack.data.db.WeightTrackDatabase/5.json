@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 5,
-    "identityHash": "3517d526142cf6819fc3c29a6f742c52",
+    "identityHash": "9c1dddc25b6595c2ba7615404a2c2ffb",
     "entities": [
       {
         "tableName": "weight_entries",
@@ -566,7 +566,7 @@
       },
       {
         "tableName": "profiles",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `createdAtUtcMillis` INTEGER NOT NULL)",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `name` TEXT NOT NULL, `position` INTEGER NOT NULL, `createdAtUtcMillis` INTEGER NOT NULL, `reminderEnabled` INTEGER NOT NULL DEFAULT 0, `reminderHour` INTEGER NOT NULL DEFAULT 7, `reminderMinute` INTEGER NOT NULL DEFAULT 30, `reminderDays` TEXT NOT NULL DEFAULT '', `healthConnectEnabled` INTEGER NOT NULL DEFAULT 0)",
         "fields": [
           {
             "fieldPath": "id",
@@ -591,6 +591,41 @@
             "columnName": "createdAtUtcMillis",
             "affinity": "INTEGER",
             "notNull": true
+          },
+          {
+            "fieldPath": "reminderEnabled",
+            "columnName": "reminderEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          },
+          {
+            "fieldPath": "reminderHour",
+            "columnName": "reminderHour",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "7"
+          },
+          {
+            "fieldPath": "reminderMinute",
+            "columnName": "reminderMinute",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "30"
+          },
+          {
+            "fieldPath": "reminderDays",
+            "columnName": "reminderDays",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "''"
+          },
+          {
+            "fieldPath": "healthConnectEnabled",
+            "columnName": "healthConnectEnabled",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           }
         ],
         "primaryKey": {
@@ -603,7 +638,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3517d526142cf6819fc3c29a6f742c52')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '9c1dddc25b6595c2ba7615404a2c2ffb')"
     ]
   }
 }

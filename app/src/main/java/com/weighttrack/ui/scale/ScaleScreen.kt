@@ -49,6 +49,7 @@ fun ScaleScreen(
     onRetry: () -> Unit,
     onConnect: (ScaleDevice) -> Unit,
     onSave: () -> Unit,
+    onSaveToSuggested: () -> Unit,
     onDiscard: () -> Unit,
     onForgetScale: () -> Unit,
     onBack: () -> Unit,
@@ -127,6 +128,30 @@ fun ScaleScreen(
                         }
                         reading.basalMetabolismKcal?.let {
                             LabelledValue("Resting burn", WeightFormatter.calories(it))
+                        }
+                    }
+                }
+            }
+
+            state.suggestedProfile?.let { suggested ->
+                item {
+                    SectionCard {
+                        Text(
+                            // The whole reason a household keeps profiles: a weight that plainly
+                            // belongs to somebody else should not land in this person's trend.
+                            text = "That looks like " + suggested.name + " rather than you.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = onSaveToSuggested) {
+                                Text("Save as " + suggested.name)
+                            }
+                            OutlinedButton(onClick = onSave) { Text("No, it is mine") }
+                        }
+                        Spacer(Modifier.height(6.dp))
+                        TextButton(onClick = onDiscard) {
+                            Text("Neither", color = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -242,8 +267,11 @@ private fun headline(state: ScaleUiState): String = when (state.stage) {
     ScaleStage.BLOCKED -> "Nothing to listen with"
     ScaleStage.SEARCHING -> "Looking for your scale"
     ScaleStage.WAITING_FOR_WEIGHT -> "Step on the scale"
-    ScaleStage.MEASURED ->
-        if (state.match == ScaleMatch.OUT_OF_RANGE) "Is this you?" else "Recording"
+    ScaleStage.MEASURED -> when {
+        state.suggestedProfile != null -> "Whose is this?"
+        state.match == ScaleMatch.OUT_OF_RANGE -> "Is this you?"
+        else -> "Recording"
+    }
     ScaleStage.SAVED -> "Saved"
 }
 

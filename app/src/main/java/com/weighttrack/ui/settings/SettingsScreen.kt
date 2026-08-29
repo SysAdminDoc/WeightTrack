@@ -101,6 +101,7 @@ fun SettingsScreen(
     }
     var showReminderTime by remember { mutableStateOf(false) }
     var namingProfile by remember { mutableStateOf<Profile?>(null) }
+    val activeProfile = profiles.firstOrNull { it.id == activeProfileId } ?: Profile(0, "", 0)
     var addingProfile by remember { mutableStateOf(false) }
     var heightText by remember(settings.profile.heightMm, settings.lengthUnit) {
         mutableStateOf(
@@ -200,6 +201,22 @@ fun SettingsScreen(
                 }
                 Spacer(Modifier.height(4.dp))
                 Button(onClick = { addingProfile = true }) { Text("Add someone") }
+                if (profiles.size > 1) {
+                    Spacer(Modifier.height(8.dp))
+                    ToggleRow(
+                        label = "Sync this profile with Health Connect",
+                        checked = activeProfile.healthConnectEnabled,
+                        onCheckedChange = viewModel::setHealthConnectProfile,
+                    )
+                    Text(
+                        // Health Connect keeps one set of weights for the phone's owner. It has
+                        // no idea a household exists, so only one profile can use it without the
+                        // two of them being mixed together.
+                        text = "Health Connect keeps one set of weights for whoever owns the phone, so only one profile can use it.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -332,8 +349,10 @@ fun SettingsScreen(
         }
 
         item {
+            val active = profiles.firstOrNull { it.id == activeProfileId } ?: Profile(0, "", 0)
             ReminderCard(
-                settings = settings,
+                profile = active,
+                who = active.name.takeIf { profiles.size > 1 },
                 canScheduleExact = viewModel.canScheduleExactAlarms(),
                 onToggle = { enabled ->
                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
@@ -343,23 +362,23 @@ fun SettingsScreen(
                     } else {
                         viewModel.setReminder(
                             enabled,
-                            settings.reminderHour,
-                            settings.reminderMinute,
-                            settings.reminderDays,
+                            active.reminderHour,
+                            active.reminderMinute,
+                            active.reminderDays,
                         )
                     }
                 },
                 onEditTime = { showReminderTime = true },
                 onToggleDay = { day ->
-                    val days = if (day in settings.reminderDays) {
-                        settings.reminderDays - day
+                    val days = if (day in active.reminderDays) {
+                        active.reminderDays - day
                     } else {
-                        settings.reminderDays + day
+                        active.reminderDays + day
                     }
                     viewModel.setReminder(
-                        settings.reminderEnabled,
-                        settings.reminderHour,
-                        settings.reminderMinute,
+                        active.reminderEnabled,
+                        active.reminderHour,
+                        active.reminderMinute,
                         days,
                     )
                 },
@@ -573,8 +592,8 @@ fun SettingsScreen(
 
     if (showReminderTime) {
         val timeState = rememberTimePickerState(
-            initialHour = settings.reminderHour,
-            initialMinute = settings.reminderMinute,
+            initialHour = activeProfile.reminderHour,
+            initialMinute = activeProfile.reminderMinute,
         )
         AlertDialog(
             onDismissRequest = { showReminderTime = false },
@@ -588,10 +607,10 @@ fun SettingsScreen(
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.setReminder(
-                        settings.reminderEnabled,
+                        activeProfile.reminderEnabled,
                         timeState.hour,
                         timeState.minute,
-                        settings.reminderDays,
+                        activeProfile.reminderDays,
                     )
                     showReminderTime = false
                 }) { Text("Set") }
@@ -605,7 +624,9 @@ fun SettingsScreen(
 
 @Composable
 private fun ReminderCard(
-    settings: AppSettings,
+    profile: Profile,
+    /** Null when there is only one, so the card does not shout a name at somebody alone. */
+    who: String?,
     canScheduleExact: Boolean,
     onToggle: (Boolean) -> Unit,
     onEditTime: () -> Unit,
@@ -615,23 +636,23 @@ private fun ReminderCard(
 ) {
     val locale = LocalConfiguration.current.locales[0]
     SettingsSection {
-        SectionHeading("Weigh-in reminder")
+        SectionHeading(who?.let { "Weigh-in reminder for $it" } ?: "Weigh-in reminder")
         Spacer(Modifier.height(6.dp))
         ToggleRow(
-            label = "Remind me to weigh in",
-            checked = settings.reminderEnabled,
+            label = who?.let { "Remind $it to weigh in" } ?: "Remind me to weigh in",
+            checked = profile.reminderEnabled,
             onCheckedChange = onToggle,
         )
-        if (settings.reminderEnabled) {
+        if (profile.reminderEnabled) {
             Spacer(Modifier.height(6.dp))
             TextButton(onClick = onEditTime) {
-                Text(String.format(locale, "At %02d:%02d", settings.reminderHour, settings.reminderMinute))
+                Text(String.format(locale, "At %02d:%02d", profile.reminderHour, profile.reminderMinute))
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 DayOfWeek.entries.forEach { day ->
                     SegmentButton(
                         label = day.getDisplayName(TextStyle.SHORT, locale),
-                        selected = day in settings.reminderDays,
+                        selected = day in profile.reminderDays,
                         onClick = { onToggleDay(day) },
                     )
                 }

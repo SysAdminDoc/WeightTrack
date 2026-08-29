@@ -13,6 +13,7 @@ import androidx.core.content.ContextCompat
 import com.weighttrack.MainActivity
 import com.weighttrack.R
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
 import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
@@ -33,7 +34,7 @@ import javax.inject.Inject
 @AndroidEntryPoint
 class ReminderReceiver : BroadcastReceiver() {
 
-    @Inject lateinit var settingsRepository: SettingsRepository
+    @Inject lateinit var profileRepository: ProfileRepository
 
     @Inject lateinit var weightRepository: WeightRepository
 
@@ -43,23 +44,31 @@ class ReminderReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                val settings = settingsRepository.settings.first()
-                scheduler.reschedule(settings)
+                val profiles = profileRepository.observeAll().first()
+                val profileId = ReminderScheduler.profileIdOf(intent)
+                val profile = profiles.firstOrNull { it.id == profileId }
+                    // An alarm booked before profiles existed carries no identifier, so it
+                    // belongs to whoever was there first.
+                    ?: profiles.firstOrNull()
+                    ?: return@launch
 
-                if (!settings.reminderEnabled) return@launch
-                // Nobody needs telling to weigh themselves after they already have.
-                val latest = weightRepository.latest()
+                scheduler.reschedule(profile)
+                if (!profile.reminderEnabled) return@launch
+
+                // Nobody needs telling to weigh themselves after they already have, and the
+                // question is whether this person has, not whether anybody has.
+                val latest = weightRepository.latestFor(profile.id)
                 val today = LocalDate.now(ZoneId.systemDefault())
                 if (latest?.localDate == today) return@launch
 
-                showReminder(context)
+                showReminder(context, profile.name.takeIf { profiles.size > 1 })
             } finally {
                 pendingResult.finish()
             }
         }
     }
 
-    private fun showReminder(context: Context) {
+    private fun showReminder(context: Context, who: String?) {
         Notifications.ensureChannel(context)
         if (!hasNotificationPermission(context)) return
         if (
@@ -139,6 +148,8 @@ class BootReceiver : BroadcastReceiver() {
 
     @Inject lateinit var settingsRepository: SettingsRepository
 
+    @Inject lateinit var profileRepository: ProfileRepository
+
     @Inject lateinit var scheduler: ReminderScheduler
 
     @Inject lateinit var weeklyScheduler: WeeklySummaryScheduler
@@ -152,9 +163,9 @@ class BootReceiver : BroadcastReceiver() {
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                val settings = settingsRepository.settings.first()
-                scheduler.reschedule(settings)
-                weeklyScheduler.reschedule(settings)
+                // Alarms do not survive a restart, so everybody's is booked again here.
+                scheduler.reschedule(profileRepository.observeAll().first())
+                weeklyScheduler.reschedule(settingsRepository.settings.first())
             } finally {
                 pendingResult.finish()
             }

@@ -56,6 +56,27 @@ object ScaleReadingRouter {
         else -> ScaleMatch.OUT_OF_RANGE
     }
 
+    /**
+     * Which profile a weight off a shared scale belongs to.
+     *
+     * The nearest last known weight wins, as long as it is near enough to be the same person.
+     * This is the whole point of a family scale: whoever stood on it last is who it belongs to,
+     * and the weight is the only thing the scale can say about them.
+     *
+     * Null when nobody is close enough, which is the case the screen has to ask about.
+     */
+    fun owner(
+        grams: Int,
+        lastKnownByProfile: Map<Long, Int>,
+        toleranceGrams: Int = DEFAULT_TOLERANCE_GRAMS,
+    ): Long? {
+        if (grams < MIN_GRAMS || grams > MAX_GRAMS) return null
+        return lastKnownByProfile
+            .filterValues { abs(grams - it) <= toleranceGrams }
+            .minByOrNull { abs(grams - it.value) }
+            ?.key
+    }
+
     /** Whether a reading may be recorded without asking first. */
     fun recordsWithoutAsking(match: ScaleMatch): Boolean =
         match == ScaleMatch.MATCHES || match == ScaleMatch.NO_HISTORY
