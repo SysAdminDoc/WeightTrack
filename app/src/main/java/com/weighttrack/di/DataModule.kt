@@ -107,6 +107,27 @@ object DataModule {
     fun provideRuntimeLog(@ApplicationContext context: Context): RuntimeLog =
         RuntimeLog(File(context.filesDir, RuntimeLog.FILE_NAME))
 
+    /**
+     * The real Health Connect client, when this phone has one worth talking to.
+     */
+    @Provides
+    @Singleton
+    fun provideHealthConnectClientSource(
+        @ApplicationContext context: Context,
+    ): com.weighttrack.health.HealthConnectClientSource =
+        com.weighttrack.health.HealthConnectClientSource {
+            if (
+                androidx.health.connect.client.HealthConnectClient.getSdkStatus(context) ==
+                androidx.health.connect.client.HealthConnectClient.SDK_AVAILABLE
+            ) {
+                runCatching {
+                    androidx.health.connect.client.HealthConnectClient.getOrCreate(context)
+                }.getOrNull()
+            } else {
+                null
+            }
+        }
+
     @Provides
     fun provideProfileDao(database: WeightTrackDatabase): ProfileDao = database.profileDao()
 

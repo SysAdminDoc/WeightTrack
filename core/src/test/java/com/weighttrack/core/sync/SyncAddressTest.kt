@@ -106,6 +106,38 @@ class SyncAddressTest {
     }
 
     @Test
+    fun `the endings home routers actually hand out are on the local network`() {
+        // Missing these was the difference between a helpful sentence and a bare timeout for
+        // most people who run a server at home, since almost nobody types a raw IP address.
+        val local = listOf(
+            "https://nas.lan/dav",
+            "https://nextcloud.lan:8443/remote.php/dav",
+            "https://nas.home.arpa/dav",
+            "https://fritz.box/dav",
+            "https://nextcloud.fritz.box/dav",
+            "https://nas.home/dav",
+            "https://nas.localdomain/dav",
+            "https://synology.internal/dav",
+        )
+
+        local.forEach { assertThat(SyncAddress.isOnLocalNetwork(it)).isTrue() }
+    }
+
+    @Test
+    fun `a name ending in the root dot is the same name`() {
+        assertThat(SyncAddress.hostOf("https://nas.local./dav")).isEqualTo("nas.local")
+        assertThat(SyncAddress.isOnLocalNetwork("https://nas.local./dav")).isTrue()
+    }
+
+    @Test
+    fun `an IPv6 address written without brackets is still read whole`() {
+        // Splitting on the first colon left "2001", which is not an address and read as a
+        // dotless local name.
+        assertThat(SyncAddress.hostOf("https://2001:db8::1/dav")).isEqualTo("2001:db8::1")
+        assertThat(SyncAddress.isOnLocalNetwork("https://2001:db8::1/dav")).isFalse()
+    }
+
+    @Test
     fun `an empty address is not on the local network`() {
         assertThat(SyncAddress.isOnLocalNetwork("")).isFalse()
     }

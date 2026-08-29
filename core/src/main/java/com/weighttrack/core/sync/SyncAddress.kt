@@ -22,12 +22,17 @@ object SyncAddress {
         // Credentials in the address itself are legal and nobody's business here.
         val hostAndPort = authority.substringAfterLast('@')
         if (hostAndPort.isEmpty()) return null
-        return if (hostAndPort.startsWith("[")) {
+        val host = when {
             // An IPv6 literal is bracketed precisely so that its colons cannot be read as a port.
-            hostAndPort.substringAfter('[').substringBefore(']').takeIf { it.isNotEmpty() }
-        } else {
-            hostAndPort.substringBefore(':').takeIf { it.isNotEmpty() }
+            hostAndPort.startsWith("[") ->
+                hostAndPort.substringAfter('[').substringBefore(']')
+            // Unbracketed and full of colons: an IPv6 address somebody wrote without brackets.
+            // Splitting on the first colon would leave "2001", which is not an address at all.
+            hostAndPort.count { it == ':' } > 1 -> hostAndPort
+            else -> hostAndPort.substringBefore(':')
         }
+        // A name may legally end in the root dot. It is the same name.
+        return host.removeSuffix(".").takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -45,9 +50,26 @@ object SyncAddress {
         if (host.contains(':')) return isPrivateIpv6(host)
         // A name the household router made up, or one advertised over mDNS. Neither can be
         // resolved by anything outside the house, so neither is anywhere else.
-        if (host.endsWith(".local")) return true
+        if (LOCAL_SUFFIXES.any { host == it.trimStart('.') || host.endsWith(it) }) return true
         return !host.contains('.')
     }
+
+    /**
+     * Name endings that cannot mean anywhere but the network the phone is on.
+     *
+     * `.local` is mDNS, `.home.arpa` is the ending the IETF set aside for exactly this, and the
+     * rest are what home routers hand out by default. Between them they cover most of the
+     * addresses somebody actually types for a server in their own house.
+     */
+    private val LOCAL_SUFFIXES = listOf(
+        ".local",
+        ".lan",
+        ".home.arpa",
+        ".home",
+        ".internal",
+        ".localdomain",
+        ".fritz.box",
+    )
 
     private fun ipv4Octets(host: String): List<Int>? {
         val parts = host.split('.')

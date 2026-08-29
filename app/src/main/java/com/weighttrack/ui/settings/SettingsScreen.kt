@@ -518,7 +518,11 @@ fun SettingsScreen(
         item {
             HealthConnectCard(
                 state = healthConnectState,
-                onRequestPermissions = { healthConnectLauncher.launch(HealthConnectSync.permissions) },
+                onRequestPermissions = {
+                    // Only what this phone can actually grant, or an older Health Connect
+                    // leaves the offer on screen for ever.
+                    healthConnectLauncher.launch(viewModel.healthConnect.grantablePermissions())
+                },
                 onSync = viewModel::syncHealthConnect,
                 onInstall = { openHealthConnectListing(context) },
             )

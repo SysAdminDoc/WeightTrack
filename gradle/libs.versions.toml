@@ -16,6 +16,7 @@ datastore = "1.2.1"
 work = "2.11.2"
 serializationJson = "1.11.0"
 healthConnect = "1.1.0"
+healthConnectTesting = "1.0.0-alpha04"
 glance = "1.2.0"
 documentfile = "1.1.0"
 # WebDAV needs PROPFIND and MKCOL, and the platform HTTP client refuses any method it does
@@ -76,6 +77,7 @@ androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version
 androidx-work-testing = { module = "androidx.work:work-testing", version.ref = "work" }
 
 androidx-health-connect-client = { module = "androidx.health.connect:connect-client", version.ref = "healthConnect" }
+androidx-health-connect-testing = { module = "androidx.health.connect:connect-testing", version.ref = "healthConnectTesting" }
 
 androidx-glance-appwidget = { module = "androidx.glance:glance-appwidget", version.ref = "glance" }
 androidx-glance-material3 = { module = "androidx.glance:glance-material3", version.ref = "glance" }

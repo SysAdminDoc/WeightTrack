@@ -188,6 +188,8 @@ dependencies {
     testImplementation(libs.truth)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
+    // The Health Connect fake, so the import can be driven across real page boundaries.
+    testImplementation(libs.androidx.health.connect.testing)
     testImplementation(libs.androidx.test.core)
     testImplementation(libs.androidx.room.testing)
     testImplementation(libs.androidx.work.testing)

@@ -315,7 +315,7 @@ class SettingsViewModel @Inject constructor(
         val allowed = granted.containsAll(HealthConnectSync.corePermissions)
         _healthConnectState.value = _healthConnectState.value.copy(
             granted = allowed,
-            grantedEverything = granted.containsAll(HealthConnectSync.permissions),
+            grantedEverything = granted.containsAll(healthConnect.grantablePermissions()),
         )
         if (allowed) {
             syncHealthConnect()

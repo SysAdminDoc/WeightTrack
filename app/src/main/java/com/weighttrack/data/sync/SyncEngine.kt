@@ -61,7 +61,6 @@ class SyncEngine @Inject constructor(
         val settings = preferences.current()
         if (!settings.isOn || !settings.isReady) return@withLock SyncResult.NotSetUp
         val target = targetFor(settings) ?: return@withLock SyncResult.NotSetUp
-        localNetworkRefusal(settings)?.let { return@withLock finish(now, it) }
         val deviceId = preferences.deviceId()
 
         val names = when (val listed = target.list()) {
@@ -150,7 +149,8 @@ class SyncEngine @Inject constructor(
     private fun <T : Enum<T>> decode(name: String, values: List<T>, fallback: T): T =
         values.firstOrNull { it.name == name } ?: fallback
 
-    private suspend fun finish(now: Long, result: SyncResult): SyncResult {
+    private suspend fun finish(now: Long, incoming: SyncResult): SyncResult {
+        val result = explainLocalNetwork(incoming)
         val message = when (result) {
             is SyncResult.Done -> when {
                 result.changes.orphaned > 0 ->
@@ -184,19 +184,30 @@ class SyncEngine @Inject constructor(
     }
 
     /**
-     * Why a sync to the server in the spare room would fail on Android 17.
+     * Says what a failure to reach a server in the house most likely was.
      *
-     * Without the grant the socket does not open, and what comes back is a connection timeout:
-     * indistinguishable from the server being off, and no amount of retrying fixes it. Saying so
-     * is the whole point, because the fix is one tap on the settings screen.
+     * On Android 17 an app that has not been asked cannot open the socket at all, and what comes
+     * back is a timeout indistinguishable from the server being switched off.
+     *
+     * Deliberately an explanation of a failure rather than a check before one. Guessing "this
+     * address is on your network" from a name is a guess: a machine reached over a VPN or through
+     * a corporate DNS suffix looks identical. Refusing up front would have stopped a sync that
+     * works, permanently and with no retry, on nothing more than a hostname with no dot in it.
+     * Explaining afterwards costs one attempt that was going to fail anyway, and it keeps the
+     * result [SyncResult.Unreachable], so the hourly job keeps trying and heals itself the moment
+     * the permission is granted.
      */
-    private fun localNetworkRefusal(settings: SyncSettings): SyncResult.Refused? {
-        if (settings.mode != SyncMode.WEBDAV) return null
-        val url = settings.webDavUrl ?: return null
-        if (!SyncAddress.isOnLocalNetwork(url)) return null
-        if (LocalNetworkPermission.isGranted(context)) return null
-        runtimeLog.write(LogArea.SYNC, LogEvent.LOCAL_NETWORK_NOT_ALLOWED)
-        return SyncResult.Refused(strings[com.weighttrack.R.string.sync_needs_local_network])
+    private suspend fun explainLocalNetwork(result: SyncResult): SyncResult {
+        val settings = preferences.current()
+        val explained = explainLocalNetwork(
+            result = result,
+            mode = settings.mode,
+            url = settings.webDavUrl,
+            permissionGranted = LocalNetworkPermission.isGranted(context),
+            message = strings[com.weighttrack.R.string.sync_needs_local_network],
+        )
+        if (explained !== result) runtimeLog.write(LogArea.SYNC, LogEvent.LOCAL_NETWORK_NOT_ALLOWED)
+        return explained
     }
 
     private fun targetFor(settings: SyncSettings): SyncTarget? = when (settings.mode) {
@@ -219,4 +230,31 @@ class SyncEngine @Inject constructor(
             }
         }
     }
+}
+
+/**
+ * Says what a failure to reach a server in the house most likely was.
+ *
+ * On Android 17 an app that has not been asked cannot open the socket at all, and what comes back
+ * is a timeout indistinguishable from the server being switched off.
+ *
+ * Deliberately an explanation of a failure rather than a check before one. Guessing "this address
+ * is on your network" from a name is a guess: a machine reached over a VPN, or through a corporate
+ * DNS suffix, looks identical to one in the spare room. Refusing up front would have killed a sync
+ * that works, permanently and with no retry, on nothing more than a hostname with no dot in it.
+ * Explaining afterwards costs one attempt that was going to fail anyway, and the result stays
+ * [SyncResult.Unreachable], so the hourly job keeps trying and heals itself the moment the
+ * permission is granted.
+ */
+internal fun explainLocalNetwork(
+    result: SyncResult,
+    mode: SyncMode,
+    url: String?,
+    permissionGranted: Boolean,
+    message: String,
+): SyncResult {
+    if (result !is SyncResult.Unreachable) return result
+    if (mode != SyncMode.WEBDAV || url == null || permissionGranted) return result
+    if (!SyncAddress.isOnLocalNetwork(url)) return result
+    return SyncResult.Unreachable(message)
 }

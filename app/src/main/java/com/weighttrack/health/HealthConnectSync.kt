@@ -2,6 +2,7 @@ package com.weighttrack.health
 
 import android.content.Context
 import androidx.health.connect.client.HealthConnectClient
+import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
@@ -41,6 +42,17 @@ import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * Where the Health Connect client comes from.
+ *
+ * An interface only so that the import, which is the part with real logic in it and the part
+ * nobody can reproduce on demand, can be driven against a fake with several pages of records in
+ * it. The app binds the real one.
+ */
+fun interface HealthConnectClientSource {
+    fun client(): HealthConnectClient?
+}
 
 enum class HealthConnectAvailability {
     INSTALLED,
@@ -84,6 +96,7 @@ class HealthConnectSync @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
     private val runtimeLog: RuntimeLog,
+    private val clientSource: HealthConnectClientSource,
 ) {
 
     /**
@@ -106,6 +119,26 @@ class HealthConnectSync @Inject constructor(
         runtimeLog.write(LogArea.HEALTH_CONNECT, event, cause = cause)
     }
 
+    /**
+     * Whether this phone's Health Connect can read further back than thirty days at all.
+     *
+     * The permission only exists on a provider new enough to offer it. Somewhere older will never
+     * report it as granted however many times it is asked for, so anything that treats a missing
+     * grant as "not finished yet" has to check this first or it nags for ever about something the
+     * person cannot give.
+     */
+    fun supportsHistory(): Boolean = runCatching {
+        clientOrNull()?.features?.getFeatureStatus(
+            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_HISTORY,
+        ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+    }.getOrDefault(false)
+
+    /**
+     * Whether the older readings are actually reachable.
+     *
+     * False on a phone that cannot offer the permission as well as on one where it was refused,
+     * because the consequence is the same either way: thirty days and no more.
+     */
     suspend fun hasHistoryPermission(): Boolean = hasGranted(historyPermissions)
 
     suspend fun hasNutritionPermission(): Boolean = runCatching {
@@ -182,12 +215,7 @@ class HealthConnectSync @Inject constructor(
             else -> HealthConnectAvailability.NOT_SUPPORTED
         }
 
-    private fun clientOrNull(): HealthConnectClient? =
-        if (availability() == HealthConnectAvailability.INSTALLED) {
-            runCatching { HealthConnectClient.getOrCreate(context) }.getOrNull()
-        } else {
-            null
-        }
+    private fun clientOrNull(): HealthConnectClient? = clientSource.client()
 
     fun permissionContract() = PermissionController.createRequestPermissionResultContract()
 
@@ -201,7 +229,16 @@ class HealthConnectSync @Inject constructor(
      * granted the core set and nothing else, and asking only about the core set would mean the
      * screen never offered them the rest.
      */
-    suspend fun hasEverything(): Boolean = hasGranted(permissions)
+    suspend fun hasEverything(): Boolean = hasGranted(grantablePermissions())
+
+    /**
+     * Everything worth asking this particular phone for.
+     *
+     * A provider too old for the history grant would otherwise leave "Allow the rest" on the
+     * screen for ever, for somebody who has already allowed everything they can.
+     */
+    fun grantablePermissions(): Set<String> =
+        if (supportsHistory()) permissions else permissions - historyPermissions
 
     suspend fun hasActivityPermissions(): Boolean = hasGranted(activityPermissions)
 
