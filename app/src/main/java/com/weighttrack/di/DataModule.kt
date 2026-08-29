@@ -10,6 +10,7 @@ import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
 import com.weighttrack.data.db.FastDao
 import com.weighttrack.data.db.GoalDao
+import com.weighttrack.data.db.DeletionDao
 import com.weighttrack.data.db.FoodDao
 import com.weighttrack.data.db.FoodLogDao
 import com.weighttrack.data.db.MacroTargetDao
@@ -18,6 +19,7 @@ import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.WaterDao
 import com.weighttrack.data.db.WeightEntryDao
+import com.weighttrack.data.db.SyncDao
 import com.weighttrack.data.db.WeightTrackDatabase
 import com.weighttrack.diagnostics.CrashLogStore
 import dagger.Module
@@ -105,4 +107,10 @@ object DataModule {
     @Provides
     fun provideMacroTargetDao(database: WeightTrackDatabase): MacroTargetDao =
         database.macroTargetDao()
+
+    @Provides
+    fun provideDeletionDao(database: WeightTrackDatabase): DeletionDao = database.deletionDao()
+
+    @Provides
+    fun provideSyncDao(database: WeightTrackDatabase): SyncDao = database.syncDao()
 }

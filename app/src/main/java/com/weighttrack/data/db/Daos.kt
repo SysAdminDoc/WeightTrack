@@ -288,6 +288,9 @@ data class DailyWaterRow(
 @Dao
 interface WaterDao {
 
+    @Query("SELECT * FROM water_entries WHERE profileId = :profileId AND localDate = :localDate")
+    suspend fun forDate(profileId: Long, localDate: String): List<WaterEntryEntity>
+
     @Query(
         "SELECT * FROM water_entries WHERE profileId = :profileId AND localDate = :localDate " +
             "ORDER BY timestampUtcMillis DESC",
@@ -690,6 +693,13 @@ interface MacroTargetDao {
 
     @Query("SELECT * FROM macro_targets WHERE profileId = :profileId")
     fun observeAll(profileId: Long): Flow<List<MacroTargetEntity>>
+
+    /** The row for one day, or the everyday row when [dayOfWeek] is null. */
+    @Query(
+        "SELECT * FROM macro_targets WHERE profileId = :profileId AND " +
+            "(dayOfWeek = :dayOfWeek OR (dayOfWeek IS NULL AND :dayOfWeek IS NULL)) LIMIT 1",
+    )
+    suspend fun forDay(profileId: Long, dayOfWeek: String?): MacroTargetEntity?
 
     @Query("SELECT * FROM macro_targets WHERE profileId = :profileId")
     suspend fun all(profileId: Long): List<MacroTargetEntity>

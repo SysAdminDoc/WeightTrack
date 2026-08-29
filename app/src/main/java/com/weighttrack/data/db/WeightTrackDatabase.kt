@@ -20,8 +20,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RecipeItemEntity::class,
         FoodLogEntryEntity::class,
         MacroTargetEntity::class,
+        DeletionEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -38,6 +39,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
         AutoMigration(from = 7, to = 8),
+        // Nine gives every row that can be synced a name that travels, and adds the table that
+        // remembers deletions.
+        AutoMigration(from = 8, to = 9, spec = WeightTrackDatabase.AddSyncIds::class),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {
@@ -51,6 +55,8 @@ abstract class WeightTrackDatabase : RoomDatabase() {
     abstract fun foodDao(): FoodDao
     abstract fun foodLogDao(): FoodLogDao
     abstract fun macroTargetDao(): MacroTargetDao
+    abstract fun deletionDao(): DeletionDao
+    abstract fun syncDao(): SyncDao
 
     /**
      * Creates the profile every existing row was just handed to.
@@ -68,8 +74,43 @@ abstract class WeightTrackDatabase : RoomDatabase() {
         }
     }
 
+    /**
+     * Names every existing row so it can be synced.
+     *
+     * The column default is blank, because SQL cannot give each row a different one. This fills
+     * them in afterwards: randomblob is per row, so every row gets its own. Leaving them blank
+     * would make every row on the phone look like the same record to the merge, and the first
+     * sync would collapse a whole history into one reading.
+     */
+    class AddSyncIds : AutoMigrationSpec {
+        override fun onPostMigrate(db: SupportSQLiteDatabase) {
+            for (table in SYNCED_TABLES) {
+                db.execSQL(
+                    "UPDATE $table SET syncId = lower(hex(randomblob(16))) " +
+                        "WHERE syncId IS NULL OR syncId = ''",
+                )
+            }
+            // Rows that existed before sync have no time last touched. Their creation time is
+            // the truthful answer; a zero would make anything arriving from another device look
+            // newer than a goal set this morning.
+            db.execSQL(
+                "UPDATE profiles SET updatedAtUtcMillis = createdAtUtcMillis " +
+                    "WHERE updatedAtUtcMillis = 0",
+            )
+            db.execSQL(
+                "UPDATE goals SET updatedAtUtcMillis = createdAtUtcMillis " +
+                    "WHERE updatedAtUtcMillis = 0",
+            )
+        }
+    }
+
     companion object {
         const val NAME = "weighttrack.db"
+
+        /** Every table whose rows carry a name that travels between devices. */
+        val SYNCED_TABLES = listOf(
+            "profiles", "measurements", "goals", "water_entries", "fasts", "macro_targets",
+        )
 
         /** Where every reading taken before profiles existed lives. */
         const val DEFAULT_PROFILE_ID = 1L

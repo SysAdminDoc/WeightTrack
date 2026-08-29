@@ -99,7 +99,7 @@ class ScaleViewModelTest {
             .build()
         settingsRepository = testSettingsRepository()
         profiles = ProfileRepository(database.profileDao(), settingsRepository)
-        weightRepository = WeightRepository(database.weightEntryDao(), profiles)
+        weightRepository = WeightRepository(database.weightEntryDao(), profiles, com.weighttrack.data.repo.DeletionRecorder(database.deletionDao()))
         surfaceUpdater = SurfaceUpdater(
             context = context,
             wearBridge = NoWearBridge(),
@@ -108,6 +108,7 @@ class ScaleViewModelTest {
                 goalRepository = com.weighttrack.data.repo.GoalRepository(
                     database.goalDao(),
                     profiles,
+                    com.weighttrack.data.repo.DeletionRecorder(database.deletionDao()),
                 ),
                 settingsRepository = settingsRepository,
             ),

@@ -24,6 +24,7 @@ import javax.inject.Singleton
 class MacroTargetRepository @Inject constructor(
     private val dao: MacroTargetDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     fun observe(): Flow<MacroTargets> =
         profiles.activeProfileId
@@ -34,9 +35,15 @@ class MacroTargetRepository @Inject constructor(
 
     /** Sets the target for one day, or for every day without one when [day] is null. */
     suspend fun set(target: MacroTarget, day: DayOfWeek? = null) {
+        val profileId = profiles.activeId()
+        // The upsert replaces whatever row is already under this profile and day, so it has to
+        // carry that row's name forward. A fresh one each time would make every change look like
+        // a brand new target to the person's other devices, and the old one would never go away.
+        val existing = dao.forDay(profileId, day?.name)
         dao.upsert(
             MacroTargetEntity(
-                profileId = profiles.activeId(),
+                syncId = existing?.syncId ?: com.weighttrack.data.db.newSyncId(),
+                profileId = profileId,
                 dayOfWeek = day?.name,
                 kcal = target.kcal,
                 proteinG = target.proteinG,
@@ -49,9 +56,22 @@ class MacroTargetRepository @Inject constructor(
     }
 
     /** Removes a day's own target, which puts it back on the everyday one. */
-    suspend fun clear(day: DayOfWeek?) = dao.clear(profiles.activeId(), day?.name)
+    suspend fun clear(day: DayOfWeek?) {
+        val profileId = profiles.activeId()
+        dao.forDay(profileId, day?.name)?.let {
+            deletions.record(com.weighttrack.core.sync.SyncKind.MACRO_TARGET, it.syncId)
+        }
+        dao.clear(profileId, day?.name)
+    }
 
-    suspend fun clearAll() = dao.clearAll(profiles.activeId())
+    suspend fun clearAll() {
+        val profileId = profiles.activeId()
+        deletions.record(
+            com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
+            dao.all(profileId).map { it.syncId },
+        )
+        dao.clearAll(profileId)
+    }
 
     private fun List<MacroTargetEntity>.toTargets(): MacroTargets {
         val byDay = mutableMapOf<DayOfWeek, MacroTarget>()

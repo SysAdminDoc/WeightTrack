@@ -2,6 +2,7 @@ package com.weighttrack.data.repo
 
 import com.weighttrack.data.db.DailyWaterRow
 import com.weighttrack.data.db.WaterDao
+import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.WaterEntryEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -31,6 +32,7 @@ data class DailyWater(
 class WaterRepository @Inject constructor(
     private val dao: WaterDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
         profiles.activeProfileId.flatMapLatest(query)
@@ -83,12 +85,18 @@ class WaterRepository @Inject constructor(
     }
 
     suspend fun delete(entry: WaterEntry) {
-        dao.byId(entry.id)?.let { dao.delete(it) }
+        val existing = dao.byId(entry.id) ?: return
+        dao.delete(existing)
+        deletions.record(SyncKind.WATER, existing.syncId)
     }
 
     /** Undoes a whole day, for the "I tapped that four times by accident" case. */
-    suspend fun clearDate(date: LocalDate) =
-        dao.deleteForDate(profiles.activeId(), date.toString())
+    suspend fun clearDate(date: LocalDate) {
+        val profileId = profiles.activeId()
+        val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
+        dao.deleteForDate(profileId, date.toString())
+        deletions.record(SyncKind.WATER, gone)
+    }
 
     suspend fun deleteAll() = dao.deleteAll()
 

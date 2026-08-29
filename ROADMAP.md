@@ -91,7 +91,6 @@ Kept optional so the weight-only experience stays clean. Off by default, one tog
 
 ## Phase 4: v0.4.x, sync and insights
 
-- [ ] Sync without an account: file-based format friendly to Syncthing, plus WebDAV/Nextcloud
 - [ ] Insight cards: weekday effect, steps versus weight, sleep versus weight where Health Connect provides it
 - [ ] Shareable milestone card image (local render, no social integration)
 - [ ] Localization

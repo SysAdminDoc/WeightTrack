@@ -154,6 +154,22 @@ fun SettingsScreen(
         }
     }
 
+    val syncFolderLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        if (uri != null) {
+            viewModel.useSyncFolder(uri) { picked ->
+                // Held on to, or the address stops working after a restart and background syncing
+                // fails forever with nothing on screen to say why.
+                context.contentResolver.takePersistableUriPermission(
+                    picked,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION or
+                        android.content.Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            }
+        }
+    }
+
     val healthConnectLauncher = rememberLauncherForActivityResult(
         viewModel.healthConnect.permissionContract(),
     ) { granted -> viewModel.onHealthConnectPermissionResult(granted) }
@@ -459,6 +475,22 @@ fun SettingsScreen(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+
+        item {
+            val syncSettings by viewModel.syncSettings.collectAsStateWithLifecycle()
+            val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+            SyncCard(
+                settings = syncSettings,
+                folderName = syncSettings.folderUri
+                    ?.let { android.net.Uri.parse(it).lastPathSegment?.substringAfterLast(':') },
+                syncing = syncing,
+                onPickFolder = { syncFolderLauncher.launch(null) },
+                onUseWebDav = viewModel::useWebDav,
+                onSyncNow = viewModel::syncNow,
+                onTurnOff = viewModel::turnSyncOff,
+                onBackgroundChange = viewModel::setSyncInBackground,
+            )
         }
 
         item {
@@ -780,7 +812,7 @@ private fun HealthConnectCard(
 }
 
 @Composable
-private fun SettingsSection(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+internal fun SettingsSection(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RectangleShape,

@@ -50,6 +50,8 @@ data class AppSettings(
     val nutritionEnabled: Boolean = false,
     /** Whoever uses the app supplies their own, since this one will not ship a shared key. */
     val usdaApiKey: String? = null,
+    /** When the settings that describe the person last changed, for sync to compare. */
+    val updatedAtUtcMillis: Long = 0,
     val scaleAddress: String? = null,
     val scaleName: String? = null,
 )
@@ -60,28 +62,28 @@ class SettingsRepository @Inject constructor(
 ) {
     val settings: Flow<AppSettings> = dataStore.data.map { it.toSettings() }
 
-    suspend fun setWeightUnit(unit: WeightUnit) = edit { it[Keys.WEIGHT_UNIT] = unit.name }
+    suspend fun setWeightUnit(unit: WeightUnit) = stamped { it[Keys.WEIGHT_UNIT] = unit.name }
 
-    suspend fun setLengthUnit(unit: LengthUnit) = edit { it[Keys.LENGTH_UNIT] = unit.name }
+    suspend fun setLengthUnit(unit: LengthUnit) = stamped { it[Keys.LENGTH_UNIT] = unit.name }
 
-    suspend fun setThemeMode(mode: ThemeMode) = edit { it[Keys.THEME_MODE] = mode.name }
+    suspend fun setThemeMode(mode: ThemeMode) = stamped { it[Keys.THEME_MODE] = mode.name }
 
     suspend fun setDynamicColor(enabled: Boolean) = edit { it[Keys.DYNAMIC_COLOR] = enabled }
 
-    suspend fun setProfile(profile: UserProfile) = edit {
+    suspend fun setProfile(profile: UserProfile) = stamped {
         it[Keys.HEIGHT_MM] = profile.heightMm
         it[Keys.SEX] = profile.sex.name
         it[Keys.BIRTH_YEAR] = profile.birthYear
         it[Keys.ACTIVITY_LEVEL] = profile.activityLevel.name
     }
 
-    suspend fun setHeightMm(heightMm: Int) = edit { it[Keys.HEIGHT_MM] = heightMm }
+    suspend fun setHeightMm(heightMm: Int) = stamped { it[Keys.HEIGHT_MM] = heightMm }
 
-    suspend fun setTrendWindowDays(days: Int) = edit {
+    suspend fun setTrendWindowDays(days: Int) = stamped {
         it[Keys.TREND_WINDOW_DAYS] = days.coerceIn(TrendEngine.MIN_WINDOW_DAYS, TrendEngine.MAX_WINDOW_DAYS)
     }
 
-    suspend fun setMilestoneStepGrams(grams: Int) = edit { it[Keys.MILESTONE_STEP_GRAMS] = grams }
+    suspend fun setMilestoneStepGrams(grams: Int) = stamped { it[Keys.MILESTONE_STEP_GRAMS] = grams }
 
     suspend fun setOnboardingComplete(complete: Boolean) = edit { it[Keys.ONBOARDING_COMPLETE] = complete }
 
@@ -114,7 +116,49 @@ class SettingsRepository @Inject constructor(
         dataStore.edit(block)
     }
 
+    /**
+     * An edit that records when it happened, for sync to compare against another device's.
+     *
+     * Only the settings that describe the person are stamped. Which scale this phone pairs with,
+     * or which profile is open on it, are facts about the phone: stamping those would let
+     * choosing a scale on one device overwrite a real settings change made on the other.
+     */
+    private suspend fun stamped(
+        block: (androidx.datastore.preferences.core.MutablePreferences) -> Unit,
+    ) = edit {
+        block(it)
+        it[Keys.SETTINGS_UPDATED_AT] = System.currentTimeMillis()
+    }
+
+    /** Writes settings that arrived from another device, keeping the time they were changed. */
+    suspend fun applySynced(
+        weightUnit: WeightUnit,
+        lengthUnit: LengthUnit,
+        themeMode: ThemeMode,
+        heightMm: Int,
+        sex: Sex,
+        birthYear: Int,
+        activityLevel: ActivityLevel,
+        trendWindowDays: Int,
+        milestoneStepGrams: Int,
+        updatedAtUtcMillis: Long,
+    ) = edit {
+        it[Keys.WEIGHT_UNIT] = weightUnit.name
+        it[Keys.LENGTH_UNIT] = lengthUnit.name
+        it[Keys.THEME_MODE] = themeMode.name
+        it[Keys.HEIGHT_MM] = heightMm
+        it[Keys.SEX] = sex.name
+        it[Keys.BIRTH_YEAR] = birthYear
+        it[Keys.ACTIVITY_LEVEL] = activityLevel.name
+        it[Keys.TREND_WINDOW_DAYS] = trendWindowDays
+        it[Keys.MILESTONE_STEP_GRAMS] = milestoneStepGrams
+        // Kept as it arrived rather than set to now, or this device would look like the most
+        // recent editor and hand its own copy straight back.
+        it[Keys.SETTINGS_UPDATED_AT] = updatedAtUtcMillis
+    }
+
     private fun Preferences.toSettings(): AppSettings = AppSettings(
+        updatedAtUtcMillis = this[Keys.SETTINGS_UPDATED_AT] ?: 0,
         weightUnit = enumOrDefault(this[Keys.WEIGHT_UNIT], WeightUnit.entries, WeightUnit.KG),
         lengthUnit = enumOrDefault(this[Keys.LENGTH_UNIT], LengthUnit.entries, LengthUnit.CM),
         themeMode = enumOrDefault(this[Keys.THEME_MODE], ThemeMode.entries, ThemeMode.AMOLED),
@@ -177,6 +221,7 @@ class SettingsRepository @Inject constructor(
 
     private object Keys {
         val WEIGHT_UNIT = stringPreferencesKey("weight_unit")
+        val SETTINGS_UPDATED_AT = longPreferencesKey("settings_updated_at")
         val LENGTH_UNIT = stringPreferencesKey("length_unit")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")

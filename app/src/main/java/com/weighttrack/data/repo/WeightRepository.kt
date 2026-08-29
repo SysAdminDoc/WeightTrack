@@ -33,6 +33,7 @@ import kotlin.math.roundToInt
 class WeightRepository @Inject constructor(
     private val dao: WeightEntryDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
         profiles.activeProfileId.flatMapLatest(query)
@@ -182,6 +183,7 @@ class WeightRepository @Inject constructor(
     }
 
     suspend fun delete(entry: WeightEntry) {
+        deletions.record(com.weighttrack.core.sync.SyncKind.WEIGHT, entry.clientRecordId)
         dao.delete(entry.toEntity(profileId = profileOf(entry.id)))
     }
 

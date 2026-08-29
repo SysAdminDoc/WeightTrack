@@ -120,6 +120,22 @@
           Lets the camera app write a capture straight into private storage. Grants are
           per-URI and temporary; nothing else under files/ is reachable through it.
         -->
+        <!--
+          The default WorkManager start-up is turned off because the sync job is built by Hilt,
+          which needs the factory from the application class. Left on, WorkManager would start
+          first with a factory that cannot make the job and it would fail on every run.
+        -->
+        <provider
+            android:name="androidx.startup.InitializationProvider"
+            android:authorities="${applicationId}.androidx-startup"
+            android:exported="false"
+            tools:node="merge">
+            <meta-data
+                android:name="androidx.work.WorkManagerInitializer"
+                android:value="androidx.startup"
+                tools:node="remove" />
+        </provider>
+
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="${applicationId}.photos"

@@ -65,12 +65,21 @@ fun MeasurementEntity.toDomain(): BodyMeasurement? {
     )
 }
 
+/**
+ * [syncId] has to be handed in on any path that is editing a row that already exists.
+ *
+ * The default mints a new one, which is right for something being created and quietly wrong for
+ * an edit: the row would keep its place in this database and become a different record to every
+ * other device, so the edit would arrive as a second measurement rather than a correction.
+ */
 fun BodyMeasurement.toEntity(
     profileId: Long,
     updatedAtUtcMillis: Long = System.currentTimeMillis(),
+    syncId: String = newSyncId(),
 ): MeasurementEntity =
     MeasurementEntity(
         id = id,
+        syncId = syncId,
         profileId = profileId,
         timestampUtcMillis = timestamp.toEpochMilli(),
         localDate = localDate.toString(),
@@ -91,11 +100,16 @@ fun GoalEntity.toDomain(): Goal = Goal(
     active = active,
 )
 
+/** [syncId] has to be handed in when editing an existing goal. See the note above. */
 fun Goal.toEntity(
     profileId: Long,
     createdAtUtcMillis: Long = System.currentTimeMillis(),
+    syncId: String = newSyncId(),
+    updatedAtUtcMillis: Long = System.currentTimeMillis(),
 ): GoalEntity = GoalEntity(
     id = id,
+    syncId = syncId,
+    updatedAtUtcMillis = updatedAtUtcMillis,
     profileId = profileId,
     direction = direction.name,
     startGrams = startGrams,

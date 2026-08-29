@@ -113,6 +113,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.documentfile)
+    implementation(libs.okhttp)
     implementation(libs.androidx.exifinterface)
 
     implementation(libs.androidx.camera.core)

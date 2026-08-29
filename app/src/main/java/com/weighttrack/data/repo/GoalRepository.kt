@@ -4,6 +4,7 @@ import com.weighttrack.core.model.Goal
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.data.db.GoalDao
 import com.weighttrack.data.db.toDomain
+import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.toEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +20,7 @@ import javax.inject.Singleton
 class GoalRepository @Inject constructor(
     private val dao: GoalDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
         profiles.activeProfileId.flatMapLatest(query)
@@ -57,11 +59,24 @@ class GoalRepository @Inject constructor(
         ).toEntity(profileId = profiles.activeId()),
     )
 
-    suspend fun update(goal: Goal) = dao.update(goal.toEntity(profileId = profileOf(goal.id)))
+    suspend fun update(goal: Goal) {
+        val existing = dao.byId(goal.id) ?: return
+        dao.update(
+            goal.toEntity(
+                profileId = existing.profileId,
+                createdAtUtcMillis = existing.createdAtUtcMillis,
+                syncId = existing.syncId,
+            ),
+        )
+    }
 
     suspend fun clearActive() = dao.deactivateAll(profiles.activeId())
 
-    suspend fun delete(goal: Goal) = dao.delete(goal.toEntity(profileId = profileOf(goal.id)))
+    suspend fun delete(goal: Goal) {
+        val existing = dao.byId(goal.id) ?: return
+        dao.delete(existing)
+        deletions.record(SyncKind.GOAL, existing.syncId)
+    }
 
     /** Read back off the stored row, so an edit cannot move a goal to another profile. */
     private suspend fun profileOf(id: Long): Long =

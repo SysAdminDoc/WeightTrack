@@ -45,6 +45,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - An optional food diary: calories and macros by meal, daily targets in grams or percent with a different one for any day of the week, copy yesterday, and a quick add for the meal that has no label
 - An optional food database with recipes, Open Food Facts lookups and no ads anywhere near it
 - Twenty two thousand common products bundled in the app, so the barcode scanner works in a shop with no signal
+- Sync between your own devices through a shared folder or your own Nextcloud, with no account and nothing of yours on anybody else's server
 - Barcode scanning in both builds, ML Kit on Play and ZXing on F-Droid, so neither goes without it
 - Profiles for a household, each with their own history, goal and reminder, and a shared scale that works out whose reading it just took
 - Bluetooth scales, read straight into the log: the standard weight and body composition services, Xiaomi's broadcast format that needs no pairing, and the Renpho, eufy and Beurer/Sanitas protocols
@@ -68,8 +69,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew testPlayDebugUnitTest   # 250 unit tests
-./gradlew :core:testDebugUnitTest # 202 more, the maths, the scale protocols and the food clients
+./gradlew testPlayDebugUnitTest   # 283 unit tests
+./gradlew :core:testDebugUnitTest # 246 more: the maths, the scale protocols, the food clients and the merge
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
@@ -89,7 +90,13 @@ The chart is drawn directly on a Compose canvas rather than through a charting l
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: an optional food log, sync without an account, and insight cards.
+See [ROADMAP.md](ROADMAP.md). Next up: insight cards, a milestone card you can share, and translations.
+
+### How sync works
+
+Each device writes one file, named after itself, into a folder you choose. It reads every other device's file from the same folder and merges them. Nothing ever writes to a file it did not create, which is what stops a folder sync tool producing conflict copies that somebody then has to arbitrate by hand.
+
+Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Deletions are remembered for six months so they travel too, otherwise a phone that still holds the record hands it straight back. Two limits worth knowing: it relies on the devices roughly agreeing about the time, so a badly wrong clock can hold a stale edit in place, and a device left switched off for more than six months will bring back what it still holds.
 
 ## License
 

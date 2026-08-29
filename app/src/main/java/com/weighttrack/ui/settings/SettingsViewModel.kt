@@ -49,6 +49,9 @@ data class HealthConnectState(
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
+    private val syncPreferences: com.weighttrack.data.sync.SyncPreferences,
+    private val syncEngine: com.weighttrack.data.sync.SyncEngine,
+    private val syncScheduler: com.weighttrack.sync.SyncScheduler,
     private val settingsRepository: SettingsRepository,
     private val weightRepository: WeightRepository,
     private val profileRepository: ProfileRepository,
@@ -370,6 +373,75 @@ class SettingsViewModel @Inject constructor(
                 // Refusing to delete the last one is deliberate: the app would have nowhere to
                 // put the next reading and no way to make a profile to fix it.
                 _message.value = "There has to be somebody. Add another profile first."
+            }
+        }
+    }
+
+    // ---- sync ----
+
+    val syncSettings = syncPreferences.settings.stateIn(
+        viewModelScope,
+        kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+        com.weighttrack.data.sync.SyncSettings(),
+    )
+
+    private val _syncing = MutableStateFlow(false)
+    val syncing: StateFlow<Boolean> = _syncing.asStateFlow()
+
+    /**
+     * Takes a folder the person picked and holds on to the right to read it.
+     *
+     * Without taking the permission the address stops working the next time the app starts, and
+     * background syncing would fail forever with nothing on screen to explain why.
+     */
+    fun useSyncFolder(uri: android.net.Uri, holdOnTo: (android.net.Uri) -> Unit) {
+        viewModelScope.launch {
+            holdOnTo(uri)
+            syncPreferences.useFolder(uri.toString())
+            syncScheduler.reschedule()
+            syncNow()
+        }
+    }
+
+    fun useWebDav(url: String, user: String, password: String) {
+        viewModelScope.launch {
+            syncPreferences.useWebDav(url, user, password)
+            syncScheduler.reschedule()
+            syncNow()
+        }
+    }
+
+    fun turnSyncOff() {
+        viewModelScope.launch {
+            syncPreferences.turnOff()
+            syncScheduler.reschedule()
+            _message.value = "Sync turned off. Nothing was deleted."
+        }
+    }
+
+    fun setSyncInBackground(enabled: Boolean) {
+        viewModelScope.launch {
+            syncPreferences.setBackground(enabled)
+            syncScheduler.reschedule()
+        }
+    }
+
+    fun syncNow() {
+        if (_syncing.value) return
+        viewModelScope.launch {
+            _syncing.value = true
+            try {
+                when (val result = syncEngine.syncNow()) {
+                    is com.weighttrack.data.sync.SyncResult.Done ->
+                        _message.value = syncPreferences.current().lastSyncMessage
+                    is com.weighttrack.data.sync.SyncResult.Refused -> _message.value = result.reason
+                    is com.weighttrack.data.sync.SyncResult.Unreachable ->
+                        _message.value = result.reason
+                    com.weighttrack.data.sync.SyncResult.NotSetUp ->
+                        _message.value = "Pick somewhere to sync to first."
+                }
+            } finally {
+                _syncing.value = false
             }
         }
     }

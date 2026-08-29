@@ -4,6 +4,7 @@ import com.weighttrack.core.model.BodyMeasurement
 import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.toDomain
+import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.toEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -20,6 +21,7 @@ import javax.inject.Singleton
 class MeasurementRepository @Inject constructor(
     private val dao: MeasurementDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
         profiles.activeProfileId.flatMapLatest(query)
@@ -57,18 +59,30 @@ class MeasurementRepository @Inject constructor(
         return dao.insert(measurement.toEntity(profileId = profiles.activeId()))
     }
 
-    suspend fun update(measurement: BodyMeasurement) =
-        dao.update(measurement.toEntity(profileId = profileOf(measurement.id)))
+    suspend fun update(measurement: BodyMeasurement) {
+        val existing = dao.byId(measurement.id) ?: return
+        dao.update(
+            measurement.toEntity(profileId = existing.profileId, syncId = existing.syncId),
+        )
+    }
 
-    suspend fun delete(measurement: BodyMeasurement) =
-        dao.delete(measurement.toEntity(profileId = profileOf(measurement.id)))
+    suspend fun delete(measurement: BodyMeasurement) {
+        val existing = dao.byId(measurement.id) ?: return
+        dao.delete(existing)
+        deletions.record(SyncKind.MEASUREMENT, existing.syncId)
+    }
 
     /** Read back off the stored row so an edit cannot move a measurement to another profile. */
     private suspend fun profileOf(id: Long): Long =
         dao.byId(id)?.profileId ?: profiles.activeId()
 
     suspend fun deleteByIds(ids: List<Long>) {
-        if (ids.isNotEmpty()) dao.deleteByIds(ids)
+        if (ids.isEmpty()) return
+        // Read before deleting. Afterwards there is nothing left to say what these rows were
+        // called on the person's other devices, and the deletion would not travel.
+        val gone = ids.mapNotNull { dao.byId(it)?.syncId }
+        dao.deleteByIds(ids)
+        deletions.record(SyncKind.MEASUREMENT, gone)
     }
 
     suspend fun upsertAll(measurements: List<BodyMeasurement>) {

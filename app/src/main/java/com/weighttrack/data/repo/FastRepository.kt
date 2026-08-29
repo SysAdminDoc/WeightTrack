@@ -20,6 +20,7 @@ enum class FastUpdateResult { SAVED, BACKWARDS, MISSING }
 class FastRepository @Inject constructor(
     private val dao: FastDao,
     private val profiles: ProfileRepository,
+    private val deletions: DeletionRecorder,
 ) {
     private fun <T> scoped(query: (Long) -> Flow<T>): Flow<T> =
         profiles.activeProfileId.flatMapLatest(query)
@@ -77,7 +78,9 @@ class FastRepository @Inject constructor(
     }
 
     suspend fun delete(fast: Fast) {
-        dao.byId(fast.id)?.let { dao.delete(it) }
+        val existing = dao.byId(fast.id) ?: return
+        dao.delete(existing)
+        deletions.record(com.weighttrack.core.sync.SyncKind.FAST, existing.syncId)
     }
 
     suspend fun deleteAll() = dao.deleteAll()

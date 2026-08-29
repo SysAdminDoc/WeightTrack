@@ -29,7 +29,7 @@ class FastRepositoryTest {
             ApplicationProvider.getApplicationContext(),
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
-        repository = FastRepository(database.fastDao(), testProfileRepository(database))
+        repository = FastRepository(database.fastDao(), testProfileRepository(database), DeletionRecorder(database.deletionDao()))
     }
 
     @After

@@ -40,6 +40,15 @@ data class ProfileEntity(
      * way out and read somebody else's back in.
      */
     @ColumnInfo(defaultValue = "0") val healthConnectEnabled: Boolean = false,
+    /**
+     * What this row is called on every device.
+     *
+     * A row's own identifier is a counting number handed out by whichever database created it,
+     * so two phones will both have a row 7 meaning different things. Sync needs a name that
+     * travels, and this is it. Blank means the row predates sync and has not been given one yet.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
+    @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
 )
 
 /**
@@ -101,6 +110,14 @@ data class MeasurementEntity(
     val valueMm: Int,
     val note: String?,
     val updatedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device.
+     *
+     * A row's own identifier is a counting number handed out by whichever database created it,
+     * so two phones will both have a row 7 meaning different things. Sync needs a name that
+     * travels, and this is it. Blank means the row predates sync and has not been given one yet.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
 
 @Entity(tableName = "goals", indices = [Index(value = ["profileId"])])
@@ -116,6 +133,15 @@ data class GoalEntity(
     val milestoneStepGrams: Int,
     val active: Boolean,
     val createdAtUtcMillis: Long,
+    /**
+     * What this row is called on every device.
+     *
+     * A row's own identifier is a counting number handed out by whichever database created it,
+     * so two phones will both have a row 7 meaning different things. Sync needs a name that
+     * travels, and this is it. Blank means the row predates sync and has not been given one yet.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
+    @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
 )
 
 @Entity(
@@ -136,6 +162,14 @@ data class WaterEntryEntity(
     val millilitres: Int,
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device.
+     *
+     * A row's own identifier is a counting number handed out by whichever database created it,
+     * so two phones will both have a row 7 meaning different things. Sync needs a name that
+     * travels, and this is it. Blank means the row predates sync and has not been given one yet.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
 
 /**
@@ -163,6 +197,14 @@ data class FastEntity(
     val targetMinutes: Int,
     val note: String?,
     val updatedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device.
+     *
+     * A row's own identifier is a counting number handed out by whichever database created it,
+     * so two phones will both have a row 7 meaning different things. Sync needs a name that
+     * travels, and this is it. Blank means the row predates sync and has not been given one yet.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
 
 /**
@@ -308,4 +350,38 @@ data class MacroTargetEntity(
     /** Only how it is shown and edited. What is stored is always grams. */
     val basis: String,
     val updatedAtUtcMillis: Long,
+    /**
+     * What this row is called on every device.
+     *
+     * A row's own identifier is a counting number handed out by whichever database created it,
+     * so two phones will both have a row 7 meaning different things. Sync needs a name that
+     * travels, and this is it. Blank means the row predates sync and has not been given one yet.
+     */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
 )
+
+/**
+ * A row that was deleted, remembered so the deletion can travel.
+ *
+ * Without this a delete never leaves the phone it happened on: the other device still holds the
+ * row, has no reason to drop it, and hands it straight back on the next sync. A reading that
+ * comes home every time it is deleted is the most irritating way for sync to be wrong.
+ *
+ * These are written whether or not sync is switched on. Turning it on later would otherwise
+ * bring back everything deleted before that moment.
+ */
+@Entity(tableName = "deletions", primaryKeys = ["kind", "syncId"])
+data class DeletionEntity(
+    val kind: String,
+    val syncId: String,
+    val deletedAtUtcMillis: Long,
+)
+
+/**
+ * A name a row keeps on every device.
+ *
+ * A plain random identifier rather than anything derived from the contents. Two weigh-ins on the
+ * same morning at the same weight are still two weigh-ins, and hashing the contents would quietly
+ * merge them.
+ */
+fun newSyncId(): String = java.util.UUID.randomUUID().toString().replace("-", "")

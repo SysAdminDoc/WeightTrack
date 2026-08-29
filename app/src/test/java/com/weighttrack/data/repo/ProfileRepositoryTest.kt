@@ -31,7 +31,7 @@ class ProfileRepositoryTest {
         ).allowMainThreadQueries().build()
         settings = testSettingsRepository()
         profiles = ProfileRepository(database.profileDao(), settings)
-        weights = WeightRepository(database.weightEntryDao(), profiles)
+        weights = WeightRepository(database.weightEntryDao(), profiles, DeletionRecorder(database.deletionDao()))
     }
 
     @After
