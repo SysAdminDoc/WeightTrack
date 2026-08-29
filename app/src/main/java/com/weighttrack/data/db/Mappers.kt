@@ -1,0 +1,119 @@
+package com.weighttrack.data.db
+
+import com.weighttrack.core.model.BodyMeasurement
+import com.weighttrack.core.model.EntrySource
+import com.weighttrack.core.model.EntryTag
+import com.weighttrack.core.model.Goal
+import com.weighttrack.core.model.GoalDirection
+import com.weighttrack.core.model.MeasurementType
+import com.weighttrack.core.model.WeightEntry
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+
+/**
+ * Entity to domain conversion.
+ *
+ * Every decode is forgiving: an unknown enum name or an unparseable date falls back rather
+ * than throwing. A row written by a newer version of the app, or hand-edited in a database
+ * browser, must never crash the list it appears in.
+ */
+
+fun WeightEntryEntity.toDomain(): WeightEntry = WeightEntry(
+    id = id,
+    timestamp = Instant.ofEpochMilli(timestampUtcMillis),
+    zoneOffset = runCatching { ZoneOffset.ofTotalSeconds(zoneOffsetSeconds) }.getOrDefault(ZoneOffset.UTC),
+    localDate = parseDateOrDerive(localDate, timestampUtcMillis, zoneOffsetSeconds),
+    grams = grams,
+    bodyFatPercent = bodyFatPercent,
+    note = note,
+    tags = decodeTags(tags),
+    source = decodeEnum(source, EntrySource.entries, EntrySource.MANUAL),
+    clientRecordId = clientRecordId,
+    healthConnectId = healthConnectId,
+)
+
+fun WeightEntry.toEntity(updatedAtUtcMillis: Long = System.currentTimeMillis()): WeightEntryEntity =
+    WeightEntryEntity(
+        id = id,
+        timestampUtcMillis = timestamp.toEpochMilli(),
+        zoneOffsetSeconds = zoneOffset.totalSeconds,
+        localDate = localDate.toString(),
+        grams = grams,
+        bodyFatPercent = bodyFatPercent,
+        note = note?.takeIf { it.isNotBlank() },
+        tags = encodeTags(tags),
+        source = source.name,
+        clientRecordId = clientRecordId,
+        healthConnectId = healthConnectId,
+        updatedAtUtcMillis = updatedAtUtcMillis,
+    )
+
+fun MeasurementEntity.toDomain(): BodyMeasurement? {
+    val decodedType = MeasurementType.entries.firstOrNull { it.name == type } ?: return null
+    return BodyMeasurement(
+        id = id,
+        timestamp = Instant.ofEpochMilli(timestampUtcMillis),
+        localDate = parseDateOrDerive(localDate, timestampUtcMillis, 0),
+        type = decodedType,
+        valueMm = valueMm,
+        note = note,
+    )
+}
+
+fun BodyMeasurement.toEntity(updatedAtUtcMillis: Long = System.currentTimeMillis()): MeasurementEntity =
+    MeasurementEntity(
+        id = id,
+        timestampUtcMillis = timestamp.toEpochMilli(),
+        localDate = localDate.toString(),
+        type = type.name,
+        valueMm = valueMm,
+        note = note?.takeIf { it.isNotBlank() },
+        updatedAtUtcMillis = updatedAtUtcMillis,
+    )
+
+fun GoalEntity.toDomain(): Goal = Goal(
+    id = id,
+    direction = decodeEnum(direction, GoalDirection.entries, GoalDirection.LOSE),
+    startGrams = startGrams,
+    targetGrams = targetGrams,
+    startDate = runCatching { LocalDate.parse(startDate) }.getOrElse { LocalDate.now() },
+    targetDate = targetDate?.let { raw -> runCatching { LocalDate.parse(raw) }.getOrNull() },
+    milestoneStepGrams = milestoneStepGrams,
+    active = active,
+)
+
+fun Goal.toEntity(createdAtUtcMillis: Long = System.currentTimeMillis()): GoalEntity = GoalEntity(
+    id = id,
+    direction = direction.name,
+    startGrams = startGrams,
+    targetGrams = targetGrams,
+    startDate = startDate.toString(),
+    targetDate = targetDate?.toString(),
+    milestoneStepGrams = milestoneStepGrams,
+    active = active,
+    createdAtUtcMillis = createdAtUtcMillis,
+)
+
+internal fun encodeTags(tags: Set<EntryTag>): String =
+    tags.joinToString(separator = ",") { it.name }
+
+internal fun decodeTags(raw: String): Set<EntryTag> {
+    if (raw.isBlank()) return emptySet()
+    return raw.split(',')
+        .mapNotNull { name -> EntryTag.entries.firstOrNull { it.name == name.trim() } }
+        .toSet()
+}
+
+private fun <T : Enum<T>> decodeEnum(raw: String, values: List<T>, fallback: T): T =
+    values.firstOrNull { it.name == raw } ?: fallback
+
+/**
+ * Falls back to deriving the local date from the timestamp when the stored text is missing or
+ * malformed, so a bad row degrades to the right day rather than disappearing.
+ */
+private fun parseDateOrDerive(raw: String, timestampUtcMillis: Long, offsetSeconds: Int): LocalDate =
+    runCatching { LocalDate.parse(raw) }.getOrElse {
+        val offset = runCatching { ZoneOffset.ofTotalSeconds(offsetSeconds) }.getOrDefault(ZoneOffset.UTC)
+        Instant.ofEpochMilli(timestampUtcMillis).atOffset(offset).toLocalDate()
+    }
