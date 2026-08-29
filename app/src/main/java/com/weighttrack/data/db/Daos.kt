@@ -311,3 +311,28 @@ interface FastDao {
         )
     }
 }
+
+@Dao
+interface ProgressPhotoDao {
+
+    @Query("SELECT * FROM progress_photos ORDER BY timestampUtcMillis DESC")
+    fun observeAll(): Flow<List<ProgressPhotoEntity>>
+
+    @Query("SELECT * FROM progress_photos ORDER BY timestampUtcMillis DESC")
+    suspend fun all(): List<ProgressPhotoEntity>
+
+    @Query("SELECT * FROM progress_photos WHERE id = :id")
+    suspend fun byId(id: Long): ProgressPhotoEntity?
+
+    @Query("SELECT COUNT(*) FROM progress_photos")
+    fun observeCount(): Flow<Int>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(photo: ProgressPhotoEntity): Long
+
+    @Delete
+    suspend fun delete(photo: ProgressPhotoEntity)
+
+    @Query("DELETE FROM progress_photos")
+    suspend fun deleteAll()
+}

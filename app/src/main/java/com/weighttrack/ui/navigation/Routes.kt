@@ -18,6 +18,7 @@ object Routes {
     const val CRASH_LOGS = "crash-logs"
     const val WATER = "water"
     const val FASTING = "fasting"
+    const val PHOTOS = "photos"
     const val LOG = "log"
     const val LOG_WITH_ARG = "log?entryId={entryId}"
     const val ENTRY_ID_ARG = "entryId"

@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Only the progress photo directory is shared, and only so the camera app can write the file it
+  was asked to capture. Nothing else in app storage is exposed.
+-->
+<paths>
+    <files-path
+        name="progress-photos"
+        path="progress-photos/" />
+</paths>

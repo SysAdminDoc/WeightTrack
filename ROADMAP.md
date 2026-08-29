@@ -87,10 +87,8 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 ## Phase 2: v0.3.x, hardware and habits
 
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync
-- [ ] Progress photos: camera or gallery, side-by-side compare with weight overlay, stored locally, optional app lock
 - [ ] Bluetooth scales, foreground "step on the scale" screen. Order: standard Weight Scale / Body Composition services (0x181D / 0x181B), Xiaomi Mi Scale 2 broadcast decoding (no pairing), then Renpho, Eufy, Beurer/Sanitas re-implemented from openScale's protocol docs. Auto-assign to a profile by weight range.
 - [ ] Multiple profiles (family), each with its own Health Connect mapping and reminder
-- [ ] F-Droid submission
 
 ## Phase 3: v0.4.x, nutrition
 

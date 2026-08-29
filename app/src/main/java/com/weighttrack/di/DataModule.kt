@@ -9,6 +9,7 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.weighttrack.data.db.FastDao
 import com.weighttrack.data.db.GoalDao
+import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.MeasurementDao
 import com.weighttrack.data.db.WaterDao
 import com.weighttrack.data.db.WeightEntryDao
@@ -51,6 +52,10 @@ object DataModule {
 
     @Provides
     fun provideFastDao(database: WeightTrackDatabase): FastDao = database.fastDao()
+
+    @Provides
+    fun provideProgressPhotoDao(database: WeightTrackDatabase): ProgressPhotoDao =
+        database.progressPhotoDao()
 
     @Provides
     @Singleton

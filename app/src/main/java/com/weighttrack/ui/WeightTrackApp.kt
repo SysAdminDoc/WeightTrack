@@ -57,6 +57,8 @@ import com.weighttrack.ui.log.LogWeightViewModel
 import com.weighttrack.ui.measurements.MeasurementsScreen
 import com.weighttrack.ui.measurements.MeasurementsViewModel
 import com.weighttrack.ui.navigation.Routes
+import com.weighttrack.ui.photos.PhotosScreen
+import com.weighttrack.ui.photos.PhotosViewModel
 import com.weighttrack.ui.navigation.TopLevelDestination
 import com.weighttrack.ui.onboarding.OnboardingScreen
 import com.weighttrack.ui.onboarding.OnboardingViewModel
@@ -89,7 +91,8 @@ fun WeightTrackApp(
         currentRoute == Routes.MEASUREMENTS ||
         currentRoute == Routes.CRASH_LOGS ||
         currentRoute == Routes.WATER ||
-        currentRoute == Routes.FASTING
+        currentRoute == Routes.FASTING ||
+        currentRoute == Routes.PHOTOS
 
     Scaffold(
         modifier = modifier,
@@ -188,6 +191,7 @@ fun WeightTrackApp(
                     onOpenMeasurements = { navController.navigate(Routes.MEASUREMENTS) },
                     onOpenWater = { navController.navigate(Routes.WATER) },
                     onOpenFasting = { navController.navigate(Routes.FASTING) },
+                    onOpenPhotos = { navController.navigate(Routes.PHOTOS) },
                     waterSummary = waterSummary,
                 )
             }
@@ -291,6 +295,21 @@ fun WeightTrackApp(
                     onStartEditing = viewModel::startEditing,
                     onCancelEditing = viewModel::cancelEditing,
                     onSaveEdit = viewModel::saveEdit,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.PHOTOS) {
+                val viewModel: PhotosViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                PhotosScreen(
+                    state = state,
+                    onToggleSelection = viewModel::toggleSelection,
+                    onClearSelection = viewModel::clearSelection,
+                    onImport = viewModel::importFrom,
+                    onPrepareCapture = viewModel::prepareCapture,
+                    onCaptureResult = viewModel::onCaptureResult,
+                    onDelete = viewModel::delete,
                     onBack = { navController.popBackStack() },
                 )
             }

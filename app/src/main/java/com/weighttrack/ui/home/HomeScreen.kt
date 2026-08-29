@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.MonitorWeight
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -62,6 +63,7 @@ fun HomeScreen(
     onOpenMeasurements: () -> Unit,
     onOpenWater: () -> Unit,
     onOpenFasting: () -> Unit,
+    onOpenPhotos: () -> Unit,
     waterSummary: WaterSummary?,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
@@ -120,6 +122,14 @@ fun HomeScreen(
                 title = "Fasting",
                 subtitle = "Time an eating window",
                 onClick = onOpenFasting,
+            )
+        }
+        item {
+            HomeActionRow(
+                icon = Icons.Outlined.PhotoCamera,
+                title = "Progress photos",
+                subtitle = "Compare how you look over time",
+                onClick = onOpenPhotos,
             )
         }
         item { BodyStatsCard(snapshot, onOpenMeasurements) }

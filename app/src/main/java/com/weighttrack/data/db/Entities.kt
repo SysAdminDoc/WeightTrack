@@ -109,3 +109,27 @@ data class FastEntity(
     val note: String?,
     val updatedAtUtcMillis: Long,
 )
+
+/**
+ * A progress photo.
+ *
+ * Only the file name is stored, never a path: the directory is decided at runtime, so a row
+ * written on one install still resolves after a restore into a different data directory. The
+ * image itself lives in app-private storage and is excluded from backup like everything else.
+ */
+@Entity(
+    tableName = "progress_photos",
+    indices = [
+        Index(value = ["timestampUtcMillis"]),
+        Index(value = ["fileName"], unique = true),
+    ],
+)
+data class ProgressPhotoEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val timestampUtcMillis: Long,
+    val localDate: String,
+    val fileName: String,
+    /** The trend weight when the photo was taken, so a comparison can show the change. */
+    val weightGrams: Int?,
+    val note: String?,
+)

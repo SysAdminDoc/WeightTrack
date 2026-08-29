@@ -81,6 +81,20 @@
             </intent-filter>
         </receiver>
 
+        <!--
+          Lets the camera app write a capture straight into private storage. Grants are
+          per-URI and temporary; nothing else under files/ is reachable through it.
+        -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.photos"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+
         <receiver
             android:name=".widget.WaterWidgetReceiver"
             android:exported="false"
