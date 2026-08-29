@@ -16,6 +16,30 @@ import kotlin.math.sign
  * from the target. Showing "12,400 days" or a date in 2071 is the behaviour that makes people
  * distrust these apps, so the projection refuses instead.
  */
+/**
+ * Why no date is on offer.
+ *
+ * The projection refusing to guess is the honest answer, and it is also the one that reads as the
+ * app being broken unless it says which of these it is. Distrust of these apps is mostly built out
+ * of dates that were obviously invented; a refusal that explains itself is the opposite of that.
+ */
+enum class NoEtaReason {
+    /** Already there. */
+    REACHED,
+
+    /** Not enough weigh-ins yet to fit a rate to. */
+    NOT_ENOUGH_DATA,
+
+    /** The line is level, so no rate divides into the remaining distance. */
+    FLAT,
+
+    /** Moving away from the target, so at this rate it never arrives. */
+    WRONG_WAY,
+
+    /** So slow that the answer would be years out, which is noise rather than a forecast. */
+    TOO_FAR_OFF,
+}
+
 data class GoalProjection(
     val direction: GoalDirection,
     val startGrams: Int,
@@ -28,6 +52,12 @@ data class GoalProjection(
     val etaDaysPessimistic: Double?,
     val movingTowardGoal: Boolean,
     val reached: Boolean,
+    /** Null when there is a date. Otherwise which of the reasons applied. */
+    val noEtaReason: NoEtaReason? = null,
+    /** How many days of readings the rate was fitted to, for the explanation to quote. */
+    val fittedDays: Int = 0,
+    /** The rate the date came from, in grams a day. */
+    val fittedGramsPerDay: Double = 0.0,
 ) {
     fun etaDate(today: LocalDate): LocalDate? = etaDays?.let { today.plusDays(ceil(it).toLong()) }
 
@@ -70,6 +100,9 @@ object GoalProjector {
                 etaDaysPessimistic = null,
                 movingTowardGoal = withinBand,
                 reached = withinBand,
+                noEtaReason = NoEtaReason.REACHED,
+                fittedDays = rate.sampleDays,
+                fittedGramsPerDay = rate.gramsPerDay,
             )
         }
 
@@ -100,6 +133,16 @@ object GoalProjector {
         } else {
             daysFor(remaining, rate.gramsPerDay)
         }
+        val why = when {
+            eta != null -> null
+            reached -> NoEtaReason.REACHED
+            !rate.hasEnoughData -> NoEtaReason.NOT_ENOUGH_DATA
+            rate.gramsPerDay == 0.0 -> NoEtaReason.FLAT
+            !movingToward -> NoEtaReason.WRONG_WAY
+            // Moving the right way, with a rate, and still no date: the only way left is that
+            // daysFor refused because the answer was beyond the horizon.
+            else -> NoEtaReason.TOO_FAR_OFF
+        }
         // The faster bound of the rate gives the earlier date, and vice versa. Either bound is
         // dropped when it crosses zero, because a rate that might be flat implies no date.
         val etaOptimistic = if (eta == null) {
@@ -127,6 +170,9 @@ object GoalProjector {
             etaDaysPessimistic = etaPessimistic,
             movingTowardGoal = movingToward,
             reached = reached,
+            noEtaReason = why,
+            fittedDays = rate.sampleDays,
+            fittedGramsPerDay = rate.gramsPerDay,
         )
     }
 

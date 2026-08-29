@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — Explain the goal date: a "how this was worked out" view with the fitted window, rate, range and what would change it
-  Why: Happy Scale 2026.5.3 (2026-06-02) made this its headline trend feature; the projection already refuses fake precision and the reasoning behind a refusal is the part people distrust.
-  Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; core/src/main/java/com/weighttrack/core/math/GoalProjection.kt (all inputs already computed)
-  Touches: core/math/GoalProjection.kt (expose window start/end, slope, interval, reason for no date), new ui/goal/ProjectionExplainer.kt reachable from the Home goal card and the Goal screen, strings.xml
-  Acceptance: tapping the ETA opens a sheet listing the days used, the weekly rate with its interval, the earliest and latest date, and, when there is no date, which of the three refusal reasons applied; a core test asserts the reason enum for flat, away and beyond-three-years.
-  Complexity: M
-
 ### P2
 
 - [ ] P2 — Clear a profile's Health Connect rows when the claim moves to somebody else

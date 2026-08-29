@@ -1,6 +1,10 @@
 package com.weighttrack.ui.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -357,8 +361,20 @@ private fun GoalCard(
                 )
             }
             val etaDate = projection.etaDate(today)
+            // Tapping the date opens the working. A projected date is the thing people most want
+            // and least trust, and with good reason.
+            var explaining by remember { mutableStateOf(false) }
+            if (explaining) {
+                com.weighttrack.ui.goal.ProjectionExplainer(
+                    projection = projection,
+                    unit = unit,
+                    today = today,
+                    onDismiss = { explaining = false },
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Text(
+                modifier = Modifier.clickable { explaining = true },
                 text = when {
                     projection.reached -> stringResource(R.string.home_reached)
                     etaDate == null -> stringResource(R.string.home_not_on_this_trend)
