@@ -230,6 +230,26 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
+                SectionHeading("Food logging")
+                Spacer(Modifier.height(4.dp))
+                ToggleRow(
+                    label = "Keep a food database",
+                    checked = settings.nutritionEnabled,
+                    onCheckedChange = viewModel::setNutritionEnabled,
+                )
+                Text(
+                    // Off by default on purpose. Most people want a weight tracker, and a
+                    // calorie counter bolted onto the front of one is why the paid apps feel
+                    // like work.
+                    text = "Off by default. Turn it on and a Foods screen appears, with your own foods, recipes and lookups against Open Food Facts.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        item {
+            SettingsSection {
                 SectionHeading("Units")
                 Spacer(Modifier.height(8.dp))
                 Text("Weight", style = MaterialTheme.typography.bodyLarge)

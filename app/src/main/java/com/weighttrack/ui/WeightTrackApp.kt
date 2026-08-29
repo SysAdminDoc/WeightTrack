@@ -58,6 +58,8 @@ import com.weighttrack.ui.measurements.MeasurementsScreen
 import com.weighttrack.ui.measurements.MeasurementsViewModel
 import com.weighttrack.ui.navigation.Routes
 import com.weighttrack.ui.photos.PhotosScreen
+import com.weighttrack.ui.food.FoodScreen
+import com.weighttrack.ui.food.FoodViewModel
 import com.weighttrack.ui.photos.PhotosViewModel
 import com.weighttrack.ui.scale.ScaleScreen
 import com.weighttrack.ui.scale.ScaleViewModel
@@ -95,7 +97,8 @@ fun WeightTrackApp(
         currentRoute == Routes.WATER ||
         currentRoute == Routes.FASTING ||
         currentRoute == Routes.PHOTOS ||
-        currentRoute == Routes.SCALE
+        currentRoute == Routes.SCALE ||
+        currentRoute == Routes.FOODS
 
     Scaffold(
         modifier = modifier,
@@ -196,6 +199,8 @@ fun WeightTrackApp(
                     onOpenFasting = { navController.navigate(Routes.FASTING) },
                     onOpenPhotos = { navController.navigate(Routes.PHOTOS) },
                     onOpenScale = { navController.navigate(Routes.SCALE) },
+                    onOpenFoods = { navController.navigate(Routes.FOODS) },
+                    nutritionEnabled = snapshot.settings.nutritionEnabled,
                     waterSummary = waterSummary,
                 )
             }
@@ -309,6 +314,24 @@ fun WeightTrackApp(
                     onCancelEditing = viewModel::cancelEditing,
                     onSaveEdit = viewModel::saveEdit,
                     message = fastingMessage,
+                    onDismissMessage = viewModel::dismissMessage,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.FOODS) {
+                val viewModel: FoodViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                FoodScreen(
+                    state = state,
+                    onQueryChange = viewModel::setQuery,
+                    onSearchOnline = viewModel::searchOnline,
+                    onKeep = viewModel::keep,
+                    onFavourite = viewModel::setFavourite,
+                    onDelete = viewModel::delete,
+                    onAddCustom = viewModel::addCustom,
+                    onDeleteRecipe = viewModel::deleteRecipe,
+                    onSetUsdaKey = viewModel::setUsdaKey,
                     onDismissMessage = viewModel::dismissMessage,
                     onBack = { navController.popBackStack() },
                 )

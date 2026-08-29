@@ -88,7 +88,6 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 Kept optional so the weight-only experience stays clean. Off by default, one toggle to enable.
 
-- [ ] Food database: Open Food Facts v3 (cached, rate-limited client, attribution), USDA FoodData Central, custom foods, recipes
 - [ ] Barcode scanning: ML Kit in `play`, ZXing in `foss`
 - [ ] Calorie and macro logging by meal, favorites and recents, copy yesterday, quick-add calories
 - [ ] Custom macro targets in grams or percent, per-day targets

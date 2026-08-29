@@ -2,6 +2,10 @@ package com.weighttrack.data.food
 
 import com.weighttrack.BuildConfig
 import com.weighttrack.core.nutrition.OpenFoodFactsClient
+import com.weighttrack.core.nutrition.UsdaFoodDataClient
+import com.weighttrack.data.prefs.SettingsRepository
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
@@ -49,11 +53,34 @@ class FoodHttp @Inject constructor() {
     }
 }
 
-/** Builds the client with this build's identification, which the service asks every caller for. */
+/**
+ * The food databases, built with this build's identification.
+ *
+ * One instance each, held for the life of the app, because the rate limiters inside them are the
+ * whole point: a fresh client per search would forget how many requests had already gone out.
+ */
 @Singleton
-class OpenFoodFactsFactory @Inject constructor(private val http: FoodHttp) {
-    fun create(): OpenFoodFactsClient = OpenFoodFactsClient(
-        fetch = { url, agent -> http.get(url, agent) },
-        userAgent = OpenFoodFactsClient.userAgent(BuildConfig.VERSION_NAME),
-    )
+class FoodClients @Inject constructor(
+    private val http: FoodHttp,
+    private val settingsRepository: SettingsRepository,
+) {
+    private val agent = OpenFoodFactsClient.userAgent(BuildConfig.VERSION_NAME)
+
+    private val off by lazy {
+        OpenFoodFactsClient(fetch = { url, ua -> http.get(url, ua) }, userAgent = agent)
+    }
+
+    private val fdc by lazy {
+        UsdaFoodDataClient(
+            fetch = { url, ua -> http.get(url, ua) },
+            userAgent = agent,
+            // Read each time rather than captured: somebody pasting a key expects the next
+            // search to use it, not the one after a restart.
+            apiKey = { runBlocking { settingsRepository.settings.first().usdaApiKey } },
+        )
+    }
+
+    fun openFoodFacts(): OpenFoodFactsClient = off
+
+    fun usda(): UsdaFoodDataClient = fdc
 }

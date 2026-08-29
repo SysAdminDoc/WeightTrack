@@ -20,6 +20,7 @@ object Routes {
     const val FASTING = "fasting"
     const val PHOTOS = "photos"
     const val SCALE = "scale"
+    const val FOODS = "foods"
     const val LOG = "log"
     const val LOG_WITH_ARG = "log?entryId={entryId}"
     const val ENTRY_ID_ARG = "entryId"

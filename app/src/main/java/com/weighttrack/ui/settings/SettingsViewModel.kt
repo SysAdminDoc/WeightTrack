@@ -187,6 +187,10 @@ class SettingsViewModel @Inject constructor(
 
     fun canScheduleExactAlarms(): Boolean = reminderScheduler.canScheduleExact()
 
+    fun setNutritionEnabled(enabled: Boolean) = viewModelScope.launch {
+        settingsRepository.setNutritionEnabled(enabled)
+    }
+
     fun setWeeklySummary(enabled: Boolean, day: java.time.DayOfWeek, hour: Int) {
         viewModelScope.launch {
             settingsRepository.setWeeklySummary(enabled, day, hour)
