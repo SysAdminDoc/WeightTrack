@@ -284,3 +284,28 @@ data class FoodLogEntryEntity(
     val fatG: Double?,
     val loggedAtUtcMillis: Long,
 )
+
+/**
+ * What a day is meant to come to, for one person.
+ *
+ * One row with no day is the target for any day without one of its own. Stored as grams
+ * whatever the person typed, because a percentage of a calorie figure that later changes would
+ * silently mean something different.
+ */
+@Entity(
+    tableName = "macro_targets",
+    indices = [Index(value = ["profileId", "dayOfWeek"], unique = true)],
+)
+data class MacroTargetEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val profileId: Long,
+    /** Null for the target that applies to every day without one of its own. */
+    val dayOfWeek: String?,
+    val kcal: Double,
+    val proteinG: Double?,
+    val carbsG: Double?,
+    val fatG: Double?,
+    /** Only how it is shown and edited. What is stored is always grams. */
+    val basis: String,
+    val updatedAtUtcMillis: Long,
+)

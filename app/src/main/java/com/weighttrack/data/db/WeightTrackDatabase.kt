@@ -19,8 +19,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RecipeEntity::class,
         RecipeItemEntity::class,
         FoodLogEntryEntity::class,
+        MacroTargetEntity::class,
     ],
-    version = 7,
+    version = 8,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -36,6 +37,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // handles them alone.
         AutoMigration(from = 5, to = 6),
         AutoMigration(from = 6, to = 7),
+        AutoMigration(from = 7, to = 8),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {
@@ -48,6 +50,7 @@ abstract class WeightTrackDatabase : RoomDatabase() {
     abstract fun profileDao(): ProfileDao
     abstract fun foodDao(): FoodDao
     abstract fun foodLogDao(): FoodLogDao
+    abstract fun macroTargetDao(): MacroTargetDao
 
     /**
      * Creates the profile every existing row was just handed to.

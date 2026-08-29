@@ -474,6 +474,7 @@ interface ProfileDao {
         deleteFasts(profile.id)
         deleteProgressPhotos(profile.id)
         deleteFoodLog(profile.id)
+        deleteMacroTargets(profile.id)
         delete(profile)
     }
 
@@ -497,6 +498,9 @@ interface ProfileDao {
 
     @Query("DELETE FROM food_log_entries WHERE profileId = :profileId")
     suspend fun deleteFoodLog(profileId: Long)
+
+    @Query("DELETE FROM macro_targets WHERE profileId = :profileId")
+    suspend fun deleteMacroTargets(profileId: Long)
 }
 
 /** A recipe with everything in it, which is the only useful way to read one. */
@@ -679,4 +683,23 @@ interface FoodLogDao {
 
     @Query("DELETE FROM food_log_entries")
     suspend fun deleteAll()
+}
+
+@Dao
+interface MacroTargetDao {
+
+    @Query("SELECT * FROM macro_targets WHERE profileId = :profileId")
+    fun observeAll(profileId: Long): Flow<List<MacroTargetEntity>>
+
+    @Query("SELECT * FROM macro_targets WHERE profileId = :profileId")
+    suspend fun all(profileId: Long): List<MacroTargetEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsert(target: MacroTargetEntity)
+
+    @Query("DELETE FROM macro_targets WHERE profileId = :profileId AND dayOfWeek IS :dayOfWeek")
+    suspend fun clear(profileId: Long, dayOfWeek: String?)
+
+    @Query("DELETE FROM macro_targets WHERE profileId = :profileId")
+    suspend fun clearAll(profileId: Long)
 }

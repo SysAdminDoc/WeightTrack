@@ -337,6 +337,7 @@ fun WeightTrackApp(
                     onLog = viewModel::log,
                     onQuickAdd = viewModel::quickAdd,
                     onCopyYesterday = viewModel::copyYesterday,
+                    onSetTarget = viewModel::setTarget,
                     onDelete = viewModel::delete,
                     onDismissMessage = viewModel::dismissMessage,
                     onBack = { navController.popBackStack() },

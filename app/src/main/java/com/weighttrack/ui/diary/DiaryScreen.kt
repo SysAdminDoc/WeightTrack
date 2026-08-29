@@ -37,6 +37,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.weighttrack.core.nutrition.Food
+import com.weighttrack.core.nutrition.MacroBasis
+import com.weighttrack.core.nutrition.MacroTarget
 import com.weighttrack.core.nutrition.Meal
 import com.weighttrack.data.repo.DayLog
 import com.weighttrack.data.repo.FoodLogEntry
@@ -61,6 +63,7 @@ fun DiaryScreen(
     onLog: (Food, Double, Meal) -> Unit,
     onQuickAdd: (Double, Meal, String) -> Unit,
     onCopyYesterday: (Meal?) -> Unit,
+    onSetTarget: (Double, Double?, Double?, Double?, MacroBasis, java.time.DayOfWeek?) -> Unit,
     onDelete: (FoodLogEntry) -> Unit,
     onDismissMessage: () -> Unit,
     onBack: () -> Unit,
@@ -75,6 +78,7 @@ fun DiaryScreen(
     }
     var adding by remember { mutableStateOf<Meal?>(null) }
     var quickAdding by remember { mutableStateOf<Meal?>(null) }
+    var editingTarget by remember { mutableStateOf(false) }
 
     Scaffold(
         modifier = modifier,
@@ -125,13 +129,32 @@ fun DiaryScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
+                    state.remaining?.let { left ->
+                        Text(
+                            text = if (left.isOver) {
+                                "${-left.kcalRounded} over"
+                            } else {
+                                "${left.kcalRounded} left of ${state.target!!.kcal.roundToInt()}"
+                            },
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = if (left.isOver) {
+                                MaterialTheme.colorScheme.tertiary
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        )
+                    }
                     Spacer(Modifier.height(8.dp))
-                    MacroRow(state.day)
+                    MacroRow(state.day, state.target)
                     Spacer(Modifier.height(8.dp))
-                    OutlinedButton(
-                        onClick = { onCopyYesterday(null) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) { Text("Copy the day before") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { onCopyYesterday(null) }) {
+                            Text("Copy the day before")
+                        }
+                        OutlinedButton(onClick = { editingTarget = true }) {
+                            Text(if (state.target == null) "Set a target" else "Target")
+                        }
+                    }
                 }
             }
 
@@ -202,6 +225,18 @@ fun DiaryScreen(
         )
     }
 
+    if (editingTarget) {
+        TargetDialog(
+            current = state.target,
+            day = state.date.dayOfWeek,
+            onCancel = { editingTarget = false },
+            onSave = { kcal, protein, carbs, fat, basis, day ->
+                onSetTarget(kcal, protein, carbs, fat, basis, day)
+                editingTarget = false
+            },
+        )
+    }
+
     quickAdding?.let { meal ->
         QuickAddDialog(
             meal = meal,
@@ -215,15 +250,20 @@ fun DiaryScreen(
 }
 
 @Composable
-private fun MacroRow(day: DayLog) {
+private fun MacroRow(day: DayLog, target: MacroTarget?) {
     val total = day.total
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
         // Only what is actually known. A day with one quick-add in it has no honest protein
         // figure, and printing zero would be a claim nobody made.
-        LabelledValue("Protein", total.proteinG?.let { "${it.roundToInt()} g" } ?: "--")
-        LabelledValue("Carbs", total.carbsG?.let { "${it.roundToInt()} g" } ?: "--")
-        LabelledValue("Fat", total.fatG?.let { "${it.roundToInt()} g" } ?: "--")
+        LabelledValue("Protein", macroText(total.proteinG, target?.proteinG))
+        LabelledValue("Carbs", macroText(total.carbsG, target?.carbsG))
+        LabelledValue("Fat", macroText(total.fatG, target?.fatG))
     }
+}
+
+private fun macroText(eaten: Double?, target: Double?): String {
+    val amount = eaten?.let { "${it.roundToInt()} g" } ?: "--"
+    return target?.let { "$amount / ${it.roundToInt()} g" } ?: amount
 }
 
 /**
@@ -374,4 +414,120 @@ private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, Str
         },
         dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
     )
+}
+
+/**
+ * What a day should come to.
+ *
+ * Grams or shares, whichever the person thinks in. Lifting and medical advice come in grams,
+ * most diets are described as percentages, and the app converts rather than insisting.
+ */
+@Composable
+private fun TargetDialog(
+    current: MacroTarget?,
+    day: java.time.DayOfWeek,
+    onCancel: () -> Unit,
+    onSave: (Double, Double?, Double?, Double?, MacroBasis, java.time.DayOfWeek?) -> Unit,
+) {
+    var basis by remember { mutableStateOf(current?.basis ?: MacroBasis.GRAMS) }
+    var kcal by remember { mutableStateOf(current?.kcal?.roundToInt()?.toString() ?: "") }
+    var protein by remember { mutableStateOf(fieldFor(current?.proteinG, current?.proteinPercent, basis)) }
+    var carbs by remember { mutableStateOf(fieldFor(current?.carbsG, current?.carbsPercent, basis)) }
+    var fat by remember { mutableStateOf(fieldFor(current?.fatG, current?.fatPercent, basis)) }
+    var justThisDay by remember { mutableStateOf(false) }
+
+    val kcalValue = kcal.toDoubleOrNull()
+    val valid = kcalValue != null && kcalValue > 0
+
+    fun grams(text: String, kcalPerGram: Double): Double? {
+        val value = text.toDoubleOrNull() ?: return null
+        return if (basis == MacroBasis.GRAMS) {
+            value
+        } else {
+            MacroTarget.gramsFromPercent(kcalValue ?: 0.0, value, kcalPerGram)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text("Daily target") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = kcal,
+                    onValueChange = { kcal = keepNumeric(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Calories") },
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MacroBasis.entries.forEach { option ->
+                        SegmentButton(
+                            label = if (option == MacroBasis.GRAMS) "Grams" else "Percent",
+                            selected = basis == option,
+                            onClick = { basis = option },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(8.dp))
+                val suffix = if (basis == MacroBasis.GRAMS) "g" else "%"
+                OutlinedTextField(
+                    value = protein,
+                    onValueChange = { protein = keepNumeric(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Protein $suffix (optional)") },
+                )
+                OutlinedTextField(
+                    value = carbs,
+                    onValueChange = { carbs = keepNumeric(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Carbohydrate $suffix (optional)") },
+                )
+                OutlinedTextField(
+                    value = fat,
+                    onValueChange = { fat = keepNumeric(it) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text("Fat $suffix (optional)") },
+                )
+                Spacer(Modifier.height(6.dp))
+                SegmentButton(
+                    label = "Only on a " + day.name.lowercase().replaceFirstChar(Char::uppercase),
+                    selected = justThisDay,
+                    onClick = { justThisDay = !justThisDay },
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    // Eating the same on a rest day as on a long run is what this is for.
+                    text = "Leave that off and this is the target for every day that has not got one of its own.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = valid,
+                onClick = {
+                    onSave(
+                        kcalValue ?: 0.0,
+                        grams(protein, MacroTarget.KCAL_PER_GRAM_PROTEIN),
+                        grams(carbs, MacroTarget.KCAL_PER_GRAM_CARBS),
+                        grams(fat, MacroTarget.KCAL_PER_GRAM_FAT),
+                        basis,
+                        day.takeIf { justThisDay },
+                    )
+                },
+            ) { Text("Save") }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text("Cancel") } },
+    )
+}
+
+private fun fieldFor(grams: Double?, percent: Double?, basis: MacroBasis): String {
+    val value = if (basis == MacroBasis.GRAMS) grams else percent
+    return value?.roundToInt()?.toString().orEmpty()
 }

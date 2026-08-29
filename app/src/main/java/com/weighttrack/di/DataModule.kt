@@ -12,6 +12,7 @@ import com.weighttrack.data.db.FastDao
 import com.weighttrack.data.db.GoalDao
 import com.weighttrack.data.db.FoodDao
 import com.weighttrack.data.db.FoodLogDao
+import com.weighttrack.data.db.MacroTargetDao
 import com.weighttrack.data.db.ProfileDao
 import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.MeasurementDao
@@ -100,4 +101,8 @@ object DataModule {
 
     @Provides
     fun provideFoodLogDao(database: WeightTrackDatabase): FoodLogDao = database.foodLogDao()
+
+    @Provides
+    fun provideMacroTargetDao(database: WeightTrackDatabase): MacroTargetDao =
+        database.macroTargetDao()
 }

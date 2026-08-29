@@ -3,11 +3,15 @@ package com.weighttrack.ui.diary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.core.nutrition.Food
+import com.weighttrack.core.nutrition.MacroBasis
+import com.weighttrack.core.nutrition.MacroTarget
+import com.weighttrack.core.nutrition.MacroTargets
 import com.weighttrack.core.nutrition.Meal
 import com.weighttrack.data.repo.DayLog
 import com.weighttrack.data.repo.FoodLogEntry
 import com.weighttrack.data.repo.FoodLogRepository
 import com.weighttrack.data.repo.FoodRepository
+import com.weighttrack.data.repo.MacroTargetRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,8 +39,13 @@ data class DiaryUiState(
     val searchResults: List<Food> = emptyList(),
     val query: String = "",
     val message: String? = null,
+    /** What this day is meant to come to, when there is a target at all. */
+    val target: MacroTarget? = null,
 ) {
     val isToday: Boolean get() = date == LocalDate.now()
+
+    /** What is left of the day, which is the number people actually look at. */
+    val remaining get() = target?.remaining(day.total)
 }
 
 /**
@@ -51,6 +60,7 @@ data class DiaryUiState(
 class DiaryViewModel @Inject constructor(
     private val foodLogRepository: FoodLogRepository,
     private val foodRepository: FoodRepository,
+    private val macroTargetRepository: MacroTargetRepository,
 ) : ViewModel() {
 
     private val date = MutableStateFlow(LocalDate.now())
@@ -58,7 +68,7 @@ class DiaryViewModel @Inject constructor(
     private val message = MutableStateFlow<String?>(null)
 
     val state: StateFlow<DiaryUiState> = combine(
-        date,
+        combine(date, macroTargetRepository.observe()) { date, targets -> date to targets },
         date.flatMapLatest { foodLogRepository.observeDay(it) },
         // Every food, already ordered favourites first and then by what was eaten most
         // recently. Offering only the recents means the first food somebody adds can never be
@@ -66,9 +76,11 @@ class DiaryViewModel @Inject constructor(
         foodRepository.search("", SUGGESTION_LIMIT),
         query.flatMapLatest { foodRepository.search(it) },
         message,
-    ) { date, day, recent, results, message ->
+    ) { dateAndTargets, day, recent, results, message ->
+        val (date, targets) = dateAndTargets
         DiaryUiState(
             date = date,
+            target = targets.forDay(date.dayOfWeek),
             day = day,
             suggestions = recent,
             searchResults = if (query.value.isBlank()) emptyList() else results,
@@ -128,6 +140,45 @@ class DiaryViewModel @Inject constructor(
 
     fun dismissMessage() {
         message.value = null
+    }
+
+    /**
+     * Sets what a day should come to.
+     *
+     * Grams are stored whatever was typed. A share of a calorie figure that later changes would
+     * silently mean something different, and grams are what a food is measured in.
+     */
+    fun setTarget(
+        kcal: Double,
+        proteinG: Double?,
+        carbsG: Double?,
+        fatG: Double?,
+        basis: MacroBasis,
+        day: java.time.DayOfWeek? = null,
+    ) {
+        if (kcal <= 0) return
+        viewModelScope.launch {
+            macroTargetRepository.set(
+                MacroTarget(
+                    kcal = kcal,
+                    proteinG = proteinG,
+                    carbsG = carbsG,
+                    fatG = fatG,
+                    basis = basis,
+                ),
+                day = day,
+            )
+            message.value = day
+                ?.let { "Target set for every " + it.name.lowercase().replaceFirstChar(Char::uppercase) + "." }
+                ?: "Daily target set."
+        }
+    }
+
+    fun clearTarget(day: java.time.DayOfWeek? = null) {
+        viewModelScope.launch {
+            macroTargetRepository.clear(day)
+            message.value = if (day == null) "Target cleared." else "That day is back on the everyday target."
+        }
     }
 
     companion object {
