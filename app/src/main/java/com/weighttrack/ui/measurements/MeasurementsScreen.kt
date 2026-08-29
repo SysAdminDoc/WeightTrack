@@ -1,6 +1,7 @@
 package com.weighttrack.ui.measurements
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,16 +10,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -71,25 +72,48 @@ fun MeasurementsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                SectionCard {
-                    SectionHeading("Why these matter")
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = "Neck, waist and hips feed the body fat estimate. Waist alone is the single best predictor of health risk, better than weight or BMI, and it often keeps falling through a plateau on the scale.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                SectionCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp)) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.Info,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(32.dp),
+                        )
+                        Column {
+                            Text("Track more than the scale", style = MaterialTheme.typography.titleMedium)
+                            Spacer(Modifier.height(2.dp))
+                            Text(
+                                text = "Waist, neck and hips improve your body-fat estimate.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
 
-            item { SectionHeading("For the body fat estimate", Modifier.padding(top = 8.dp)) }
-            items(MeasurementType.entries.filter { it.usedForBodyFat }, key = { it.name }) { type ->
-                MeasurementRow(type, state, today, onStartEditing)
+            item { SectionHeading("Body fat estimate", Modifier.padding(top = 8.dp)) }
+            item {
+                MeasurementGroup(
+                    types = MeasurementType.entries.filter { it.usedForBodyFat },
+                    state = state,
+                    today = today,
+                    onStartEditing = onStartEditing,
+                )
             }
 
-            item { SectionHeading("Everything else", Modifier.padding(top = 12.dp)) }
-            items(MeasurementType.entries.filter { !it.usedForBodyFat }, key = { it.name }) { type ->
-                MeasurementRow(type, state, today, onStartEditing)
+            item { SectionHeading("Other measurements", Modifier.padding(top = 12.dp)) }
+            item {
+                MeasurementGroup(
+                    types = MeasurementType.entries.filter { !it.usedForBodyFat },
+                    state = state,
+                    today = today,
+                    onStartEditing = onStartEditing,
+                )
             }
         }
     }
@@ -124,6 +148,30 @@ fun MeasurementsScreen(
 }
 
 @Composable
+private fun MeasurementGroup(
+    types: List<MeasurementType>,
+    state: MeasurementsUiState,
+    today: LocalDate,
+    onStartEditing: (MeasurementType) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        types.forEachIndexed { index, type ->
+            MeasurementRow(type, state, today, onStartEditing)
+            if (index < types.lastIndex) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(start = 16.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
+                )
+            }
+        }
+    }
+}
+
+@Composable
 private fun MeasurementRow(
     type: MeasurementType,
     state: MeasurementsUiState,
@@ -131,39 +179,39 @@ private fun MeasurementRow(
     onStartEditing: (MeasurementType) -> Unit,
 ) {
     val measurement = state.latest[type]
-    Card(
-        onClick = { onStartEditing(type) },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        ),
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable { onStartEditing(type) }
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
     ) {
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(measurementLabel(type), style = MaterialTheme.typography.bodyLarge)
-                Text(
-                    text = measurement
-                        ?.let { "Updated ${DateFormatters.sinceDay(it.localDate, today)}" }
-                        ?: "Not measured yet",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+        Column(Modifier.weight(1f)) {
+            Text(measurementLabel(type), style = MaterialTheme.typography.titleMedium)
             Text(
-                text = measurement?.let { LengthFormatter.full(it.valueMm, state.lengthUnit) } ?: "Add",
-                style = MaterialTheme.typography.titleMedium,
-                color = if (measurement == null) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                },
+                text = measurement
+                    ?.let { "Updated ${DateFormatters.sinceDay(it.localDate, today)}" }
+                    ?: "Not measured yet",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+        Text(
+            text = measurement?.let { LengthFormatter.full(it.valueMm, state.lengthUnit) } ?: "Add",
+            style = MaterialTheme.typography.titleMedium,
+            color = if (measurement == null) {
+                MaterialTheme.colorScheme.primary
+            } else {
+                MaterialTheme.colorScheme.onSurface
+            },
+        )
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 8.dp),
+        )
     }
 }
 

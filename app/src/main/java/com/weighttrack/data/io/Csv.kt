@@ -25,7 +25,7 @@ object Csv {
     private val CANDIDATE_DELIMITERS = charArrayOf(',', ';', '\t')
 
     fun parse(text: String): CsvTable? {
-        val cleaned = text.removePrefix("﻿")
+        val cleaned = text.removePrefix("\uFEFF")
         if (cleaned.isBlank()) return null
         val delimiter = detectDelimiter(cleaned)
         val records = parseRecords(cleaned, delimiter)

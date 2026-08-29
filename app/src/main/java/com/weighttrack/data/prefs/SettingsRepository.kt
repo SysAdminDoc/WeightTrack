@@ -23,7 +23,7 @@ import javax.inject.Singleton
 data class AppSettings(
     val weightUnit: WeightUnit = WeightUnit.KG,
     val lengthUnit: LengthUnit = LengthUnit.CM,
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    val themeMode: ThemeMode = ThemeMode.AMOLED,
     val dynamicColor: Boolean = false,
     val profile: UserProfile = UserProfile(),
     val trendWindowDays: Int = TrendEngine.DEFAULT_WINDOW_DAYS,
@@ -83,7 +83,7 @@ class SettingsRepository @Inject constructor(
     private fun Preferences.toSettings(): AppSettings = AppSettings(
         weightUnit = enumOrDefault(this[Keys.WEIGHT_UNIT], WeightUnit.entries, WeightUnit.KG),
         lengthUnit = enumOrDefault(this[Keys.LENGTH_UNIT], LengthUnit.entries, LengthUnit.CM),
-        themeMode = enumOrDefault(this[Keys.THEME_MODE], ThemeMode.entries, ThemeMode.SYSTEM),
+        themeMode = enumOrDefault(this[Keys.THEME_MODE], ThemeMode.entries, ThemeMode.AMOLED),
         dynamicColor = this[Keys.DYNAMIC_COLOR] ?: false,
         profile = UserProfile(
             heightMm = this[Keys.HEIGHT_MM] ?: 0,

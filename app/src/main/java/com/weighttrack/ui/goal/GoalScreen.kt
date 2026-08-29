@@ -1,6 +1,7 @@
 package com.weighttrack.ui.goal
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -16,7 +18,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -38,8 +39,10 @@ import com.weighttrack.core.math.Milestones
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.LabelledValue
+import com.weighttrack.ui.components.GoalProgressBar
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
+import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.WeightKeypad
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.format.WeightFormatter
@@ -92,7 +95,7 @@ fun GoalScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             if (state.currentGrams == null) {
                 Text(
@@ -131,8 +134,8 @@ fun GoalScreen(
                 val change = state.targetGrams - state.currentGrams
                 Text(
                     text = when (state.direction) {
-                        GoalDirection.LOSE -> "Losing ${WeightFormatter.full(abs(change), state.unit)} from where you are now."
-                        GoalDirection.GAIN -> "Gaining ${WeightFormatter.full(abs(change), state.unit)} from where you are now."
+                        GoalDirection.LOSE -> "↓ ${WeightFormatter.full(abs(change), state.unit)} to lose"
+                        GoalDirection.GAIN -> "↑ ${WeightFormatter.full(abs(change), state.unit)} to gain"
                         else -> "Holding steady at your current weight."
                     },
                     style = MaterialTheme.typography.bodyMedium,
@@ -142,48 +145,56 @@ fun GoalScreen(
 
             WeightKeypad(onDigit = onDigit, onBackspace = onBackspace, onClear = onClear)
 
-            SectionCard {
+            SectionCard(contentPadding = PaddingValues(12.dp)) {
                 SectionHeading("Milestones")
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "A big goal is easier to hold on to when it is broken into steps you actually reach.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     milestoneOptions.forEach { (label, grams) ->
-                        FilterChip(
+                        SegmentButton(
+                            label = label,
                             selected = state.milestoneStepGrams == grams,
                             onClick = { onMilestoneStepChange(grams) },
-                            label = { Text(label) },
+                            modifier = Modifier.weight(1f),
                         )
                     }
                 }
                 if (state.canSave && state.direction != GoalDirection.MAINTAIN) {
-                    val count = Milestones.generate(
+                    val milestones = Milestones.generate(
                         state.currentGrams,
                         state.targetGrams,
                         state.milestoneStepGrams,
-                    ).size
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text(
-                        text = "That gives you $count milestones along the way.",
+                        text = "${milestones.size} milestones on the way",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(10.dp))
+                    GoalProgressBar(
+                        progress = 1f,
+                        milestoneFractions = milestones.indices.map { (it + 1f) / milestones.size },
+                        reachedCount = 0,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                    ) {
+                        milestones.forEach { milestone ->
+                            Text(
+                                text = WeightFormatter.full(milestone.grams, state.unit),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
                 }
             }
 
-            SectionCard {
+            SectionCard(contentPadding = PaddingValues(12.dp)) {
                 SectionHeading("Target date")
                 Spacer(Modifier.height(4.dp))
-                Text(
-                    text = "Optional. WeightTrack projects a date from your actual rate either way; setting one here just tells you what pace it would take.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = { showDatePicker = true }) {
                         Text(state.targetDate?.let { DateFormatters.fullDate(it) } ?: "Pick a date")
@@ -213,6 +224,7 @@ fun GoalScreen(
             Button(
                 onClick = onSave,
                 enabled = state.canSave,
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
                 Text(if (state.hasExistingGoal) "Save goal" else "Set goal")

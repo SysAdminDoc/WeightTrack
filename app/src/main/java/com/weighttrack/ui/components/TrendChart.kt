@@ -17,7 +17,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
@@ -207,32 +206,17 @@ fun TrendChart(
             }
         }
 
-        // The trend, filled below to give the line weight against the raw scatter.
+        // The trend stays unfilled so raw readings and reference lines remain crisp.
         val trendPath = Path()
-        val fillPath = Path()
         visible.forEachIndexed { index, point ->
             val x = xFor(point.date)
             val y = yFor(point.trendGrams)
             if (index == 0) {
                 trendPath.moveTo(x, y)
-                fillPath.moveTo(x, plot.bottom)
-                fillPath.lineTo(x, y)
             } else {
                 trendPath.lineTo(x, y)
-                fillPath.lineTo(x, y)
             }
         }
-        fillPath.lineTo(xFor(visible.last().date), plot.bottom)
-        fillPath.close()
-
-        drawPath(
-            path = fillPath,
-            brush = Brush.verticalGradient(
-                colors = listOf(colors.fill.copy(alpha = 0.28f), Color.Transparent),
-                startY = plot.top,
-                endY = plot.bottom,
-            ),
-        )
 
         if (showRawReadings) {
             visible.forEach { point ->

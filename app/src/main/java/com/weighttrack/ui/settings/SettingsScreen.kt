@@ -21,13 +21,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
@@ -39,6 +40,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -55,13 +58,12 @@ import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.notifications.ReminderReceiver
 import com.weighttrack.ui.components.LabelledValue
-import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
+import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.format.LengthFormatter
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.format.TextStyle
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,23 +126,29 @@ fun SettingsScreen(
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 96.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (busy) {
             item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
         }
 
         item {
-            SectionCard {
+            SettingsSection {
                 SectionHeading("Units")
                 Spacer(Modifier.height(8.dp))
+                Text("Weight", style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(6.dp))
                 ChipRow(
                     options = WeightUnit.entries.map { it to weightUnitLabel(it) },
                     selected = settings.weightUnit,
                     onSelect = viewModel::setWeightUnit,
                 )
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.64f))
+                Spacer(Modifier.height(12.dp))
+                Text("Measurements", style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(6.dp))
                 ChipRow(
                     options = LengthUnit.entries.map { it to lengthUnitLabel(it) },
                     selected = settings.lengthUnit,
@@ -156,7 +164,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard {
+            SettingsSection {
                 SectionHeading("Appearance")
                 Spacer(Modifier.height(8.dp))
                 ChipRow(
@@ -176,11 +184,11 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard {
+            SettingsSection {
                 SectionHeading("Trend smoothing")
                 Spacer(Modifier.height(4.dp))
                 Text(
-                    text = "A shorter window follows the scale more closely. A longer one is steadier but slower to react. Ten days is the setting the Hacker's Diet uses and it suits most people.",
+                    text = "A shorter window follows the scale more closely.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -196,8 +204,8 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard {
-                SectionHeading("About you")
+            SettingsSection {
+                SectionHeading("Profile")
                 Spacer(Modifier.height(4.dp))
                 Text(
                     text = "Only used to work out BMI, body fat and how many calories you burn. It never leaves the phone.",
@@ -300,7 +308,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard {
+            SettingsSection {
                 SectionHeading("Your data")
                 Spacer(Modifier.height(4.dp))
                 LabelledValue("Readings stored", entryCount.toString())
@@ -349,7 +357,7 @@ fun SettingsScreen(
         }
 
         item {
-            SectionCard {
+            SettingsSection {
                 SectionHeading("About")
                 Spacer(Modifier.height(6.dp))
                 LabelledValue("Version", BuildConfig.VERSION_NAME)
@@ -406,7 +414,8 @@ private fun ReminderCard(
     onTest: () -> Unit,
     onOpenExactAlarmSettings: () -> Unit,
 ) {
-    SectionCard {
+    val locale = LocalConfiguration.current.locales[0]
+    SettingsSection {
         SectionHeading("Weigh-in reminder")
         Spacer(Modifier.height(6.dp))
         ToggleRow(
@@ -417,16 +426,14 @@ private fun ReminderCard(
         if (settings.reminderEnabled) {
             Spacer(Modifier.height(6.dp))
             TextButton(onClick = onEditTime) {
-                Text("At %02d:%02d".format(settings.reminderHour, settings.reminderMinute))
+                Text(String.format(locale, "At %02d:%02d", settings.reminderHour, settings.reminderMinute))
             }
             FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 DayOfWeek.entries.forEach { day ->
-                    FilterChip(
+                    SegmentButton(
+                        label = day.getDisplayName(TextStyle.SHORT, locale),
                         selected = day in settings.reminderDays,
                         onClick = { onToggleDay(day) },
-                        label = {
-                            Text(day.getDisplayName(TextStyle.SHORT, Locale.getDefault()))
-                        },
                     )
                 }
             }
@@ -466,7 +473,7 @@ private fun HealthConnectCard(
     onSync: () -> Unit,
     onInstall: () -> Unit,
 ) {
-    SectionCard {
+    SettingsSection {
         SectionHeading("Health Connect")
         Spacer(Modifier.height(6.dp))
         when (state.availability) {
@@ -509,6 +516,17 @@ private fun HealthConnectCard(
 }
 
 @Composable
+private fun SettingsSection(content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RectangleShape,
+        color = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 16.dp), content = content)
+    }
+}
+
+@Composable
 private fun <T> ChipRow(
     options: List<Pair<T, String>>,
     selected: T,
@@ -516,10 +534,10 @@ private fun <T> ChipRow(
 ) {
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         options.forEach { (value, label) ->
-            FilterChip(
+            SegmentButton(
+                label = label,
                 selected = value == selected,
                 onClick = { onSelect(value) },
-                label = { Text(label) },
             )
         }
     }
@@ -561,7 +579,7 @@ private fun openHealthConnectListing(context: Context) {
 private fun weightUnitLabel(unit: WeightUnit): String = when (unit) {
     WeightUnit.KG -> "Kilograms"
     WeightUnit.LB -> "Pounds"
-    WeightUnit.ST_LB -> "Stones and pounds"
+    WeightUnit.ST_LB -> "Stones"
 }
 
 private fun lengthUnitLabel(unit: LengthUnit): String = when (unit) {

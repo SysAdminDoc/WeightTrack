@@ -1,25 +1,35 @@
 package com.weighttrack.ui
 
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -74,12 +84,40 @@ fun WeightTrackApp(
         modifier = modifier,
         topBar = {
             if (topLevel != null) {
-                TopAppBar(title = { Text(topLevel.label) })
+                TopAppBar(
+                    title = { Text(topLevel.label, style = MaterialTheme.typography.headlineMedium) },
+                    actions = {
+                        if (topLevel == TopLevelDestination.HOME) {
+                            Row(
+                                modifier = Modifier.padding(end = 16.dp),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Icon(
+                                    Icons.Outlined.Lock,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                )
+                                Text(
+                                    "Privacy first",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                    ),
+                )
             }
         },
         bottomBar = {
             if (!isFullScreenRoute) {
-                NavigationBar {
+                NavigationBar(
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    tonalElevation = 0.dp,
+                ) {
                     TopLevelDestination.entries.forEach { destination ->
                         NavigationBarItem(
                             selected = currentRoute == destination.route,
@@ -94,16 +132,28 @@ fun WeightTrackApp(
                             },
                             icon = { Icon(destination.icon, contentDescription = null) },
                             label = { Text(destination.label) },
+                            colors = NavigationBarItemDefaults.colors(
+                                selectedIconColor = MaterialTheme.colorScheme.primary,
+                                selectedTextColor = MaterialTheme.colorScheme.primary,
+                                indicatorColor = Color.Transparent,
+                                unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
                         )
                     }
                 }
             }
         },
         floatingActionButton = {
-            // The log button follows the two screens where "I just weighed myself" is the
-            // obvious next action, and stays out of the way everywhere else.
-            if (currentRoute == Routes.HOME || currentRoute == Routes.HISTORY) {
-                FloatingActionButton(onClick = { navController.navigate(Routes.log()) }) {
+            if (currentRoute == Routes.HISTORY) {
+                FloatingActionButton(
+                    onClick = { navController.navigate(Routes.log()) },
+                    shape = RoundedCornerShape(8.dp),
+                    elevation = FloatingActionButtonDefaults.elevation(
+                        defaultElevation = 0.dp,
+                        pressedElevation = 2.dp,
+                    ),
+                ) {
                     Icon(Icons.Filled.Add, contentDescription = "Log weight")
                 }
             }

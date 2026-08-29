@@ -1,5 +1,6 @@
 package com.weighttrack.ui.home
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,16 +9,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
+import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.weighttrack.core.math.BmiCategory
@@ -27,7 +35,6 @@ import com.weighttrack.core.math.WaistToHeightCategory
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.domain.BodyFatSource
 import com.weighttrack.domain.ProgressSnapshot
-import com.weighttrack.ui.components.ChartRange
 import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.GoalProgressBar
 import com.weighttrack.ui.components.LabelledValue
@@ -35,15 +42,12 @@ import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.Sparkline
 import com.weighttrack.ui.components.StatTile
-import com.weighttrack.ui.components.TrendChart
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
 import com.weighttrack.ui.theme.LocalTrendColors
-import com.weighttrack.ui.theme.rememberTrendChartColors
 import java.time.LocalDate
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -78,12 +82,15 @@ fun HomeScreen(
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             start = 16.dp, end = 16.dp, top = 8.dp, bottom = 96.dp,
         ),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         item { TrendHeroCard(snapshot, today) }
+        item { HomeDivider() }
         item { RateCard(snapshot) }
+        item { HomeDivider() }
         snapshot.goal?.let { item { GoalCard(snapshot, onOpenGoal, today) } }
-        item { ChartCard(snapshot, today) }
+        item { HomeDivider() }
+        item { LogWeightRow(onLogWeight) }
         item { BodyStatsCard(snapshot, onOpenMeasurements) }
     }
 }
@@ -95,9 +102,9 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
     val trendGrams = snapshot.series.latestTrendGrams?.roundToInt()
     val weekChange = snapshot.series.changeOverDays(7)
 
-    SectionCard {
+    Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
         SectionHeading("Trend weight")
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
                 text = trendGrams?.let { WeightFormatter.value(it, unit) } ?: "--",
@@ -116,8 +123,8 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
         if (weekChange != null) {
             val color = changeColor(weekChange, snapshot.goal?.direction, trendColors)
             Text(
-                text = "${WeightFormatter.delta(weekChange, unit)} in the last week",
-                style = MaterialTheme.typography.bodyMedium,
+                text = "${WeightFormatter.delta(weekChange, unit)} this week",
+                style = MaterialTheme.typography.titleMedium,
                 color = color,
                 fontWeight = FontWeight.Medium,
             )
@@ -143,11 +150,22 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
         }
 
         if (snapshot.series.points.size >= 3) {
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(14.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Text(
+                    text = "30 days",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.secondary,
+                )
+            }
+            Spacer(Modifier.height(4.dp))
             Sparkline(
                 series = snapshot.series,
                 color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth().height(44.dp),
+                modifier = Modifier.fillMaxWidth().height(104.dp),
             )
         }
     }
@@ -157,7 +175,7 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
 private fun RateCard(snapshot: ProgressSnapshot) {
     val unit = snapshot.settings.weightUnit
     val rate = snapshot.rate
-    SectionCard {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp)) {
         SectionHeading("Rate of change")
         Spacer(Modifier.height(8.dp))
         if (!rate.hasEnoughData) {
@@ -166,17 +184,18 @@ private fun RateCard(snapshot: ProgressSnapshot) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            return@SectionCard
+            return@Column
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             StatTile(
-                label = "Per week",
+                label = "Rate",
                 value = WeightFormatter.delta(rate.gramsPerWeek, unit, decimals = 2),
+                caption = "per week",
                 modifier = Modifier.weight(1f),
             )
             StatTile(
                 label = "Energy balance",
-                value = "${abs(rate.impliedKcalPerDay).roundToInt()} kcal",
+                value = "${abs(rate.impliedKcalPerDay).roundToInt()} kcal/day",
                 caption = if (rate.impliedKcalPerDay < 0) "below maintenance" else "above maintenance",
                 modifier = Modifier.weight(1f),
             )
@@ -198,16 +217,23 @@ private fun GoalCard(snapshot: ProgressSnapshot, onOpenGoal: () -> Unit, today: 
     val projection = snapshot.projection
     val unit = snapshot.settings.weightUnit
 
-    SectionCard {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onOpenGoal)
+            .padding(horizontal = 12.dp, vertical = 16.dp),
+    ) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SectionHeading("Goal")
-            androidx.compose.material3.TextButton(onClick = onOpenGoal) { Text("Edit") }
+            Text("Goal", style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = WeightFormatter.full(goal.targetGrams, unit),
+                style = MaterialTheme.typography.titleLarge,
+            )
         }
-
         val milestoneFractions = remembermilestoneFractions(snapshot)
         GoalProgressBar(
             progress = (projection?.progressFraction ?: 0.0).toFloat(),
@@ -216,31 +242,39 @@ private fun GoalCard(snapshot: ProgressSnapshot, onOpenGoal: () -> Unit, today: 
         )
         Spacer(Modifier.height(10.dp))
 
-        LabelledValue(
-            label = "Target",
-            value = WeightFormatter.full(goal.targetGrams, unit),
-        )
         if (projection != null) {
-            LabelledValue(
-                label = if (goal.direction == GoalDirection.GAIN) "To gain" else "To go",
-                value = WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit),
-            )
-            LabelledValue(
-                label = "Progress",
-                value = "${(projection.progressFraction * 100).roundToInt()}%",
-            )
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = if (goal.direction == GoalDirection.GAIN) {
+                        "${WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit)} to gain"
+                    } else {
+                        "${WeightFormatter.full(abs(projection.remainingGrams).roundToInt(), unit)} to go"
+                    },
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = "${(projection.progressFraction * 100).roundToInt()}%",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             val etaDate = projection.etaDate(today)
-            LabelledValue(
-                label = "Projected",
-                value = when {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = when {
                     projection.reached -> "Reached"
                     etaDate == null -> "Not on this trend"
-                    else -> DateFormatters.projection(etaDate, today)
+                    else -> "Projected ${DateFormatters.projection(etaDate, today)}"
                 },
-                valueColor = if (etaDate == null && !projection.reached) {
+                style = MaterialTheme.typography.titleMedium,
+                color = if (etaDate == null && !projection.reached) {
                     MaterialTheme.colorScheme.onSurfaceVariant
                 } else {
-                    MaterialTheme.colorScheme.primary
+                    MaterialTheme.colorScheme.secondary
                 },
             )
             // A single date implies a precision the data does not have, so the spread is shown
@@ -249,7 +283,7 @@ private fun GoalCard(snapshot: ProgressSnapshot, onOpenGoal: () -> Unit, today: 
             val latest = projection.etaDatePessimistic(today)
             if (etaDate != null && earliest != null && latest != null && earliest != latest) {
                 Text(
-                    text = "Somewhere between ${DateFormatters.shortDate(earliest, today)} and ${DateFormatters.shortDate(latest, today)}, on how the last two weeks have gone.",
+                    text = "${DateFormatters.shortDate(earliest, today)} to ${DateFormatters.shortDate(latest, today)}, based on the last two weeks.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -263,14 +297,51 @@ private fun GoalCard(snapshot: ProgressSnapshot, onOpenGoal: () -> Unit, today: 
         }
 
         snapshot.nextMilestone?.let { milestone ->
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(4.dp))
             val remaining = abs((snapshot.series.latestTrendGrams ?: 0.0) - milestone.grams)
             Text(
                 text = "Next milestone ${WeightFormatter.full(milestone.grams, unit)}, ${WeightFormatter.full(remaining.roundToInt(), unit)} away. That is ${milestone.index} of ${milestone.total}.",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )
         }
+    }
+}
+
+@Composable
+private fun HomeDivider() {
+    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
+}
+
+@Composable
+private fun LogWeightRow(onLogWeight: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onLogWeight)
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            imageVector = Icons.Outlined.MonitorWeight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.secondary,
+            modifier = Modifier.size(30.dp),
+        )
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text("Log weight", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Record your weight",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
     }
 }
 
@@ -285,32 +356,10 @@ private fun remembermilestoneFractions(snapshot: ProgressSnapshot): List<Float> 
 }
 
 @Composable
-private fun ChartCard(snapshot: ProgressSnapshot, today: LocalDate) {
-    SectionCard {
-        SectionHeading("Last 30 days")
-        Spacer(Modifier.height(8.dp))
-        TrendChart(
-            series = snapshot.series,
-            unit = snapshot.settings.weightUnit,
-            colors = rememberTrendChartColors(),
-            range = ChartRange.MONTH,
-            goalGrams = snapshot.goal?.targetGrams,
-            milestoneGrams = snapshot.milestones.filter { !it.reached }.take(2).map { it.grams },
-            today = today,
-            height = 200.dp,
-        )
-        Text(
-            text = "Faded dots are what the scale said. The line is the trend, smoothed over ${snapshot.settings.trendWindowDays} days.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> Unit) {
     val unit = snapshot.settings.weightUnit
-    SectionCard {
+    val locale = LocalConfiguration.current.locales[0]
+    SectionCard(modifier = Modifier.padding(top = 12.dp)) {
         Row(
             Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -336,7 +385,7 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
             snapshot.bmi?.let { bmi ->
                 StatTile(
                     label = "BMI",
-                    value = String.format(Locale.getDefault(), "%.1f", bmi),
+                    value = String.format(locale, "%.1f", bmi),
                     caption = snapshot.bmiCategory?.let { bmiLabel(it) },
                     modifier = Modifier.weight(1f),
                 )
@@ -344,7 +393,7 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
             snapshot.bodyComposition?.let { composition ->
                 StatTile(
                     label = "Body fat",
-                    value = String.format(Locale.getDefault(), "%.1f%%", composition.percent),
+                    value = String.format(locale, "%.1f%%", composition.percent),
                     caption = when (composition.source) {
                         BodyFatSource.LOGGED -> "from your reading"
                         BodyFatSource.NAVY_ESTIMATE -> "estimated from measurements"
@@ -375,7 +424,7 @@ private fun BodyStatsCard(snapshot: ProgressSnapshot, onOpenMeasurements: () -> 
             Spacer(Modifier.height(4.dp))
             LabelledValue(
                 label = "Waist to height",
-                value = String.format(Locale.getDefault(), "%.2f", ratio) +
+                value = String.format(locale, "%.2f", ratio) +
                     snapshot.waistToHeightCategory?.let { " (${waistLabel(it)})" }.orEmpty(),
             )
         }

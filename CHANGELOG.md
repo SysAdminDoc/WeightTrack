@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.2.0 (2026-08-29)
+
+The whole app now shares one focused AMOLED interface. The weight trend stays first, controls take less space, and logging still needs only a few taps.
+
+### Interface
+
+- Reworked Home around the current trend, a thirty-day sparkline, weekly rate and a compact goal summary
+- Rebuilt Charts as a flat analysis view with a clearer range selector, raw readings and an unfilled trend line
+- Turned History and Measurements into continuous grouped lists with dividers and stronger scan order
+- Tightened Log weight and Edit goal around the number pad, with rectangular date, time and milestone controls
+- Grouped Settings into full-width sections and made AMOLED black the default for new installs
+- Refreshed onboarding around the promise that readings stay on the phone
+
+### Design system
+
+- Added one mint and blue palette across AMOLED, dark and light themes
+- Standardized typography on Android's system sans with tabular figures for changing values
+- Capped corners at 12 dp and removed pill-shaped navigation indicators, filters and selectors
+- Added page mockups and emulator comparison evidence for every route
+
+### Reliability
+
+- Added direct Android 13 notification permission guards before posting reminders
+- Made number and weekday formatting react to locale changes, and fixed UTF-8 BOM handling during CSV import
+
 ## 0.1.0 (2026-08-29)
 
 First working build. Everything in this release is free, and the licence means it stays that way.

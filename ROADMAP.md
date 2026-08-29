@@ -24,7 +24,7 @@ Every feature the paid apps lock up is either client-side math or a free API cal
 | Yazio | $47.90/yr | Barcode, fasting, recipes | Video ads after every log, no offline mode |
 | MacroFactor | $71.99/yr, no free tier | Everything. Adaptive TDEE is the product. | Subscription only, needs daily logging |
 | Carb Manager | $59.99/yr | Nearly everything useful | Heavy ads, refund disputes |
-| FatSecret | Free, $35.99/yr | Ad removal, AI photo, reports | Dated UI, accuracy |
+| FatSecret | Free, $35.99/yr | Ad removal, photo recognition, reports | Dated UI, accuracy |
 | MyNetDiary | Free, $59.99/yr | Diet plans, advanced reports | Closest commercial app to our positioning |
 | openScale (OSS) | Free | Nothing | Functional but dated UI, no trend/ETA focus |
 | Waistline (OSS) | Free | Nothing | Cordova, hidden gestures, no onboarding |
@@ -55,7 +55,7 @@ The gap: nobody ships a modern Compose app with a trend-first weight experience 
 - Goals work for lose, gain and maintain. Simple trackers break on gain goals.
 - Every record is editable. Undo via snackbar, never a confirm dialog.
 - Offline by design. Cache food lookups.
-- No AI coach, no social feed, no gamification without substance.
+- No automated coach, no social feed, no gamification without substance.
 - A watch tile has to accept input, not just display.
 
 ## Stack
@@ -112,7 +112,20 @@ Goal: replace Libra and Happy Scale for anyone on Android. Verified on an API 35
 - [x] Unit tests for the trend engine, ETA, BMI/BMR/Navy formulas, CSV parsers, unit conversions
 - [x] Signed release APK for both flavours, README screenshots, GitHub Release
 
-## Phase 2: v0.2.x, hardware and habits
+## Interface refresh: v0.2.0. Shipped 2026-08-29.
+
+Goal: make every existing feature easier to scan and faster to use without changing the private, local-first model.
+
+- [x] True AMOLED black as the default, with one mint and blue palette across themes
+- [x] Shared system-sans typography with tabular figures for weight and rate values
+- [x] Trend-first Home with a thirty-day sparkline, weekly rate and compact goal progress
+- [x] Flat Charts layout with an unfilled trend line and rectangular range controls
+- [x] Continuous grouped rows for History and Measurements
+- [x] Compact Log weight and Edit goal flows built around the shared keypad
+- [x] Full-width Settings groups and a refreshed four-step onboarding flow
+- [x] Route mockups and emulator screenshot comparison for every page
+
+## Phase 2: v0.3.x, hardware and habits
 
 Carried over from Phase 1: crash log to file with an in-app viewer.
 
@@ -128,7 +141,7 @@ Carried over from Phase 1: crash log to file with an in-app viewer.
 - [ ] App lock (biometric or PIN)
 - [ ] F-Droid submission
 
-## Phase 3: v0.3.x, nutrition
+## Phase 3: v0.4.x, nutrition
 
 Kept optional so the weight-only experience stays clean. Off by default, one toggle to enable.
 
@@ -150,7 +163,7 @@ Kept optional so the weight-only experience stays clean. Off by default, one tog
 
 ## Never
 
-Ads. Subscriptions. Accounts. Proprietary cloud. AI coaching. Social feed. Google Fit API. Moving a shipped feature behind anything.
+Ads. Subscriptions. Accounts. Proprietary cloud. Automated coaching. Social feed. Google Fit API. Moving a shipped feature behind anything.
 
 ## Sources
 

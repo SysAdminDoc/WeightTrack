@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -19,10 +20,10 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +46,7 @@ import com.weighttrack.core.model.EntryTag
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
+import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.WeightKeypad
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.format.WeightFormatter
@@ -73,6 +75,10 @@ fun LogWeightScreen(
 ) {
     var showDatePicker by remember { mutableStateOf(false) }
     var showTimePicker by remember { mutableStateOf(false) }
+    var showAllTags by remember { mutableStateOf(false) }
+    var showDetails by remember(state.note, state.bodyFatText) {
+        mutableStateOf(state.note.isNotBlank() || state.bodyFatText.isNotBlank())
+    }
 
     LaunchedEffect(state.saved) {
         if (state.saved) onClose()
@@ -97,10 +103,10 @@ fun LogWeightScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Row(
-                Modifier.fillMaxWidth().padding(top = 8.dp),
+                Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.Bottom,
             ) {
@@ -125,11 +131,19 @@ fun LogWeightScreen(
                 Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                TextButton(onClick = { showDatePicker = true }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { showDatePicker = true },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                ) {
                     Icon(Icons.Filled.CalendarToday, contentDescription = null)
                     Text("  ${DateFormatters.relativeDay(state.date)}")
                 }
-                TextButton(onClick = { showTimePicker = true }, modifier = Modifier.weight(1f)) {
+                OutlinedButton(
+                    onClick = { showTimePicker = true },
+                    modifier = Modifier.weight(1f).height(48.dp),
+                    shape = RoundedCornerShape(8.dp),
+                ) {
                     Icon(Icons.Filled.Schedule, contentDescription = null)
                     Text("  ${state.time.hour.toString().padStart(2, '0')}:${state.time.minute.toString().padStart(2, '0')}")
                 }
@@ -140,44 +154,64 @@ fun LogWeightScreen(
             Button(
                 onClick = onSave,
                 enabled = state.canSave,
+                shape = RoundedCornerShape(8.dp),
                 modifier = Modifier.fillMaxWidth().height(52.dp),
             ) {
-                Text(if (state.isEditing) "Save changes" else "Save")
+                Text(if (state.isEditing) "Save changes" else "Save weight")
             }
 
             SectionCard {
                 SectionHeading("Context")
                 Spacer(Modifier.height(8.dp))
+                val preferredTags = listOf(
+                    EntryTag.FASTED,
+                    EntryTag.POST_WORKOUT,
+                    EntryTag.WELL_HYDRATED,
+                )
+                val orderedTags = preferredTags + EntryTag.entries.filterNot { it in preferredTags }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    EntryTag.entries.forEach { tag ->
-                        FilterChip(
+                    orderedTags.take(if (showAllTags) orderedTags.size else 3).forEach { tag ->
+                        SegmentButton(
+                            label = tagLabel(tag),
                             selected = tag in state.tags,
                             onClick = { onToggleTag(tag) },
-                            label = { Text(tagLabel(tag)) },
                         )
                     }
                 }
-                Spacer(Modifier.height(12.dp))
-                OutlinedTextField(
-                    value = state.note,
-                    onValueChange = onNoteChange,
-                    label = { Text("Note") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = false,
-                    minLines = 2,
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = state.bodyFatText,
-                    onValueChange = onBodyFatChange,
-                    label = { Text("Body fat %") },
-                    supportingText = { Text("Optional, from a smart scale or a caliper reading") },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                    ),
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                )
+                TextButton(onClick = { showAllTags = !showAllTags }) {
+                    Text(if (showAllTags) "Fewer tags" else "More tags")
+                }
+                if (!showDetails) {
+                    OutlinedButton(
+                        onClick = { showDetails = true },
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        Text("Add note or body fat")
+                    }
+                } else {
+                    Spacer(Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = state.note,
+                        onValueChange = onNoteChange,
+                        label = { Text("Note") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = false,
+                        minLines = 2,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = state.bodyFatText,
+                        onValueChange = onBodyFatChange,
+                        label = { Text("Body fat %") },
+                        supportingText = { Text("Optional, from a smart scale or a caliper reading") },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                }
             }
 
             Spacer(Modifier.height(24.dp))

@@ -1,7 +1,9 @@
 package com.weighttrack.ui.charts
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -10,11 +12,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ShowChart
-import androidx.compose.material3.FilterChip
+import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,11 +25,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.shape.RoundedCornerShape
 import com.weighttrack.core.math.Analytics
 import com.weighttrack.core.math.WeeklyChange
 import com.weighttrack.core.math.WeekdayEffect
@@ -37,15 +44,16 @@ import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
+import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.TrendChart
 import com.weighttrack.ui.format.WeightFormatter
 import com.weighttrack.ui.theme.LocalTrendColors
 import com.weighttrack.ui.theme.rememberTrendChartColors
 import java.time.LocalDate
 import java.time.format.TextStyle
-import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 @Composable
 fun ChartsScreen(
@@ -55,7 +63,7 @@ fun ChartsScreen(
 ) {
     if (!snapshot.hasData) {
         EmptyState(
-            icon = Icons.Filled.ShowChart,
+            icon = Icons.AutoMirrored.Filled.ShowChart,
             title = "Nothing to plot yet",
             message = "Log a few readings and the trend line, the weekly changes and your weekday pattern all appear here.",
             modifier = modifier.fillMaxSize().padding(top = 64.dp),
@@ -74,21 +82,45 @@ fun ChartsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
                 ChartRange.entries.forEach { option ->
-                    FilterChip(
+                    SegmentButton(
+                        modifier = Modifier.weight(1f),
+                        label = option.label,
                         selected = option == range,
                         onClick = { range = option },
-                        label = { Text(option.label) },
                     )
                 }
             }
         }
 
         item {
-            SectionCard {
-                SectionHeading("Weight")
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text("Weight trend", style = MaterialTheme.typography.titleMedium)
+                    snapshot.series.latestTrendGrams?.roundToInt()?.let { trend ->
+                        Text(
+                            WeightFormatter.full(trend, unit),
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                    }
+                }
                 Spacer(Modifier.height(8.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    ChartLegend("Raw", MaterialTheme.colorScheme.onSurfaceVariant, dot = true)
+                    ChartLegend("Trend", MaterialTheme.colorScheme.primary)
+                    ChartLegend("Goal", MaterialTheme.colorScheme.secondary)
+                }
+                Spacer(Modifier.height(10.dp))
                 TrendChart(
                     series = snapshot.series,
                     unit = unit,
@@ -97,10 +129,10 @@ fun ChartsScreen(
                     goalGrams = snapshot.goal?.targetGrams,
                     milestoneGrams = snapshot.milestones.map { it.grams },
                     today = today,
-                    height = 280.dp,
+                    height = 220.dp,
                 )
                 Text(
-                    text = "Drag to pan, pinch to zoom, tap a day to read it off.",
+                    text = "Drag to pan · Pinch to zoom · Tap a day",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -120,6 +152,22 @@ fun ChartsScreen(
 }
 
 @Composable
+private fun ChartLegend(label: String, color: Color, dot: Boolean = false) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(
+            Modifier
+                .size(width = if (dot) 6.dp else 20.dp, height = if (dot) 6.dp else 2.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(color),
+        )
+        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+@Composable
 private fun WeeklyChangeCard(
     weekly: List<WeeklyChange>,
     unit: WeightUnit,
@@ -130,11 +178,44 @@ private fun WeeklyChangeCard(
     val badColor = trendColors.gaining
     val gaining = direction == com.weighttrack.core.model.GoalDirection.GAIN
 
-    SectionCard {
+    Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
+        Spacer(Modifier.height(14.dp))
         SectionHeading("Week by week")
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(10.dp))
+        val best = weekly.minByOrNull { it.changeGrams }
+        val average = weekly.map { it.changeGrams }.average()
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    "Average week",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    WeightFormatter.delta(average, unit, decimals = 2),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = goodColor,
+                )
+            }
+            best?.let {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "Biggest drop",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        WeightFormatter.delta(it.changeGrams, unit, decimals = 2),
+                        style = MaterialTheme.typography.titleLarge,
+                        color = goodColor,
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(14.dp))
         val maxMagnitude = max(weekly.maxOf { abs(it.changeGrams) }, 1.0)
-        Canvas(Modifier.fillMaxWidth().height(120.dp)) {
+        Canvas(Modifier.fillMaxWidth().height(84.dp)) {
             val slot = size.width / weekly.size
             val barWidth = (slot * 0.6f).coerceAtMost(28f)
             val midY = size.height / 2f
@@ -159,22 +240,13 @@ private fun WeeklyChangeCard(
             }
         }
         Spacer(Modifier.height(8.dp))
-        val best = weekly.minByOrNull { it.changeGrams }
-        val average = weekly.map { it.changeGrams }.average()
-        LabelledValue("Average week", WeightFormatter.delta(average, unit, decimals = 2))
-        best?.let {
-            LabelledValue("Biggest drop", WeightFormatter.delta(it.changeGrams, unit, decimals = 2))
-        }
-        Text(
-            text = "Bars below the line are weeks the trend fell. ${weekly.size} weeks shown, oldest on the left.",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
     }
 }
 
 @Composable
 private fun WeekdayCard(effects: List<WeekdayEffect>, unit: WeightUnit) {
+    val locale = LocalConfiguration.current.locales[0]
     SectionCard {
         SectionHeading("Weekday pattern")
         Spacer(Modifier.height(4.dp))
@@ -186,7 +258,7 @@ private fun WeekdayCard(effects: List<WeekdayEffect>, unit: WeightUnit) {
         Spacer(Modifier.height(8.dp))
         effects.sortedByDescending { it.averageDeviationGrams }.forEach { effect ->
             LabelledValue(
-                label = effect.day.getDisplayName(TextStyle.FULL, Locale.getDefault()),
+                label = effect.day.getDisplayName(TextStyle.FULL, locale),
                 value = WeightFormatter.delta(effect.averageDeviationGrams, unit, decimals = 2),
             )
         }
@@ -197,7 +269,7 @@ private fun WeekdayCard(effects: List<WeekdayEffect>, unit: WeightUnit) {
             if (spread > 300) {
                 Spacer(Modifier.height(6.dp))
                 Text(
-                    text = "You read heaviest on ${heaviest.day.getDisplayName(TextStyle.FULL, Locale.getDefault())} and lightest on ${lightest.day.getDisplayName(TextStyle.FULL, Locale.getDefault())}. Weigh on the same day each week and you will see a cleaner picture.",
+                    text = "You read heaviest on ${heaviest.day.getDisplayName(TextStyle.FULL, locale)} and lightest on ${lightest.day.getDisplayName(TextStyle.FULL, locale)}. Weigh on the same day each week and you will see a cleaner picture.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )

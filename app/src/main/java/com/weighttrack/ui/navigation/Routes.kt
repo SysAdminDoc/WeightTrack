@@ -1,10 +1,10 @@
 package com.weighttrack.ui.navigation
 
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Insights
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material.icons.filled.ShowChart
+import androidx.compose.material.icons.automirrored.outlined.ShowChart
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object Routes {
@@ -28,8 +28,8 @@ enum class TopLevelDestination(
     val label: String,
     val icon: ImageVector,
 ) {
-    HOME(Routes.HOME, "Home", Icons.Filled.Insights),
-    CHARTS(Routes.CHARTS, "Charts", Icons.Filled.ShowChart),
+    HOME(Routes.HOME, "Home", Icons.Outlined.Home),
+    CHARTS(Routes.CHARTS, "Charts", Icons.AutoMirrored.Outlined.ShowChart),
     HISTORY(Routes.HISTORY, "History", Icons.Outlined.History),
-    SETTINGS(Routes.SETTINGS, "Settings", Icons.Filled.Settings),
+    SETTINGS(Routes.SETTINGS, "Settings", Icons.Outlined.Settings),
 }

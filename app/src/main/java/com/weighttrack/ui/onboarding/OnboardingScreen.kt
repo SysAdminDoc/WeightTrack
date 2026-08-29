@@ -1,6 +1,7 @@
 package com.weighttrack.ui.onboarding
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -10,27 +11,30 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.background
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material3.Button
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.WeightKeypad
+import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.format.LengthFormatter
 import com.weighttrack.ui.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
@@ -47,14 +51,33 @@ fun OnboardingScreen(
         modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(24.dp),
+            .padding(horizontal = 20.dp),
     ) {
-        Spacer(Modifier.height(24.dp))
-        StepDots(
+        Spacer(Modifier.height(18.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("WeightTrack", style = MaterialTheme.typography.titleLarge)
+            Icon(
+                Icons.Outlined.Lock,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Spacer(Modifier.height(26.dp))
+        StepProgress(
             total = OnboardingStep.entries.size,
             current = OnboardingStep.entries.indexOf(state.step),
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(8.dp))
+        Text(
+            text = "${OnboardingStep.entries.indexOf(state.step) + 1} of ${OnboardingStep.entries.size}",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(28.dp))
 
         when (state.step) {
             OnboardingStep.UNITS -> UnitsStep(state, viewModel)
@@ -63,10 +86,11 @@ fun OnboardingScreen(
             OnboardingStep.GOAL -> GoalStep(state, viewModel)
         }
 
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(24.dp))
         Button(
             onClick = viewModel::next,
             enabled = state.canContinue,
+            shape = RoundedCornerShape(8.dp),
             modifier = Modifier.fillMaxWidth().height(52.dp),
         ) {
             Text(
@@ -74,6 +98,15 @@ fun OnboardingScreen(
                     OnboardingStep.GOAL -> "Finish"
                     else -> "Continue"
                 },
+            )
+        }
+        if (state.step == OnboardingStep.UNITS) {
+            Spacer(Modifier.height(14.dp))
+            Text(
+                text = "No account · No ads · Stored on this device",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.align(Alignment.CenterHorizontally),
             )
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -88,65 +121,71 @@ fun OnboardingScreen(
                 else -> Spacer(Modifier.size(1.dp))
             }
         }
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(20.dp))
     }
 }
 
 @Composable
-private fun StepDots(total: Int, current: Int) {
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+private fun StepProgress(total: Int, current: Int) {
+    Row(
+        modifier = Modifier.fillMaxWidth(0.58f),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
         repeat(total) { index ->
-            Surface(
-                modifier = Modifier.size(if (index == current) 10.dp else 7.dp).clip(CircleShape),
-                shape = CircleShape,
-                color = if (index <= current) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHighest
-                },
-            ) {}
+            Box(
+                Modifier
+                    .weight(1f)
+                    .height(4.dp)
+                    .background(
+                        color = if (index <= current) {
+                            MaterialTheme.colorScheme.primary
+                        } else {
+                            MaterialTheme.colorScheme.surfaceContainerHighest
+                        },
+                        shape = RoundedCornerShape(2.dp),
+                    ),
+            )
         }
     }
 }
 
 @Composable
 private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
-    Text("WeightTrack", style = MaterialTheme.typography.displaySmall)
-    Spacer(Modifier.height(8.dp))
     Text(
-        text = "A weight tracker that shows you the trend rather than the noise. No account, no ads, no subscription, and your readings never leave this phone.",
+        "Your weight. Your data.",
+        style = MaterialTheme.typography.displaySmall.copy(fontSize = 32.sp, lineHeight = 38.sp),
+    )
+    Spacer(Modifier.height(12.dp))
+    Text(
+        text = "Track the trend without an account, ads, or a subscription. Your readings stay on this phone.",
         style = MaterialTheme.typography.bodyLarge,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    Spacer(Modifier.height(28.dp))
-    Text("Weight in", style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(32.dp))
+    Text("Weight", style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(10.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         WeightUnit.entries.forEach { unit ->
-            FilterChip(
+            SegmentButton(
+                label = when (unit) {
+                    WeightUnit.KG -> "Kilograms"
+                    WeightUnit.LB -> "Pounds"
+                    WeightUnit.ST_LB -> "Stones"
+                },
                 selected = state.weightUnit == unit,
                 onClick = { viewModel.setWeightUnit(unit) },
-                label = {
-                    Text(
-                        when (unit) {
-                            WeightUnit.KG -> "Kilograms"
-                            WeightUnit.LB -> "Pounds"
-                            WeightUnit.ST_LB -> "Stones"
-                        },
-                    )
-                },
             )
         }
     }
-    Spacer(Modifier.height(20.dp))
-    Text("Measurements in", style = MaterialTheme.typography.titleMedium)
-    Spacer(Modifier.height(8.dp))
+    Spacer(Modifier.height(24.dp))
+    Text("Measurements", style = MaterialTheme.typography.titleMedium)
+    Spacer(Modifier.height(10.dp))
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         LengthUnit.entries.forEach { unit ->
-            FilterChip(
+            SegmentButton(
+                label = if (unit == LengthUnit.CM) "Centimetres" else "Inches",
                 selected = state.lengthUnit == unit,
                 onClick = { viewModel.setLengthUnit(unit) },
-                label = { Text(if (unit == LengthUnit.CM) "Centimetres" else "Inches") },
             )
         }
     }
@@ -187,10 +226,10 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
     Text("Sex", style = MaterialTheme.typography.titleSmall)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Sex.entries.forEach { sex ->
-            FilterChip(
+            SegmentButton(
+                label = if (sex == Sex.MALE) "Male" else "Female",
                 selected = state.sex == sex,
                 onClick = { viewModel.setSex(sex) },
-                label = { Text(if (sex == Sex.MALE) "Male" else "Female") },
             )
         }
     }
@@ -198,20 +237,16 @@ private fun AboutYouStep(state: OnboardingUiState, viewModel: OnboardingViewMode
     Text("How active are you", style = MaterialTheme.typography.titleSmall)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         ActivityLevel.entries.forEach { level ->
-            FilterChip(
+            SegmentButton(
+                label = when (level) {
+                    ActivityLevel.SEDENTARY -> "Sedentary"
+                    ActivityLevel.LIGHT -> "Light"
+                    ActivityLevel.MODERATE -> "Moderate"
+                    ActivityLevel.ACTIVE -> "Active"
+                    ActivityLevel.VERY_ACTIVE -> "Very active"
+                },
                 selected = state.activityLevel == level,
                 onClick = { viewModel.setActivityLevel(level) },
-                label = {
-                    Text(
-                        when (level) {
-                            ActivityLevel.SEDENTARY -> "Sedentary"
-                            ActivityLevel.LIGHT -> "Light"
-                            ActivityLevel.MODERATE -> "Moderate"
-                            ActivityLevel.ACTIVE -> "Active"
-                            ActivityLevel.VERY_ACTIVE -> "Very active"
-                        },
-                    )
-                },
             )
         }
     }

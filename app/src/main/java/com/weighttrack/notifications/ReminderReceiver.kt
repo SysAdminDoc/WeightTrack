@@ -62,6 +62,11 @@ class ReminderReceiver : BroadcastReceiver() {
     private fun showReminder(context: Context) {
         Notifications.ensureChannel(context)
         if (!hasNotificationPermission(context)) return
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
 
         val openApp = PendingIntent.getActivity(
             context,
@@ -105,6 +110,11 @@ class ReminderReceiver : BroadcastReceiver() {
         fun showTestNotification(context: Context): Boolean {
             Notifications.ensureChannel(context)
             if (!hasNotificationPermission(context)) return false
+            if (
+                Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+                PackageManager.PERMISSION_GRANTED
+            ) return false
             val notification = NotificationCompat.Builder(context, Notifications.CHANNEL_REMINDERS)
                 .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Reminders are working")

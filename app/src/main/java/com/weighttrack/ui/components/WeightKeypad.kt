@@ -17,7 +17,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -86,11 +85,11 @@ fun WeightKeypad(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf("123", "456", "789").forEach { row ->
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 row.forEach { digit ->
                     KeypadKey(
@@ -101,7 +100,7 @@ fun WeightKeypad(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             KeypadKey(
                 label = "C",
                 modifier = Modifier.weight(1f),
@@ -133,8 +132,7 @@ private fun KeypadKey(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .height(58.dp)
-            .clip(RoundedCornerShape(16.dp))
+            .height(56.dp)
             .then(
                 if (contentDescription != null) {
                     Modifier.semantics { this.contentDescription = contentDescription }
@@ -142,7 +140,7 @@ private fun KeypadKey(
                     Modifier
                 },
             ),
-        shape = RoundedCornerShape(16.dp),
+        shape = RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Box(Modifier.padding(4.dp), contentAlignment = Alignment.Center) {

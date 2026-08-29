@@ -1,11 +1,11 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.1.0-58A6FF?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.2.0-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
-# WeightTrack v0.1.0
+# WeightTrack v0.2.0
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. Your readings stay on your phone and leave only when you export them.
 
@@ -17,6 +17,10 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 |---|---|---|---|
 | ![Home](docs/screenshots/home.png) | ![Charts](docs/screenshots/charts.png) | ![Log a weight](docs/screenshots/log.png) | ![History](docs/screenshots/history.png) |
 
+| Settings | Edit goal | Measurements | Onboarding |
+|---|---|---|---|
+| ![Settings](docs/screenshots/settings.png) | ![Edit a goal](docs/screenshots/goal.png) | ![Measurements](docs/screenshots/measurements.png) | ![Onboarding](docs/screenshots/onboarding.png) |
+
 ## What it does
 
 **The trend, not the noise.** Your weight swings a kilogram or two a day on water alone. WeightTrack draws the raw readings faded behind a smoothed line, so what you see is the direction you are actually going. The smoothing is the Hacker's Diet exponential moving average, made gap-aware: come back after three weeks off and the line catches up properly instead of pretending nothing happened.
@@ -24,6 +28,8 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 **A goal date you can believe.** The app fits a line to your recent trend and works out when you would reach your target at that rate, with a range around it rather than one falsely precise day. If the trend is flat, or heading the wrong way, it says so instead of inventing a date in 2071.
 
 **Milestones.** A 20 kg goal is discouraging. The next 2 kg is not. WeightTrack splits the journey automatically and marks each one off against the smoothed line, so a single dehydrated morning cannot award a milestone that gets taken back tomorrow.
+
+**Made for the scale at 7 AM.** The interface is true black by default, with large tabular numbers, compact controls and a log flow that keeps the keypad in reach. Every screen follows the same mint, blue and graphite system.
 
 **Everything else that usually costs money:**
 
@@ -40,7 +46,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 
 ## What it will not do
 
-No ads. No subscription. No account. No analytics. No proprietary cloud. No AI coach. Cloud backup is switched off deliberately, which is why the export has to be good.
+No ads. No subscription. No account. No analytics. No proprietary cloud. No automated coach. Cloud backup is switched off deliberately, which is why the export has to be good.
 
 ## Installing
 

@@ -72,6 +72,7 @@ fun WeightTrackTheme(
         MaterialTheme(
             colorScheme = scheme,
             typography = WeightTrackTypography,
+            shapes = WeightTrackShapes,
             content = content,
         )
     }

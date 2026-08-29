@@ -4,14 +4,14 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.ui.graphics.Color
 
-// Emerald reads as progress without shouting, and stays legible on both black and white.
+// Mint reads as progress without shouting, and stays legible on both black and white.
 private val Emerald200 = Color(0xFFA7F3D0)
 private val Emerald300 = Color(0xFF6EE7B7)
-private val Emerald400 = Color(0xFF34D399)
+private val Emerald400 = Color(0xFF35D6A0)
 private val Emerald700 = Color(0xFF047857)
 
 private val Sky200 = Color(0xFFBAE6FD)
-private val Sky300 = Color(0xFF7DD3FC)
+private val Sky300 = Color(0xFF78C8FF)
 private val Sky700 = Color(0xFF0369A1)
 
 private val Amber200 = Color(0xFFFDE68A)
@@ -61,24 +61,24 @@ val DarkColors = darkColorScheme(
     errorContainer = Color(0xFF93000A),
     onErrorContainer = Color(0xFFFFDAD6),
 
-    background = Slate900,
+    background = Color(0xFF07080B),
     onBackground = Slate200,
-    surface = Slate900,
+    surface = Color(0xFF07080B),
     onSurface = Slate200,
-    surfaceVariant = Slate800,
+    surfaceVariant = Color(0xFF191B22),
     onSurfaceVariant = Slate300,
     surfaceTint = Emerald400,
 
-    surfaceContainerLowest = Slate950,
-    surfaceContainerLow = Slate850,
-    surfaceContainer = Slate800,
-    surfaceContainerHigh = Color(0xFF243044),
-    surfaceContainerHighest = Color(0xFF2C3A50),
+    surfaceContainerLowest = Color(0xFF050609),
+    surfaceContainerLow = Color(0xFF0D0E12),
+    surfaceContainer = Color(0xFF111217),
+    surfaceContainerHigh = Color(0xFF191B22),
+    surfaceContainerHighest = Color(0xFF242730),
 
     inverseSurface = Slate200,
     inverseOnSurface = Slate900,
-    outline = Slate600,
-    outlineVariant = Slate700,
+    outline = Color(0xFF59606D),
+    outlineVariant = Color(0xFF2A2E37),
     scrim = Color(0xFF000000),
 )
 
@@ -90,13 +90,13 @@ val AmoledColors = DarkColors.copy(
     background = Color(0xFF000000),
     surface = Color(0xFF000000),
     surfaceContainerLowest = Color(0xFF000000),
-    surfaceContainerLow = Color(0xFF0A0A0C),
-    surfaceContainer = Color(0xFF121216),
-    surfaceContainerHigh = Color(0xFF1A1A20),
-    surfaceContainerHighest = Color(0xFF22222A),
-    surfaceVariant = Color(0xFF16161B),
-    outline = Color(0xFF54545E),
-    outlineVariant = Color(0xFF2A2A32),
+    surfaceContainerLow = Color(0xFF090A0D),
+    surfaceContainer = Color(0xFF111217),
+    surfaceContainerHigh = Color(0xFF191B22),
+    surfaceContainerHighest = Color(0xFF242730),
+    surfaceVariant = Color(0xFF15171D),
+    outline = Color(0xFF59606D),
+    outlineVariant = Color(0xFF292D35),
 )
 
 val LightColors = lightColorScheme(

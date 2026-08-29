@@ -15,35 +15,39 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.SelectAll
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.History
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.EmptyState
+import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.format.WeightFormatter
 import com.weighttrack.ui.log.tagLabel
 import java.time.LocalDate
-import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
@@ -71,8 +75,17 @@ fun HistoryScreen(
                 value = state.query,
                 onValueChange = onQueryChange,
                 placeholder = { Text("Search notes and tags") },
+                leadingIcon = {
+                    Icon(Icons.Outlined.Search, contentDescription = null)
+                },
                 singleLine = true,
-                shape = RoundedCornerShape(16.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
+                ),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -95,8 +108,14 @@ fun HistoryScreen(
 
         LazyColumn(
             contentPadding = PaddingValues(start = 16.dp, end = 16.dp, bottom = 96.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(0.dp),
         ) {
+            item {
+                SectionHeading(
+                    text = "Latest",
+                    modifier = Modifier.padding(top = 8.dp, bottom = 8.dp),
+                )
+            }
             items(state.entries, key = { it.id }) { entry ->
                 HistoryRow(
                     entry = entry,
@@ -160,77 +179,93 @@ private fun HistoryRow(
     onClick: () -> Unit,
     onLongClick: () -> Unit,
 ) {
+    val locale = LocalConfiguration.current.locales[0]
     val background = if (selected) {
         MaterialTheme.colorScheme.primaryContainer
     } else {
         MaterialTheme.colorScheme.surfaceContainer
     }
-    Row(
+    Column(
         Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .clip(RoundedCornerShape(0.dp))
             .background(background)
-            .combinedClickable(onClick = onClick, onLongClick = onLongClick)
-            .padding(horizontal = 14.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically,
+            .combinedClickable(onClick = onClick, onLongClick = onLongClick),
     ) {
-        if (selectionMode) {
-            Box(
-                Modifier
-                    .size(22.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (selected) {
-                            MaterialTheme.colorScheme.primary
-                        } else {
-                            MaterialTheme.colorScheme.surfaceContainerHighest
-                        },
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                if (selected) {
-                    Icon(
-                        Icons.Filled.Check,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier.size(15.dp),
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 13.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (selectionMode) {
+                Box(
+                    Modifier
+                        .size(22.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(
+                            if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerHighest
+                            },
+                        ),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    if (selected) {
+                        Icon(
+                            Icons.Filled.Check,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                            modifier = Modifier.size(15.dp),
+                        )
+                    }
+                }
+                Spacer(Modifier.size(12.dp))
+            }
+
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = DateFormatters.relativeDay(entry.localDate, today),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                val details = buildList {
+                    add(DateFormatters.time(entry.timestamp))
+                    if (entry.source != EntrySource.MANUAL) add(sourceLabel(entry.source))
+                    entry.bodyFatPercent?.let { add(String.format(locale, "%.1f%% fat", it)) }
+                    entry.tags.forEach { add(tagLabel(it)) }
+                }
+                Text(
+                    text = details.joinToString(" · "),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                entry.note?.let { note ->
+                    Spacer(Modifier.height(2.dp))
+                    Text(
+                        text = note,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
                     )
                 }
             }
-            Spacer(Modifier.size(12.dp))
-        }
 
-        Column(Modifier.weight(1f)) {
             Text(
-                text = DateFormatters.relativeDay(entry.localDate, today),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
+                text = WeightFormatter.full(entry.grams, unit),
+                style = MaterialTheme.typography.titleMedium,
             )
-            val details = buildList {
-                add(DateFormatters.time(entry.timestamp))
-                if (entry.source != EntrySource.MANUAL) add(sourceLabel(entry.source))
-                entry.bodyFatPercent?.let { add(String.format(Locale.getDefault(), "%.1f%% fat", it)) }
-                entry.tags.forEach { add(tagLabel(it)) }
-            }
-            Text(
-                text = details.joinToString(" · "),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            entry.note?.let { note ->
-                Spacer(Modifier.height(2.dp))
-                Text(
-                    text = note,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
+            if (!selectionMode) {
+                Spacer(Modifier.size(4.dp))
+                Icon(
+                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
-
-        Text(
-            text = WeightFormatter.full(entry.grams, unit),
-            style = MaterialTheme.typography.titleMedium,
+        HorizontalDivider(
+            modifier = Modifier.padding(start = 14.dp),
+            color = MaterialTheme.colorScheme.outlineVariant,
         )
     }
 }

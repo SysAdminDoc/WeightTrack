@@ -1,6 +1,7 @@
 package com.weighttrack.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -12,12 +13,10 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -31,18 +30,20 @@ import androidx.compose.ui.unit.dp
 import com.weighttrack.ui.theme.StatLabelStyle
 import com.weighttrack.ui.theme.StatValueStyle
 
-/** The one card shape used everywhere, so the app reads as one surface rather than a pile. */
+/** A restrained grouped surface for content that needs separation from the page. */
 @Composable
 fun SectionCard(
     modifier: Modifier = Modifier,
     contentPadding: androidx.compose.foundation.layout.PaddingValues = androidx.compose.foundation.layout.PaddingValues(16.dp),
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(12.dp),
+        color = MaterialTheme.colorScheme.surfaceContainer,
+        border = BorderStroke(
+            width = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
         ),
     ) {
         Column(Modifier.padding(contentPadding), content = content)
@@ -53,10 +54,39 @@ fun SectionCard(
 fun SectionHeading(text: String, modifier: Modifier = Modifier) {
     Text(
         text = text.uppercase(),
-        style = StatLabelStyle,
+        style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier,
     )
+}
+
+/** A compact rectangular selector shared by ranges and settings choices. */
+@Composable
+fun SegmentButton(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val accent = MaterialTheme.colorScheme.primary
+    Surface(
+        onClick = onClick,
+        modifier = modifier.height(44.dp),
+        shape = RoundedCornerShape(8.dp),
+        color = if (selected) accent.copy(alpha = 0.10f) else Color.Transparent,
+        contentColor = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
+        border = BorderStroke(
+            1.dp,
+            if (selected) accent else MaterialTheme.colorScheme.outlineVariant,
+        ),
+    ) {
+        Box(
+            modifier = Modifier.padding(horizontal = 14.dp),
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(text = label, style = MaterialTheme.typography.labelLarge)
+        }
+    }
 }
 
 @Composable
@@ -108,15 +138,15 @@ fun GoalProgressBar(
     Box(
         modifier
             .fillMaxWidth()
-            .height(14.dp)
-            .clip(CircleShape)
+            .height(8.dp)
+            .clip(RoundedCornerShape(4.dp))
             .background(trackColor),
     ) {
         Box(
             Modifier
                 .fillMaxWidth(animated)
-                .height(14.dp)
-                .clip(CircleShape)
+                .height(8.dp)
+                .clip(RoundedCornerShape(4.dp))
                 .background(fillColor),
         )
         milestoneFractions.forEachIndexed { index, fraction ->
@@ -124,13 +154,13 @@ fun GoalProgressBar(
             Box(
                 Modifier
                     .fillMaxWidth(fraction.coerceIn(0f, 1f))
-                    .height(14.dp),
+                    .height(8.dp),
                 contentAlignment = Alignment.CenterEnd,
             ) {
                 Box(
                     Modifier
                         .size(4.dp)
-                        .clip(CircleShape)
+                        .clip(RoundedCornerShape(2.dp))
                         .background(
                             if (reached) {
                                 MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.7f)
