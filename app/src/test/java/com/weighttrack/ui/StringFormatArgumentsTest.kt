@@ -14,27 +14,58 @@ import java.io.File
  */
 class StringFormatArgumentsTest {
 
-    private val strings = File("src/main/res/values/strings.xml")
-    private val sources = File("src/main/java/com/weighttrack")
+    /**
+     * Every resource file the app draws from, and every source that reads one.
+     *
+     * The watch has its own strings and its own sources, and a plural is a resource with
+     * placeholders exactly like a string: both sat outside this check while it claimed to hold
+     * every formatted string to its arguments.
+     */
+    private val stringFiles = listOf(
+        File("src/main/res/values/strings.xml"),
+        File("../wear/src/main/res/values/strings.xml"),
+    )
+
+    private val sources = listOf(
+        File("src/main/java/com/weighttrack"),
+        File("../wear/src/main/java/com/weighttrack"),
+    )
 
     /** A printf placeholder, positional or not. */
     private val placeholder = Regex("""%(\d+)\$[-+ 0,(#]*\d*(?:\.\d+)?[a-zA-Z]|%[-+ 0,(#]*\d*(?:\.\d+)?[a-zA-Z]""")
 
+    private fun argumentsIn(body: String): Int {
+        val cleaned = body.replace("%%", "")
+        val indices = placeholder.findAll(cleaned).map { it.groupValues[1] }.toList()
+        return when {
+            indices.isEmpty() -> 0
+            // An unindexed placeholder counts as one argument in order.
+            indices.any { it.isEmpty() } -> indices.size
+            else -> indices.mapNotNull(String::toIntOrNull).maxOrNull() ?: 0
+        }
+    }
+
     /** How many arguments each resource expects, by name. */
     private fun expectations(): Map<String, Int> {
-        val text = strings.readText()
-        return Regex("""<string name="([^"]+)">(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
-            .findAll(text)
-            .associate { match ->
-                val body = match.groupValues[2].replace("%%", "")
-                val indices = placeholder.findAll(body).map { it.groupValues[1] }.toList()
-                match.groupValues[1] to when {
-                    indices.isEmpty() -> 0
-                    // An unindexed placeholder counts as one argument in order.
-                    indices.any { it.isEmpty() } -> indices.size
-                    else -> indices.mapNotNull(String::toIntOrNull).maxOrNull() ?: 0
+        val found = mutableMapOf<String, Int>()
+        stringFiles.filter { it.isFile }.forEach { file ->
+            val text = file.readText()
+            Regex("""<string name="([^"]+)">(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
+                .findAll(text)
+                .forEach { found[it.groupValues[1]] = argumentsIn(it.groupValues[2]) }
+            // A plural is several bodies under one name. They must all want the same arguments,
+            // so the most any of them asks for is what a caller has to pass.
+            Regex("""<plurals name="([^"]+)">(.*?)</plurals>""", RegexOption.DOT_MATCHES_ALL)
+                .findAll(text)
+                .forEach { match ->
+                    val items = Regex("""<item[^>]*>(.*?)</item>""", RegexOption.DOT_MATCHES_ALL)
+                        .findAll(match.groupValues[2])
+                        .map { argumentsIn(it.groupValues[1]) }
+                        .toList()
+                    found[match.groupValues[1]] = items.maxOrNull() ?: 0
                 }
-            }
+        }
+        return found
     }
 
     /**
@@ -135,7 +166,7 @@ class StringFormatArgumentsTest {
 
     @Test
     fun `a positional resource numbers its placeholders from one with no gaps`() {
-        val text = strings.readText()
+        val text = stringFiles.filter { it.isFile }.joinToString("\n") { it.readText() }
         val broken = mutableListOf<String>()
         Regex("""<string name="([^"]+)">(.*?)</string>""", RegexOption.DOT_MATCHES_ALL)
             .findAll(text)
@@ -158,10 +189,14 @@ class StringFormatArgumentsTest {
         // today. The widgets call a helper of their own, and naming the two obvious functions left
         // both of them unwatched.
         val call = Regex("""(\w+)\(\s*(?:com\.weighttrack\.)?R\.string\.(\w+)""")
+        // A plural is fetched with the quantity between the id and the arguments, so one more
+        // than a string call carries and one fewer to blame on the format.
+        val plural = Regex("""(\w+)\(\s*(?:com\.weighttrack\.)?R\.plurals\.(\w+)""")
         val indexed = Regex("""strings\[\s*(?:com\.weighttrack\.)?R\.string\.(\w+)""")
         val wrong = mutableListOf<String>()
 
-        for (file in sources.walkTopDown().filter { it.extension == "kt" }) {
+        for (file in sources.asSequence().flatMap { it.walkTopDown() }
+            .filter { it.extension == "kt" }) {
             val source = file.readText()
             for (match in call.findAll(source)) {
                 val name = match.groupValues[2]
@@ -172,6 +207,17 @@ class StringFormatArgumentsTest {
                 // The opening bracket of the call itself.
                 val open = source.indexOf('(', match.range.first)
                 val passed = passedTo(source, open)
+                if (passed >= 0 && passed != wants) {
+                    val line = source.take(match.range.first).count { it == '\n' } + 1
+                    wrong += "${file.name}:$line $name wants $wants, given $passed"
+                }
+            }
+            for (match in plural.findAll(source)) {
+                val name = match.groupValues[2]
+                val wants = expected[name] ?: continue
+                val open = source.indexOf('(', match.range.first)
+                // Minus the id and minus the quantity.
+                val passed = passedTo(source, open) - 1
                 if (passed >= 0 && passed != wants) {
                     val line = source.take(match.range.first).count { it == '\n' } + 1
                     wrong += "${file.name}:$line $name wants $wants, given $passed"

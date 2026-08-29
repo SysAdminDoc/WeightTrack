@@ -116,13 +116,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: with Health Connect connected, a reading inserted by another app appears in WeightTrack without opening Settings; the worker still returns success when Health Connect is not connected.
   Complexity: M
 
-- [ ] P2 — Hold the plurals and the watch's strings to their format arguments too
-  Why: StringFormatArgumentsTest reads only `<string>` elements in the app module, so `<plurals>` and every string in wear/src/main/res sit outside the check that catches a crash-on-draw.
-  Evidence: app/src/test/java/com/weighttrack/ui/StringFormatArgumentsTest.kt expectations(); found reviewing 2026-08-29
-  Touches: app/src/test/java/com/weighttrack/ui/StringFormatArgumentsTest.kt
-  Acceptance: planting a wrong argument count in a plural or in a wear string fails the test.
-  Complexity: S
-
 
 - [ ] P2 — GLP-1 log: dose, site with rotation, side effects, protein target and a clinician PDF, off by default
   Why: MyFitnessPal (free, 2026-04-28), Noom (free, 2026-06-24) and MyNetDiary (paid, 2026-05-05) all shipped this in 2026; no OSS tracker has it; the science says 1.2 to 1.6 g/kg protein and a lean-mass watch during the 10 to 13 percent loss these users see.
