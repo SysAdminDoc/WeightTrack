@@ -2,6 +2,7 @@
 
 ## Unreleased
 
+- Camera captures now survive the app process being reclaimed while the camera is open. The pending private file is restored and filed when control returns, instead of leaving an unreachable JPEG behind.
 - Progress photo tiles now decode a display-sized sample in the background instead of expanding every camera image at full resolution on the interface thread.
 - Weekly summaries now verify notification access at the point where Android posts them, and water logging keeps its local-date behavior on every supported Android version.
 - Weekly summary. Pick a day and a time and WeightTrack sends one short note on how the week went, leading with a milestone if you crossed one. In a week with too few readings to say anything honest it stays quiet rather than sending you a notification with nothing in it.

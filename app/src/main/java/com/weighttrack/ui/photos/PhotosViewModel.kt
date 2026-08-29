@@ -1,6 +1,7 @@
 package com.weighttrack.ui.photos
 
 import android.net.Uri
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.data.repo.ProgressPhoto
@@ -11,11 +12,12 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 import javax.inject.Inject
 
@@ -43,12 +45,12 @@ class PhotosViewModel @Inject constructor(
     private val photoRepository: ProgressPhotoRepository,
     private val weightRepository: WeightRepository,
     progressCalculator: ProgressCalculator,
+    savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val selectedIds = MutableStateFlow<Set<Long>>(emptySet())
-
-    private val _pendingCapture = MutableStateFlow<File?>(null)
-    val pendingCapture: StateFlow<File?> = _pendingCapture.asStateFlow()
+    private val pendingCapture = PendingPhotoCaptureState(savedStateHandle)
+    private var recordingCapturePath: String? = null
 
     val state: StateFlow<PhotosUiState> = combine(
         photoRepository.observeAll(),
@@ -62,6 +64,17 @@ class PhotosViewModel @Inject constructor(
             weightUnit = snapshot.settings.weightUnit,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), PhotosUiState())
+
+    init {
+        pendingCapture.pending()?.let { file ->
+            when {
+                !file.exists() -> pendingCapture.clear(file)
+                file.length() > 0L -> recordCapture(file)
+                // An empty file can mean the restored camera activity is still writing it.
+                // Its result callback will finish or discard it when control returns here.
+            }
+        }
+    }
 
     fun toggleSelection(id: Long) = selectedIds.update { current ->
         when {
@@ -81,18 +94,18 @@ class PhotosViewModel @Inject constructor(
     }
 
     /** Hands back the file the camera should write into, remembered until the result arrives. */
-    fun prepareCapture(): File = photoRepository.newCaptureFile().also { _pendingCapture.value = it }
+    fun prepareCapture(): File = photoRepository.newCaptureFile().also(pendingCapture::remember)
 
     fun onCaptureResult(success: Boolean) {
-        val file = _pendingCapture.value ?: return
-        _pendingCapture.value = null
-        viewModelScope.launch {
-            if (success) {
-                photoRepository.record(file, weightGrams = currentWeightGrams())
-            } else {
+        val file = pendingCapture.pending() ?: return
+        if (success) {
+            recordCapture(file)
+        } else {
+            viewModelScope.launch {
                 // A cancelled capture leaves an empty file behind that would otherwise sit
                 // in storage forever.
-                file.delete()
+                withContext(Dispatchers.IO) { file.delete() }
+                pendingCapture.clear(file)
             }
         }
     }
@@ -105,4 +118,37 @@ class PhotosViewModel @Inject constructor(
     }
 
     private suspend fun currentWeightGrams(): Int? = weightRepository.latest()?.grams
+
+    private fun recordCapture(file: File) {
+        if (recordingCapturePath == file.absolutePath) return
+        recordingCapturePath = file.absolutePath
+        viewModelScope.launch {
+            try {
+                photoRepository.record(file, weightGrams = currentWeightGrams())
+                // Clear only after the database write returns. If this coroutine is cancelled
+                // by process death, the restored ViewModel sees the path and retries it.
+                pendingCapture.clear(file)
+            } finally {
+                recordingCapturePath = null
+            }
+        }
+    }
+}
+
+internal const val PENDING_CAPTURE_PATH_KEY = "pendingCapturePath"
+
+internal class PendingPhotoCaptureState(
+    private val savedStateHandle: SavedStateHandle,
+) {
+    fun remember(file: File) {
+        savedStateHandle[PENDING_CAPTURE_PATH_KEY] = file.absolutePath
+    }
+
+    fun pending(): File? = savedStateHandle.get<String>(PENDING_CAPTURE_PATH_KEY)?.let(::File)
+
+    fun clear(file: File) {
+        if (pending()?.absolutePath == file.absolutePath) {
+            savedStateHandle.remove<String>(PENDING_CAPTURE_PATH_KEY)
+        }
+    }
 }
