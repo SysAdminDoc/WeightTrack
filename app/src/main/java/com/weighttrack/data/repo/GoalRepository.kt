@@ -63,11 +63,9 @@ class GoalRepository @Inject constructor(
 
     suspend fun delete(goal: Goal) = dao.delete(goal.toEntity(profileId = profileOf(goal.id)))
 
-    /**
-     * A goal only ever reaches this screen from the active profile, so that is where it stays.
-     * There is no lookup by identifier on this table to read it back from.
-     */
-    private suspend fun profileOf(id: Long): Long = profiles.activeId()
+    /** Read back off the stored row, so an edit cannot move a goal to another profile. */
+    private suspend fun profileOf(id: Long): Long =
+        dao.byId(id)?.profileId ?: profiles.activeId()
 
     suspend fun deleteAll() = dao.deleteAll()
 

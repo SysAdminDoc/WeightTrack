@@ -171,6 +171,11 @@ class ProgressPhotoRepository @Inject constructor(
         Unit
     }
 
+    /** Unlinks images whose rows have already gone, which is what deleting a profile leaves. */
+    suspend fun deleteFiles(fileNames: List<String>) = withContext(Dispatchers.IO) {
+        fileNames.forEach { File(directory, it).delete() }
+    }
+
     suspend fun deleteAll() = withContext(Dispatchers.IO) {
         dao.all().forEach { File(directory, it.fileName).delete() }
         dao.deleteAll()

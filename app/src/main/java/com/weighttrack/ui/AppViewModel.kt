@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -24,6 +25,7 @@ import javax.inject.Inject
 class AppViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
+    private val reminderScheduler: com.weighttrack.notifications.ReminderScheduler,
     private val wearBridge: WearBridge,
     private val wearSummaryBuilder: WearSummaryBuilder,
 ) : ViewModel() {
@@ -63,6 +65,10 @@ class AppViewModel @Inject constructor(
             // daily reminder set before profiles existed would otherwise lose it silently.
             profileRepository.ensureDefault()
             profileRepository.adoptLegacyReminder()
+            // Writing the row is not enough. Alarms do not survive the app being replaced, and
+            // the boot receiver has already run and found nothing enabled, so the reminder that
+            // was just moved across has to be booked here or it never fires.
+            reminderScheduler.reschedule(profileRepository.observeAll().first())
         }
 
         // Opening the app is the moment to bring a watch up to date. Everything else that

@@ -119,7 +119,11 @@ class WeightRepository @Inject constructor(
     suspend fun byId(id: Long): WeightEntry? = dao.byId(id)?.toDomain()
 
     suspend fun byClientRecordId(clientRecordId: String): WeightEntry? =
-        dao.byClientRecordId(clientRecordId)?.toDomain()
+        dao.byClientRecordId(profiles.activeId(), clientRecordId)?.toDomain()
+
+    /** The same question, asked about a named profile, which is what the sync needs. */
+    suspend fun byClientRecordIdFor(profileId: Long, clientRecordId: String): WeightEntry? =
+        dao.byClientRecordId(profileId, clientRecordId)?.toDomain()
 
     suspend fun latestBodyFatPercent(): Double? =
         dao.latestWithBodyFat(profiles.activeId())?.bodyFatPercent

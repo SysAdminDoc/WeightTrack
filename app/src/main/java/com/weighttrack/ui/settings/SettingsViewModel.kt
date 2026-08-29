@@ -46,6 +46,7 @@ class SettingsViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val weightRepository: WeightRepository,
     private val profileRepository: ProfileRepository,
+    private val progressPhotoRepository: com.weighttrack.data.repo.ProgressPhotoRepository,
     private val backupService: BackupService,
     private val reminderScheduler: ReminderScheduler,
     private val weeklySummaryScheduler: WeeklySummaryScheduler,
@@ -343,7 +344,12 @@ class SettingsViewModel @Inject constructor(
     fun deleteProfile(id: Long) {
         viewModelScope.launch {
             val name = profiles.value.firstOrNull { it.id == id }?.name
-            if (profileRepository.delete(id)) {
+            val photos = profileRepository.deleteReturningPhotos(id)
+            if (photos != null) {
+                // The alarm outlives the row it belonged to, and would go off once more under
+                // somebody else's name. The pictures outlive it on disk.
+                reminderScheduler.cancel(id)
+                progressPhotoRepository.deleteFiles(photos)
                 SurfaceUpdater.refresh()
                 _message.value = name?.let { "Deleted $it and everything recorded for them" }
             } else {

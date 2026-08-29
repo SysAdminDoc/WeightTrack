@@ -141,7 +141,7 @@ class WeightTrackDatabaseTest {
     fun `entries can be found by day, id and client record id`() = runTest {
         val id = weightDao.insert(entry(day = 4, grams = 79_000, clientRecordId = "find-me"))
         assertThat(weightDao.byId(id)!!.grams).isEqualTo(79_000)
-        assertThat(weightDao.byClientRecordId("find-me")!!.id).isEqualTo(id)
+        assertThat(weightDao.byClientRecordId(PROFILE, "find-me")!!.id).isEqualTo(id)
         assertThat(weightDao.byLocalDate(PROFILE, "2026-01-05")).hasSize(1)
         assertThat(weightDao.byLocalDate(PROFILE, "2026-01-06")).isEmpty()
     }

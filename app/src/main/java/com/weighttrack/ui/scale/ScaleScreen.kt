@@ -133,7 +133,7 @@ fun ScaleScreen(
                 }
             }
 
-            state.suggestedProfile?.let { suggested ->
+            state.suggestedProfile?.takeIf { state.stage == ScaleStage.MEASURED }?.let { suggested ->
                 item {
                     SectionCard {
                         Text(

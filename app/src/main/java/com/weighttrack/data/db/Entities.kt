@@ -53,7 +53,10 @@ data class ProfileEntity(
         Index(value = ["profileId", "timestampUtcMillis"]),
         Index(value = ["timestampUtcMillis"]),
         Index(value = ["localDate"]),
-        Index(value = ["clientRecordId"], unique = true),
+        // Unique per profile, not globally. A record identifier is only an identity within
+        // one person's history: restoring the same backup, or importing the same file, for a
+        // second person must give them their own rows rather than move the first person's.
+        Index(value = ["profileId", "clientRecordId"], unique = true),
         Index(value = ["healthConnectId"]),
     ],
 )
@@ -187,4 +190,64 @@ data class ProgressPhotoEntity(
     /** The trend weight when the photo was taken, so a comparison can show the change. */
     val weightGrams: Int?,
     val note: String?,
+)
+
+/**
+ * A food, shared by everybody on the phone.
+ *
+ * Deliberately not tied to a profile. A food is a fact about a product, not about a person, and
+ * a household cooking together shares its recipes. What belongs to a person is the eating of it.
+ *
+ * A barcode is indexed but not unique: two brands reuse a code often enough that a unique
+ * constraint would refuse a real product.
+ */
+@Entity(
+    tableName = "foods",
+    indices = [
+        Index(value = ["barcode"]),
+        Index(value = ["name"]),
+        Index(value = ["lastUsedAtUtcMillis"]),
+    ],
+)
+data class FoodEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    val brand: String?,
+    val barcode: String?,
+    /** Everything is per hundred grams, so nothing has to remember which basis it used. */
+    val kcalPer100g: Double,
+    val proteinPer100g: Double?,
+    val carbsPer100g: Double?,
+    val fatPer100g: Double?,
+    val fibrePer100g: Double?,
+    val sugarPer100g: Double?,
+    val saltPer100g: Double?,
+    /** What one serving weighs, when the label said. */
+    val servingGrams: Double?,
+    val origin: String,
+    val favourite: Boolean = false,
+    /** Zero until it has been eaten, which is what puts it in the recents list. */
+    val lastUsedAtUtcMillis: Long = 0,
+    val updatedAtUtcMillis: Long,
+)
+
+/** Something cooked from other foods, whose nutrition is worked out rather than stored. */
+@Entity(tableName = "recipes", indices = [Index(value = ["name"])])
+data class RecipeEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val name: String,
+    /** What the whole recipe makes, so a portion can be worked out from it. */
+    val servings: Int,
+    val updatedAtUtcMillis: Long,
+)
+
+@Entity(
+    tableName = "recipe_items",
+    indices = [Index(value = ["recipeId"]), Index(value = ["foodId"])],
+)
+data class RecipeItemEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val recipeId: Long,
+    val foodId: Long,
+    val grams: Double,
 )

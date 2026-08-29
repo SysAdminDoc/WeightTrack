@@ -140,7 +140,15 @@ fun SettingsScreen(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
         if (granted) {
-            viewModel.setReminder(true, settings.reminderHour, settings.reminderMinute, settings.reminderDays)
+            // The active profile's own times. Using the settings the app kept before profiles
+            // existed would overwrite them with 07:30 every day on the first grant.
+            val target = profiles.firstOrNull { it.id == activeProfileId }
+            viewModel.setReminder(
+                enabled = true,
+                hour = target?.reminderHour ?: 7,
+                minute = target?.reminderMinute ?: 30,
+                days = target?.reminderDays ?: DayOfWeek.entries.toSet(),
+            )
         } else {
             viewModel.notifyTestSent(false)
         }

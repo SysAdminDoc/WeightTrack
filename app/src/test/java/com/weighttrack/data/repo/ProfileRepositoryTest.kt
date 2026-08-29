@@ -175,4 +175,59 @@ class ProfileRepositoryTest {
         // Nobody in the house is this weight, so there is nobody to offer it to.
         assertThat(com.weighttrack.ble.ScaleReadingRouter.owner(45_000, lastKnown)).isNull()
     }
+
+    @Test
+    fun `importing the same file for a second person does not move the first person's rows`() =
+        runTest {
+            profiles.ensureDefault()
+            val me = profiles.activeId()
+            // Both a backup restore and the CSV importer reuse a record identifier, which used
+            // to match across profiles and rewrite the profile column of the row it found.
+            weights.add(grams = 82_500, clientRecordId = "import:1")
+
+            val sam = profiles.add("Sam")
+            weights.add(grams = 64_000, clientRecordId = "import:1")
+
+            assertThat(database.weightEntryDao().count(me)).isEqualTo(1)
+            assertThat(database.weightEntryDao().count(sam)).isEqualTo(1)
+            assertThat(database.weightEntryDao().latest(me)!!.grams).isEqualTo(82_500)
+            assertThat(database.weightEntryDao().latest(sam)!!.grams).isEqualTo(64_000)
+        }
+
+    @Test
+    fun `syncing the same reading twice for one person still updates rather than duplicates`() =
+        runTest {
+            profiles.ensureDefault()
+            val me = profiles.activeId()
+
+            weights.add(grams = 82_500, clientRecordId = "hc:1")
+            weights.add(grams = 82_600, clientRecordId = "hc:1")
+
+            // The whole point of matching on the identifier: a second pass over an overlapping
+            // window must not double everything it already imported.
+            assertThat(database.weightEntryDao().count(me)).isEqualTo(1)
+            assertThat(database.weightEntryDao().latest(me)!!.grams).isEqualTo(82_600)
+        }
+
+    @Test
+    fun `deleting a profile hands back the photos so its files can go too`() = runTest {
+        profiles.ensureDefault()
+        val sam = profiles.add("Sam")
+        database.progressPhotoDao().insert(
+            com.weighttrack.data.db.ProgressPhotoEntity(
+                profileId = sam,
+                timestampUtcMillis = 1_000,
+                localDate = "2026-08-29",
+                fileName = "sam.jpg",
+                weightGrams = null,
+                note = null,
+            ),
+        )
+
+        val photos = profiles.deleteReturningPhotos(sam)
+
+        // The rows go in a transaction, but only the caller knows where the images live.
+        assertThat(photos).containsExactly("sam.jpg")
+        assertThat(profiles.deleteReturningPhotos(profiles.activeId())).isNull()
+    }
 }

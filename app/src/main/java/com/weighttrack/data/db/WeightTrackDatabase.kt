@@ -15,8 +15,11 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FastEntity::class,
         ProgressPhotoEntity::class,
         ProfileEntity::class,
+        FoodEntity::class,
+        RecipeEntity::class,
+        RecipeItemEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -28,6 +31,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 2, to = 3),
         AutoMigration(from = 3, to = 4),
         AutoMigration(from = 4, to = 5, spec = WeightTrackDatabase.AddProfiles::class),
+        // Six adds the food tables, which nothing else points at, so Room handles it alone.
+        AutoMigration(from = 5, to = 6),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {
@@ -38,6 +43,7 @@ abstract class WeightTrackDatabase : RoomDatabase() {
     abstract fun fastDao(): FastDao
     abstract fun progressPhotoDao(): ProgressPhotoDao
     abstract fun profileDao(): ProfileDao
+    abstract fun foodDao(): FoodDao
 
     /**
      * Creates the profile every existing row was just handed to.

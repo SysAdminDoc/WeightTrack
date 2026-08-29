@@ -61,14 +61,14 @@ class ReminderReceiver : BroadcastReceiver() {
                 val today = LocalDate.now(ZoneId.systemDefault())
                 if (latest?.localDate == today) return@launch
 
-                showReminder(context, profile.name.takeIf { profiles.size > 1 })
+                showReminder(context, profile.id, profile.name.takeIf { profiles.size > 1 })
             } finally {
                 pendingResult.finish()
             }
         }
     }
 
-    private fun showReminder(context: Context, who: String?) {
+    private fun showReminder(context: Context, profileId: Long, who: String?) {
         Notifications.ensureChannel(context)
         if (!hasNotificationPermission(context)) return
         if (
@@ -87,7 +87,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, Notifications.CHANNEL_REMINDERS)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle("Time to weigh in")
+            .setContentTitle(who?.let { "Time to weigh in, $it" } ?: "Time to weigh in")
             .setContentText("One reading keeps the trend line honest.")
             .setAutoCancel(true)
             .setContentIntent(openApp)
@@ -96,7 +96,10 @@ class ReminderReceiver : BroadcastReceiver() {
 
         runCatching {
             NotificationManagerCompat.from(context)
-                .notify(Notifications.REMINDER_NOTIFICATION_ID, notification)
+                // One identifier per person. A single one means the later reminder quietly
+            // replaces the earlier one in the shade, so whoever is reminded first never
+            // sees theirs.
+            .notify(Notifications.REMINDER_NOTIFICATION_ID + profileId.toInt(), notification)
         }
     }
 

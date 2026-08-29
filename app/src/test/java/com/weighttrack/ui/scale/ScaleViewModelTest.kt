@@ -309,4 +309,90 @@ class ScaleViewModelTest {
         assertThat(viewModel.state.value.reading).isNull()
         assertThat(weightRepository.latest()).isNull()
     }
+
+    @Test
+    fun `a reading that looks like somebody else is offered to them and not recorded yet`() =
+        runTest {
+            profiles.ensureDefault()
+            val me = profiles.activeId()
+            weightRepository.add(grams = 82_500)
+            val sam = profiles.add("Sam")
+            weightRepository.add(grams = 64_000)
+            profiles.setActive(me)
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            scanEvents.emit(broadcast(63_900))
+            advanceUntilIdle()
+
+            assertThat(viewModel.state.value.suggestedProfile?.id).isEqualTo(sam)
+            // Nothing is recorded while the question is on screen.
+            assertThat(weightRepository.observeEntries().first()).hasSize(1)
+        }
+
+    @Test
+    fun `taking the offer records it for them without switching the app over`() = runTest {
+        profiles.ensureDefault()
+            val me = profiles.activeId()
+            weightRepository.add(grams = 82_500)
+            val sam = profiles.add("Sam")
+            weightRepository.add(grams = 64_000)
+            profiles.setActive(me)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        scanEvents.emit(broadcast(63_900))
+        advanceUntilIdle()
+
+        viewModel.saveToSuggested()
+        advanceUntilIdle()
+
+        assertThat(weightRepository.latestFor(sam)!!.grams).isEqualTo(63_900)
+        // Somebody weighing themselves has not asked to start looking at their partner's
+        // history, and being left on it would send the next entry to the wrong person.
+        assertThat(profiles.activeId()).isEqualTo(me)
+        assertThat(viewModel.state.value.stage).isEqualTo(ScaleStage.SAVED)
+        // The offer is answered, so it cannot be taken a second time.
+        assertThat(viewModel.state.value.suggestedProfile).isNull()
+    }
+
+    @Test
+    fun `saying it is mine answers the offer rather than leaving it on screen`() = runTest {
+        profiles.ensureDefault()
+        val me = profiles.activeId()
+        weightRepository.add(grams = 82_500)
+        profiles.add("Sam")
+        weightRepository.add(grams = 64_000)
+        profiles.setActive(me)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        scanEvents.emit(broadcast(63_900))
+        advanceUntilIdle()
+
+        viewModel.save()
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.suggestedProfile).isNull()
+        assertThat(weightRepository.latestFor(me)!!.grams).isEqualTo(63_900)
+    }
+
+    @Test
+    fun `discarding clears the offer as well as the reading`() = runTest {
+        profiles.ensureDefault()
+        val me = profiles.activeId()
+        weightRepository.add(grams = 82_500)
+        profiles.add("Sam")
+        weightRepository.add(grams = 64_000)
+        profiles.setActive(me)
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        scanEvents.emit(broadcast(63_900))
+        advanceUntilIdle()
+
+        viewModel.discard()
+        advanceUntilIdle()
+
+        // Left behind, the card sits there through the next search with no weight to save.
+        assertThat(viewModel.state.value.suggestedProfile).isNull()
+        assertThat(viewModel.state.value.reading).isNull()
+    }
 }

@@ -1,0 +1,192 @@
+package com.weighttrack.data.repo
+
+import com.weighttrack.core.nutrition.Food
+import com.weighttrack.core.nutrition.FoodOrigin
+import com.weighttrack.core.nutrition.Nutrients
+import com.weighttrack.data.db.FoodDao
+import com.weighttrack.data.db.FoodEntity
+import com.weighttrack.data.db.RecipeEntity
+import com.weighttrack.data.db.RecipeItemEntity
+import com.weighttrack.data.db.RecipeWithItems
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+import javax.inject.Inject
+import javax.inject.Singleton
+
+/** A recipe and what it is made of, with the nutrition worked out rather than stored. */
+data class Recipe(
+    val id: Long,
+    val name: String,
+    val servings: Int,
+    val items: List<RecipeItem>,
+) {
+    val totalGrams: Double get() = items.sumOf { it.grams }
+
+    /** What the whole thing comes to. */
+    val total: Nutrients
+        get() = items.fold(Nutrients.NONE) { running, item -> running + item.nutrients }
+
+    /**
+     * One portion, which is what somebody actually eats.
+     *
+     * The total divided by the number of portions. Scaling by grams here would be wrong twice
+     * over: the total is already an absolute amount, not a per-hundred-gram figure.
+     */
+    val perServing: Nutrients
+        get() = if (servings <= 0) total else total.forGrams(100.0 / servings)
+
+    val servingGrams: Double? get() = if (servings <= 0) null else totalGrams / servings
+
+    /** A recipe as something that can be logged, priced per hundred grams like any other food. */
+    fun asFood(): Food = Food(
+        id = -id,
+        name = name,
+        per100g = if (totalGrams <= 0) Nutrients.NONE else total.forGrams(100.0 * 100.0 / totalGrams),
+        servingGrams = servingGrams,
+        origin = FoodOrigin.RECIPE,
+    )
+}
+
+data class RecipeItem(val food: Food, val grams: Double) {
+    val nutrients: Nutrients get() = food.forGrams(grams)
+}
+
+/**
+ * The food database.
+ *
+ * Deliberately not scoped to a profile. A food is a fact about a product, not about a person,
+ * and a household cooking together shares its recipes. What belongs to a person is the eating.
+ */
+@Singleton
+class FoodRepository @Inject constructor(
+    private val dao: FoodDao,
+) {
+    fun search(query: String, limit: Int = SEARCH_LIMIT): Flow<List<Food>> =
+        dao.search(query.trim(), limit).map { rows -> rows.map { it.toDomain() } }
+
+    fun observeRecent(limit: Int = RECENT_LIMIT): Flow<List<Food>> =
+        dao.observeRecent(limit).map { rows -> rows.map { it.toDomain() } }
+
+    fun observeFavourites(): Flow<List<Food>> =
+        dao.observeFavourites().map { rows -> rows.map { it.toDomain() } }
+
+    fun observeCustom(): Flow<List<Food>> =
+        dao.observeByOrigin(FoodOrigin.CUSTOM.name).map { rows -> rows.map { it.toDomain() } }
+
+    suspend fun byId(id: Long): Food? = dao.byId(id)?.toDomain()
+
+    suspend fun byBarcode(barcode: String): Food? = dao.byBarcode(barcode.trim())?.toDomain()
+
+    /** Adds a food somebody typed in. */
+    suspend fun add(food: Food): Long = dao.insert(food.toEntity())
+
+    suspend fun update(food: Food) {
+        val existing = dao.byId(food.id) ?: return
+        dao.update(
+            food.toEntity().copy(
+                id = existing.id,
+                favourite = existing.favourite,
+                lastUsedAtUtcMillis = existing.lastUsedAtUtcMillis,
+            ),
+        )
+    }
+
+    suspend fun delete(food: Food) {
+        dao.byId(food.id)?.let { dao.delete(it) }
+    }
+
+    /**
+     * Keeps a food looked up online, so scanning the same tin twice does not cost a request
+     * against a counted allowance and works with no signal at all.
+     */
+    suspend fun cache(food: Food): Long = dao.cache(food.toEntity())
+
+    suspend fun setFavourite(id: Long, favourite: Boolean) = dao.setFavourite(id, favourite)
+
+    /** Puts a food at the top of the recents, which is where somebody looks first. */
+    suspend fun markUsed(id: Long, atUtcMillis: Long = System.currentTimeMillis()) {
+        if (id > 0) dao.markUsed(id, atUtcMillis)
+    }
+
+    // ---- recipes ----
+
+    fun observeRecipes(): Flow<List<Recipe>> =
+        dao.observeRecipes().map { rows -> rows.map { it.toDomain() } }
+
+    suspend fun recipeById(id: Long): Recipe? = dao.recipeById(id)?.toDomain()
+
+    suspend fun saveRecipe(name: String, servings: Int, items: List<RecipeItem>, id: Long = 0): Long {
+        val entity = RecipeEntity(
+            id = id,
+            name = name.trim().ifBlank { "Recipe" },
+            servings = servings.coerceAtLeast(1),
+            updatedAtUtcMillis = System.currentTimeMillis(),
+        )
+        val recipeId = if (id > 0) {
+            dao.updateRecipe(entity)
+            id
+        } else {
+            dao.insertRecipe(entity)
+        }
+        dao.replaceRecipeItems(
+            recipeId,
+            items.map { RecipeItemEntity(recipeId = recipeId, foodId = it.food.id, grams = it.grams) },
+        )
+        return recipeId
+    }
+
+    suspend fun deleteRecipe(recipe: Recipe) {
+        dao.recipeById(recipe.id)?.let { dao.deleteRecipe(it.recipe) }
+    }
+
+    private suspend fun RecipeWithItems.toDomain(): Recipe = Recipe(
+        id = recipe.id,
+        name = recipe.name,
+        servings = recipe.servings,
+        // An ingredient whose food has been deleted is dropped rather than counted as nothing,
+        // which would quietly make the recipe look lighter than it is.
+        items = items.mapNotNull { item ->
+            dao.byId(item.foodId)?.let { RecipeItem(it.toDomain(), item.grams) }
+        },
+    )
+
+    private fun FoodEntity.toDomain(): Food = Food(
+        id = id,
+        name = name,
+        brand = brand,
+        barcode = barcode,
+        per100g = Nutrients(
+            kcal = kcalPer100g,
+            proteinG = proteinPer100g,
+            carbsG = carbsPer100g,
+            fatG = fatPer100g,
+            fibreG = fibrePer100g,
+            sugarG = sugarPer100g,
+            saltG = saltPer100g,
+        ),
+        servingGrams = servingGrams,
+        origin = runCatching { FoodOrigin.valueOf(origin) }.getOrDefault(FoodOrigin.CUSTOM),
+    )
+
+    private fun Food.toEntity(): FoodEntity = FoodEntity(
+        id = id.coerceAtLeast(0),
+        name = name,
+        brand = brand,
+        barcode = barcode,
+        kcalPer100g = per100g.kcal,
+        proteinPer100g = per100g.proteinG,
+        carbsPer100g = per100g.carbsG,
+        fatPer100g = per100g.fatG,
+        fibrePer100g = per100g.fibreG,
+        sugarPer100g = per100g.sugarG,
+        saltPer100g = per100g.saltG,
+        servingGrams = servingGrams,
+        origin = origin.name,
+        updatedAtUtcMillis = System.currentTimeMillis(),
+    )
+
+    companion object {
+        const val SEARCH_LIMIT = 50
+        const val RECENT_LIMIT = 20
+    }
+}

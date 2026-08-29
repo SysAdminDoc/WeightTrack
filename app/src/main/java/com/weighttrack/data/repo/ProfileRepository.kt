@@ -100,14 +100,24 @@ class ProfileRepository @Inject constructor(
      * Refuses the last one. An app with no profile has nowhere to put the next reading, and the
      * person would be left staring at a screen with no way to make one.
      */
-    suspend fun delete(id: Long): Boolean {
-        if (dao.count() <= 1) return false
-        val existing = dao.byId(id) ?: return false
+    suspend fun delete(id: Long): Boolean = deleteReturningPhotos(id) != null
+
+    /**
+     * Removes a profile and hands back the photo files it owned.
+     *
+     * The rows go in one transaction, but the images live on disk and only the photo repository
+     * knows where. Returning the names is what lets the caller unlink them, rather than leaving
+     * a deleted person's pictures on the phone while the app says they are gone.
+     */
+    suspend fun deleteReturningPhotos(id: Long): List<String>? {
+        if (dao.count() <= 1) return null
+        val existing = dao.byId(id) ?: return null
+        val photos = dao.photoFileNames(id)
         dao.deleteWithData(existing)
         if (settingsRepository.settings.first().activeProfileId == id) {
             dao.all().firstOrNull()?.let { settingsRepository.setActiveProfile(it.id) }
         }
-        return true
+        return photos
     }
 
     /**

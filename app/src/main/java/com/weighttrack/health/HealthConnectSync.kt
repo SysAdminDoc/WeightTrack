@@ -220,7 +220,10 @@ class HealthConnectSync @Inject constructor(
             // A record we wrote comes back carrying our own client id. Re-importing it would
             // be harmless thanks to the upsert, but skipping keeps the counts honest.
             val ourClientId = record.metadata.clientRecordId
-            if (ourClientId != null && weightRepository.byClientRecordId(ourClientId) != null) {
+            if (
+                ourClientId != null &&
+                weightRepository.byClientRecordIdFor(syncProfileId(), ourClientId) != null
+            ) {
                 skipped++
                 return@forEach
             }

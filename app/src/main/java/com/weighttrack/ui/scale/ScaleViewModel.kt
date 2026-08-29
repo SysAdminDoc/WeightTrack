@@ -140,6 +140,7 @@ class ScaleViewModel @Inject constructor(
                 devices = emptyList(),
                 reading = null,
                 match = null,
+                suggestedProfile = null,
                 liveGrams = null,
                 savedGrams = null,
             )
@@ -301,18 +302,45 @@ class ScaleViewModel @Inject constructor(
             // Recorded, so say so before touching the widgets and the watch. Those are a
             // follow-up, and a slow one must not hold up the confirmation for a weight that is
             // already in the log.
-            _state.update { it.copy(stage = ScaleStage.SAVED, savedGrams = reading.grams) }
+            _state.update {
+                it.copy(
+                    stage = ScaleStage.SAVED,
+                    savedGrams = reading.grams,
+                    // Answered, so the offer to file it under somebody else goes away rather
+                    // than sitting there ready to record the same weight twice.
+                    suggestedProfile = null,
+                )
+            }
             surfaceUpdater.refresh()
         }
     }
 
-    /** Files the reading under the person it looks like instead of the one on screen. */
+    /**
+     * Files the reading under the person it looks like.
+     *
+     * Recorded against them without switching the app over. Somebody weighing themselves on the
+     * family scale has not asked to start looking at their partner's history, and leaving them
+     * on it would send the next entry, the widgets and the watch to the wrong person.
+     */
     fun saveToSuggested() {
         val suggested = _state.value.suggestedProfile ?: return
+        val reading = _state.value.reading ?: return
         viewModelScope.launch {
-            profileRepository.setActive(suggested.id)
-            rememberedActiveId = suggested.id
-            save()
+            weightRepository.addFor(
+                profileId = suggested.id,
+                grams = reading.grams,
+                timestamp = java.time.Instant.now(),
+                bodyFatPercent = reading.bodyFatPercent,
+                source = EntrySource.SCALE,
+            )
+            _state.update {
+                it.copy(
+                    stage = ScaleStage.SAVED,
+                    savedGrams = reading.grams,
+                    suggestedProfile = null,
+                )
+            }
+            surfaceUpdater.refresh()
         }
     }
 

@@ -75,11 +75,17 @@ interface WeightEntryDao {
     @Query("SELECT * FROM weight_entries WHERE id = :id")
     suspend fun byId(id: Long): WeightEntryEntity?
 
-    @Query("SELECT * FROM weight_entries WHERE clientRecordId = :clientRecordId")
-    suspend fun byClientRecordId(clientRecordId: String): WeightEntryEntity?
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "AND clientRecordId = :clientRecordId",
+    )
+    suspend fun byClientRecordId(profileId: Long, clientRecordId: String): WeightEntryEntity?
 
-    @Query("SELECT * FROM weight_entries WHERE healthConnectId = :healthConnectId")
-    suspend fun byHealthConnectId(healthConnectId: String): WeightEntryEntity?
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "AND healthConnectId = :healthConnectId",
+    )
+    suspend fun byHealthConnectId(profileId: Long, healthConnectId: String): WeightEntryEntity?
 
     @Query(
         "SELECT * FROM weight_entries WHERE profileId = :profileId AND localDate = :localDate " +
@@ -142,15 +148,19 @@ interface WeightEntryDao {
     suspend fun deleteAll()
 
     /**
-     * Inserts, or updates the row that already represents this reading.
+     * Inserts, or updates the row that already represents this reading, within its own profile.
      *
      * Health Connect sync runs repeatedly over overlapping windows, so "insert if new" has to
      * be a single transaction or a second pass duplicates everything it already imported.
+     *
+     * Scoped to the entry's profile. Matching across profiles does not merge two rows, it
+     * rewrites the profile column of the one it found, which silently moves somebody else's
+     * reading. A backup restored, or a file imported, under a second person did exactly that.
      */
     @Transaction
     suspend fun upsertByIdentity(entry: WeightEntryEntity): Long {
-        val existing = byClientRecordId(entry.clientRecordId)
-            ?: entry.healthConnectId?.let { byHealthConnectId(it) }
+        val existing = byClientRecordId(entry.profileId, entry.clientRecordId)
+            ?: entry.healthConnectId?.let { byHealthConnectId(entry.profileId, it) }
         return if (existing == null) {
             insert(entry)
         } else {
@@ -239,6 +249,9 @@ interface GoalDao {
 
     @Query("SELECT * FROM goals WHERE profileId = :profileId ORDER BY createdAtUtcMillis DESC")
     fun observeAll(profileId: Long): Flow<List<GoalEntity>>
+
+    @Query("SELECT * FROM goals WHERE id = :id")
+    suspend fun byId(id: Long): GoalEntity?
 
     @Query("UPDATE goals SET active = 0 WHERE profileId = :profileId")
     suspend fun deactivateAll(profileId: Long)
@@ -449,6 +462,9 @@ interface ProfileDao {
      * Deleting the row on its own would leave rows pointing at nothing, which is worse than
      * losing them: they would still be counted and still be exported, but never shown.
      */
+    @Query("SELECT fileName FROM progress_photos WHERE profileId = :profileId")
+    suspend fun photoFileNames(profileId: Long): List<String>
+
     @Transaction
     suspend fun deleteWithData(profile: ProfileEntity) {
         deleteWeightEntries(profile.id)
@@ -477,4 +493,124 @@ interface ProfileDao {
 
     @Query("DELETE FROM progress_photos WHERE profileId = :profileId")
     suspend fun deleteProgressPhotos(profileId: Long)
+}
+
+/** A recipe with everything in it, which is the only useful way to read one. */
+data class RecipeWithItems(
+    @androidx.room.Embedded val recipe: RecipeEntity,
+    @androidx.room.Relation(parentColumn = "id", entityColumn = "recipeId")
+    val items: List<RecipeItemEntity>,
+)
+
+@Dao
+interface FoodDao {
+
+    @Query("SELECT * FROM foods WHERE id = :id")
+    suspend fun byId(id: Long): FoodEntity?
+
+    /** The newest entry for a barcode. Two brands share a code often enough to matter. */
+    @Query("SELECT * FROM foods WHERE barcode = :barcode ORDER BY updatedAtUtcMillis DESC LIMIT 1")
+    suspend fun byBarcode(barcode: String): FoodEntity?
+
+    @Query(
+        """
+        SELECT * FROM foods
+        WHERE name LIKE '%' || :query || '%' OR brand LIKE '%' || :query || '%'
+        ORDER BY favourite DESC, lastUsedAtUtcMillis DESC, name ASC
+        LIMIT :limit
+        """,
+    )
+    fun search(query: String, limit: Int): Flow<List<FoodEntity>>
+
+    /** What somebody actually eats, which is a far better first offer than a search box. */
+    @Query(
+        "SELECT * FROM foods WHERE lastUsedAtUtcMillis > 0 " +
+            "ORDER BY lastUsedAtUtcMillis DESC LIMIT :limit",
+    )
+    fun observeRecent(limit: Int): Flow<List<FoodEntity>>
+
+    @Query("SELECT * FROM foods WHERE favourite = 1 ORDER BY name ASC")
+    fun observeFavourites(): Flow<List<FoodEntity>>
+
+    @Query("SELECT * FROM foods WHERE origin = :origin ORDER BY name ASC")
+    fun observeByOrigin(origin: String): Flow<List<FoodEntity>>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insert(food: FoodEntity): Long
+
+    @Update
+    suspend fun update(food: FoodEntity)
+
+    @Delete
+    suspend fun delete(food: FoodEntity)
+
+    @Query("UPDATE foods SET favourite = :favourite WHERE id = :id")
+    suspend fun setFavourite(id: Long, favourite: Boolean)
+
+    @Query("UPDATE foods SET lastUsedAtUtcMillis = :atUtcMillis WHERE id = :id")
+    suspend fun markUsed(id: Long, atUtcMillis: Long)
+
+    /**
+     * Files a food looked up online without making a second copy of it.
+     *
+     * A cached product is looked up by barcode every time it is scanned, so a plain insert
+     * would build a pile of identical rows. What comes back may be better than what was
+     * cached, though, so the stored row is refreshed rather than left alone.
+     */
+    @Transaction
+    suspend fun cache(food: FoodEntity): Long {
+        val existing = food.barcode?.let { byBarcode(it) }
+        return if (existing == null) {
+            insert(food)
+        } else {
+            // Whether it is a favourite, and when it was last eaten, belong to the person
+            // rather than to the database it came from.
+            update(
+                food.copy(
+                    id = existing.id,
+                    favourite = existing.favourite,
+                    lastUsedAtUtcMillis = existing.lastUsedAtUtcMillis,
+                ),
+            )
+            existing.id
+        }
+    }
+
+    @Query("DELETE FROM foods")
+    suspend fun deleteAll()
+
+    // ---- recipes ----
+
+    @Transaction
+    @Query("SELECT * FROM recipes ORDER BY name ASC")
+    fun observeRecipes(): Flow<List<RecipeWithItems>>
+
+    @Transaction
+    @Query("SELECT * FROM recipes WHERE id = :id")
+    suspend fun recipeById(id: Long): RecipeWithItems?
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRecipe(recipe: RecipeEntity): Long
+
+    @Update
+    suspend fun updateRecipe(recipe: RecipeEntity)
+
+    @Delete
+    suspend fun deleteRecipe(recipe: RecipeEntity)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertRecipeItems(items: List<RecipeItemEntity>)
+
+    @Query("DELETE FROM recipe_items WHERE recipeId = :recipeId")
+    suspend fun deleteRecipeItems(recipeId: Long)
+
+    /** Replaces a recipe's contents wholesale, which is what editing one amounts to. */
+    @Transaction
+    suspend fun replaceRecipeItems(recipeId: Long, items: List<RecipeItemEntity>) {
+        deleteRecipeItems(recipeId)
+        insertRecipeItems(items.map { it.copy(recipeId = recipeId) })
+    }
+
+    @Query("DELETE FROM recipes")
+    suspend fun deleteAllRecipes()
 }
