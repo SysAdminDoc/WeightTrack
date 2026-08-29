@@ -2,6 +2,8 @@ package com.weighttrack.data.repo
 
 import android.content.Context
 import android.net.Uri
+import android.provider.MediaStore
+import androidx.exifinterface.media.ExifInterface
 import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.ProgressPhotoEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -11,9 +13,12 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.InputStream
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalDateTime
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -48,6 +53,46 @@ class ProgressPhotoRepository @Inject constructor(
             .flowOn(Dispatchers.IO)
 
     fun observeCount(): Flow<Int> = dao.observeCount()
+
+    /**
+     * When a picked image was actually taken, or null when nothing says.
+     *
+     * A gallery import filed under today is wrong for the one thing progress photos are for:
+     * a picture from March belongs in March, next to the weight from March. EXIF first, because
+     * it travels with the file, then the media store, which knows about pictures that arrived
+     * without EXIF.
+     */
+    suspend fun takenAt(
+        source: Uri,
+        zone: ZoneId = ZoneId.systemDefault(),
+        now: Instant = Instant.now(),
+    ): Instant? = withContext(Dispatchers.IO) {
+        val fromExif = runCatching {
+            context.contentResolver.openInputStream(source)?.use { exifTakenAt(it, zone) }
+        }.getOrNull()
+        plausibleCaptureTime(fromExif ?: mediaStoreTakenAt(source), now)
+    }
+
+    private fun exifTakenAt(stream: InputStream, zone: ZoneId): Instant? {
+        val exif = runCatching { ExifInterface(stream) }.getOrNull() ?: return null
+        val raw = exif.getAttribute(ExifInterface.TAG_DATETIME_ORIGINAL)
+            ?: exif.getAttribute(ExifInterface.TAG_DATETIME)
+        return parseExifDateTime(raw, zone)
+    }
+
+    private fun mediaStoreTakenAt(source: Uri): Instant? = runCatching {
+        // Not every provider carries this column, and asking one that does not throws.
+        context.contentResolver.query(
+            source,
+            arrayOf(MediaStore.Images.Media.DATE_TAKEN),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (!cursor.moveToFirst() || cursor.isNull(0)) return@use null
+            Instant.ofEpochMilli(cursor.getLong(0))
+        }
+    }.getOrNull()
 
     /** Where a camera capture should write, created empty and ready. */
     fun newCaptureFile(): File = File(directory, "photo-${UUID.randomUUID()}.jpg")
@@ -138,3 +183,32 @@ class ProgressPhotoRepository @Inject constructor(
         const val DIRECTORY_NAME = "progress-photos"
     }
 }
+
+private val EXIF_DATE_TIME: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy:MM:dd HH:mm:ss")
+
+/**
+ * Reads an EXIF date.
+ *
+ * EXIF records the camera's wall clock with no zone at all, so it is read in the device's zone
+ * rather than as an instant. Treating it as UTC moves a photo taken after dark onto the previous
+ * day for anyone west of Greenwich, which is the whole point of dating it properly.
+ *
+ * Cameras that never had a clock set write "0000:00:00 00:00:00", which fails to parse and is
+ * reported as no date rather than as the year zero.
+ */
+internal fun parseExifDateTime(raw: String?, zone: ZoneId): Instant? {
+    val text = raw?.trim().orEmpty()
+    if (text.isEmpty()) return null
+    val local = runCatching { LocalDateTime.parse(text, EXIF_DATE_TIME) }.getOrNull() ?: return null
+    return runCatching { local.atZone(zone).toInstant() }.getOrNull()
+}
+
+/**
+ * Keeps a capture time only when it could be one.
+ *
+ * A camera whose clock was never set reports 1970, and one set to the wrong year reports the
+ * future. Either would sort a photo somewhere it cannot be looked at, so both are dropped and
+ * the caller falls back to the time of the import.
+ */
+internal fun plausibleCaptureTime(candidate: Instant?, now: Instant): Instant? =
+    candidate?.takeIf { it.isAfter(Instant.EPOCH) && !it.isAfter(now) }

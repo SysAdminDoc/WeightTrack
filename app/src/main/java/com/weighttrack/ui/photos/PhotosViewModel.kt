@@ -19,6 +19,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.time.Instant
 import javax.inject.Inject
 
 data class PhotosUiState(
@@ -87,9 +88,20 @@ class PhotosViewModel @Inject constructor(
 
     fun clearSelection() = selectedIds.update { emptySet() }
 
+    /**
+     * Files a picked image under the day it was taken, not the day it was imported.
+     *
+     * The weight comes from the same moment, so importing a year of old photos lines each one up
+     * with what the scale said at the time instead of stamping the whole lot with today.
+     */
     fun importFrom(uri: Uri) {
         viewModelScope.launch {
-            photoRepository.importFrom(uri, weightGrams = currentWeightGrams())
+            val takenAt = photoRepository.takenAt(uri) ?: Instant.now()
+            photoRepository.importFrom(
+                uri,
+                weightGrams = weightGramsAt(takenAt),
+                timestamp = takenAt,
+            )
         }
     }
 
@@ -117,14 +129,16 @@ class PhotosViewModel @Inject constructor(
         }
     }
 
-    private suspend fun currentWeightGrams(): Int? = weightRepository.latest()?.grams
+    private suspend fun weightGramsAt(at: Instant): Int? =
+        weightRepository.latestAtOrBefore(at)?.grams
 
     private fun recordCapture(file: File) {
         if (recordingCapturePath == file.absolutePath) return
         recordingCapturePath = file.absolutePath
         viewModelScope.launch {
             try {
-                photoRepository.record(file, weightGrams = currentWeightGrams())
+                val at = Instant.now()
+                photoRepository.record(file, weightGrams = weightGramsAt(at), timestamp = at)
                 // Clear only after the database write returns. If this coroutine is cancelled
                 // by process death, the restored ViewModel sees the path and retries it.
                 pendingCapture.clear(file)

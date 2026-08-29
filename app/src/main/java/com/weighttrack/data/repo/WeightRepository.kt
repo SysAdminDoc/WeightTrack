@@ -46,6 +46,15 @@ class WeightRepository @Inject constructor(
 
     suspend fun earliest(): WeightEntry? = dao.earliest()?.toDomain()
 
+    /**
+     * The last reading recorded at or before an instant.
+     *
+     * Null when nothing had been recorded yet, which is honest: a photo from before you started
+     * weighing yourself has no weight to show, and the first reading you ever took is not it.
+     */
+    suspend fun latestAtOrBefore(at: Instant): WeightEntry? =
+        dao.latestAtOrBefore(at.toEpochMilli())?.toDomain()
+
     suspend fun byId(id: Long): WeightEntry? = dao.byId(id)?.toDomain()
 
     suspend fun byClientRecordId(clientRecordId: String): WeightEntry? =

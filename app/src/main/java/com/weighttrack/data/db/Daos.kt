@@ -43,6 +43,12 @@ interface WeightEntryDao {
     @Query("SELECT * FROM weight_entries ORDER BY timestampUtcMillis ASC LIMIT 1")
     suspend fun earliest(): WeightEntryEntity?
 
+    @Query(
+        "SELECT * FROM weight_entries WHERE timestampUtcMillis <= :atUtcMillis " +
+            "ORDER BY timestampUtcMillis DESC LIMIT 1",
+    )
+    suspend fun latestAtOrBefore(atUtcMillis: Long): WeightEntryEntity?
+
     @Query("SELECT * FROM weight_entries WHERE id = :id")
     suspend fun byId(id: Long): WeightEntryEntity?
 

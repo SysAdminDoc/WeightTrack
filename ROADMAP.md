@@ -88,7 +88,6 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 ### P0 defects found by the third review pass (fasting, photos, lock)
 
-- [ ] A photo imported from the gallery is filed under today with today's weight, ignoring when it was actually taken. The camera path is correct; only the gallery path is wrong against "with a date and the weight at that time". Read the EXIF date, or ask.
 - [ ] `BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED` is treated as transient, but it is permanent on a device that no longer gets security updates. The lock then stands, cannot be satisfied, and the toggle to switch it off is rendered only under the AVAILABLE branch, so it is hidden as well as locked away. Narrow window (needs a broken sensor and no screen lock) but it is the permanent lockout the design says cannot happen.
 
 - [ ] Wear OS companion: tile with one-tap log (rotary picker), complication showing trend and delta, Data Layer sync

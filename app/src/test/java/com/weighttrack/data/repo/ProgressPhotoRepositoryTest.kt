@@ -2,6 +2,8 @@ package com.weighttrack.data.repo
 
 import android.content.Context
 import android.content.ContextWrapper
+import android.net.Uri
+import androidx.exifinterface.media.ExifInterface
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
@@ -15,6 +17,7 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import java.io.File
 import java.time.Instant
+import java.time.ZoneId
 import java.util.concurrent.CopyOnWriteArrayList
 
 @RunWith(RobolectricTestRunner::class)
@@ -40,6 +43,67 @@ class ProgressPhotoRepositoryTest {
 
     private fun writtenCaptureFile(bytes: ByteArray = byteArrayOf(1, 2, 3)): File =
         repository.newCaptureFile().apply { writeBytes(bytes) }
+
+    @Test
+    fun `an exif date is read as the camera's own wall clock, not as UTC`() {
+        // A photo taken just after midnight in a western zone belongs on the day the camera
+        // printed on it. Reading the string as UTC would file it on the day before.
+        val taken = parseExifDateTime("2026:03:14 00:30:00", ZoneId.of("America/New_York"))
+
+        assertThat(taken).isEqualTo(Instant.parse("2026-03-14T04:30:00Z"))
+        assertThat(taken!!.atZone(ZoneId.of("America/New_York")).toLocalDate().toString())
+            .isEqualTo("2026-03-14")
+    }
+
+    @Test
+    fun `an unset camera clock is reported as no date at all`() {
+        val zone = ZoneId.of("UTC")
+        assertThat(parseExifDateTime("0000:00:00 00:00:00", zone)).isNull()
+        assertThat(parseExifDateTime("   ", zone)).isNull()
+        assertThat(parseExifDateTime(null, zone)).isNull()
+        assertThat(parseExifDateTime("2026-03-14 10:00:00", zone)).isNull()
+    }
+
+    @Test
+    fun `a capture time that could not have happened is dropped`() {
+        val now = Instant.parse("2026-08-29T12:00:00Z")
+
+        assertThat(plausibleCaptureTime(Instant.parse("2026-03-14T10:00:00Z"), now))
+            .isEqualTo(Instant.parse("2026-03-14T10:00:00Z"))
+        // A camera whose clock was never set, and one set to the wrong year.
+        assertThat(plausibleCaptureTime(Instant.EPOCH, now)).isNull()
+        assertThat(plausibleCaptureTime(Instant.parse("2030-01-01T00:00:00Z"), now)).isNull()
+        assertThat(plausibleCaptureTime(null, now)).isNull()
+    }
+
+    @Test
+    fun `an imported image is dated from its exif rather than the import`() = runTest {
+        val zone = ZoneId.of("UTC")
+        val source = File(context.cacheDir, "picked.jpg").apply {
+            writeBytes(byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0xD9.toByte()))
+            ExifInterface(absolutePath).apply {
+                setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, "2026:03:14 09:15:00")
+                saveAttributes()
+            }
+        }
+
+        val takenAt = repository.takenAt(
+            Uri.fromFile(source),
+            zone = zone,
+            now = Instant.parse("2026-08-29T12:00:00Z"),
+        )
+
+        assertThat(takenAt).isEqualTo(Instant.parse("2026-03-14T09:15:00Z"))
+        source.delete()
+    }
+
+    @Test
+    fun `an image with nothing to date it reports no capture time`() = runTest {
+        val source = File(context.cacheDir, "plain.bin").apply { writeBytes(byteArrayOf(1, 2, 3)) }
+
+        assertThat(repository.takenAt(Uri.fromFile(source))).isNull()
+        source.delete()
+    }
 
     @Test
     fun `a captured photo is recorded and listed`() = runTest {
