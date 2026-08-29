@@ -55,6 +55,7 @@ interface ScaleConnection {
 @Singleton
 class BluetoothScaleConnection @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val runtimeLog: com.weighttrack.diagnostics.RuntimeLog,
 ) : ScaleConnection {
     override fun connect(device: ScaleDevice): Flow<ScaleConnectionEvent> = callbackFlow {
         val address = device.address
@@ -105,6 +106,18 @@ class BluetoothScaleConnection @Inject constructor(
                         }
                     }
                     BluetoothProfile.STATE_DISCONNECTED -> {
+                        // A scale that connects and then drops without saying anything is the
+                        // symptom the changelog asks people to report. The GATT status is the
+                        // difference between a bond the scale forgot and a timeout.
+                        runtimeLog.write(
+                            com.weighttrack.diagnostics.LogArea.SCALE,
+                            if (status == GATT_SUCCESS) {
+                                com.weighttrack.diagnostics.LogEvent.SCALE_DISCONNECTED
+                            } else {
+                                com.weighttrack.diagnostics.LogEvent.SCALE_CONNECT_FAILED
+                            },
+                            code = status,
+                        )
                         assembler.flush(SystemClock.elapsedRealtime()).forEach {
                             trySendBlocking(ScaleConnectionEvent.Measured(it))
                         }

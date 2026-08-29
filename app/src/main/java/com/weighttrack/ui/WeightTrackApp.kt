@@ -457,12 +457,18 @@ fun WeightTrackApp(
             composable(Routes.CRASH_LOGS) {
                 val viewModel: CrashLogViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
+                val logContext = androidx.compose.ui.platform.LocalContext.current
                 CrashLogScreen(
                     state = state,
                     onOpen = viewModel::open,
                     onClose = viewModel::close,
                     onDelete = viewModel::delete,
                     onDeleteAll = viewModel::deleteAll,
+                    onShareActivityLog = {
+                        viewModel.shareActivityLog { body ->
+                            com.weighttrack.ui.diagnostics.shareActivityLogText(logContext, body)
+                        }
+                    },
                     onBack = { navController.popBackStack() },
                 )
             }

@@ -27,6 +27,9 @@ import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.RuntimeLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -80,6 +83,7 @@ class HealthConnectSync @Inject constructor(
     private val weightRepository: WeightRepository,
     private val settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
+    private val runtimeLog: RuntimeLog,
 ) {
 
     /**
@@ -91,6 +95,16 @@ class HealthConnectSync @Inject constructor(
      */
     private suspend fun syncProfileId(): Long =
         profileRepository.healthConnectId() ?: profileRepository.activeId()
+
+    /**
+     * Notes that something went wrong, since almost everything here answers with a default.
+     *
+     * A revoked grant and a broken provider both used to look exactly like "you have no data",
+     * which is the one answer a person cannot argue with.
+     */
+    private fun failed(event: LogEvent, cause: Throwable) {
+        runtimeLog.write(LogArea.HEALTH_CONNECT, event, cause = cause)
+    }
 
     suspend fun hasHistoryPermission(): Boolean = hasGranted(historyPermissions)
 
@@ -143,7 +157,7 @@ class HealthConnectSync @Inject constructor(
                 ),
             )
             true
-        }.getOrDefault(false)
+        }.onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }.getOrDefault(false)
     }
 
     /** Removes a record when its meal is deleted, so the two do not drift apart. */
@@ -230,7 +244,7 @@ class HealthConnectSync @Inject constructor(
                     byMorning[morning] = (byMorning[morning] ?: 0.0) + hours
                 }
                 byMorning.toMap()
-            }.getOrDefault(emptyMap())
+            }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }.getOrDefault(emptyMap())
         }
 
     suspend fun hasHydrationPermission(): Boolean = hasGranted(hydrationPermissions)
@@ -275,7 +289,7 @@ class HealthConnectSync @Inject constructor(
                     activeKilocalories = kcal,
                 )
             }
-        }.getOrDefault(emptyList())
+        }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }.getOrDefault(emptyList())
     }
 
     /**
@@ -301,7 +315,7 @@ class HealthConnectSync @Inject constructor(
                     exported = exported,
                     skipped = imported.second,
                 )
-            }
+            }.onFailure { failed(LogEvent.HEALTH_SYNC_FAILED, it) }
         }
 
     private suspend fun importWeights(
@@ -428,7 +442,7 @@ class HealthConnectSync @Inject constructor(
                 ),
             )
             true
-        }.getOrDefault(false)
+        }.onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }.getOrDefault(false)
     }
 
     /** Body fat is written separately because Health Connect models it as its own record. */

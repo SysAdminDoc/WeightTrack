@@ -45,6 +45,8 @@
 
     <!-- diagnostics -->
     <string name="diagnostics_crash_reports">Crash reports</string>
+    <string name="diagnostics_share_activity_log">Activity log</string>
+    <string name="diagnostics_activity_log_subject">WeightTrack activity log</string>
     <string name="diagnostics_clear_all">Clear all</string>
     <string name="diagnostics_if_weighttrack_ever_closes_unexpectedly_the">If WeightTrack ever closes unexpectedly, the details land here so you can send them on. Nothing is uploaded on its own.</string>
     <string name="diagnostics_these_stay_on_your_phone_tap">These stay on your phone. Tap one to read it, then share it if you want it looked at.</string>

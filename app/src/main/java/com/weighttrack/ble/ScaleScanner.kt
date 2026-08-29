@@ -85,6 +85,7 @@ interface ScaleScanner {
 @Singleton
 class BluetoothScaleScanner @Inject constructor(
     @param:ApplicationContext private val context: Context,
+    private val runtimeLog: com.weighttrack.diagnostics.RuntimeLog,
 ) : ScaleScanner {
     private val adapter: BluetoothAdapter?
         get() = ContextCompat.getSystemService(context, BluetoothManager::class.java)?.adapter
@@ -139,6 +140,13 @@ class BluetoothScaleScanner @Inject constructor(
             }
 
             override fun onScanFailed(errorCode: Int) {
+                // The error code is the only thing that tells "too many scans registered"
+                // apart from "the radio is busy", and neither reaches the screen.
+                runtimeLog.write(
+                    com.weighttrack.diagnostics.LogArea.SCALE,
+                    com.weighttrack.diagnostics.LogEvent.SCALE_SCAN_FAILED,
+                    code = errorCode,
+                )
                 trySend(ScaleScanEvent.Failed(ScaleProblem.SCAN_FAILED))
             }
 

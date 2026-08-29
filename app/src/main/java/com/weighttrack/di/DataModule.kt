@@ -22,6 +22,7 @@ import com.weighttrack.data.db.WeightEntryDao
 import com.weighttrack.data.db.SyncDao
 import com.weighttrack.data.db.WeightTrackDatabase
 import com.weighttrack.diagnostics.CrashLogStore
+import com.weighttrack.diagnostics.RuntimeLog
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -94,6 +95,17 @@ object DataModule {
     @Singleton
     fun provideCrashLogStore(@ApplicationContext context: Context): CrashLogStore =
         CrashLogStore(File(context.filesDir, CrashLogStore.DIRECTORY_NAME))
+
+    /**
+     * The runtime log, beside the crash reports and covered by the same exclusions.
+     *
+     * One file for the whole app, so the order of events across sync, Health Connect and a scale
+     * is the order they actually happened in. That ordering is most of its value.
+     */
+    @Provides
+    @Singleton
+    fun provideRuntimeLog(@ApplicationContext context: Context): RuntimeLog =
+        RuntimeLog(File(context.filesDir, RuntimeLog.FILE_NAME))
 
     @Provides
     fun provideProfileDao(database: WeightTrackDatabase): ProfileDao = database.profileDao()

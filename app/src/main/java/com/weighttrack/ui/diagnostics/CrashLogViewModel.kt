@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.diagnostics.CrashLogStore
 import com.weighttrack.diagnostics.CrashReport
+import com.weighttrack.diagnostics.RuntimeLog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,11 +20,14 @@ data class CrashLogUiState(
     val openReportId: String? = null,
     val openReportBody: String? = null,
     val loaded: Boolean = false,
+    /** Whether anything has gone wrong quietly enough to be worth sending on. */
+    val activityLogAvailable: Boolean = false,
 )
 
 @HiltViewModel
 class CrashLogViewModel @Inject constructor(
     private val store: CrashLogStore,
+    private val runtimeLog: RuntimeLog,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(CrashLogUiState())
@@ -36,7 +40,10 @@ class CrashLogViewModel @Inject constructor(
     fun refresh() {
         viewModelScope.launch {
             val reports = withContext(Dispatchers.IO) { store.list() }
-            _state.update { it.copy(reports = reports, loaded = true) }
+            val hasActivity = withContext(Dispatchers.IO) { !runtimeLog.isEmpty() }
+            _state.update {
+                it.copy(reports = reports, loaded = true, activityLogAvailable = hasActivity)
+            }
         }
     }
 
@@ -57,6 +64,19 @@ class CrashLogViewModel @Inject constructor(
 
     fun close() {
         _state.update { it.copy(openReportId = null, openReportBody = null) }
+    }
+
+    /**
+     * Hands the activity log to whatever wants to send it.
+     *
+     * Read on demand rather than held in state: it is up to half a megabyte, and nothing on
+     * the screen displays it.
+     */
+    fun shareActivityLog(share: (String) -> Unit) {
+        viewModelScope.launch {
+            val body = withContext(Dispatchers.IO) { runtimeLog.read() }
+            if (body.isNotBlank()) share(body)
+        }
     }
 
     fun delete(report: CrashReport) {

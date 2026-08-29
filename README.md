@@ -52,6 +52,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Bluetooth scales, read straight into the log: the standard weight and body composition services, Xiaomi's broadcast format that needs no pairing, and the Renpho, eufy and Beurer/Sanitas protocols
 - A Wear OS watch app: the trend on a tile and on a watch face, and a weight logged with the crown
 - A home screen widget, and a daily reminder that stays quiet on days you have already weighed in
+- An activity log that records what failed and why, holding no personal data at all, so a problem can be reported without sending your history with it
 - AMOLED black by default, with light, dark and wallpaper-colour themes
 
 ## What it will not do

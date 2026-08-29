@@ -13,6 +13,9 @@ import com.weighttrack.data.sync.SyncEngine
 import com.weighttrack.data.sync.SyncMode
 import com.weighttrack.data.sync.SyncPreferences
 import com.weighttrack.data.sync.SyncResult
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.RuntimeLog
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -33,6 +36,7 @@ class SyncWorker @AssistedInject constructor(
     @Assisted parameters: WorkerParameters,
     private val engine: SyncEngine,
     private val preferences: SyncPreferences,
+    private val runtimeLog: RuntimeLog,
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
@@ -41,6 +45,7 @@ class SyncWorker @AssistedInject constructor(
         val outcome = runCatching { engine.syncNow() }.getOrElse {
             // A worker that throws is a crash nobody asked for and nobody sees. Whatever went
             // wrong is worth another go later rather than taking the process with it.
+            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
             return Result.retry()
         }
         return when (outcome) {

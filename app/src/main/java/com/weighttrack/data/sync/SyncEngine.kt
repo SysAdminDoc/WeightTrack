@@ -12,6 +12,9 @@ import com.weighttrack.core.sync.SyncDocument
 import com.weighttrack.core.sync.SyncMerge
 import com.weighttrack.core.sync.SyncSettings as SyncedSettings
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.RuntimeLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -48,6 +51,7 @@ class SyncEngine @Inject constructor(
     private val preferences: SyncPreferences,
     private val store: SyncStore,
     private val settingsRepository: SettingsRepository,
+    private val runtimeLog: RuntimeLog,
 ) {
     // Two syncs at once, one from the button and one from the background job, would each write a
     // file the other had not read.
@@ -162,6 +166,16 @@ class SyncEngine @Inject constructor(
             is SyncResult.Unreachable -> result.reason
             SyncResult.NotSetUp -> null
         }
+        when (result) {
+            is SyncResult.Done -> runtimeLog.write(
+                LogArea.SYNC,
+                LogEvent.SYNC_FINISHED,
+                code = result.changes.touched,
+            )
+            is SyncResult.Refused -> runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_REFUSED)
+            is SyncResult.Unreachable -> runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_UNREACHABLE)
+            SyncResult.NotSetUp -> Unit
+        }
         // Only a sync that got all the way through counts as a sync. Recording the time on a
         // failure would make the settings row claim it worked.
         val at = if (result is SyncResult.Done) now else preferences.current().lastSyncAtUtcMillis
@@ -181,6 +195,7 @@ class SyncEngine @Inject constructor(
         val url = settings.webDavUrl ?: return null
         if (!SyncAddress.isOnLocalNetwork(url)) return null
         if (LocalNetworkPermission.isGranted(context)) return null
+        runtimeLog.write(LogArea.SYNC, LogEvent.LOCAL_NETWORK_NOT_ALLOWED)
         return SyncResult.Refused(strings[com.weighttrack.R.string.sync_needs_local_network])
     }
 
@@ -195,9 +210,12 @@ class SyncEngine @Inject constructor(
             if (url.isNullOrBlank() || user.isNullOrBlank()) {
                 null
             } else {
-                WebDavSyncTarget(url, user, settings.webDavPassword.orEmpty()) { id, arguments ->
-                    strings.get(id, *arguments)
-                }
+                WebDavSyncTarget(
+                    baseUrl = url,
+                    username = user,
+                    password = settings.webDavPassword.orEmpty(),
+                    runtimeLog = runtimeLog,
+                ) { id, arguments -> strings.get(id, *arguments) }
             }
         }
     }

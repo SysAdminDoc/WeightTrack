@@ -50,6 +50,7 @@ fun CrashLogScreen(
     onClose: () -> Unit,
     onDelete: (CrashReport) -> Unit,
     onDeleteAll: () -> Unit,
+    onShareActivityLog: () -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -66,6 +67,13 @@ fun CrashLogScreen(
                     }
                 },
                 actions = {
+                    // Offered even with no crashes to show: the things this log is for, a sync
+                    // that did nothing and a scale that went quiet, are not crashes.
+                    if (state.activityLogAvailable) {
+                        TextButton(onClick = onShareActivityLog) {
+                            Text(stringResource(R.string.diagnostics_share_activity_log))
+                        }
+                    }
                     if (state.reports.isNotEmpty()) {
                         TextButton(onClick = onDeleteAll) { Text(stringResource(R.string.diagnostics_clear_all)) }
                     }
@@ -160,6 +168,26 @@ fun CrashLogScreen(
  * Text rather than a file attachment on purpose: it needs no FileProvider, works in every mail
  * and chat app, and keeps the report visible to the person before they send it.
  */
+/**
+ * Shares the activity log as plain text, the same way a crash report goes.
+ *
+ * Text rather than an attachment: it needs no FileProvider, works in every mail and chat app,
+ * and the person sees exactly what they are sending before they send it.
+ */
+fun shareActivityLogText(context: Context, body: String) {
+    val intent = Intent(Intent.ACTION_SEND).apply {
+        type = "text/plain"
+        putExtra(Intent.EXTRA_SUBJECT, context.getString(R.string.diagnostics_activity_log_subject))
+        putExtra(Intent.EXTRA_TEXT, body)
+    }
+    runCatching {
+        context.startActivity(
+            Intent.createChooser(intent, context.getString(R.string.diagnostics_share_activity_log))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+    }
+}
+
 private fun shareReport(context: Context, report: CrashReport, body: String) {
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"

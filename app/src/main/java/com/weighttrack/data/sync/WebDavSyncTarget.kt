@@ -1,6 +1,9 @@
 package com.weighttrack.data.sync
 
 import com.weighttrack.core.sync.WebDavClient
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.RuntimeLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,6 +26,15 @@ class WebDavSyncTarget(
     private val baseUrl: String,
     private val username: String,
     password: String,
+    private val runtimeLog: RuntimeLog,
+    /**
+     * The bare exchange, below everything this class does about a failure.
+     *
+     * Left open so the paths that matter, and that nobody can reproduce on demand, can be driven
+     * without a server. Deliberately underneath the error handling rather than replacing it: a
+     * seam above would let a test pass while the real recovery was broken.
+     */
+    private val exchange: (suspend (WebDavClient.Request) -> WebDavClient.Response)? = null,
     private val say: (Int, Array<out Any>) -> String,
 ) : SyncTarget {
 
@@ -73,7 +85,12 @@ class WebDavSyncTarget(
             SyncOutcome.Refused(say(com.weighttrack.R.string.sync_wrong_password, emptyArray()))
         WebDavClient.Result.Missing ->
             SyncOutcome.Refused(say(com.weighttrack.R.string.sync_address_missing, emptyArray()))
-        is WebDavClient.Result.Failed -> when {
+        is WebDavClient.Result.Failed -> runtimeLog.write(
+            LogArea.SYNC,
+            LogEvent.WEBDAV_REQUEST_FAILED,
+            code = code,
+        ).let {
+            when {
             // Nothing the person can do about these, and they usually pass.
             code == 0 ->
                 SyncOutcome.Unreachable(say(com.weighttrack.R.string.sync_server_unreachable, emptyArray()))
@@ -83,6 +100,7 @@ class WebDavSyncTarget(
                 SyncOutcome.Unreachable(say(com.weighttrack.R.string.sync_server_answered, arrayOf(code)))
             else ->
                 SyncOutcome.Refused(say(com.weighttrack.R.string.sync_server_answered, arrayOf(code)))
+            }
         }
         is WebDavClient.Result.Ok -> error("not a failure")
     }
@@ -90,6 +108,7 @@ class WebDavSyncTarget(
     private suspend fun send(request: WebDavClient.Request): WebDavClient.Response =
         withContext(Dispatchers.IO) {
             runCatching {
+                exchange?.let { return@runCatching it(request) }
                 val body = request.body?.toRequestBody(JSON)
                 val built = Request.Builder()
                     .url(request.url)
@@ -102,6 +121,7 @@ class WebDavSyncTarget(
             }.getOrElse {
                 // No signal, no such host, a certificate the phone will not accept. A zero means
                 // the request never happened, which is worth trying again later.
+                runtimeLog.write(LogArea.SYNC, LogEvent.WEBDAV_TRANSPORT_FAILED, cause = it)
                 WebDavClient.Response(0, it.message.orEmpty())
             }
         }

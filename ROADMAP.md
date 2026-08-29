@@ -98,13 +98,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0 — Keep a bounded runtime log and let the user share it
-  Why: there is no `Log`, Timber or file log anywhere, so "sync did nothing" and "my scale connected and said nothing" (which the CHANGELOG asks people to report) cannot be diagnosed; the crash file is the only record.
-  Evidence: repo scan 2026-08-29 (zero logging calls in app/core/wear); app/src/main/java/com/weighttrack/diagnostics/CrashLogStore.kt (only store that exists)
-  Touches: new diagnostics/RuntimeLog.kt (ring buffer to a private file, 512 KB cap, no weights or food names in entries), call sites in health/HealthConnectSync.kt, data/sync/SyncEngine.kt, ble/ScaleConnection.kt, ble/ScaleScanner.kt, sync/SyncWorker.kt; ui/diagnostics/CrashLogScreen.kt gains a "Share log" action
-  Acceptance: after a failed WebDAV sync the diagnostics screen shows a timestamped line naming the HTTP status; a unit test proves a logged line never contains a weight value; the file is excluded in data_extraction_rules.xml.
-  Complexity: M
-
 ### P1
 
 - [ ] P1 — Surface Health Connect failures instead of returning false
