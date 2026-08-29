@@ -19,6 +19,15 @@ enum class AppLockAvailability {
     UNAVAILABLE,
 
     /**
+     * The sensor is switched off until Android ships a security fix, and nothing else answers.
+     *
+     * Asking for both a biometric and the device credential means this only comes back when
+     * neither can be used, so it is a lock that can never be satisfied. On a phone that has
+     * stopped receiving updates it never clears either, so it is treated as permanent.
+     */
+    NEEDS_SECURITY_UPDATE,
+
+    /**
      * Cannot authenticate right now, but might in a moment.
      *
      * The lock stays up for this: a busy sensor is not a reason to hand over someone's data.
@@ -40,10 +49,10 @@ object AppLockSupport {
     /**
      * Maps a [BiometricManager.canAuthenticate] result to something a settings screen can act on.
      *
-     * Kept separate from the Android call so the awkward codes are testable. An unknown or
-     * update-required status is treated as unavailable rather than assumed working, because
-     * offering a lock that cannot actually prompt would leave someone locked out of their own
-     * data.
+     * Kept separate from the Android call so the awkward codes are testable. An unknown status
+     * keeps the lock up, because it is not evidence that the device cannot authenticate. A
+     * pending security update is different: it means the sensor is off and, since the request
+     * includes the device credential, that there is no screen lock behind it either.
      */
     fun fromCanAuthenticate(code: Int): AppLockAvailability = when (code) {
         BiometricManager.BIOMETRIC_SUCCESS -> AppLockAvailability.AVAILABLE
@@ -51,10 +60,30 @@ object AppLockSupport {
         BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
         BiometricManager.BIOMETRIC_ERROR_UNSUPPORTED,
         -> AppLockAvailability.UNAVAILABLE
-        // Anything else is a maybe: the sensor is busy, the status is unknown, a security
-        // update is pending. Those are all transient, and treating them as "cannot lock"
-        // would open the whole app without a prompt on a phone that still has a PIN.
+        BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED ->
+            AppLockAvailability.NEEDS_SECURITY_UPDATE
+        // Anything else is a maybe: the sensor is busy, the status is unknown. Those are
+        // transient, and treating them as "cannot lock" would open the whole app without a
+        // prompt on a phone that still has a PIN.
         else -> AppLockAvailability.TEMPORARILY_UNAVAILABLE
+    }
+
+    /**
+     * Whether a lock in this state could ever be satisfied.
+     *
+     * A transient failure keeps the lock up: a busy sensor says nothing about whether the phone
+     * has a working PIN. Everything that can never be met has to stand the lock down, because
+     * that is the case where leaving it up puts someone's own history permanently out of reach.
+     *
+     * Lives here rather than in the activity so the one rule the no-lockout promise rests on is
+     * written once and can be tested.
+     */
+    fun canBeSatisfied(availability: AppLockAvailability): Boolean = when (availability) {
+        AppLockAvailability.AVAILABLE, AppLockAvailability.TEMPORARILY_UNAVAILABLE -> true
+        AppLockAvailability.NO_SCREEN_LOCK,
+        AppLockAvailability.UNAVAILABLE,
+        AppLockAvailability.NEEDS_SECURITY_UPDATE,
+        -> false
     }
 
     fun availability(manager: BiometricManager): AppLockAvailability =

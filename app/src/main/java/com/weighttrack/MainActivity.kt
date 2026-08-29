@@ -24,7 +24,6 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.notifications.Notifications
-import com.weighttrack.security.AppLockAvailability
 import com.weighttrack.security.AppLockSupport
 import com.weighttrack.ui.AppViewModel
 import com.weighttrack.ui.WeightTrackApp
@@ -39,18 +38,9 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : FragmentActivity() {
 
-    /**
-     * Whether the lock can be satisfied at all.
-     *
-     * A transient failure keeps the lock up. Only a device with genuinely nothing to
-     * authenticate against bypasses it, because that is the case where leaving the lock
-     * standing would put someone's own history permanently out of reach.
-     */
+    /** Whether the lock can be satisfied at all on this device, right now. */
     private fun lockIsUsable(): Boolean =
-        when (AppLockSupport.availability(BiometricManager.from(this))) {
-            AppLockAvailability.NO_SCREEN_LOCK, AppLockAvailability.UNAVAILABLE -> false
-            AppLockAvailability.AVAILABLE, AppLockAvailability.TEMPORARILY_UNAVAILABLE -> true
-        }
+        AppLockSupport.canBeSatisfied(AppLockSupport.availability(BiometricManager.from(this)))
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()

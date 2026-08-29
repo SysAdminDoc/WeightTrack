@@ -38,14 +38,45 @@ class AppLockSupportTest {
     }
 
     @Test
-    fun `an uncertain or pending status is treated as temporary`() {
+    fun `an uncertain status is treated as temporary`() {
         assertThat(AppLockSupport.fromCanAuthenticate(BiometricManager.BIOMETRIC_STATUS_UNKNOWN))
             .isEqualTo(AppLockAvailability.TEMPORARILY_UNAVAILABLE)
+    }
+
+    @Test
+    fun `a sensor blocked pending a security update is not treated as temporary`() {
+        // The request asks for the device credential as well, so this code only comes back when
+        // there is no screen lock behind the sensor either. On a phone that has stopped getting
+        // updates it never clears, and calling it temporary leaves the lock standing forever
+        // over data the owner can then never reach.
         assertThat(
             AppLockSupport.fromCanAuthenticate(
                 BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED,
             ),
-        ).isEqualTo(AppLockAvailability.TEMPORARILY_UNAVAILABLE)
+        ).isEqualTo(AppLockAvailability.NEEDS_SECURITY_UPDATE)
+    }
+
+    @Test
+    fun `only a lock that could be answered is allowed to stand`() {
+        // Everything that can never be met has to let the app open, or the promise that there
+        // is no permanent lockout is not kept.
+        assertThat(AppLockSupport.canBeSatisfied(AppLockAvailability.AVAILABLE)).isTrue()
+        assertThat(AppLockSupport.canBeSatisfied(AppLockAvailability.TEMPORARILY_UNAVAILABLE))
+            .isTrue()
+
+        assertThat(AppLockSupport.canBeSatisfied(AppLockAvailability.NO_SCREEN_LOCK)).isFalse()
+        assertThat(AppLockSupport.canBeSatisfied(AppLockAvailability.UNAVAILABLE)).isFalse()
+        assertThat(AppLockSupport.canBeSatisfied(AppLockAvailability.NEEDS_SECURITY_UPDATE))
+            .isFalse()
+    }
+
+    @Test
+    fun `a broken sensor with no screen lock behind it opens the app`() {
+        // End to end from the Android status code, which is what MainActivity asks for.
+        val availability = AppLockSupport.fromCanAuthenticate(
+            BiometricManager.BIOMETRIC_ERROR_SECURITY_UPDATE_REQUIRED,
+        )
+        assertThat(AppLockSupport.canBeSatisfied(availability)).isFalse()
     }
 
     @Test

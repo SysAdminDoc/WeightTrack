@@ -429,35 +429,32 @@ fun SettingsScreen(
             SettingsSection {
                 SectionHeading("Privacy")
                 Spacer(Modifier.height(4.dp))
-                when (lockAvailability) {
-                    AppLockAvailability.AVAILABLE -> {
-                        ToggleRow(
-                            label = "Lock the app",
-                            checked = settings.appLockEnabled,
-                            onCheckedChange = viewModel::setAppLockEnabled,
-                        )
-                        Text(
-                            text = "Asks for your fingerprint, face or screen lock every time you come back to WeightTrack.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    AppLockAvailability.NO_SCREEN_LOCK -> Text(
-                        text = "Set a screen lock in Android settings and WeightTrack can lock itself behind it too.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    AppLockAvailability.UNAVAILABLE -> Text(
-                        text = "This device has no screen lock or biometric WeightTrack can use, so the app lock is unavailable here.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    AppLockAvailability.TEMPORARILY_UNAVAILABLE -> Text(
-                        text = "Android cannot check your fingerprint or screen lock at the moment. Come back in a minute and the setting will be here.",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                // The switch is shown whenever the lock is already on, whatever the sensor
+                // says today. A lock you cannot turn off is worse than no lock, and hiding the
+                // switch under the working case is how someone ends up stuck with one.
+                if (lockAvailability == AppLockAvailability.AVAILABLE || settings.appLockEnabled) {
+                    ToggleRow(
+                        label = "Lock the app",
+                        checked = settings.appLockEnabled,
+                        onCheckedChange = viewModel::setAppLockEnabled,
                     )
                 }
+                Text(
+                    text = when (lockAvailability) {
+                        AppLockAvailability.AVAILABLE ->
+                            "Asks for your fingerprint, face or screen lock every time you come back to WeightTrack."
+                        AppLockAvailability.NO_SCREEN_LOCK ->
+                            "Set a screen lock in Android settings and WeightTrack can lock itself behind it too."
+                        AppLockAvailability.UNAVAILABLE ->
+                            "This device has no screen lock or biometric WeightTrack can use, so the app lock is unavailable here."
+                        AppLockAvailability.NEEDS_SECURITY_UPDATE ->
+                            "Android has switched this phone's biometric sensor off until a security update arrives, and there is no screen lock to fall back on. WeightTrack opens without asking until one of those is sorted out, rather than locking you out of your own history."
+                        AppLockAvailability.TEMPORARILY_UNAVAILABLE ->
+                            "Android cannot check your fingerprint or screen lock at the moment. Come back in a minute and the setting will be here."
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
 
