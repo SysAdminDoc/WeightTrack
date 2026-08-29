@@ -93,7 +93,6 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 - [ ] Water intake with a widget and HydrationRecord write
 - [ ] Fasting timer: presets (16:8, 18:6, OMAD, custom), editable and deletable fasts, optional zones, history with no limit
 - [ ] Steps and active calories read from Health Connect, shown against the trend
-- [ ] App lock (biometric or PIN)
 - [ ] F-Droid submission
 - [ ] Move off the deprecated `androidx.hilt.navigation.compose.hiltViewModel`; it has moved to `androidx.hilt.lifecycle.viewmodel.compose` and currently emits nine deprecation warnings on every build
 
