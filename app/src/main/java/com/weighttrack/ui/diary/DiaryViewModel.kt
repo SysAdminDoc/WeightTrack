@@ -3,6 +3,7 @@ package com.weighttrack.ui.diary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.core.nutrition.Food
+import com.weighttrack.core.math.AdaptiveExpenditure
 import com.weighttrack.core.nutrition.MacroBasis
 import com.weighttrack.core.nutrition.MacroTarget
 import com.weighttrack.core.nutrition.MacroTargets
@@ -12,6 +13,7 @@ import com.weighttrack.data.repo.FoodLogEntry
 import com.weighttrack.data.repo.FoodLogRepository
 import com.weighttrack.data.repo.FoodRepository
 import com.weighttrack.data.repo.MacroTargetRepository
+import com.weighttrack.domain.ProgressCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,6 +43,14 @@ data class DiaryUiState(
     val message: String? = null,
     /** What this day is meant to come to, when there is a target at all. */
     val target: MacroTarget? = null,
+    /**
+     * What this person burns, worked out from what they ate and what their weight did.
+     *
+     * Null until there is enough of both to say anything, which is most of the first fortnight.
+     */
+    val expenditure: AdaptiveExpenditure.Estimate? = null,
+    /** What to eat to keep moving at the rate their goal implies. */
+    val recommendation: AdaptiveExpenditure.Recommendation? = null,
 ) {
     val isToday: Boolean get() = date == LocalDate.now()
 
@@ -61,6 +71,7 @@ class DiaryViewModel @Inject constructor(
     private val foodLogRepository: FoodLogRepository,
     private val foodRepository: FoodRepository,
     private val macroTargetRepository: MacroTargetRepository,
+    private val progressCalculator: ProgressCalculator,
 ) : ViewModel() {
 
     private val date = MutableStateFlow(LocalDate.now())
@@ -75,9 +86,34 @@ class DiaryViewModel @Inject constructor(
         // logged, because nothing has been eaten yet.
         foodRepository.search("", SUGGESTION_LIMIT),
         query.flatMapLatest { foodRepository.search(it) },
-        message,
-    ) { dateAndTargets, day, recent, results, message ->
+        combine(
+            message,
+            progressCalculator.observe(),
+            foodLogRepository.observeRecentDays(),
+        ) { message, snapshot, intake ->
+            // Worked out here rather than in the screen, so the one place the maths is wired
+            // together stays the one place.
+            val estimate = AdaptiveExpenditure.estimate(
+                series = snapshot.series,
+                intakeByDate = intake.associate { it.date to it.nutrients.kcal },
+                today = LocalDate.now(),
+            )
+            val goal = snapshot.goal
+            val recommendation = estimate?.let {
+                AdaptiveExpenditure.recommendedIntake(
+                    it,
+                    AdaptiveExpenditure.rateForGoal(
+                        currentGrams = snapshot.displayGrams,
+                        targetGrams = goal?.targetGrams,
+                        weeks = DEFAULT_GOAL_WEEKS,
+                    ),
+                )
+            }
+            Insight(message, estimate, recommendation)
+        },
+    ) { dateAndTargets, day, recent, results, insight ->
         val (date, targets) = dateAndTargets
+        val message = insight.message
         DiaryUiState(
             date = date,
             target = targets.forDay(date.dayOfWeek),
@@ -86,6 +122,8 @@ class DiaryViewModel @Inject constructor(
             searchResults = if (query.value.isBlank()) emptyList() else results,
             query = query.value,
             message = message,
+            expenditure = insight.expenditure,
+            recommendation = insight.recommendation,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiaryUiState())
 
@@ -181,7 +219,41 @@ class DiaryViewModel @Inject constructor(
         }
     }
 
+    private data class Insight(
+        val message: String?,
+        val expenditure: AdaptiveExpenditure.Estimate?,
+        val recommendation: AdaptiveExpenditure.Recommendation?,
+    )
+
+    /** Takes the recommendation as the target, which is the point of working it out. */
+    fun useRecommendation() {
+        val recommended = state.value.recommendation ?: return
+        val existing = state.value.target
+        viewModelScope.launch {
+            macroTargetRepository.set(
+                MacroTarget(
+                    kcal = recommended.kcalPerDay,
+                    // The split is kept if there was one. Only the calories are being revised.
+                    proteinG = existing?.proteinG,
+                    carbsG = existing?.carbsG,
+                    fatG = existing?.fatG,
+                    basis = existing?.basis ?: MacroBasis.GRAMS,
+                ),
+            )
+            message.value = "Target set to ${recommended.rounded} kcal."
+        }
+    }
+
     companion object {
         const val SUGGESTION_LIMIT = 12
+
+        /**
+         * How long a goal is assumed to run when working out a rate.
+         *
+         * A goal in this app carries a target and not a deadline, on purpose, so the rate has to
+         * come from somewhere. Twelve weeks is a normal length for one and gives a rate nobody
+         * needs talking out of.
+         */
+        const val DEFAULT_GOAL_WEEKS = 12.0
     }
 }

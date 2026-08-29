@@ -43,6 +43,15 @@ data class TrendSeries(
      * Falls back to the whole series when the log is shorter than the window asked for, so a
      * new user sees a real "since you started" figure instead of a blank.
      */
+    /**
+     * The smoothed weight on a given day, or null when the series does not reach it.
+     *
+     * The series carries a point for every day once it has started, so this only misses days
+     * before the first reading, which is the case a caller has to handle honestly rather than
+     * guess at.
+     */
+    fun trendOn(date: LocalDate): Double? = points.firstOrNull { it.date == date }?.trendGrams
+
     fun changeOverDays(days: Int): Double? {
         if (points.size < 2) return null
         val last = points.last()

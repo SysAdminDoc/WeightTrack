@@ -64,6 +64,7 @@ fun DiaryScreen(
     onQuickAdd: (Double, Meal, String) -> Unit,
     onCopyYesterday: (Meal?) -> Unit,
     onSetTarget: (Double, Double?, Double?, Double?, MacroBasis, java.time.DayOfWeek?) -> Unit,
+    onUseRecommendation: () -> Unit,
     onDelete: (FoodLogEntry) -> Unit,
     onDismissMessage: () -> Unit,
     onBack: () -> Unit,
@@ -153,6 +154,42 @@ fun DiaryScreen(
                         }
                         OutlinedButton(onClick = { editingTarget = true }) {
                             Text(if (state.target == null) "Set a target" else "Target")
+                        }
+                    }
+                }
+            }
+
+            state.expenditure?.let { estimate ->
+                item {
+                    SectionCard {
+                        SectionHeading("What you burn")
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = "About ${estimate.rounded} kcal a day.",
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            // No formula and no activity multiplier. Their own body measured it.
+                            text = "Worked out from ${estimate.loggedDays} days of food and what your weight actually did, not from a formula.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        state.recommendation?.let { recommended ->
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = if (recommended.cappedAtMinimum) {
+                                    "Your goal would need less than ${recommended.rounded} kcal a day, which is further than this app will suggest going. Give it longer instead."
+                                } else {
+                                    "Eat about ${recommended.rounded} kcal a day to keep going at that rate."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            if (!recommended.cappedAtMinimum) {
+                                Spacer(Modifier.height(6.dp))
+                                OutlinedButton(onClick = onUseRecommendation) {
+                                    Text("Make that my target")
+                                }
+                            }
                         }
                     }
                 }

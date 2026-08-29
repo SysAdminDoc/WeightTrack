@@ -41,6 +41,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
+- Adaptive expenditure: what you actually burn, measured from your own weight and intake rather than a formula, and a calorie target that follows it
 - An optional food diary: calories and macros by meal, daily targets in grams or percent with a different one for any day of the week, copy yesterday, and a quick add for the meal that has no label
 - An optional food database with recipes, Open Food Facts lookups and no ads anywhere near it
 - Barcode scanning in both builds, ML Kit on Play and ZXing on F-Droid, so neither goes without it
@@ -67,7 +68,7 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
 ./gradlew testPlayDebugUnitTest   # 231 unit tests
-./gradlew :core:testDebugUnitTest # 191 more, the maths, the scale protocols and the food clients
+./gradlew :core:testDebugUnitTest # 202 more, the maths, the scale protocols and the food clients
 ./gradlew :wear:testDebugUnitTest # 19 for the watch
 ```
 
