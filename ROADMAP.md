@@ -98,13 +98,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0 — Ask for ACCESS_LOCAL_NETWORK before a WebDAV sync to a private address on Android 17
-  Why: targeting API 37 on Android 17 (released 2026-06-16) makes every socket to a LAN address fail until the runtime permission is granted, so a home Nextcloud or NAS stops syncing with a generic error.
-  Evidence: https://developer.android.com/privacy-and-security/local-network-permission ; https://developer.android.com/about/versions/17/behavior-changes-17 ; AndroidManifest.xml (permission absent)
-  Touches: AndroidManifest.xml, data/sync/WebDavSyncTarget.kt, ui/settings/SyncCard.kt, sync/SyncWorker.kt (return a `Refused` with the reason when denied)
-  Acceptance: on an API 37 emulator a WebDAV URL with a 192.168.x.x host prompts for the permission from the sync card; after grant a PROPFIND succeeds; on denial the card says which permission is missing rather than "sync failed".
-  Complexity: S
-
 - [ ] P0 — Keep a bounded runtime log and let the user share it
   Why: there is no `Log`, Timber or file log anywhere, so "sync did nothing" and "my scale connected and said nothing" (which the CHANGELOG asks people to report) cannot be diagnosed; the crash file is the only record.
   Evidence: repo scan 2026-08-29 (zero logging calls in app/core/wear); app/src/main/java/com/weighttrack/diagnostics/CrashLogStore.kt (only store that exists)

@@ -44,6 +44,8 @@ fun SyncCard(
     onSyncNow: () -> Unit,
     onTurnOff: () -> Unit,
     onBackgroundChange: (Boolean) -> Unit,
+    needsLocalNetwork: Boolean = false,
+    onAllowLocalNetwork: () -> Unit = {},
 ) {
     var editingWebDav by remember { mutableStateOf(false) }
 
@@ -73,6 +75,20 @@ fun SyncCard(
             SyncMode.WEBDAV -> {
                 LabelledValue("Server", settings.webDavUrl.orEmpty())
                 LabelledValue("Username", settings.webDavUser.orEmpty())
+                if (needsLocalNetwork) {
+                    // Without this grant the socket never opens and every sync times out, which
+                    // reads exactly like the server being switched off.
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = stringResource(R.string.sync_needs_local_network),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Button(onClick = onAllowLocalNetwork, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.sync_allow_local_network))
+                    }
+                }
                 SyncStatus(settings, syncing, onSyncNow, onTurnOff, onBackgroundChange)
                 Spacer(Modifier.height(6.dp))
                 TextButton(onClick = { editingWebDav = true }) { Text(stringResource(R.string.settings_change_the_details)) }

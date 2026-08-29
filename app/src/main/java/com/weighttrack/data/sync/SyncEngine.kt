@@ -7,6 +7,7 @@ import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
+import com.weighttrack.core.sync.SyncAddress
 import com.weighttrack.core.sync.SyncDocument
 import com.weighttrack.core.sync.SyncMerge
 import com.weighttrack.core.sync.SyncSettings as SyncedSettings
@@ -56,6 +57,7 @@ class SyncEngine @Inject constructor(
         val settings = preferences.current()
         if (!settings.isOn || !settings.isReady) return@withLock SyncResult.NotSetUp
         val target = targetFor(settings) ?: return@withLock SyncResult.NotSetUp
+        localNetworkRefusal(settings)?.let { return@withLock finish(now, it) }
         val deviceId = preferences.deviceId()
 
         val names = when (val listed = target.list()) {
@@ -165,6 +167,21 @@ class SyncEngine @Inject constructor(
         val at = if (result is SyncResult.Done) now else preferences.current().lastSyncAtUtcMillis
         preferences.recordSync(at, message)
         return result
+    }
+
+    /**
+     * Why a sync to the server in the spare room would fail on Android 17.
+     *
+     * Without the grant the socket does not open, and what comes back is a connection timeout:
+     * indistinguishable from the server being off, and no amount of retrying fixes it. Saying so
+     * is the whole point, because the fix is one tap on the settings screen.
+     */
+    private fun localNetworkRefusal(settings: SyncSettings): SyncResult.Refused? {
+        if (settings.mode != SyncMode.WEBDAV) return null
+        val url = settings.webDavUrl ?: return null
+        if (!SyncAddress.isOnLocalNetwork(url)) return null
+        if (LocalNetworkPermission.isGranted(context)) return null
+        return SyncResult.Refused(strings[com.weighttrack.R.string.sync_needs_local_network])
     }
 
     private fun targetFor(settings: SyncSettings): SyncTarget? = when (settings.mode) {

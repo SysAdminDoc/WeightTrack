@@ -111,6 +111,8 @@ Records are matched on an identifier that stays the same on every device, and th
 
 What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and want a different mechanism. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
 
+If the server is on your own network rather than a hosted one, Android 17 and later ask your permission before the app may reach it. WeightTrack requests that only when the address really is a local one, and says so on the settings screen when it is missing.
+
 Two other limits worth knowing. It relies on the devices roughly agreeing about the time, so a badly wrong clock can hold a stale edit in place. And a device left switched off for more than six months will bring back what it still holds, because by then the deletions that would have removed it have been forgotten.
 
 ## License

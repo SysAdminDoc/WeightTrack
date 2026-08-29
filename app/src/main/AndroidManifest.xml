@@ -35,6 +35,13 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera.any" android:required="false" />
 
+    <!--
+      Talking to a machine on the same network as the phone, which is what syncing to a Nextcloud
+      or a NAS in the house is. Android 17 asks before allowing it. Requested only when the
+      server address really is a local one: a hosted server and the folder mode never prompt.
+    -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK" />
+
     <!-- Health Connect. Only the types with a feature behind them are declared. -->
     <!--
       Reading further back than the last thirty days. Without it Health Connect answers with a

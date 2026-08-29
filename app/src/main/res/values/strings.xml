@@ -562,6 +562,8 @@
     <string name="sync_could_not_read_folder">Could not read the folder.</string>
     <string name="sync_could_not_read_file">Could not read %1$s.</string>
     <string name="sync_could_not_write_file">Could not write %1$s.</string>
+    <string name="sync_needs_local_network">This server is on your own network, and Android needs your permission before the app can reach it. Allow it below and sync again.</string>
+    <string name="sync_allow_local_network">Allow reaching this server</string>
     <string name="sync_wrong_password">The server would not accept that username and password.</string>
     <string name="sync_address_missing">That address is not there.</string>
     <string name="sync_server_unreachable">Could not reach the server.</string>

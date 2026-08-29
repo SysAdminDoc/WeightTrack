@@ -65,6 +65,8 @@ import com.weighttrack.data.io.BackupCodec
 import androidx.biometric.BiometricManager
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.repo.Profile
+import com.weighttrack.core.sync.SyncAddress
+import com.weighttrack.data.sync.SyncMode
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.security.AppLockAvailability
@@ -176,6 +178,17 @@ fun SettingsScreen(
     val healthConnectLauncher = rememberLauncherForActivityResult(
         viewModel.healthConnect.permissionContract(),
     ) { granted -> viewModel.onHealthConnectPermissionResult(granted) }
+
+    // Android 17 asks before an app may reach another machine on the same network, which is what
+    // a WebDAV server in the house is. Only offered when the address really is a local one.
+    var localNetworkGranted by remember {
+        mutableStateOf(com.weighttrack.data.sync.LocalNetworkPermission.isGranted(context))
+    }
+    val localNetworkLauncher = rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
+    ) {
+        localNetworkGranted = com.weighttrack.data.sync.LocalNetworkPermission.isGranted(context)
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -493,6 +506,12 @@ fun SettingsScreen(
                 onSyncNow = viewModel::syncNow,
                 onTurnOff = viewModel::turnSyncOff,
                 onBackgroundChange = viewModel::setSyncInBackground,
+                needsLocalNetwork = syncSettings.mode == SyncMode.WEBDAV &&
+                    !localNetworkGranted &&
+                    SyncAddress.isOnLocalNetwork(syncSettings.webDavUrl.orEmpty()),
+                onAllowLocalNetwork = {
+                    localNetworkLauncher.launch(com.weighttrack.data.sync.LocalNetworkPermission.NAME)
+                },
             )
         }
 
