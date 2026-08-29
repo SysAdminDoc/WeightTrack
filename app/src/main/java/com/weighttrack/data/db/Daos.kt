@@ -87,6 +87,19 @@ interface WeightEntryDao {
     )
     suspend fun byHealthConnectId(profileId: Long, healthConnectId: String): WeightEntryEntity?
 
+    /**
+     * Cuts the link to Health Connect for one person's readings.
+     *
+     * Used when the household moves the claim to somebody else. Their readings stay exactly as
+     * they are, because they are their history; what goes is a pointer at a record nothing will
+     * ever look up again, since only the claiming profile is exchanged with Health Connect.
+     */
+    @Query(
+        "UPDATE weight_entries SET healthConnectId = NULL " +
+            "WHERE profileId = :profileId AND healthConnectId IS NOT NULL",
+    )
+    suspend fun clearHealthConnectLinks(profileId: Long): Int
+
     @Query(
         "SELECT * FROM weight_entries WHERE profileId = :profileId AND localDate = :localDate " +
             "ORDER BY timestampUtcMillis ASC",

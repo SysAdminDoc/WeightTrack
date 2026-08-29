@@ -41,4 +41,5 @@ internal fun testProfileRepository(
     database.profileDao(),
     settings,
     DeletionRecorder(database.deletionDao(), database.syncDao()),
+    database.weightEntryDao(),
 )

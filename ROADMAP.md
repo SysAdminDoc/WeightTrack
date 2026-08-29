@@ -102,13 +102,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P2
 
-- [ ] P2 — Clear a profile's Health Connect rows when the claim moves to somebody else
-  Why: `syncProfileId()` is the claiming profile, and both the changes token and the delete-by-id path use it, so once the claim moves the previous profile's imported rows are never visited again and a deletion in Health Connect can never reach them. Nothing wrong is deleted; they simply become unreachable.
-  Evidence: app/src/main/java/com/weighttrack/health/HealthConnectSync.kt syncProfileId(); found reviewing the changes-token work 2026-08-29
-  Touches: health/HealthConnectSync.kt, data/repo/ProfileRepository.kt (setHealthConnect), data/repo/WeightRepository.kt
-  Acceptance: moving the claim from one profile to another leaves the first profile with no rows whose source is HEALTH_CONNECT, or with rows that a later deletion can still reach; a test covers the move.
-  Complexity: S
-
 - [ ] P2 — Sync Health Connect in the background, not only when somebody taps the button
   Why: SyncWorker drives the folder and WebDAV sync only, so a reading added or deleted in the scale's app reaches WeightTrack when the person next opens Settings and taps Sync now. The widget, the watch and the trend are all stale until then.
   Evidence: app/src/main/java/com/weighttrack/sync/SyncWorker.kt (no HealthConnectSync call); found reviewing the changes-token work 2026-08-29

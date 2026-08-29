@@ -43,6 +43,8 @@ class ProfileRepository @Inject constructor(
     private val dao: ProfileDao,
     private val settingsRepository: SettingsRepository,
     private val deletions: DeletionRecorder,
+    // The dao rather than WeightRepository, which depends on this one.
+    private val weights: com.weighttrack.data.db.WeightEntryDao,
 ) {
     fun observeAll(): Flow<List<Profile>> =
         dao.observeAll().map { rows -> rows.map { it.toDomain() } }
@@ -189,7 +191,15 @@ class ProfileRepository @Inject constructor(
         val existing = dao.byId(id) ?: return
         if (enabled) {
             dao.all().filter { it.healthConnectEnabled && it.id != id }
-                .forEach { dao.update(it.copy(healthConnectEnabled = false)) }
+                .forEach { losing ->
+                    dao.update(losing.copy(healthConnectEnabled = false))
+                    // Only the claiming profile is exchanged with Health Connect, so the links
+                    // this person's readings carry now point at records nothing will ever look
+                    // up again. The readings stay; the dead pointer goes.
+                    weights.clearHealthConnectLinks(losing.id)
+                }
+        } else {
+            weights.clearHealthConnectLinks(id)
         }
         dao.update(existing.copy(healthConnectEnabled = enabled))
     }

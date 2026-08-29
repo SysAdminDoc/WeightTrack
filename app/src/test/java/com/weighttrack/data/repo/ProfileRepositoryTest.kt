@@ -30,13 +30,61 @@ class ProfileRepositoryTest {
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
         settings = testSettingsRepository()
-        profiles = ProfileRepository(database.profileDao(), settings, DeletionRecorder(database.deletionDao(), database.syncDao()))
+        profiles = ProfileRepository(
+            database.profileDao(),
+            settings,
+            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            database.weightEntryDao(),
+        )
         weights = WeightRepository(database.weightEntryDao(), profiles, DeletionRecorder(database.deletionDao(), database.syncDao()))
     }
 
     @After
     fun tearDown() {
         database.close()
+    }
+
+    @Test
+    fun `moving the Health Connect claim cuts the loser's links to it`() = runTest {
+        // Only the claiming profile is exchanged with Health Connect, so once the claim moves the
+        // links the other person's readings carry point at records nothing will look up again.
+        profiles.ensureDefault()
+        val first = profiles.activeId()
+        profiles.setHealthConnect(first, enabled = true)
+        weights.addFor(
+            profileId = first,
+            grams = 82_000,
+            timestamp = java.time.Instant.now(),
+            source = com.weighttrack.core.model.EntrySource.HEALTH_CONNECT,
+            healthConnectId = "hc-1",
+        )
+
+        val second = profiles.add("Sam")
+        profiles.setHealthConnect(second, enabled = true)
+
+        // The reading stays: it is their history. The dead pointer goes.
+        val theirs = weights.entriesFor(first)
+        assertThat(theirs).hasSize(1)
+        assertThat(theirs.single().healthConnectId).isNull()
+        assertThat(theirs.single().grams).isEqualTo(82_000)
+    }
+
+    @Test
+    fun `turning the claim off cuts the links too`() = runTest {
+        profiles.ensureDefault()
+        val only = profiles.activeId()
+        profiles.setHealthConnect(only, enabled = true)
+        weights.addFor(
+            profileId = only,
+            grams = 81_000,
+            timestamp = java.time.Instant.now(),
+            source = com.weighttrack.core.model.EntrySource.HEALTH_CONNECT,
+            healthConnectId = "hc-2",
+        )
+
+        profiles.setHealthConnect(only, enabled = false)
+
+        assertThat(weights.entriesFor(only).single().healthConnectId).isNull()
     }
 
     @Test

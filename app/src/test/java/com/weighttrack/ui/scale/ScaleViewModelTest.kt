@@ -98,7 +98,12 @@ class ScaleViewModelTest {
             .setTransactionExecutor(dispatcher.asExecutor())
             .build()
         settingsRepository = testSettingsRepository()
-        profiles = ProfileRepository(database.profileDao(), settingsRepository, com.weighttrack.data.repo.DeletionRecorder(database.deletionDao(), database.syncDao()))
+        profiles = ProfileRepository(
+            database.profileDao(),
+            settingsRepository,
+            com.weighttrack.data.repo.DeletionRecorder(database.deletionDao(), database.syncDao()),
+            database.weightEntryDao(),
+        )
         weightRepository = WeightRepository(database.weightEntryDao(), profiles, com.weighttrack.data.repo.DeletionRecorder(database.deletionDao(), database.syncDao()))
         surfaceUpdater = SurfaceUpdater(
             context = context,
