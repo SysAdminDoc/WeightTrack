@@ -188,6 +188,10 @@ class SyncStore @Inject constructor(
                         reminderHour = remote.reminderHour,
                         reminderMinute = remote.reminderMinute,
                         reminderDays = remote.reminderDays,
+                        heightMm = remote.heightMm,
+                        sex = remote.sex,
+                        birthYear = remote.birthYear,
+                        activityLevel = remote.activityLevel,
                         syncId = remote.syncId,
                         updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     ),
@@ -200,6 +204,12 @@ class SyncStore @Inject constructor(
                     reminderHour = remote.reminderHour,
                     reminderMinute = remote.reminderMinute,
                     reminderDays = remote.reminderDays,
+                    // Blank means the other device is on a version that did not carry these, so
+                    // what is here is kept rather than being wiped by an older phone's silence.
+                    heightMm = remote.heightMm.takeIf { it > 0 } ?: existing.heightMm,
+                    sex = remote.sex.ifBlank { existing.sex },
+                    birthYear = remote.birthYear.takeIf { it > 0 } ?: existing.birthYear,
+                    activityLevel = remote.activityLevel.ifBlank { existing.activityLevel },
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     // Whether this phone talks to Health Connect is a fact about this phone, so
                     // it is never taken from another one.
@@ -829,6 +839,10 @@ class SyncStore @Inject constructor(
         reminderHour = reminderHour,
         reminderMinute = reminderMinute,
         reminderDays = reminderDays,
+        heightMm = heightMm,
+        sex = sex,
+        birthYear = birthYear,
+        activityLevel = activityLevel,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

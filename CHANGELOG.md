@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Height, sex, year of birth and activity level now belong to the person rather than to the phone. A household sharing one phone shared one height between them, so switching profile worked out the other person's BMI, healthy weight range, body fat, basal rate and daily burn from the first person's body, and every one of those numbers looked perfectly ordinary. They travel with the profile to your other devices and into a backup. What you had already entered goes to whoever was using the app at the time; a profile added afterwards starts blank rather than inheriting somebody else's body.
+- The settings text now says exactly where each kind of data can go: what a backup holds, what sync carries and what Health Connect is allowed to exchange.
+
 - WeightTrack now asks Health Connect for permission to read while the app is closed, which is what the hourly exchange actually does. Without it Health Connect answers a background read with nothing at all rather than an error, so a reading your scale wrote could sit unnoticed and nothing would say why. The hourly job is not scheduled without that permission and stands itself down if you take it away.
 - There is now a page explaining what WeightTrack asks Health Connect for and why, one entry for each. Health Connect opens it when you tap through from its own settings, where it used to open the home screen, and it is linked from the Health Connect section in Settings.
 

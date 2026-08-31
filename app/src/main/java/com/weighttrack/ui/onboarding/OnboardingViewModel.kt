@@ -58,6 +58,7 @@ data class OnboardingUiState(
 
 @HiltViewModel
 class OnboardingViewModel @Inject constructor(
+    private val profileRepository: com.weighttrack.data.repo.ProfileRepository,
     private val settingsRepository: SettingsRepository,
     private val weightRepository: WeightRepository,
     private val goalRepository: GoalRepository,
@@ -128,7 +129,11 @@ class OnboardingViewModel @Inject constructor(
         viewModelScope.launch {
             settingsRepository.setWeightUnit(current.weightUnit)
             settingsRepository.setLengthUnit(current.lengthUnit)
-            settingsRepository.setProfile(
+            // Onto the profile that is being set up, not into the app's settings: the next
+            // person added to this phone starts blank rather than inheriting this body.
+            profileRepository.ensureDefault()
+            profileRepository.setDemographics(
+                profileRepository.activeId(),
                 UserProfile(
                     heightMm = current.heightText.trim().replace(',', '.').toDoubleOrNull()
                         ?.takeIf { it > 0 }

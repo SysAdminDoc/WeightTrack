@@ -310,13 +310,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0 additions from 2026-08-31
 
-- [ ] P0: Make physical demographics household-profile-owned
-  Why: Height, sex, birth year, and activity level are global while readings and measurements are profile-scoped, so switching people can calculate one person's BMI, body fat, BMR, and TDEE with another person's demographics; the same global values also sync despite copy saying they never leave the phone.
-  Evidence: `app/src/main/java/com/weighttrack/data/db/Entities.kt:17-42`; `app/src/main/java/com/weighttrack/data/prefs/SettingsRepository.kt:25-30`; `app/src/main/java/com/weighttrack/domain/ProgressCalculator.kt:78-127`; `app/src/main/java/com/weighttrack/data/sync/SyncEngine.kt:110-124`; `app/src/main/res/values/strings.xml:245,304`
-  Touches: `ProfileEntity` or a one-to-one physical-profile entity, Room migration, `SettingsRepository.kt`, `ProgressCalculator.kt`, profile and onboarding UI, backup and sync models, privacy copy
-  Acceptance: A two-profile fixture with different demographics produces the correct BMI, healthy range, body-fat estimate, BMR, and TDEE for each person after switches, backup restore, and two-device sync; migration assigns the legacy demographics only to the profile that was active before migration and leaves other profiles incomplete; UI copy says exactly when enabled sync, Health Connect, or export can move each data type.
-  Complexity: L
-
 - [ ] P0: Persist complete scale composition with quality and provenance
   Why: Parsers and the live scale screen carry muscle, lean mass, water, impedance, and basal metabolism, but save keeps only weight and body-fat percentage, silently discarding the rest and whether values were scale-reported, app-estimated, absent, or incomplete.
   Evidence: `core/src/main/java/com/weighttrack/core/scale/ScaleReading.kt:10-23`; `core/src/main/java/com/weighttrack/core/scale/StandardScaleParser.kt:120-142`; `app/src/main/java/com/weighttrack/ui/scale/ScaleViewModel.kt:292-337`; https://www.bluetooth.com/specifications/specs/body-composition-service-bcs/; https://github.com/oliexdev/openScale/issues/1469; https://pubmed.ncbi.nlm.nih.gov/33929337/

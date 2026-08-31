@@ -34,6 +34,7 @@ class ProgressCalculator @Inject constructor(
     private val goalRepository: GoalRepository,
     private val measurementRepository: MeasurementRepository,
     private val settingsRepository: SettingsRepository,
+    private val profileRepository: com.weighttrack.data.repo.ProfileRepository,
 ) {
     fun observe(today: () -> LocalDate = { LocalDate.now() }): Flow<ProgressSnapshot> = combine(
         weightRepository.observeDailyWeights(),
@@ -41,8 +42,23 @@ class ProgressCalculator @Inject constructor(
         goalRepository.observeActive(),
         measurementRepository.observeLatestPerType(),
         settingsRepository.settings,
-    ) { daily, latest, goal, measurements, settings ->
-        build(daily, latest, goal, measurements, settings, today())
+        // Whose body the figures are worked out from. It comes off the profile rather than the
+        // app's settings: a household sharing one phone shared one height, and switching person
+        // computed their BMI, healthy range, body fat, basal rate and expenditure from the other
+        // person's body without anything on screen suggesting it.
+        profileRepository.activeProfile,
+    ) { values ->
+        @Suppress("UNCHECKED_CAST")
+        build(
+            daily = values[0] as List<DailyWeight>,
+            latestEntry = values[1] as WeightEntry?,
+            goal = values[2] as Goal?,
+            measurements = values[3] as Map<MeasurementType, BodyMeasurement>,
+            settings = values[4] as AppSettings,
+            demographics = (values[5] as com.weighttrack.data.repo.Profile?)?.demographics
+                ?: com.weighttrack.core.model.UserProfile(),
+            today = today(),
+        )
     }
 
     fun build(
@@ -51,6 +67,13 @@ class ProgressCalculator @Inject constructor(
         goal: Goal?,
         measurements: Map<MeasurementType, BodyMeasurement>,
         settings: AppSettings,
+        /**
+         * The body to work the figures out from.
+         *
+         * Handed in rather than taken off the settings, because it belongs to one person and the
+         * settings belong to the phone.
+         */
+        demographics: com.weighttrack.core.model.UserProfile = settings.profile,
         today: LocalDate,
     ): ProgressSnapshot {
         if (daily.isEmpty()) return ProgressSnapshot.empty(settings)
@@ -75,7 +98,7 @@ class ProgressCalculator @Inject constructor(
             }
             .orEmpty()
 
-        val profile = settings.profile
+        val profile = demographics
         val currentGrams = trendGrams?.toInt() ?: latestEntry?.grams
         val heightMm = profile.heightMm.takeIf { it > 0 }
 

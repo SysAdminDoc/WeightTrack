@@ -144,6 +144,21 @@ data class SyncProfile(
     val reminderHour: Int = 7,
     val reminderMinute: Int = 30,
     val reminderDays: String = "",
+    /**
+     * The body this person's figures are worked out from.
+     *
+     * On the profile because that is whose body it is. These used to travel in [SyncSettings],
+     * one height and one year of birth for the whole phone, so a household of two had every
+     * BMI, healthy range, body-fat estimate, basal rate and expenditure computed from whichever
+     * of them had filled the settings in.
+     *
+     * Absent in a document written before this existed, which reads as "not said" rather than
+     * as zero: a device on an older version must not blank out what the newer one holds.
+     */
+    val heightMm: Int = 0,
+    val sex: String = "",
+    val birthYear: Int = 0,
+    val activityLevel: String = "",
     val updatedAtUtcMillis: Long,
 )
 

@@ -111,15 +111,18 @@ fun SettingsScreen(
     var namingProfile by remember { mutableStateOf<Profile?>(null) }
     val activeProfile = profiles.firstOrNull { it.id == activeProfileId } ?: Profile(0, "", 0)
     var addingProfile by remember { mutableStateOf(false) }
-    var heightText by remember(settings.profile.heightMm, settings.lengthUnit) {
+    // The body of the person on screen, not of the phone. Reading these off the app settings is
+    // what let a household of two work every figure out from one person's height.
+    val demographics by viewModel.demographics.collectAsStateWithLifecycle()
+    var heightText by remember(demographics.heightMm, settings.lengthUnit) {
         mutableStateOf(
-            settings.profile.heightMm.takeIf { it > 0 }
+            demographics.heightMm.takeIf { it > 0 }
                 ?.let { LengthFormatter.value(it, settings.lengthUnit, decimals = 1) }
                 .orEmpty(),
         )
     }
-    var birthYearText by remember(settings.profile.birthYear) {
-        mutableStateOf(settings.profile.birthYear.takeIf { it > 0 }?.toString().orEmpty())
+    var birthYearText by remember(demographics.birthYear) {
+        mutableStateOf(demographics.birthYear.takeIf { it > 0 }?.toString().orEmpty())
     }
 
     val exportCsvLauncher = rememberLauncherForActivityResult(
@@ -359,14 +362,14 @@ fun SettingsScreen(
                 Text(stringResource(R.string.onboarding_sex), style = MaterialTheme.typography.bodySmall)
                 ChipRow(
                     options = Sex.entries.map { it to sexLabel(it) },
-                    selected = settings.profile.sex,
+                    selected = demographics.sex,
                     onSelect = viewModel::setSex,
                 )
                 Spacer(Modifier.height(10.dp))
                 Text(stringResource(R.string.settings_activity_level), style = MaterialTheme.typography.bodySmall)
                 ChipRow(
                     options = ActivityLevel.entries.map { it to activityLabel(it) },
-                    selected = settings.profile.activityLevel,
+                    selected = demographics.activityLevel,
                     onSelect = viewModel::setActivityLevel,
                 )
             }

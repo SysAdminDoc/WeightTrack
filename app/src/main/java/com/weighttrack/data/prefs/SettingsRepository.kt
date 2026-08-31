@@ -47,6 +47,8 @@ data class AppSettings(
     val activeProfileId: Long = 1L,
     /** Whether the reminder that existed before profiles has been moved onto one. */
     val legacyReminderAdopted: Boolean = false,
+    /** Whether the demographics that existed before profiles have been moved onto one. */
+    val legacyDemographicsAdopted: Boolean = false,
     /** Food logging is off until somebody asks for it, so the weight-only app stays clean. */
     val nutritionEnabled: Boolean = false,
     /** Whoever uses the app supplies their own, since this one will not ship a shared key. */
@@ -255,6 +257,7 @@ class SettingsRepository @Inject constructor(
         weeklySummaryHour = this[Keys.WEEKLY_SUMMARY_HOUR] ?: 19,
         activeProfileId = this[Keys.ACTIVE_PROFILE_ID] ?: 1L,
         legacyReminderAdopted = this[Keys.LEGACY_REMINDER_ADOPTED] ?: false,
+        legacyDemographicsAdopted = this[Keys.LEGACY_DEMOGRAPHICS_ADOPTED] ?: false,
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
         usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
         importLowestOfDay = this[Keys.IMPORT_LOWEST_OF_DAY] ?: false,
@@ -268,6 +271,10 @@ class SettingsRepository @Inject constructor(
     suspend fun setActiveProfile(id: Long) = edit { it[Keys.ACTIVE_PROFILE_ID] = id }
 
     suspend fun setLegacyReminderAdopted() = edit { it[Keys.LEGACY_REMINDER_ADOPTED] = true }
+
+    suspend fun setLegacyDemographicsAdopted() = edit {
+        it[Keys.LEGACY_DEMOGRAPHICS_ADOPTED] = true
+    }
 
     suspend fun setNutritionEnabled(enabled: Boolean) = edit { it[Keys.NUTRITION_ENABLED] = enabled }
 
@@ -328,6 +335,8 @@ class SettingsRepository @Inject constructor(
         val WEEKLY_SUMMARY_HOUR = intPreferencesKey("weekly_summary_hour")
         val ACTIVE_PROFILE_ID = longPreferencesKey("active_profile_id")
         val LEGACY_REMINDER_ADOPTED = booleanPreferencesKey("legacy_reminder_adopted")
+        val LEGACY_DEMOGRAPHICS_ADOPTED =
+            booleanPreferencesKey("legacy_demographics_adopted")
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
         val IMPORT_LOWEST_OF_DAY = booleanPreferencesKey("import_lowest_of_day")

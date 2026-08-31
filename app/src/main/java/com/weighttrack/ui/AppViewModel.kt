@@ -66,6 +66,10 @@ class AppViewModel @Inject constructor(
             // daily reminder set before profiles existed would otherwise lose it silently.
             profileRepository.ensureDefault()
             profileRepository.adoptLegacyReminder()
+            // The height, sex, year of birth and activity level that used to belong to the
+            // phone go to whoever was using it, once. Handing them to every profile would tell
+            // a household everybody is the same height.
+            profileRepository.adoptLegacyDemographics()
             // Writing the row is not enough. Alarms do not survive the app being replaced, and
             // the boot receiver has already run and found nothing enabled, so the reminder that
             // was just moved across has to be booked here or it never fires.

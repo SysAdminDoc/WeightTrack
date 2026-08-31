@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -184,22 +185,35 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setTrendWindowDays(days)
     }
 
-    fun setHeightMm(mm: Int) = viewModelScope.launch { settingsRepository.setHeightMm(mm) }
+    /**
+     * The body the figures on screen are worked out from, for the person on screen.
+     *
+     * These belong to a profile rather than to the phone. A household of two sharing one height
+     * had every BMI, healthy range, body-fat estimate, basal rate and expenditure computed from
+     * whichever of them typed theirs in, and nothing on any screen said so.
+     */
+    val demographics: StateFlow<UserProfile> = profileRepository.activeProfile
+        .map { it?.demographics ?: UserProfile() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), UserProfile())
 
-    fun setProfile(profile: UserProfile) = viewModelScope.launch {
-        settingsRepository.setProfile(profile)
-    }
+    fun setHeightMm(mm: Int) = editDemographics { it.copy(heightMm = mm) }
 
-    fun setSex(sex: Sex) = viewModelScope.launch {
-        settingsRepository.setProfile(settings.value.profile.copy(sex = sex))
-    }
+    fun setProfile(profile: UserProfile) = editDemographics { profile }
 
-    fun setBirthYear(year: Int) = viewModelScope.launch {
-        settingsRepository.setProfile(settings.value.profile.copy(birthYear = year))
-    }
+    fun setSex(sex: Sex) = editDemographics { it.copy(sex = sex) }
 
-    fun setActivityLevel(level: ActivityLevel) = viewModelScope.launch {
-        settingsRepository.setProfile(settings.value.profile.copy(activityLevel = level))
+    fun setBirthYear(year: Int) = editDemographics { it.copy(birthYear = year) }
+
+    fun setActivityLevel(level: ActivityLevel) = editDemographics { it.copy(activityLevel = level) }
+
+    private fun editDemographics(change: (UserProfile) -> UserProfile) = viewModelScope.launch {
+        // Read from the row rather than from the state flow, so a change made in the moment
+        // between the screen collecting and the tap landing is not written back over.
+        val id = profileRepository.activeId()
+        val current = profileRepository.observeAll().first().firstOrNull { it.id == id }
+            ?.demographics
+            ?: UserProfile()
+        profileRepository.setDemographics(id, change(current))
     }
 
     /**

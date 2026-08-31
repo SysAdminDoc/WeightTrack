@@ -25,6 +25,9 @@ data class Profile(
     /** Empty means every day. */
     val reminderDays: Set<DayOfWeek> = DayOfWeek.entries.toSet(),
     val healthConnectEnabled: Boolean = false,
+    /** The body this person's figures are worked out from. Blank until they say. */
+    val demographics: com.weighttrack.core.model.UserProfile =
+        com.weighttrack.core.model.UserProfile(),
 )
 
 /**
@@ -172,6 +175,44 @@ class ProfileRepository @Inject constructor(
      */
     suspend fun photoFileNamesOf(id: Long): List<String> = dao.photoFileNames(id)
 
+    /**
+     * Records the body one person's figures are worked out from.
+     *
+     * Stamped, or the change looks to sync exactly like the row the other device already has and
+     * never leaves the phone.
+     */
+    suspend fun setDemographics(id: Long, demographics: com.weighttrack.core.model.UserProfile) {
+        val existing = dao.byId(id) ?: return
+        dao.update(
+            existing.copy(
+                heightMm = demographics.heightMm,
+                sex = demographics.sex.name,
+                birthYear = demographics.birthYear,
+                activityLevel = demographics.activityLevel.name,
+                updatedAtUtcMillis = System.currentTimeMillis(),
+            ),
+        )
+    }
+
+    /**
+     * Moves the height, sex, year of birth and activity level that existed before profiles onto
+     * one profile.
+     *
+     * Runs once, and only onto whoever was active at the time. Handing them to every profile
+     * would tell a household that everybody is the same height, and leaving them behind would
+     * lose figures somebody typed in.
+     */
+    suspend fun adoptLegacyDemographics() {
+        val settings = settingsRepository.settings.first()
+        if (settings.legacyDemographicsAdopted) return
+        settingsRepository.setLegacyDemographicsAdopted()
+        val active = dao.byId(activeId()) ?: return
+        // Nothing to move, and nothing to overwrite if this profile has already been filled in.
+        if (settings.profile.heightMm <= 0 && settings.profile.birthYear <= 0) return
+        if (active.heightMm > 0 || active.birthYear > 0) return
+        setDemographics(active.id, settings.profile)
+    }
+
     /** The name a profile travels under, which is what a tombstone names it by. */
     suspend fun syncIdOf(id: Long): String? = dao.byId(id)?.syncId
 
@@ -285,5 +326,16 @@ class ProfileRepository @Inject constructor(
             .toSet()
             .ifEmpty { DayOfWeek.entries.toSet() },
         healthConnectEnabled = healthConnectEnabled,
+        demographics = com.weighttrack.core.model.UserProfile(
+            heightMm = heightMm,
+            // Empty means nobody has said. The default stands in for the arithmetic rather than
+            // claiming to be an answer, which is what `hasDemographics` is for.
+            sex = com.weighttrack.core.model.Sex.entries.firstOrNull { it.name == sex }
+                ?: com.weighttrack.core.model.Sex.MALE,
+            birthYear = birthYear,
+            activityLevel = com.weighttrack.core.model.ActivityLevel.entries
+                .firstOrNull { it.name == activityLevel }
+                ?: com.weighttrack.core.model.ActivityLevel.LIGHT,
+        ),
     )
 }

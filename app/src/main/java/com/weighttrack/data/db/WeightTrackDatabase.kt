@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -49,6 +49,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Twelve marks each weigh-in with the version of it Health Connect has been told about,
         // so the export sends what has changed rather than everything, every hour, for ever.
         AutoMigration(from = 11, to = 12),
+        // Thirteen moves height, sex, year of birth and activity level onto the profile they
+        // describe. They arrive blank; the values that were in the app's settings are handed to
+        // whoever was active at the time, once, by ProfileRepository.adoptLegacyDemographics.
+        AutoMigration(from = 12, to = 13),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {

@@ -645,10 +645,15 @@ class HealthConnectSync @Inject constructor(
         var written = 0
         val sent = mutableListOf<Long>()
         waiting.chunked(BATCH_SIZE).forEach { batch ->
-            val records = batch.map { (_, entry) -> entry.toWeightRecord(session.zone) } +
-                // Body fat rides along with the reading it belongs to rather than being pushed
-                // separately, so one mark covers both and neither can be sent without the other.
-                batch.mapNotNull { (_, entry) -> entry.toBodyFatRecord(session) }
+            val records = buildList<androidx.health.connect.client.records.Record> {
+                batch.forEach { (_, entry) ->
+                    add(entry.toWeightRecord(session.zone))
+                    // Body fat rides along with the reading it belongs to rather than being
+                    // pushed separately, so one mark covers both and neither can be sent
+                    // without the other.
+                    entry.toBodyFatRecord(session)?.let(::add)
+                }
+            }
             runCatching { client.insertRecords(records) }
                 .onSuccess {
                     written += batch.size

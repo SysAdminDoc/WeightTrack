@@ -49,6 +49,22 @@ data class ProfileEntity(
      */
     @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
     @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
+    /**
+     * The body these figures describe.
+     *
+     * On the profile rather than in the app's settings, where they used to live. A household
+     * sharing a scale shares one phone, and one height, one sex, one year of birth and one
+     * activity level for everybody meant switching person computed their BMI, their healthy
+     * range, their body fat, their basal rate and their expenditure from somebody else's body.
+     * Every one of those numbers looked perfectly ordinary and every one of them was wrong.
+     *
+     * Empty and zero mean "not said". A profile added after somebody else has filled these in
+     * starts blank rather than inheriting a stranger's.
+     */
+    @ColumnInfo(defaultValue = "0") val heightMm: Int = 0,
+    @ColumnInfo(defaultValue = "''") val sex: String = "",
+    @ColumnInfo(defaultValue = "0") val birthYear: Int = 0,
+    @ColumnInfo(defaultValue = "''") val activityLevel: String = "",
 )
 
 /**
