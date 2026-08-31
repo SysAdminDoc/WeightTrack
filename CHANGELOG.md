@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The weekly copy will not delete a file it did not write. Its backups were called exactly what the export button suggests, and the pruning works by name, so a backup you saved into that folder by hand was counted as one of the four kept and thrown out to make room for a fifth. The job's own files are named apart now, and anything else in the folder is left alone whatever it is called. Backups written under the old name stay where they are: the app cannot prove one of them is its own rather than a copy you saved, and at most four files left behind once is a far better outcome than deleting one of yours.
+
 - Seven faults found reviewing the calendar-week change and the two before it. The weekly summary stopped arriving for anybody who does not weigh in every single morning, and for everybody's very first full week, because it asked for the trend on two exact days that a real history often has no reading on. The chart's week-by-week card had the same fault and could go completely empty for somebody who logged twelve days and stopped on a Friday. Both now read the nearest day at or before each end.
 
 - `This week` means the same thing everywhere. The home card, the widget and the watch were still counting seven days back from your newest reading while the chart and the notification beside them used calendar weeks, so two numbers on the same phone on the same day disagreed about the same week. All three now count from the day your week began.

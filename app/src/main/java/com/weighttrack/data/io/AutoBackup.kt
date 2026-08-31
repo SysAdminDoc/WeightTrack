@@ -20,7 +20,21 @@ object AutoBackup {
     const val KEEP = 4
 
     private const val PREFIX = "weighttrack-"
-    private const val SUFFIX = ".json"
+
+    /**
+     * What the weekly job's own backup is called.
+     *
+     * Deliberately not `weighttrack-<date>.json`, which is what the export button suggests. The
+     * pruning works by name, so while the two matched, a backup somebody saved into this folder
+     * by hand was counted as one of the four kept and thrown out to make room for a fifth. There
+     * is no way to tell two identically named files apart afterwards, so they are not allowed to
+     * be identically named.
+     *
+     * Files written under the old name are left exactly where they are. The job cannot prove one
+     * of them is its own rather than a copy somebody saved, and leaving at most four files behind
+     * once is a far better outcome than deleting one of theirs.
+     */
+    private const val SUFFIX = "-weekly.json"
 
     /**
      * The readings as a spreadsheet, written beside the backup.

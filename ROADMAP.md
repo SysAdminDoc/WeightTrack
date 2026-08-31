@@ -221,19 +221,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: the Health Connect exchange runs before the folder settings are read, proven by a fake that records the order; the job returns success on Refused and retry on a network failure; deleting the `healthConnect.sync()` call turns a test red; no test in the file reads a source file.
   Complexity: M
 
-- [ ] P2: Stop the weekly backup from pruning a hand-made export with the same name
-  Why: the manual JSON export suggests `weighttrack-<date>.json`, which is exactly the name the weekly job writes and prunes, so a person who saves one by hand into their backup folder has it counted as one of the four kept and deleted once a fifth appears. The scheduled spreadsheet was given a distinct name for this reason; the backup itself still has the collision, and it is a shipped name.
-  Evidence: `app/src/main/java/com/weighttrack/data/io/AutoBackup.kt`; `BackupCodec.suggestedFileName`; `app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt`
-  Touches: AutoBackup naming, a migration that keeps recognising the files already in people's folders, the manual export's suggested name
-  Acceptance: a file the app did not write is never returned by `toRemove`, whatever it is called; backups already in a folder are still recognised and still pruned; a test plants a hand-made export beside four scheduled ones and proves it survives.
-  Complexity: S
-- [ ] P2: Publish a versioned interchange schema separate from private restore state
-  Why: CSV and JSON exist, but third-party tools have no stable machine-readable contract, compatibility policy, or extension rules; adjacent local-first tools make documented open files the integration boundary.
-  Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://github.com/LuminaAppsDev/cairn; https://github.com/woop/awesome-quantified-self
-  Touches: public JSON Schema or JSON Lines model, exporter and importer, versioned fixtures, compatibility documentation
-  Acceptance: A published schema covers documented user data without secrets or internal acknowledgement state; v1 fixtures validate and round-trip; unknown additive fields are ignored; breaking changes require a new schema version and migration fixture; a sample consumer can stream weights and composition without importing app code.
-  Complexity: M
-
 ### P3 additions from 2026-08-31
 
 - [ ] P3: Add launcher shortcuts for Log weight and Read scale

@@ -13,12 +13,47 @@ import java.time.LocalDate
  */
 class AutoBackupTest {
 
-    private fun names(vararg dates: String) = dates.map { "weighttrack-$it.json" }
+    private fun names(vararg dates: String) = dates.map { "weighttrack-$it-weekly.json" }
 
     @Test
-    fun `a backup is named after the day it was taken`() {
+    fun `a backup carries the day it was taken and a name of its own`() {
+        // Not weighttrack-2026-08-29.json: that is what the export button suggests, and the
+        // pruning works by name, so a backup somebody saved here by hand was counted as one of
+        // the four kept and thrown out to make room for a fifth.
         assertThat(AutoBackup.nameFor(LocalDate.of(2026, 8, 29)))
-            .isEqualTo("weighttrack-2026-08-29.json")
+            .isEqualTo("weighttrack-2026-08-29-weekly.json")
+        assertThat(AutoBackup.partialNameFor(LocalDate.of(2026, 8, 29)))
+            .isEqualTo("weighttrack-2026-08-29-part-weekly.json")
+    }
+
+    @Test
+    fun `a backup saved by hand is never touched, whichever kind it is`() {
+        val theirs = listOf(
+            "weighttrack-2026-07-04.json",
+            "weighttrack-2026-07-04.csv",
+            "weighttrack-2026-07-04-part.json",
+        )
+        val folder = theirs + (0..4).flatMap {
+            val day = LocalDate.of(2026, 8, 29).minusWeeks(it.toLong())
+            listOf(AutoBackup.nameFor(day), AutoBackup.csvNameFor(day))
+        }
+
+        assertThat(AutoBackup.toRemove(folder)).containsNoneIn(theirs)
+        assertThat(AutoBackup.partialsIn(folder)).containsNoneIn(theirs)
+        // Everything it did write is still counted and still pruned.
+        assertThat(AutoBackup.toRemove(folder)).containsExactly(
+            AutoBackup.nameFor(LocalDate.of(2026, 8, 1)),
+            AutoBackup.csvNameFor(LocalDate.of(2026, 8, 1)),
+        )
+    }
+
+    @Test
+    fun `a backup written under the old name is left where it is`() {
+        // At most four of these, once. The job cannot prove one of them is its own rather than a
+        // copy somebody saved, and four stale files is a far better outcome than deleting theirs.
+        val legacy = (0..4).map { "weighttrack-2026-08-0$it.json" }
+
+        assertThat(AutoBackup.toRemove(legacy, keep = 0)).isEmpty()
     }
 
     @Test
@@ -38,12 +73,14 @@ class AutoBackupTest {
 
     @Test
     fun `a name it did not write has no date`() {
-        assertThat(AutoBackup.dateOf("weighttrack-2026-08-29.json"))
+        assertThat(AutoBackup.dateOf("weighttrack-2026-08-29-weekly.json"))
             .isEqualTo(LocalDate.of(2026, 8, 29))
         assertThat(AutoBackup.dateOf("holiday-photos.json")).isNull()
         assertThat(AutoBackup.dateOf("weighttrack-notadate.json")).isNull()
         assertThat(AutoBackup.dateOf("weighttrack-2026-08-29.txt")).isNull()
-        assertThat(AutoBackup.dateOf("weighttrack-2026-13-40.json")).isNull()
+        // The name the export button suggests, which the job must not claim as its own.
+        assertThat(AutoBackup.dateOf("weighttrack-2026-08-29.json")).isNull()
+        assertThat(AutoBackup.dateOf("weighttrack-2026-13-40-weekly.json")).isNull()
     }
 
     @Test
@@ -57,7 +94,7 @@ class AutoBackupTest {
     fun `the oldest goes once there is a fifth`() {
         val five = names("2026-08-01", "2026-08-08", "2026-08-15", "2026-08-22", "2026-08-29")
 
-        assertThat(AutoBackup.toRemove(five)).containsExactly("weighttrack-2026-08-01.json")
+        assertThat(AutoBackup.toRemove(five)).containsExactly("weighttrack-2026-08-01-weekly.json")
     }
 
     @Test
@@ -69,9 +106,9 @@ class AutoBackupTest {
 
         // Seven kept four leaves three to go, newest of those first.
         assertThat(AutoBackup.toRemove(seven)).containsExactly(
-            "weighttrack-2026-08-01.json",
-            "weighttrack-2026-07-25.json",
-            "weighttrack-2026-07-18.json",
+            "weighttrack-2026-08-01-weekly.json",
+            "weighttrack-2026-07-25-weekly.json",
+            "weighttrack-2026-07-18-weekly.json",
         ).inOrder()
     }
 
@@ -85,10 +122,10 @@ class AutoBackupTest {
         val kept = seven - AutoBackup.toRemove(seven).toSet()
 
         assertThat(kept).containsExactly(
-            "weighttrack-2026-08-08.json",
-            "weighttrack-2026-08-15.json",
-            "weighttrack-2026-08-22.json",
-            "weighttrack-2026-08-29.json",
+            "weighttrack-2026-08-08-weekly.json",
+            "weighttrack-2026-08-15-weekly.json",
+            "weighttrack-2026-08-22-weekly.json",
+            "weighttrack-2026-08-29-weekly.json",
         )
     }
 
@@ -99,7 +136,7 @@ class AutoBackupTest {
 
         val removing = AutoBackup.toRemove(mixed)
 
-        assertThat(removing).containsExactly("weighttrack-2026-08-01.json")
+        assertThat(removing).containsExactly("weighttrack-2026-08-01-weekly.json")
         assertThat(removing).doesNotContain("notes.json")
         assertThat(removing).doesNotContain("tax-return.pdf")
         assertThat(removing).doesNotContain("weighttrack-old.json")
@@ -115,7 +152,7 @@ class AutoBackupTest {
         val shuffled = names("2026-08-15", "2026-08-01", "2026-08-29")
 
         assertThat(AutoBackup.backupsIn(shuffled).first())
-            .isEqualTo("weighttrack-2026-08-29.json")
+            .isEqualTo("weighttrack-2026-08-29-weekly.json")
     }
 
     @Test
@@ -126,7 +163,7 @@ class AutoBackupTest {
         val name = AutoBackup.nameFor(LocalDate.of(2026, 8, 29))
         val folder = names("2026-08-22") + name
 
-        assertThat(AutoBackup.backupsIn(folder)).containsExactly(name, "weighttrack-2026-08-22.json")
+        assertThat(AutoBackup.backupsIn(folder)).containsExactly(name, "weighttrack-2026-08-22-weekly.json")
             .inOrder()
         assertThat(AutoBackup.toRemove(folder)).isEmpty()
         assertThat(
@@ -140,7 +177,7 @@ class AutoBackupTest {
 
         val partial = AutoBackup.partialNameFor(day)
 
-        assertThat(partial).isEqualTo("weighttrack-2026-08-29-part.json")
+        assertThat(partial).isEqualTo("weighttrack-2026-08-29-part-weekly.json")
         // The marker sits inside the stem, not after the extension: a document provider rewrites
         // an extension that does not match the media type, and the file becomes unfindable.
         assertThat(partial).endsWith(".json")
@@ -153,15 +190,15 @@ class AutoBackupTest {
     @Test
     fun `leftovers from a run that died are found and nothing else is`() {
         val names = listOf(
-            "weighttrack-2026-08-29.json",
-            "weighttrack-2026-08-29-part.json",
-            "weighttrack-2026-08-22-part.json",
+            "weighttrack-2026-08-29-weekly.json",
+            "weighttrack-2026-08-29-part-weekly.json",
+            "weighttrack-2026-08-22-part-weekly.json",
             "holiday.jpg",
             "budget.json",
         )
 
         assertThat(AutoBackup.partialsIn(names))
-            .containsExactly("weighttrack-2026-08-29-part.json", "weighttrack-2026-08-22-part.json")
+            .containsExactly("weighttrack-2026-08-29-part-weekly.json", "weighttrack-2026-08-22-part-weekly.json")
     }
 
     @Test
@@ -197,7 +234,7 @@ class AutoBackupTest {
         val folder = names("2026-07-18", "2026-07-25", "2026-08-01", "2026-08-08") +
             AutoBackup.nameFor(LocalDate.of(2026, 8, 29))
 
-        assertThat(AutoBackup.toRemove(folder)).containsExactly("weighttrack-2026-07-18.json")
+        assertThat(AutoBackup.toRemove(folder)).containsExactly("weighttrack-2026-07-18-weekly.json")
     }
 
     @Test
