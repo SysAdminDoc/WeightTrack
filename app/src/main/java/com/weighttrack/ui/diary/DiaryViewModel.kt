@@ -20,6 +20,9 @@ import com.weighttrack.domain.ProgressSnapshot
 import com.weighttrack.ui.AppStrings
 import com.weighttrack.health.HealthConnectSync
 import dagger.hilt.android.lifecycle.HiltViewModel
+import java.time.Instant
+import java.time.ZoneId
+import kotlin.math.abs
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -362,6 +365,16 @@ class DiaryViewModel @Inject constructor(
         const val STEP_HISTORY_DAYS = 30L
 
         /**
+         * How close the retirement of one goal and the setting of the next have to be to count
+         * as one replacing the other.
+         *
+         * They are written in the same transaction, so in practice they are milliseconds apart.
+         * A minute is slack for a slow phone, and far short of anything that would let a goal
+         * abandoned earlier be mistaken for the one this replaced.
+         */
+        const val REPLACEMENT_WINDOW_MILLIS = 60_000L
+
+        /**
          * Moves the estimate the moment the target does, while the window still predates it.
          *
          * Expenditure falls in a deficit and comes back when the deficit stops, days before a
@@ -374,11 +387,22 @@ class DiaryViewModel @Inject constructor(
             measured: AdaptiveExpenditure.Estimate,
             snapshot: ProgressSnapshot,
             goals: List<Goal>,
+            zone: ZoneId = ZoneId.systemDefault(),
         ): AdaptiveExpenditure.Estimate {
             val current = snapshot.goal ?: return measured
-            if (!measured.from.isBefore(current.startDate)) return measured
-            // Ordered newest first, so the first retired one is what this goal replaced.
+            // When the target changed, which is not when the goal started. Editing a goal keeps
+            // its start date so the progress bar does not reset, so reading the start date meant
+            // the correction never fired on the one path that actually changes a target.
+            if (current.setAtUtcMillis <= 0) return measured
+            val changedOn = Instant.ofEpochMilli(current.setAtUtcMillis).atZone(zone).toLocalDate()
+            if (!measured.from.isBefore(changedOn)) return measured
+            // Ordered newest first, so the first retired one is what this goal replaced. Retired
+            // at the moment this one was set, or it replaced nothing: somebody who gave a goal up
+            // last year and sets a new one today has no suppressed expenditure to hand back, and
+            // reading the abandoned goal's rate handed them four per cent they never lost.
             val previous = goals.firstOrNull { !it.active && it.id != current.id } ?: return measured
+            val apart = abs(previous.changedAtUtcMillis - current.setAtUtcMillis)
+            if (previous.changedAtUtcMillis <= 0 || apart > REPLACEMENT_WINDOW_MILLIS) return measured
             val bodyKg = (snapshot.displayGrams ?: return measured) / 1_000.0
             return AdaptiveExpenditure.afterGoalChange(
                 measured,

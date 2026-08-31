@@ -110,6 +110,16 @@ data class Goal(
      */
     val bandGrams: Int = DEFAULT_GOAL_BAND_GRAMS,
     val active: Boolean = true,
+    /**
+     * When this goal was set, which is not the same as [startDate].
+     *
+     * Editing a goal keeps the date it started from, on purpose, so the progress bar does not
+     * reset. That leaves nothing on the row saying when the target actually changed, which is
+     * what anything reacting to a change of mind has to read.
+     */
+    val setAtUtcMillis: Long = 0,
+    /** Last write to this goal. On a retired one, when it was retired. */
+    val changedAtUtcMillis: Long = 0,
 )
 
 /** The handful of facts the body composition formulas need. Held in settings, not the database. */

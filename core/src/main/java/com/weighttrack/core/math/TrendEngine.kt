@@ -133,6 +133,22 @@ object TrendEngine {
     const val DEFAULT_RATE_LOOKBACK_DAYS = 14
     const val MIN_RATE_SAMPLE_DAYS = 7
 
+    /**
+     * How much of the slope survives each day with no reading, under [SmoothingMode.HOLT].
+     *
+     * Without this the line is projected forward for as long as somebody stays off the scale, and
+     * the projection is unbounded: a fortnight's holiday after a run of losses drew the line more
+     * than a kilogram below the lowest weight ever recorded, then reported a gain of 1.6 kg for
+     * the week as it snapped back, on somebody who had genuinely gained. Ninety days off drew a
+     * negative body weight.
+     *
+     * Damping is the standard answer and it is the honest one: a slope measured last month is
+     * evidence about last month, and less of it is evidence about today with every day that
+     * passes. At 0.85 the projection saturates a little under six days out, so however long the
+     * absence, the line stops within about six days' worth of the last known slope and waits.
+     */
+    const val CARRY_DAMPING = 0.85
+
     /** Weekly change below this counts as flat when deciding whether progress has stalled. */
     const val PLATEAU_GRAMS_PER_WEEK = 100.0
     const val PLATEAU_MIN_DAYS = 14
@@ -170,11 +186,17 @@ object TrendEngine {
         val last = sorted.last().date
 
         val points = ArrayList<TrendPoint>(ChronoUnit.DAYS.between(first, last).toInt() + 1)
-        // Seeding the line with the first reading avoids a long artificial ramp from zero.
-        var level = sorted.first().grams.toDouble()
-        // Grams per day, and only moved by Holt. Zero until a second reading gives it something
-        // to be measured from, so a single weigh-in projects nothing.
-        var slope = 0.0
+        // Seeding the line with the first reading avoids a long artificial ramp from zero. Read
+        // through the map rather than off the list, so a duplicate date seeds the same reading
+        // the first point reports.
+        var level = byDate.getValue(first).grams.toDouble()
+        // Grams per day, and only moved by Holt.
+        //
+        // Seeded from the opening readings rather than from zero. Starting flat means the level
+        // and the slope spend the first month chasing each other, and the overshoot is not
+        // cosmetic: the rate fitted to the line came out twenty-six per cent fast at thirty days,
+        // which is a goal date a month early on a year-long goal.
+        var slope = if (mode == SmoothingMode.HOLT) openingSlope(sorted) else 0.0
         // The slope is smoothed at the same rate as the level. Slowing it down reads well on
         // paper, since a change of direction is rarer than a heavy dinner, but a slope that
         // settles over months is still most of a kilo behind a steady loss a month in, which is
@@ -196,7 +218,12 @@ object TrendEngine {
                         // Corrected from where the slope said the line would be by now, rather
                         // than from the stale level. That is the whole of the difference: an
                         // average is always answering the question one window late.
-                        val expected = level + slope * gapDays
+                        //
+                        // Damped by the same rule as the drawn line, and for the same reason. An
+                        // undamped forecast across three weeks off leaves a tenth of a runaway
+                        // number in the corrected level, which is how a return to 79 kg came out
+                        // as a trend of 76.9.
+                        val expected = level + slope * dampedDays(gapDays)
                         level = expected + factor * (measured.grams - expected)
                         val observed = (level - before) / gapDays
                         slope += (1.0 - (1.0 - beta).pow(gapDays.toDouble())) * (observed - slope)
@@ -206,18 +233,63 @@ object TrendEngine {
                 }
                 lastMeasuredDate = date
             }
-            // Carried along the slope rather than held flat, so a fortnight between weigh-ins
-            // reads as the continuation it almost certainly was. Zero on a measured day, and
-            // always zero for the average, which has no slope to carry.
-            val carriedDays = if (mode == SmoothingMode.HOLT) {
-                ChronoUnit.DAYS.between(lastMeasuredDate, date).toDouble()
+            // Carried along the slope rather than held flat, so a few days between weigh-ins read
+            // as the continuation they almost certainly were, and damped, so a long absence stops
+            // rather than running off the chart. Zero on a measured day, and always zero for the
+            // average, which has no slope to carry.
+            val carried = if (mode == SmoothingMode.HOLT) {
+                dampedDays(ChronoUnit.DAYS.between(lastMeasuredDate, date).toInt())
             } else {
                 0.0
             }
-            points += TrendPoint(date, level + slope * carriedDays, measured?.grams)
+            points += TrendPoint(date, level + slope * carried, measured?.grams)
             date = date.plusDays(1)
         }
         return TrendSeries(points, alpha, mode)
+    }
+
+    /**
+     * How far the line is carried over [days] with no reading, in days' worth of slope.
+     *
+     * A damped sum rather than the count: each day beyond the first is worth [CARRY_DAMPING] of
+     * the one before it, so the total converges instead of growing without limit. Tomorrow is a
+     * whole day's slope, because a slope measured this morning is not stale by tomorrow and
+     * discounting it costs accuracy for nothing. A week out is 5.0 days' worth, a month 6.5, and
+     * a year the same 6.67 as a fortnight.
+     */
+    private fun dampedDays(days: Int): Double {
+        if (days <= 0) return 0.0
+        return (1.0 - CARRY_DAMPING.pow(days.toDouble())) / (1.0 - CARRY_DAMPING)
+    }
+
+    /** The furthest the line is ever carried past the last reading, in days of slope. */
+    const val MAX_CARRY_DAYS = 1.0 / (1.0 - CARRY_DAMPING)
+
+    /**
+     * The slope the line starts with, fitted to the opening readings.
+     *
+     * Holt's slope is smoothed like everything else, so starting it at zero means the first month
+     * is spent catching up, and catching up overshoots. Seeding it from the readings that are
+     * actually there removes the transient rather than waiting it out. Zero when there is nothing
+     * to fit, so a single weigh-in still projects nothing.
+     */
+    private fun openingSlope(sorted: List<DailyWeight>): Double {
+        val window = sorted.first().date.plusDays(DEFAULT_WINDOW_DAYS.toLong())
+        val opening = sorted.filter { !it.date.isAfter(window) }
+        if (opening.size < 2) return 0.0
+
+        val xs = opening.map { it.date.toEpochDay().toDouble() }
+        val ys = opening.map { it.grams.toDouble() }
+        val meanX = xs.average()
+        val meanY = ys.average()
+        var sxx = 0.0
+        var sxy = 0.0
+        for (i in xs.indices) {
+            val dx = xs[i] - meanX
+            sxx += dx * dx
+            sxy += dx * (ys[i] - meanY)
+        }
+        return if (sxx <= 0.0) 0.0 else sxy / sxx
     }
 
     /**

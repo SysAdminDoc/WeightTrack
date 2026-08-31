@@ -14,6 +14,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -27,12 +28,43 @@ import com.weighttrack.core.format.LengthFormatter
 import com.weighttrack.core.format.LocaleNumbers
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.ActivityLevel
+import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.UserProfile
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.repo.Profile
 import com.weighttrack.ui.components.SectionHeading
 import java.time.LocalDate
+
+/** The two free-text fields on the body section, held above the list that draws them. */
+internal class BodyFields(
+    val height: MutableState<String>,
+    val birthYear: MutableState<String>,
+)
+
+/**
+ * Remembers what is typed into them, keyed the way the stored values are.
+ *
+ * A change arriving from anywhere else, including another device, replaces the text. A change
+ * typed here that the store rejected does not.
+ */
+@Composable
+internal fun rememberBodyFields(
+    demographics: UserProfile,
+    lengthUnit: LengthUnit,
+): BodyFields {
+    val height = remember(demographics.heightMm, lengthUnit) {
+        mutableStateOf(
+            demographics.heightMm.takeIf { it > 0 }
+                ?.let { LengthFormatter.value(it, lengthUnit, decimals = 1) }
+                .orEmpty(),
+        )
+    }
+    val birthYear = remember(demographics.birthYear) {
+        mutableStateOf(demographics.birthYear.takeIf { it > 0 }?.toString().orEmpty())
+    }
+    return remember(height, birthYear) { BodyFields(height, birthYear) }
+}
 
 /**
  * Height, year of birth, sex and activity level.
@@ -44,17 +76,18 @@ internal fun LazyListScope.bodySection(
     settings: AppSettings,
     demographics: UserProfile,
     viewModel: SettingsViewModel,
+    /**
+     * Held by the screen, not by this item.
+     *
+     * What is typed here does not always reach the store: an empty height parses to nothing, and
+     * a year of 19 is refused until the other two digits arrive. Kept inside the item, that
+     * half-finished text belongs to a row in a lazy list, and scrolling four sections down and
+     * back throws it away and puts the old value back.
+     */
+    fields: BodyFields,
 ) = item {
-    var heightText by remember(demographics.heightMm, settings.lengthUnit) {
-        mutableStateOf(
-            demographics.heightMm.takeIf { it > 0 }
-                ?.let { LengthFormatter.value(it, settings.lengthUnit, decimals = 1) }
-                .orEmpty(),
-        )
-    }
-    var birthYearText by remember(demographics.birthYear) {
-        mutableStateOf(demographics.birthYear.takeIf { it > 0 }?.toString().orEmpty())
-    }
+    var heightText by fields.height
+    var birthYearText by fields.birthYear
     SettingsSection {
         SectionHeading(stringResource(R.string.settings_profile))
         Spacer(Modifier.height(4.dp))

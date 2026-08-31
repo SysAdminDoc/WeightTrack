@@ -4,6 +4,7 @@ import com.weighttrack.R
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.UserProfile
+import com.weighttrack.data.db.WeightTrackDatabase.Companion.DEFAULT_PROFILE_ID
 import com.weighttrack.data.repo.Profile
 import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.ProgressPhotoRepository
@@ -46,8 +47,16 @@ internal class PeopleSettingsController(
     val profiles: StateFlow<List<Profile>> = profileRepository.observeAll()
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    /**
+     * Seeded with the profile every install starts with, not with zero.
+     *
+     * Zero is never a row. The screen falls through to a blank placeholder while it stands, so
+     * nobody is marked as showing, the reminder card draws against nothing, and a toggle landing
+     * in that moment writes a reminder for profile zero, which no row matches: no write, no
+     * reschedule, and nothing on screen to say the tap did nothing.
+     */
     val activeProfileId: StateFlow<Long> = profileRepository.activeProfileId
-        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), 0L)
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), DEFAULT_PROFILE_ID)
 
     val demographics: StateFlow<UserProfile> = profileRepository.activeProfile
         .map { it?.demographics ?: UserProfile() }

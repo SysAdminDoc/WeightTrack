@@ -58,6 +58,8 @@ fun SettingsScreen(
     val activeProfile = profiles.firstOrNull { it.id == activeProfileId } ?: Profile(0, "", 0)
     val demographics by viewModel.demographics.collectAsStateWithLifecycle()
     val pickers = rememberSettingsPickers(viewModel)
+    // Above the list, so scrolling past the section does not throw away half-typed text.
+    val bodyFields = rememberBodyFields(demographics, settings.lengthUnit)
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -100,7 +102,7 @@ fun SettingsScreen(
         unitsSection(settings, viewModel)
         appearanceSection(settings, viewModel)
         trendSmoothingSection(settings, viewModel)
-        bodySection(settings, demographics, viewModel)
+        bodySection(settings, demographics, viewModel, bodyFields)
         peopleSection(
             profiles = profiles,
             activeProfileId = activeProfileId,

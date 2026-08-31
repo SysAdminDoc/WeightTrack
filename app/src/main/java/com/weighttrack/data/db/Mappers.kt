@@ -150,6 +150,8 @@ fun GoalEntity.toDomain(): Goal = Goal(
     milestoneStepGrams = milestoneStepGrams,
     bandGrams = bandGrams,
     active = active,
+    setAtUtcMillis = createdAtUtcMillis,
+    changedAtUtcMillis = updatedAtUtcMillis,
 )
 
 /** [syncId] has to be handed in when editing an existing goal. See the note above. */

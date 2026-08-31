@@ -101,16 +101,80 @@ class ExpenditureMovementTest {
     fun `an ordinary week of variation is not a change of habit`() {
         val series = weightsThatSteepen()
         val intake = intake()
-        // Weekends off, weekdays on. Everybody's step count looks like this.
-        val ordinary = (0..13).associate { day ->
-            from.plusDays(day.toLong()) to if (day % 7 >= 5) 6_600L else 7_800L
+        val blind = AdaptiveExpenditure.estimate(series, intake, today)!!
+
+        // Weekends off, weekdays on, at every ratio a real person has. Two to one is common and
+        // used to trip the banner permanently for somebody who had changed nothing.
+        listOf(6_600L, 5_400L, 4_500L, 3_000L, 0L).forEach { weekend ->
+            val ordinary = (0..13).associate { day ->
+                from.plusDays(day.toLong()) to if (day % 7 >= 5) weekend else 9_000L
+            }
+
+            val watching =
+                AdaptiveExpenditure.estimate(series, intake, today, stepsByDate = ordinary)!!
+
+            assertThat(watching.movementChanged).isFalse()
+            assertThat(watching.kcalPerDay).isEqualTo(blind.kcalPerDay)
+        }
+    }
+
+    @Test
+    fun `the weekend is never the part of the week that gets discounted`() {
+        // The days people move least are the days they eat most. Down-weighting them drags the
+        // intake mean, and with it the answer, in the direction that recommends too little food.
+        val series = weightsThatSteepen()
+        val eating = (0..13).associate { day ->
+            from.plusDays(day.toLong()) to if (day % 7 >= 5) 3_200.0 else 2_000.0
+        }
+        val weekends = (0..13).associate { day ->
+            from.plusDays(day.toLong()) to if (day % 7 >= 5) 4_500L else 9_000L
         }
 
-        val watching = AdaptiveExpenditure.estimate(series, intake, today, stepsByDate = ordinary)!!
+        val blind = AdaptiveExpenditure.estimate(series, eating, today)!!
+        val watching = AdaptiveExpenditure.estimate(series, eating, today, stepsByDate = weekends)!!
 
-        assertThat(watching.movementChanged).isFalse()
+        assertThat(watching.meanIntakeKcal).isEqualTo(blind.meanIntakeKcal)
+        assertThat(watching.kcalPerDay).isEqualTo(blind.kcalPerDay)
+    }
+
+    @Test
+    fun `a week on the sofa counts as the change of habit it is`() {
+        // Zero steps is a reading. Treating it as a missing day threw away the one case the
+        // whole feature is named after, and dropped the day count below the guard, which
+        // abandoned the weighting for every other day too.
+        val series = weightsThatSteepen()
+        val intake = intake()
+        val flu = (0..13).associate { day ->
+            from.plusDays(day.toLong()) to if (day < 7) 0L else 9_000L
+        }
+
+        val watching = AdaptiveExpenditure.estimate(series, intake, today, stepsByDate = flu)!!
+
+        assertThat(watching.movementChanged).isTrue()
         assertThat(watching.kcalPerDay)
-            .isEqualTo(AdaptiveExpenditure.estimate(series, intake, today)!!.kcalPerDay)
+            .isNotEqualTo(AdaptiveExpenditure.estimate(series, intake, today)!!.kcalPerDay)
+    }
+
+    @Test
+    fun `one quiet day cannot switch the whole weighting off`() {
+        // The counterexample to "steps never enter the arithmetic" that scale invariance cannot
+        // catch: a value that changes how many days are counted, rather than how they are
+        // weighted, moves the answer without being weighted at all.
+        val series = weightsThatSteepen()
+        val intake = intake()
+        val rising = (0..13).associate { day ->
+            from.plusDays(day.toLong()) to if (day < 7) 3_000L else 9_000L
+        }
+        val withOneRestDay = rising.toMutableMap().apply { this[from] = 0L }
+
+        val ordinary = AdaptiveExpenditure.estimate(series, intake, today, stepsByDate = rising)!!
+        val quiet =
+            AdaptiveExpenditure.estimate(series, intake, today, stepsByDate = withOneRestDay)!!
+
+        assertThat(quiet.movementChanged).isEqualTo(ordinary.movementChanged)
+        // A single day's value may nudge that day's neighbourhood. It may not move the answer by
+        // anything like the 123 kcal that dropping below the day count used to cost.
+        assertThat(abs(quiet.kcalPerDay - ordinary.kcalPerDay)).isLessThan(20.0)
     }
 
     @Test

@@ -90,6 +90,17 @@ object AdaptiveExpenditure {
     const val GOAL_SWITCH_ADAPTATION = 4.0
 
     /**
+     * The most the correction may ever move the estimate.
+     *
+     * Fifteen per cent is already beyond any weekly target a person could hold. The cap exists
+     * because the percentage is taken against body mass, and body mass comes from the trend line,
+     * which a mistyped reading can drag a long way: a body mass of four kilograms turned a four
+     * per cent correction into forty-two, and the number this feeds is a recommendation about
+     * what somebody eats.
+     */
+    const val MAX_ADAPTATION_SHIFT = 0.15
+
+    /**
      * What somebody burns, and how much to believe it.
      *
      * [days] and [loggedDays] are both reported because the difference between them is what
@@ -233,9 +244,12 @@ object AdaptiveExpenditure {
         first: LocalDate,
         last: LocalDate,
     ): Map<LocalDate, Double> {
-        val inWindow = stepsByDate
-            .filterKeys { !it.isBefore(first) && !it.isAfter(last) }
-            .filterValues { it > 0 }
+        // Zero is a reading, not a gap. Dropping it made the number of days in this map depend on
+        // the values in it, so a single quiet day could push the count below the guard below and
+        // silently abandon the weighting for every other day: 123 kcal moved by one day's step
+        // count, which is precisely what steps are not allowed to do. It also threw away the week
+        // on the sofa, which is the case this exists for.
+        val inWindow = stepsByDate.filterKeys { !it.isBefore(first) && !it.isAfter(last) }
         if (inWindow.size < MIN_DAYS) return emptyMap()
 
         val recentFrom = last.minusDays(RECENT_MOVEMENT_DAYS.toLong() - 1)
@@ -245,11 +259,37 @@ object AdaptiveExpenditure {
         val now = recent.average()
         if (now <= 0.0) return emptyMap()
 
-        return inWindow.mapValues { (_, steps) ->
-            val away = abs(steps / now - 1.0)
-            if (away > MOVEMENT_SHIFT_THRESHOLD) STALE_MOVEMENT_WEIGHT else 1.0
+        return inWindow.mapValues { (date, _) ->
+            // A day is judged by the week around it, never on its own.
+            //
+            // Everybody's step count halves at the weekend, and comparing single days against
+            // the average day makes a two-to-one weekday split look like a change of habit for
+            // ever. Worse, it is the weekend days that get down-weighted, and those are the days
+            // people eat most, so the intake mean came out 234 kcal light on somebody who had
+            // changed nothing at all.
+            val week = weekAround(inWindow, date)
+            if (week.size < 4) {
+                1.0
+            } else if (abs(week.average() / now - 1.0) > MOVEMENT_SHIFT_THRESHOLD) {
+                STALE_MOVEMENT_WEIGHT
+            } else {
+                1.0
+            }
         }
     }
+
+    /**
+     * The seven measured days nearest [date], which is a whole week wherever there is one.
+     *
+     * Nearest rather than centred, so the days at either end of the window are judged against a
+     * full week too. A centred window shrinks to four days at the edges, and four days of a
+     * weekday-heavy stretch reads as a different activity level from the week it belongs to.
+     */
+    private fun weekAround(steps: Map<LocalDate, Long>, date: LocalDate): List<Long> =
+        steps.entries
+            .sortedBy { abs(it.key.toEpochDay() - date.toEpochDay()) }
+            .take(RECENT_MOVEMENT_DAYS)
+            .map { it.value }
 
     /**
      * The least-squares slope through a set of weigh-ins.
@@ -293,11 +333,9 @@ object AdaptiveExpenditure {
         if (bodyMassKg <= 0.0) return estimate
         val change = (toKgPerWeek - fromKgPerWeek) / bodyMassKg
         if (change == 0.0) return estimate
-        val shifted = estimate.kcalPerDay * (1.0 + GOAL_SWITCH_ADAPTATION * change)
-        // A change big enough to invert the answer is a target nobody could hold. Refusing to
-        // apply it beats reporting that somebody burns nothing.
-        if (shifted <= 0.0) return estimate
-        return estimate.copy(kcalPerDay = shifted)
+        val shift = (GOAL_SWITCH_ADAPTATION * change)
+            .coerceIn(-MAX_ADAPTATION_SHIFT, MAX_ADAPTATION_SHIFT)
+        return estimate.copy(kcalPerDay = estimate.kcalPerDay * (1.0 + shift))
     }
 
     /** What to eat to move at a chosen rate, given what the person burns. */

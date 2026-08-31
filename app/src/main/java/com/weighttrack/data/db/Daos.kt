@@ -348,8 +348,17 @@ interface GoalDao {
      * Stamped, or sync cannot tell a retired goal from the active one it already holds: the other
      * device goes on showing a goal that was put away, and once a new one is set it shows two.
      */
+    /**
+     * Retires whatever is active. Rows that were already retired are left alone.
+     *
+     * Without the second condition every goal the profile has ever had was stamped again each
+     * time a new one was set. Sync then saw a dozen rows change on a device where one did, and
+     * anything asking when a goal was retired got the date of the most recent goal instead of its
+     * own: a goal abandoned last year looked like it had just been replaced.
+     */
     @Query(
-        "UPDATE goals SET active = 0, updatedAtUtcMillis = :atUtcMillis WHERE profileId = :profileId",
+        "UPDATE goals SET active = 0, updatedAtUtcMillis = :atUtcMillis " +
+            "WHERE profileId = :profileId AND active = 1",
     )
     suspend fun deactivateAll(profileId: Long, atUtcMillis: Long)
 
