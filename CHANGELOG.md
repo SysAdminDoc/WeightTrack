@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The JSON backup is now the whole phone rather than one profile's readings. Water, fasts, macro targets, the profiles themselves with their names and reminder times, and the record of what you had deleted were never written at all, and restoring onto a phone whose profiles were set up in a different order could drop the food diary. A backup taken by an older version still restores, and the file now says plainly that progress photos are not in it.
+
 - A barcode you scan now always reaches the Foods screen. The scanner closed itself the moment it read a code, which took the half-finished lookup down with it, so a slow answer, a product that is not in the database and a rate-limited request could all disappear before you saw anything.
 
 ## 0.4.0 (2026-08-31)

@@ -139,8 +139,29 @@ data class BackupSettings(
 @Serializable
 data class BackupFile(
     val app: String = "WeightTrack",
-    val formatVersion: Int = 1,
+    val formatVersion: Int = BackupCodec.FORMAT_VERSION,
     val exportedAtUtcMillis: Long,
+    /**
+     * Everything, for every profile, in the shape sync already describes it in.
+     *
+     * The lists below it hold one profile's readings and were the whole of a backup until
+     * version 2. That was never a backup: a household of two got whichever person happened to be
+     * active, and water, fasts, macro targets, profile names, reminder times and every tombstone
+     * were not written at all. Restoring such a file onto a phone with different profile rows
+     * also dropped the diary, because the food log points at a profile and the names did not
+     * line up.
+     *
+     * Null in a file written before this existed, which is what makes the older lists worth
+     * keeping. They are still written so that an older build of the app can restore a file this
+     * one wrote, rather than reading it happily and putting nothing back.
+     */
+    val document: com.weighttrack.core.sync.SyncDocument? = null,
+    /**
+     * Said out loud, because a file called a backup that quietly leaves something out is worse
+     * than one that admits it. Progress photos are files rather than rows and need the encrypted
+     * archive export.
+     */
+    val progressPhotos: String = BackupCodec.PHOTOS_NOT_INCLUDED,
     val entries: List<BackupEntry> = emptyList(),
     val measurements: List<BackupMeasurement> = emptyList(),
     val goals: List<BackupGoal> = emptyList(),
@@ -161,6 +182,12 @@ data class BackupFile(
 )
 
 object BackupCodec {
+
+    /** 1 was one profile's readings. 2 carries the whole database. */
+    const val FORMAT_VERSION = 2
+
+    const val PHOTOS_NOT_INCLUDED =
+        "Progress photo files are not in this file. Use the encrypted archive export for those."
 
     val json = Json {
         prettyPrint = true

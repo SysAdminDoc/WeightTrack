@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0: Make structured backup complete and profile-safe
-  Why: The current JSON exports only active-profile readings and omits profiles, water, fasts, macro targets, tombstones, and other stored state; food-log rows can be dropped when restored profile IDs do not match the source installation.
-  Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt:140`; `app/src/main/java/com/weighttrack/data/io/BackupService.kt:82-212`; `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:628-650`
-  Touches: `data/io/Backup.kt`, `data/io/BackupService.kt`, `data/sync/SyncStore.kt`, Room backup fixtures
-  Acceptance: A seeded two-profile database with at least one row in every structured domain round-trips into a fresh database with the same counts, sync IDs, relationships, settings, and profile ownership; a version-1 backup fixture still restores; JSON export states that progress-photo files require the portable archive item below.
-  Complexity: L
-
 - [ ] P0: Make restore and automatic backup bounded and atomic
   Why: Restore mutates repositories sequentially after an unbounded read, while a same-day automatic backup can replace the only good copy directly.
   Evidence: `app/src/main/java/com/weighttrack/data/io/BackupService.kt:155-243`; `app/src/main/java/com/weighttrack/data/io/AutoBackup.kt`; https://developer.android.com/privacy-and-security/risks/content-resolver

@@ -8,6 +8,7 @@ import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
+import com.weighttrack.core.sync.SyncSettings as SyncedSettings
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.GoalRepository
 import com.weighttrack.data.repo.MeasurementRepository
@@ -85,11 +86,29 @@ class BackupService @Inject constructor(
             val measurements = measurementRepository.observeAll().first()
             val goals = goalRepository.observeAll().first()
             val settings = settingsRepository.settings.first()
-            // The food side comes from the same place sync reads it, so a backup and a sync
-            // carry the same thing and there is one description of what that is.
-            val everything = syncStore.snapshot("backup", Instant.now().toEpochMilli())
+            // Everything comes from the same place sync reads it, so a backup and a sync carry
+            // the same thing and there is one description of what that is. Every profile, not
+            // just whoever is open, and the tombstones with it.
+            val now = Instant.now().toEpochMilli()
+            val everything = syncStore.snapshot("backup", now).copy(
+                settings = SyncedSettings(
+                    weightUnit = settings.weightUnit.name,
+                    lengthUnit = settings.lengthUnit.name,
+                    themeMode = settings.themeMode.name,
+                    heightMm = settings.profile.heightMm,
+                    sex = settings.profile.sex.name,
+                    birthYear = settings.profile.birthYear,
+                    activityLevel = settings.profile.activityLevel.name,
+                    trendWindowDays = settings.trendWindowDays,
+                    milestoneStepGrams = settings.milestoneStepGrams,
+                    updatedAtUtcMillis = settings.updatedAtUtcMillis,
+                ),
+            )
             val backup = BackupFile(
-                exportedAtUtcMillis = Instant.now().toEpochMilli(),
+                exportedAtUtcMillis = now,
+                document = everything,
+                // The lists below are the version-1 shape, kept so an older build can still
+                // restore a file this one wrote. Version 2 reads `document` and ignores them.
                 foods = everything.foods,
                 recipes = everything.recipes,
                 recipeItems = everything.recipeItems,
@@ -154,6 +173,7 @@ class BackupService @Inject constructor(
         runCatching {
             val backup = BackupCodec.decode(readText(uri))
                 ?: error(say(R.string.import_not_a_backup))
+            backup.document?.let { return@runCatching restoreDocument(it) }
             val entries = backup.entries.mapNotNull(BackupCodec::backupToEntry)
             val measurements = backup.measurements.mapNotNull(BackupCodec::backupToMeasurement)
             weightRepository.upsertAll(entries)
@@ -218,6 +238,44 @@ class BackupService @Inject constructor(
                 measurements = measurements.size,
             )
         }
+    }
+
+    /**
+     * A version-2 restore: the whole file, through the path sync already uses.
+     *
+     * Profiles come back first and by their travelling names, so a reading, a fast or a day's
+     * diary lands on the person it belonged to even though the row numbers on this phone are
+     * different ones. Nothing here is scoped to whoever happens to be active.
+     */
+    private suspend fun restoreDocument(
+        document: com.weighttrack.core.sync.SyncDocument,
+    ): ImportSummary {
+        val now = Instant.now().toEpochMilli()
+        syncStore.apply(document, now)
+        document.settings?.let { stored ->
+            val current = settingsRepository.settings.first()
+            settingsRepository.applySynced(
+                weightUnit = decode(stored.weightUnit, WeightUnit.entries, current.weightUnit),
+                lengthUnit = decode(stored.lengthUnit, LengthUnit.entries, current.lengthUnit),
+                themeMode = decode(stored.themeMode, ThemeMode.entries, current.themeMode),
+                heightMm = stored.heightMm,
+                sex = decode(stored.sex, Sex.entries, current.profile.sex),
+                birthYear = stored.birthYear,
+                activityLevel = decode(
+                    stored.activityLevel,
+                    ActivityLevel.entries,
+                    current.profile.activityLevel,
+                ),
+                trendWindowDays = stored.trendWindowDays,
+                milestoneStepGrams = stored.milestoneStepGrams,
+                updatedAtUtcMillis = System.currentTimeMillis(),
+            )
+        }
+        return ImportSummary(
+            imported = document.weights.size,
+            skipped = 0,
+            measurements = document.measurements.size,
+        )
     }
 
     /**
