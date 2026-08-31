@@ -54,8 +54,8 @@
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_BODY_FAT" />
     <uses-permission android:name="android.permission.health.WRITE_BODY_FAT" />
-    <uses-permission android:name="android.permission.health.READ_HEIGHT" />
-    <uses-permission android:name="android.permission.health.WRITE_HEIGHT" />
+    <!-- Height is deliberately not requested. Nothing reads or writes one, and asking for an
+         access the app does not use puts it on the consent screen for no reason. -->
     <uses-permission android:name="android.permission.health.WRITE_HYDRATION" />
     <!--
       Food. Write only: reading other apps' meals back would double every day for anybody who

@@ -369,8 +369,9 @@ class SettingsViewModel @Inject constructor(
     fun syncHealthConnect() {
         viewModelScope.launch {
             _healthConnectState.value = _healthConnectState.value.copy(syncing = true)
+            // Body fat travels with the weigh-in it belongs to now, so there is nothing to
+            // send separately afterwards.
             val result = healthConnect.sync()
-            healthConnect.exportBodyFat()
             _healthConnectState.value = _healthConnectState.value.copy(syncing = false)
             SurfaceUpdater.refresh()
             _message.value = result.fold(

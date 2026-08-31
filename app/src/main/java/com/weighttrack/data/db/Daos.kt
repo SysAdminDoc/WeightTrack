@@ -25,17 +25,25 @@ interface WeightEntryDao {
     fun observeAllAscending(profileId: Long): Flow<List<WeightEntryEntity>>
 
     /**
-     * Rows changed since a moment, for the Health Connect export.
+     * Rows Health Connect has not been told the current version of.
      *
-     * The export used to push every reading on every run, which meant thousands of writes into
-     * somebody else's health record an hour, for ever, to say nothing new.
+     * Per row rather than against a clock. A wall-time watermark misses every row that arrives
+     * from another device carrying that device's timestamps, which is most of a history after a
+     * phone switch, and those rows would then never reach Health Connect at all.
      */
     @Query(
         "SELECT * FROM weight_entries WHERE profileId = :profileId " +
-            "AND updatedAtUtcMillis > :since AND updatedAtUtcMillis <= :until " +
+            "AND healthExportedAtUtcMillis < updatedAtUtcMillis " +
             "ORDER BY timestampUtcMillis ASC",
     )
-    suspend fun changedBetween(profileId: Long, since: Long, until: Long): List<WeightEntryEntity>
+    suspend fun awaitingHealthExport(profileId: Long): List<WeightEntryEntity>
+
+    /** Marks rows as told, at the version that was told. */
+    @Query(
+        "UPDATE weight_entries SET healthExportedAtUtcMillis = updatedAtUtcMillis " +
+            "WHERE id IN (:ids)",
+    )
+    suspend fun markHealthExported(ids: List<Long>)
 
     @Query(
         """

@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 11,
+    version = 12,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -46,6 +46,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 9, to = 10),
         // Eleven gives the food tables a name that travels, so a phone switch carries the diary.
         AutoMigration(from = 10, to = 11, spec = WeightTrackDatabase.AddFoodSyncIds::class),
+        // Twelve marks each weigh-in with the version of it Health Connect has been told about,
+        // so the export sends what has changed rather than everything, every hour, for ever.
+        AutoMigration(from = 11, to = 12),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {

@@ -718,6 +718,7 @@
     <string name="sync_could_not_write">Could not write to %1$s.</string>
     <string name="health_not_available">Health Connect is not available on this device.</string>
     <string name="health_not_granted">WeightTrack has not been granted Health Connect access.</string>
+    <string name="health_no_profile">Health Connect is not tied to anybody. Turn it on for a profile in Settings.</string>
     <string name="settings_today_at">today at %1$s</string>
     <string name="settings_tomorrow_at">tomorrow at %1$s</string>
     <string name="settings_on_day_at">on %1$s at %2$s</string>

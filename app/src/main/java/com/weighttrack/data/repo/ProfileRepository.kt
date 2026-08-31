@@ -195,8 +195,12 @@ class ProfileRepository @Inject constructor(
      * active at that moment is the person Health Connect has been exchanging with all along,
      * which makes this the answer that changes nothing for anybody already using it.
      */
-    suspend fun claimHealthConnect(): Long {
+    suspend fun claimHealthConnect(): Long? {
         healthConnectId()?.let { return it }
+        // Nobody holds it, and somebody has already answered the question: they turned it off.
+        // Claiming here would make switching it off an hour-long pause that then points Health
+        // Connect at whoever is on screen and pours one person's history into another's.
+        if (settingsRepository.healthConnectDecided()) return null
         val active = activeId()
         setHealthConnect(active, enabled = true)
         return active
@@ -230,6 +234,8 @@ class ProfileRepository @Inject constructor(
      */
     suspend fun setHealthConnect(id: Long, enabled: Boolean) {
         val existing = dao.byId(id) ?: return
+        // Either way, the question has now been answered by a person rather than by the app.
+        settingsRepository.setHealthConnectDecided()
         if (enabled) {
             dao.all().filter { it.healthConnectEnabled && it.id != id }
                 .forEach { losing ->

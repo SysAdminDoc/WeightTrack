@@ -93,13 +93,18 @@ class HealthConnectExportTest {
             database.weightEntryDao(),
         )
         weights = WeightRepository(database.weightEntryDao(), profiles, recorder)
-        val permissions = FakePermissionController()
-        permissions.grantPermissions(
-            setOf(
-                HealthPermission.getReadPermission(WeightRecord::class),
-                HealthPermission.getWritePermission(WeightRecord::class),
-            ),
-        )
+        grant()
+    }
+
+    /**
+     * A client allowed to do the weight sync, plus whatever else a test asks for.
+     *
+     * Built with nothing granted and then given the set: the default controller grants
+     * everything, which would make every refusal here a test of the happy path.
+     */
+    private fun grant(vararg extra: String) {
+        val permissions = FakePermissionController(false)
+        permissions.grantPermissions(HealthConnectSync.corePermissions + extra)
         client = CountingClient(FakeHealthConnectClient(permissionController = permissions))
     }
 
@@ -193,8 +198,10 @@ class HealthConnectExportTest {
         sync.sync().getOrThrow()
 
         // Tidying away a copy of somebody else's record must not delete their original. The
-        // deletion names it by a client record id this app never gave it, so nothing matches.
-        assertThat(client.deletedClientIds).containsExactly("hc:theirs")
+        // name it carries here is the one this app gave it for its own use, and Health Connect
+        // has never heard it: asking to delete by it is at best noise and at worst an error
+        // that stalls the deletions in the same batch that are real.
+        assertThat(client.deletedClientIds).isEmpty()
         assertThat(client.inserted).isEqualTo(0)
     }
 
@@ -231,6 +238,99 @@ class HealthConnectExportTest {
         ).sync().getOrThrow()
 
         assertThat(log.read()).contains("health_write_failed")
+    }
+
+    @Test
+    fun `a history that arrives from another phone is exported too`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        sync().sync().getOrThrow()
+        val beforeTheirs = client.inserted
+
+        // What a phone switch looks like: rows written here carrying the other device's clock,
+        // every one of them older than anything this phone has done. A wall-time watermark reads
+        // them as already sent and none of them ever reaches Health Connect.
+        database.syncDao().insertWeights(
+            listOf(
+                com.weighttrack.data.db.WeightEntryEntity(
+                    profileId = id,
+                    timestampUtcMillis = Instant.now().minus(400, ChronoUnit.DAYS).toEpochMilli(),
+                    zoneOffsetSeconds = 0,
+                    localDate = "2025-07-27",
+                    grams = 82_000,
+                    bodyFatPercent = null,
+                    note = null,
+                    tags = "",
+                    source = "MANUAL",
+                    clientRecordId = "from-the-other-phone",
+                    healthConnectId = null,
+                    updatedAtUtcMillis = Instant.now().minus(400, ChronoUnit.DAYS).toEpochMilli(),
+                ),
+            ),
+        )
+
+        val result = sync().sync().getOrThrow()
+
+        assertThat(result.exported).isEqualTo(1)
+        assertThat(client.inserted).isGreaterThan(beforeTheirs)
+    }
+
+    @Test
+    fun `body fat is sent with its reading and not again afterwards`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        weights.addFor(
+            profileId = id,
+            grams = 80_000,
+            timestamp = Instant.now().minus(1, ChronoUnit.HOURS),
+            bodyFatPercent = 22.5,
+        )
+        grant(*HealthConnectSync.bodyFatPermissions.toTypedArray())
+        val sync = sync()
+
+        sync.sync().getOrThrow()
+        val afterFirst = client.inserted
+        sync.sync().getOrThrow()
+
+        // The weigh-in and its body fat, once. The body-fat export used to be a pass of its own
+        // with no record of what it had sent, so every press of the sync button rewrote every
+        // figure the person had ever recorded.
+        assertThat(afterFirst).isEqualTo(2)
+        assertThat(client.inserted).isEqualTo(afterFirst)
+    }
+
+    @Test
+    fun `body fat is not written without permission for it`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        weights.addFor(
+            profileId = id,
+            grams = 80_000,
+            timestamp = Instant.now().minus(1, ChronoUnit.HOURS),
+            bodyFatPercent = 22.5,
+        )
+
+        // The set granted in setUp is weight only. The old separate pass checked nothing at all.
+        sync().sync().getOrThrow()
+
+        assertThat(client.inserted).isEqualTo(1)
+    }
+
+    @Test
+    fun `turning it off does not hand Health Connect to somebody else an hour later`() = runTest {
+        seedOneReading()
+        val sync = sync()
+        sync.sync().getOrThrow()
+        val alice = profiles.observeAll().first().single().id
+        profiles.setHealthConnect(alice, enabled = false)
+        // Adding a profile switches to it, which is what the next background run would meet.
+        val bob = profiles.add("Bob")
+
+        val result = sync.sync()
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(profiles.healthConnectId()).isNull()
+        assertThat(weights.entriesFor(bob)).isEmpty()
     }
 
     @Test

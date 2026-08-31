@@ -138,7 +138,7 @@ class HealthConnectSync @Inject constructor(
      * second profile is added, and from then on switching person quietly redirected Health
      * Connect at them.
      */
-    private suspend fun syncProfileId(): Long = profileRepository.claimHealthConnect()
+    private suspend fun syncProfileId(): Long? = profileRepository.claimHealthConnect()
 
     /**
      * Writes down whose Health Connect this is, before anything is read from it or written to it.
@@ -147,7 +147,7 @@ class HealthConnectSync @Inject constructor(
      * at when they connected rather than on whoever happens to be active when the first
      * background sync runs an hour later.
      */
-    suspend fun claimProfile(): Long = profileRepository.claimHealthConnect()
+    suspend fun claimProfile(): Long? = profileRepository.claimHealthConnect()
 
     /**
      * Runs [block] with no sync in flight, and holds any sync off until it is done.
@@ -433,9 +433,13 @@ class HealthConnectSync @Inject constructor(
 
                 val at = Instant.now()
                 val stored = settingsRepository.settings.first()
+                // Nobody holds Health Connect and somebody said so, so there is nothing to sync
+                // and nothing to guess at.
+                val owner = syncProfileId()
+                    ?: error(context.getString(com.weighttrack.R.string.health_no_profile))
                 val session = Session(
                     client = client,
-                    profileId = syncProfileId(),
+                    profileId = owner,
                     granted = granted,
                     zone = ZoneId.systemDefault(),
                     start = at.minus(sinceDays, ChronoUnit.DAYS),
@@ -604,13 +608,13 @@ class HealthConnectSync @Inject constructor(
             zone = session.zone,
             source = EntrySource.HEALTH_CONNECT,
             healthConnectId = record.metadata.id,
-            clientRecordId = ourClientId ?: "hc:${record.metadata.id}",
+            clientRecordId = ourClientId ?: IMPORTED_PREFIX + record.metadata.id,
         )
         return true
     }
 
     /**
-     * Sends what has changed here since last time, and takes back what has been deleted.
+     * Sends what has changed here, and takes back what has been deleted.
      *
      * It used to send everything, every run. An hour apart, for ever, a person with five years
      * of weigh-ins had fifteen hundred records rewritten into their health record to say nothing
@@ -618,51 +622,81 @@ class HealthConnectSync @Inject constructor(
      * added. Both are invisible from inside the app and both are somebody else's data being
      * churned.
      *
-     * How far it has got is remembered per person, and only moves when the whole run landed. An
-     * insert is an upsert on the client record id, so repeating one is harmless and repeating
-     * everything after a failure is the safe thing to do.
+     * What has been sent is remembered against the row rather than against a clock. A wall-time
+     * mark looks equivalent and is not: a history arriving from another phone carries that
+     * phone's timestamps, all of them older than this one's mark, and none of it would ever be
+     * exported.
      */
     private suspend fun exportWeights(session: Session): Int {
         val client = session.client
-        val since = settingsRepository.healthExportedAt(session.profileId)
-        val entries = weightRepository
-            .changedBetween(session.profileId, since, session.now.toEpochMilli())
-            .filter { it.source != EntrySource.HEALTH_CONNECT }
-        val gone = profileRepository.syncIdOf(session.profileId)?.let { owner ->
-            deletions.since(com.weighttrack.core.sync.SyncKind.WEIGHT, owner, since)
-        }.orEmpty()
-        if (entries.isEmpty() && gone.isEmpty()) return 0
+        val waiting = weightRepository.awaitingHealthExport(session.profileId)
+            .filter { (_, entry) -> entry.source != EntrySource.HEALTH_CONNECT }
+        val pending = pendingDeletions(session)
+        if (waiting.isEmpty() && pending.isEmpty()) return 0
 
         var written = 0
-        var complete = true
-        entries.map { it.toWeightRecord(session.zone) }.chunked(BATCH_SIZE).forEach { batch ->
-            runCatching { client.insertRecords(batch) }
-                .onSuccess { written += batch.size }
-                .onFailure {
-                    complete = false
-                    failed(LogEvent.HEALTH_WRITE_FAILED, it)
+        val sent = mutableListOf<Long>()
+        waiting.chunked(BATCH_SIZE).forEach { batch ->
+            val records = batch.map { (_, entry) -> entry.toWeightRecord(session.zone) } +
+                // Body fat rides along with the reading it belongs to rather than being pushed
+                // separately, so one mark covers both and neither can be sent without the other.
+                batch.mapNotNull { (_, entry) -> entry.toBodyFatRecord(session) }
+            runCatching { client.insertRecords(records) }
+                .onSuccess {
+                    written += batch.size
+                    sent += batch.map { (id, _) -> id }
                 }
+                .onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }
         }
-        // Deleted by the name this app gave the record, which is the only kind it can name. A
-        // reading imported from somebody else's scale app was never written by this one, carries
-        // no client record id of ours, and is left exactly where it is.
-        gone.chunked(BATCH_SIZE).forEach { batch ->
+        // Marked only for what actually landed. A row left unmarked is sent again next time, and
+        // an insert is an upsert on the client record id, so sending it twice costs nothing.
+        weightRepository.markHealthExported(sent)
+
+        // Deleted one at a time, and by the name this app gave the record. A reading imported
+        // from somebody else's scale app was never written by this one and is left alone: its
+        // name is not a name Health Connect knows this app by.
+        val done = mutableSetOf<String>()
+        pending.forEach { name ->
             runCatching {
                 client.deleteRecords(
                     recordType = WeightRecord::class,
                     recordIdsList = emptyList(),
-                    clientRecordIdsList = batch,
+                    clientRecordIdsList = listOf(name),
                 )
-            }.onFailure {
-                complete = false
-                failed(LogEvent.HEALTH_WRITE_FAILED, it)
-            }
+            }.onSuccess { done += name }
+                .onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }
         }
-        // Only a run that landed in full moves the mark. A partial one is left pending, and the
-        // next run repeats it: an upsert twice is the same as once, and a deletion of something
-        // already gone is harmless, while a mark moved over a failed write loses the row for good.
-        if (complete) settingsRepository.setHealthExportedAt(session.profileId, session.now.toEpochMilli())
+        rememberDeletionsSent(session, done)
         return written
+    }
+
+    /**
+     * Deletions this person has made that Health Connect has not been told about.
+     *
+     * Anything named the way an imported record is named is left out. Those are Health Connect's
+     * own records, this app never wrote them, and asking it to delete one by a name it does not
+     * know is at best noise and at worst an error that stalls everything else in the batch.
+     */
+    private suspend fun pendingDeletions(session: Session): List<String> {
+        val owner = profileRepository.syncIdOf(session.profileId) ?: return emptyList()
+        val already = settingsRepository.healthDeletionsSent(session.profileId)
+        return deletions.since(com.weighttrack.core.sync.SyncKind.WEIGHT, owner, 0)
+            .filterNot { it.startsWith(IMPORTED_PREFIX) }
+            .filterNot { it in already }
+    }
+
+    /**
+     * Notes which deletions have landed, and forgets the ones nothing remembers any more.
+     *
+     * The note is pruned back to the tombstones that still exist, so it cannot grow without
+     * limit as the tombstones themselves are forgotten after six months.
+     */
+    private suspend fun rememberDeletionsSent(session: Session, done: Set<String>) {
+        if (done.isEmpty()) return
+        val owner = profileRepository.syncIdOf(session.profileId) ?: return
+        val alive = deletions.since(com.weighttrack.core.sync.SyncKind.WEIGHT, owner, 0).toSet()
+        val kept = settingsRepository.healthDeletionsSent(session.profileId) + done
+        settingsRepository.setHealthDeletionsSent(session.profileId, kept intersect alive)
     }
 
     private fun WeightEntry.toWeightRecord(zone: ZoneId): WeightRecord = WeightRecord(
@@ -712,33 +746,38 @@ class HealthConnectSync @Inject constructor(
         }.onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }.getOrDefault(false)
     }
 
-    /** Body fat is written separately because Health Connect models it as its own record. */
-    suspend fun exportBodyFat(): Result<Int> = withContext(Dispatchers.IO) {
-        running.withLock {
-        runCatching {
-            val client = clientOrNull() ?: return@runCatching 0
-            val zone = ZoneId.systemDefault()
-            val records = weightRepository.entriesFor(syncProfileId())
-                .filter { it.bodyFatPercent != null && it.source != EntrySource.HEALTH_CONNECT }
-                .map { entry ->
-                    BodyFatRecord(
-                        time = entry.timestamp,
-                        zoneOffset = zone.rules.getOffset(entry.timestamp),
-                        percentage = Percentage(entry.bodyFatPercent!!),
-                        metadata = Metadata.manualEntry(
-                            device = Device(type = Device.TYPE_PHONE),
-                            clientRecordId = "bf:${entry.clientRecordId}",
-                        ),
-                    )
-                }
-            if (records.isEmpty()) return@runCatching 0
-            records.chunked(BATCH_SIZE).forEach { client.insertRecords(it) }
-            records.size
+    /**
+     * One reading's body fat, as the record Health Connect models it with.
+     *
+     * Written beside the weigh-in it came from rather than in a pass of its own. The separate
+     * pass had no mark of what it had already sent and no permission check, so every press of
+     * the sync button rewrote every body-fat figure the person had ever recorded.
+     */
+    private fun WeightEntry.toBodyFatRecord(session: Session): BodyFatRecord? {
+        val percent = bodyFatPercent ?: return null
+        if (HealthPermission.getWritePermission(BodyFatRecord::class) !in session.granted) {
+            return null
         }
-        }
+        return BodyFatRecord(
+            time = timestamp,
+            zoneOffset = session.zone.rules.getOffset(timestamp),
+            percentage = Percentage(percent),
+            metadata = Metadata.manualEntry(
+                device = Device(type = Device.TYPE_PHONE),
+                clientRecordId = "bf:$clientRecordId",
+            ),
+        )
     }
 
     companion object {
+
+    /**
+     * What an imported reading is called here.
+     *
+     * Health Connect gave the record; this app did not write it and cannot name it to Health
+     * Connect, so nothing prefixed this way is ever sent back to it as a deletion.
+     */
+    const val IMPORTED_PREFIX = "hc:"
 
     /**
      * What weight sync itself needs. Kept separate from the full set so that adding a new
@@ -748,9 +787,21 @@ class HealthConnectSync @Inject constructor(
     val corePermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(WeightRecord::class),
         HealthPermission.getWritePermission(WeightRecord::class),
+        // Height is deliberately not here. Nothing reads or writes one any more, and demanding
+        // it meant somebody who declined an access the app does not use had weight sync refused
+        // outright, with the Connect button still on screen and no way past it.
+    )
+
+    /**
+     * Body fat, which rides along with the weigh-in it belongs to.
+     *
+     * Its own set rather than part of the core one. Plenty of scales report a body-fat figure
+     * and plenty of people would rather it stayed on this phone, and refusing it should cost
+     * that figure rather than the whole of weight sync.
+     */
+    val bodyFatPermissions: Set<String> = setOf(
         HealthPermission.getReadPermission(BodyFatRecord::class),
         HealthPermission.getWritePermission(BodyFatRecord::class),
-        HealthPermission.getReadPermission(HeightRecord::class),
     )
 
     /** Writing water. Refusing it costs the hydration records and nothing else. */
@@ -799,8 +850,8 @@ class HealthConnectSync @Inject constructor(
     )
 
     val permissions: Set<String> =
-        corePermissions + historyPermissions + hydrationPermissions + nutritionPermissions +
-            activityPermissions + sleepPermissions
+        corePermissions + bodyFatPermissions + historyPermissions + hydrationPermissions +
+            nutritionPermissions + activityPermissions + sleepPermissions
 
         private const val BATCH_SIZE = 200
 

@@ -88,6 +88,15 @@ data class WeightEntryEntity(
     val tags: String,
     val source: String,
     val clientRecordId: String,
+    /**
+     * The version of this row Health Connect has been told about.
+     *
+     * Zero means it has never been sent. Compared against [updatedAtUtcMillis] rather than
+     * against a clock: an export watermark measured in wall time misses every row that arrives
+     * from another device carrying that device's timestamps, which is most of a history after a
+     * phone switch, and those rows would never reach Health Connect at all.
+     */
+    @ColumnInfo(defaultValue = "0") val healthExportedAtUtcMillis: Long = 0,
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
 )

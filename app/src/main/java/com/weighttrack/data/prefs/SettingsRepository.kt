@@ -125,16 +125,30 @@ class SettingsRepository @Inject constructor(
     }
 
     /**
-     * How far the Health Connect export has got for one person.
+     * Whether the question of who owns Health Connect has been answered.
      *
-     * Nothing older than this needs writing again. Without it the export pushed every reading
-     * ever recorded on every run, an hour apart, for ever.
+     * Without this, 'nobody holds it' means both 'nobody has connected yet' and 'somebody
+     * turned it off'. The first should claim whoever is here; the second must not, or switching
+     * it off becomes an hour-long pause that then points Health Connect at whoever happens to be
+     * on screen and pours one person's history into another's.
      */
-    suspend fun healthExportedAt(profileId: Long): Long =
-        dataStore.data.first()[Keys.healthExportedAt(profileId)] ?: 0
+    suspend fun healthConnectDecided(): Boolean =
+        dataStore.data.first()[Keys.HEALTH_CONNECT_DECIDED] ?: false
 
-    suspend fun setHealthExportedAt(profileId: Long, at: Long) = edit {
-        it[Keys.healthExportedAt(profileId)] = at
+    suspend fun setHealthConnectDecided() = edit { it[Keys.HEALTH_CONNECT_DECIDED] = true }
+    /**
+     * Deletions Health Connect has already been told about, for one person.
+     *
+     * Kept as a list of names rather than a moment in time. A tombstone that arrives from
+     * another device carries that device's clock, so a wall-time mark skips it and the record
+     * this phone wrote is never taken out of Health Connect. Names also survive the tombstone
+     * itself being forgotten, which happens after six months.
+     */
+    suspend fun healthDeletionsSent(profileId: Long): Set<String> =
+        dataStore.data.first()[Keys.healthDeletionsSent(profileId)].orEmpty()
+
+    suspend fun setHealthDeletionsSent(profileId: Long, names: Set<String>) = edit {
+        it[Keys.healthDeletionsSent(profileId)] = names
     }
 
     suspend fun setOnboardingComplete(complete: Boolean) = edit { it[Keys.ONBOARDING_COMPLETE] = complete }
@@ -326,8 +340,10 @@ class SettingsRepository @Inject constructor(
         fun healthChangesToken(profileId: Long) =
             stringPreferencesKey("health_changes_token_$profileId")
 
-        fun healthExportedAt(profileId: Long) =
-            longPreferencesKey("health_exported_at_$profileId")
+        val HEALTH_CONNECT_DECIDED = booleanPreferencesKey("health_connect_decided")
+
+        fun healthDeletionsSent(profileId: Long) =
+            stringSetPreferencesKey("health_deletions_sent_$profileId")
 
         val AUTO_BACKUP_FOLDER = stringPreferencesKey("auto_backup_folder")
         val LAST_AUTO_BACKUP = longPreferencesKey("last_auto_backup")

@@ -26,6 +26,7 @@ class AppViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
     private val reminderScheduler: com.weighttrack.notifications.ReminderScheduler,
+    private val healthConnect: com.weighttrack.health.HealthConnectSync,
     private val wearBridge: WearBridge,
     private val wearSummaryBuilder: WearSummaryBuilder,
 ) : ViewModel() {
@@ -69,6 +70,13 @@ class AppViewModel @Inject constructor(
             // the boot receiver has already run and found nothing enabled, so the reminder that
             // was just moved across has to be booked here or it never fires.
             reminderScheduler.reschedule(profileRepository.observeAll().first())
+            // Whose Health Connect this is, settled at the first opportunity rather than at the
+            // first background sync up to an hour later. Every install that connected before the
+            // claim existed arrives here with nobody holding it, and the person switching profile
+            // inside that window would have had it claimed for the wrong one, permanently.
+            if (healthConnect.hasPermissions()) {
+                runCatching { healthConnect.claimProfile() }
+            }
         }
 
         // Opening the app is the moment to bring a watch up to date. Everything else that

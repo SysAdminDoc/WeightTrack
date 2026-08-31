@@ -75,14 +75,18 @@ class WeightRepository @Inject constructor(
         dao.observeAll(profileId).first().map { it.toDomain() }
 
     /**
-     * What has changed for one person between two moments.
+     * What Health Connect has not been told the current version of, for one person.
      *
-     * The upper bound matters: a run decides the moment it is working to before it reads, so a
-     * row written while it is running belongs to the next run rather than being marked exported
-     * without having been.
+     * The row identifier travels with the reading so the caller can mark exactly what it sent.
      */
-    suspend fun changedBetween(profileId: Long, since: Long, until: Long): List<WeightEntry> =
-        dao.changedBetween(profileId, since, until).map { it.toDomain() }
+    suspend fun awaitingHealthExport(profileId: Long): List<Pair<Long, WeightEntry>> =
+        dao.awaitingHealthExport(profileId).map { it.id to it.toDomain() }
+
+    /** Records that Health Connect has been told about these rows, as they stand now. */
+    suspend fun markHealthExported(ids: List<Long>) {
+        if (ids.isEmpty()) return
+        dao.markHealthExported(ids)
+    }
 
     suspend fun addFor(
         profileId: Long,
