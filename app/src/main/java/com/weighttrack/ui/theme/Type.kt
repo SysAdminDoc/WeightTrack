@@ -76,8 +76,8 @@ val WeightTrackTypography = Typography(
 val HeroNumberStyle = TextStyle(
     fontFamily = AppFont,
     fontWeight = FontWeight.Light,
-    fontSize = 68.sp,
-    lineHeight = 72.sp,
+    fontSize = 72.sp,
+    lineHeight = 76.sp,
     letterSpacing = (-2).sp,
     fontFeatureSettings = TabularFigures,
 )

@@ -87,11 +87,11 @@ fun WeightKeypad(
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("123", "456", "789").forEach { row ->
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 row.forEach { digit ->
                     KeypadKey(
@@ -102,7 +102,7 @@ fun WeightKeypad(
                 }
             }
         }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             KeypadKey(
                 label = stringResource(R.string.keypad_clear),
                 modifier = Modifier.weight(1f),
@@ -134,7 +134,7 @@ private fun KeypadKey(
     Surface(
         onClick = onClick,
         modifier = modifier
-            .height(56.dp)
+            .height(64.dp)
             .then(
                 if (contentDescription != null) {
                     Modifier.semantics { this.contentDescription = contentDescription }
@@ -142,7 +142,7 @@ private fun KeypadKey(
                     Modifier
                 },
             ),
-        shape = RoundedCornerShape(10.dp),
+        shape = RoundedCornerShape(8.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Box(Modifier.padding(4.dp), contentAlignment = Alignment.Center) {

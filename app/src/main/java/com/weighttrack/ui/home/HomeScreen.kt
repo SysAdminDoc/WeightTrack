@@ -1,11 +1,14 @@
 package com.weighttrack.ui.home
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,6 +24,8 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocalDrink
 import androidx.compose.material.icons.outlined.MonitorWeight
 import androidx.compose.material.icons.outlined.PhotoCamera
@@ -31,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -52,14 +58,16 @@ import com.weighttrack.ui.components.GoalProgressBar
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
-import com.weighttrack.ui.components.Sparkline
 import com.weighttrack.ui.components.StatTile
+import com.weighttrack.ui.components.ChartRange
+import com.weighttrack.ui.components.TrendChart
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.core.format.VolumeFormatter
 import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.theme.HeroNumberStyle
 import com.weighttrack.ui.theme.HeroUnitStyle
 import com.weighttrack.ui.theme.LocalTrendColors
+import com.weighttrack.ui.theme.rememberTrendChartColors
 import java.time.LocalDate
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -119,6 +127,7 @@ fun HomeScreen(
                 title = stringResource(R.string.app_log_weight),
                 subtitle = stringResource(R.string.home_record_your_weight),
                 onClick = onLogWeight,
+                emphasized = true,
             )
         }
         if (nutritionEnabled) {
@@ -248,10 +257,17 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
                 )
             }
             Spacer(Modifier.height(4.dp))
-            Sparkline(
+            TrendChart(
                 series = snapshot.series,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth().height(104.dp),
+                unit = unit,
+                colors = rememberTrendChartColors(),
+                range = ChartRange.MONTH,
+                goalGrams = snapshot.goal?.targetGrams,
+                milestoneGrams = snapshot.milestones.map { it.grams },
+                showRawReadings = false,
+                today = today,
+                height = 176.dp,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -261,7 +277,7 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
 private fun RateCard(snapshot: ProgressSnapshot) {
     val unit = snapshot.settings.weightUnit
     val rate = snapshot.rate
-    Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 14.dp)) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 14.dp)) {
         SectionHeading(stringResource(R.string.home_rate_of_change))
         Spacer(Modifier.height(8.dp))
         if (!rate.hasEnoughData) {
@@ -272,12 +288,22 @@ private fun RateCard(snapshot: ProgressSnapshot) {
             )
             return@Column
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             StatTile(
                 label = stringResource(R.string.home_rate),
                 value = WeightFormatter.delta(rate.gramsPerWeek, unit, decimals = 2),
                 caption = stringResource(R.string.home_per_week),
                 modifier = Modifier.weight(1f),
+            )
+            Box(
+                Modifier
+                    .width(1.dp)
+                    .height(72.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)),
             )
             StatTile(
                 label = stringResource(R.string.home_energy_balance),
@@ -373,47 +399,69 @@ private fun GoalCard(
                 )
             }
             Spacer(Modifier.height(8.dp))
-            Text(
-                modifier = Modifier.clickable { explaining = true },
-                text = when {
-                    projection.reached -> stringResource(R.string.home_reached)
-                    etaDate == null -> stringResource(R.string.home_not_on_this_trend)
-                    else -> stringResource(R.string.home_projected, DateFormatters.projection(etaDate, today))
-                },
-                style = MaterialTheme.typography.titleMedium,
-                color = if (etaDate == null && !projection.reached) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.secondary
-                },
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth().clickable { explaining = true },
+                verticalAlignment = Alignment.Top,
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.CalendarMonth,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.size(24.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        text = when {
+                            projection.reached -> stringResource(R.string.home_reached)
+                            etaDate == null -> stringResource(R.string.home_not_on_this_trend)
+                            else -> stringResource(R.string.home_projected, DateFormatters.projection(etaDate, today))
+                        },
+                        style = MaterialTheme.typography.titleMedium,
+                        color = if (etaDate == null && !projection.reached) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.secondary
+                        },
+                    )
             // A single date implies a precision the data does not have, so the spread is shown
             // whenever the rate is uncertain enough for it to matter.
             val earliest = projection.etaDateOptimistic(today)
             val latest = projection.etaDatePessimistic(today)
             if (etaDate != null && earliest != null && latest != null && earliest != latest) {
-                Text(
-                    text = stringResource(R.string.home_to_based_on_the_last_two, DateFormatters.shortDate(earliest, today), DateFormatters.shortDate(latest, today)),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    Text(
+                        text = stringResource(R.string.home_to_based_on_the_last_two, DateFormatters.shortDate(earliest, today), DateFormatters.shortDate(latest, today)),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
             } else if (etaDate == null && !projection.reached) {
-                Text(
-                    text = stringResource(R.string.home_the_trend_is_not_moving_toward),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                    Text(
+                        text = stringResource(R.string.home_the_trend_is_not_moving_toward),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                }
             }
         }
 
         snapshot.nextMilestone?.let { milestone ->
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(8.dp))
             val remaining = abs((snapshot.series.latestTrendGrams ?: 0.0) - milestone.grams)
-            Text(
-                text = stringResource(R.string.home_next_milestone_away_that_is_of, WeightFormatter.full(milestone.grams, unit), WeightFormatter.full(remaining.roundToInt(), unit), milestone.index, milestone.total),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
+            Row(verticalAlignment = Alignment.Top) {
+                Icon(
+                    imageVector = Icons.Outlined.Flag,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(24.dp),
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = stringResource(R.string.home_next_milestone_away_that_is_of, WeightFormatter.full(milestone.grams, unit), WeightFormatter.full(remaining.roundToInt(), unit), milestone.index, milestone.total),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
 
         // Offered rather than pushed. There is no prompt, no badge and no reminder to share:
@@ -438,6 +486,7 @@ private fun HomeActionRow(
     title: String,
     subtitle: String,
     onClick: () -> Unit,
+    emphasized: Boolean = false,
 ) {
     Row(
         Modifier
@@ -446,12 +495,22 @@ private fun HomeActionRow(
             .padding(horizontal = 12.dp, vertical = 14.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.secondary,
-            modifier = Modifier.size(30.dp),
-        )
+        val accent = if (emphasized) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.secondary
+        Surface(
+            modifier = Modifier.size(44.dp),
+            shape = MaterialTheme.shapes.small,
+            color = accent.copy(alpha = if (emphasized) 0.10f else 0.05f),
+            border = BorderStroke(1.dp, accent.copy(alpha = 0.82f)),
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = accent,
+                    modifier = Modifier.size(24.dp),
+                )
+            }
+        }
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.titleMedium)

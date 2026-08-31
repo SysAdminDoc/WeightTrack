@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.minimumInteractiveComponentSize
 import androidx.compose.material3.Surface
@@ -40,14 +41,36 @@ fun SectionCard(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
+        shape = RoundedCornerShape(8.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         border = BorderStroke(
             width = 1.dp,
-            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.56f),
         ),
     ) {
         Column(Modifier.padding(contentPadding), content = content)
+    }
+}
+
+/**
+ * Content that belongs to the page rather than to a card. Quiet spacing and one hairline do the
+ * grouping, which keeps long settings and history surfaces from becoming stacks of boxes.
+ */
+@Composable
+fun LedgerSection(
+    modifier: Modifier = Modifier,
+    contentPadding: androidx.compose.foundation.layout.PaddingValues =
+        androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp),
+    showDivider: Boolean = true,
+    content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
+) {
+    Column(modifier.fillMaxWidth()) {
+        Column(Modifier.fillMaxWidth().padding(contentPadding), content = content)
+        if (showDivider) {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            )
+        }
     }
 }
 
@@ -74,9 +97,9 @@ fun SegmentButton(
         onClick = onClick,
         // 44 dp looks right and is under the 48 dp a finger needs. minimumInteractiveComponentSize
         // grows the touch target without growing the box that is drawn.
-        modifier = modifier.height(44.dp).minimumInteractiveComponentSize(),
-        shape = RoundedCornerShape(8.dp),
-        color = if (selected) accent.copy(alpha = 0.10f) else Color.Transparent,
+        modifier = modifier.height(48.dp).minimumInteractiveComponentSize(),
+        shape = RoundedCornerShape(6.dp),
+        color = if (selected) accent.copy(alpha = 0.11f) else Color.Transparent,
         contentColor = if (selected) accent else MaterialTheme.colorScheme.onSurfaceVariant,
         border = BorderStroke(
             1.dp,
@@ -84,7 +107,7 @@ fun SegmentButton(
         ),
     ) {
         Box(
-            modifier = Modifier.padding(horizontal = 14.dp),
+            modifier = Modifier.padding(horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
             Text(text = label, style = MaterialTheme.typography.labelLarge)

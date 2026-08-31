@@ -3,6 +3,7 @@ package com.weighttrack.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -149,8 +150,17 @@ fun WeightTrackApp(
         },
         bottomBar = {
             if (!isFullScreenRoute) {
+                val dividerColor = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f)
                 NavigationBar(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+                    modifier = Modifier.drawBehind {
+                        drawLine(
+                            color = dividerColor,
+                            start = androidx.compose.ui.geometry.Offset.Zero,
+                            end = androidx.compose.ui.geometry.Offset(size.width, 0f),
+                            strokeWidth = 1f,
+                        )
+                    },
+                    containerColor = MaterialTheme.colorScheme.surfaceContainerLowest,
                     tonalElevation = 0.dp,
                 ) {
                     TopLevelDestination.entries.forEach { destination ->
