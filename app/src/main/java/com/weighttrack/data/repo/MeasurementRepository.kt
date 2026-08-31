@@ -95,9 +95,10 @@ class MeasurementRepository @Inject constructor(
         }
     }
 
-    suspend fun upsertAll(measurements: List<BodyMeasurement>) {
+    /** [owner] is for the restore. See [WeightRepository.upsertAll]. */
+    suspend fun upsertAll(measurements: List<BodyMeasurement>, owner: Long? = null) {
         if (measurements.isEmpty()) return
-        val profileId = profiles.activeId()
+        val profileId = owner ?: profiles.activeId()
         dao.insertAll(measurements.map { it.toEntity(profileId = profileId) })
     }
 

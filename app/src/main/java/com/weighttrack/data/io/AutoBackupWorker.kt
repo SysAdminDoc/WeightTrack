@@ -74,22 +74,17 @@ class AutoBackupWorker @AssistedInject constructor(
             val partial = folder.findFile(partialName)?.takeIf { it.isFile }
                 ?: folder.createFile(MIME, partialName)
                 ?: error("could not create")
-            applicationContext.contentResolver.openOutputStream(partial.uri, "wt")?.use {
-                it.write(text.toByteArray(Charsets.UTF_8))
-            } ?: error("could not write")
-            val readBack = applicationContext.contentResolver.openInputStream(partial.uri)?.use {
-                it.readBytes().toString(Charsets.UTF_8)
-            } ?: error("could not read back")
-            // The file that lands has to be one this app would accept back. A short write and a
-            // provider that reported success are indistinguishable until something reads it.
-            if (readBack != text || BackupCodec.decode(readBack) == null) {
-                error("the written backup did not read back")
-            }
-            // Only now is the previous copy given up. Renaming over an existing name gives a
-            // second file called "weighttrack-2026-08-29 (1).json" on most providers, so the old
-            // one goes first and the window where neither exists is a single call wide.
-            folder.findFile(name)?.takeIf { it.isFile }?.delete()
-            if (!partial.renameTo(name)) error("could not put the backup in place")
+            writeAndCheck(partial, text)
+            // The target is written from the copy that has already been proved good, and the
+            // proved copy is not given up until the target itself reads back. Deleting the old
+            // file and renaming over it looked tidier and was not: a provider that does not
+            // support renaming, which several cloud ones do not, would have left the day with no
+            // backup at all and no way back.
+            val target = folder.findFile(name)?.takeIf { it.isFile }
+                ?: folder.createFile(MIME, name)
+                ?: error("could not create")
+            writeAndCheck(target, text)
+            partial.delete()
         }
         if (written.isFailure) {
             runtimeLog.write(
@@ -97,9 +92,10 @@ class AutoBackupWorker @AssistedInject constructor(
                 LogEvent.BACKUP_FAILED,
                 cause = written.exceptionOrNull(),
             )
-            // The half-written file is not left behind to be mistaken for a backup, and the
-            // previous good copy has not been touched.
-            runCatching { folder.findFile(partialName)?.delete() }
+            // The half-written copy is deliberately left where it is. Either it is rubbish, in
+            // which case the next run overwrites it, or it is the only complete copy of this
+            // week and throwing it away would be the one thing this feature must never do. It is
+            // named so that nothing mistakes it for a backup in the meantime.
             return@withContext Result.retry()
         }
 
@@ -114,6 +110,24 @@ class AutoBackupWorker @AssistedInject constructor(
         settingsRepository.setAutoBackupProblem(false)
         settingsRepository.setLastAutoBackup(System.currentTimeMillis())
         Result.success()
+    }
+
+    /**
+     * Writes the export into one file and proves it landed whole.
+     *
+     * A short write and a provider that reported success are indistinguishable until something
+     * reads the file back, and a truncated backup is worse than none: it looks like one.
+     */
+    private fun writeAndCheck(file: DocumentFile, text: String) {
+        applicationContext.contentResolver.openOutputStream(file.uri, "wt")?.use {
+            it.write(text.toByteArray(Charsets.UTF_8))
+        } ?: error("could not write")
+        val readBack = applicationContext.contentResolver.openInputStream(file.uri)?.use {
+            it.readBytes().toString(Charsets.UTF_8)
+        } ?: error("could not read back")
+        if (readBack != text || BackupCodec.decode(readBack) == null) {
+            error("the written backup did not read back")
+        }
     }
 
     private companion object {

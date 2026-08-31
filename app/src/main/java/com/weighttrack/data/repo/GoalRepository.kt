@@ -46,18 +46,23 @@ class GoalRepository @Inject constructor(
         startDate: LocalDate = LocalDate.now(),
         targetDate: LocalDate? = null,
         direction: GoalDirection = directionFor(startGrams, targetGrams),
-    ): Long = dao.replaceActive(
-        profileId = profiles.activeId(),
-        goal = Goal(
-            direction = direction,
-            startGrams = startGrams,
-            targetGrams = targetGrams,
-            startDate = startDate,
-            targetDate = targetDate,
-            milestoneStepGrams = milestoneStepGrams,
-            active = true,
-        ).toEntity(profileId = profiles.activeId()),
-    )
+        /** For the restore. See [WeightRepository.upsertAll]. */
+        owner: Long? = null,
+    ): Long {
+        val profileId = owner ?: profiles.activeId()
+        return dao.replaceActive(
+            profileId = profileId,
+            goal = Goal(
+                direction = direction,
+                startGrams = startGrams,
+                targetGrams = targetGrams,
+                startDate = startDate,
+                targetDate = targetDate,
+                milestoneStepGrams = milestoneStepGrams,
+                active = true,
+            ).toEntity(profileId = profileId),
+        )
+    }
 
     suspend fun update(goal: Goal) {
         val existing = dao.byId(goal.id) ?: return

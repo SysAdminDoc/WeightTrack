@@ -140,7 +140,10 @@ class AutoBackupTest {
 
         val partial = AutoBackup.partialNameFor(day)
 
-        assertThat(partial).isEqualTo(AutoBackup.nameFor(day) + AutoBackup.PARTIAL_SUFFIX)
+        assertThat(partial).isEqualTo("weighttrack-2026-08-29-part.json")
+        // The marker sits inside the stem, not after the extension: a document provider rewrites
+        // an extension that does not match the media type, and the file becomes unfindable.
+        assertThat(partial).endsWith(".json")
         // It must not read as a backup, or the pruning would count it as one of the four kept
         // and the restore picker would offer a truncated file.
         assertThat(AutoBackup.dateOf(partial)).isNull()
@@ -151,14 +154,14 @@ class AutoBackupTest {
     fun `leftovers from a run that died are found and nothing else is`() {
         val names = listOf(
             "weighttrack-2026-08-29.json",
-            "weighttrack-2026-08-29.json.part",
-            "weighttrack-2026-08-22.json.part",
+            "weighttrack-2026-08-29-part.json",
+            "weighttrack-2026-08-22-part.json",
             "holiday.jpg",
             "budget.json",
         )
 
         assertThat(AutoBackup.partialsIn(names))
-            .containsExactly("weighttrack-2026-08-29.json.part", "weighttrack-2026-08-22.json.part")
+            .containsExactly("weighttrack-2026-08-29-part.json", "weighttrack-2026-08-22-part.json")
     }
 
     @Test
@@ -170,11 +173,16 @@ class AutoBackupTest {
             .readText()
 
         val writesElsewhere = worker.indexOf("partialNameFor")
-        val readsBack = worker.indexOf("did not read back")
-        val replaces = worker.indexOf("renameTo(name)")
+        val provesIt = worker.indexOf("writeAndCheck(partial")
+        val replaces = worker.indexOf("writeAndCheck(target")
+        val givesUpTheProvedCopy = worker.indexOf("partial.delete()")
 
         assertThat(writesElsewhere).isGreaterThan(-1)
-        assertThat(readsBack).isGreaterThan(writesElsewhere)
-        assertThat(replaces).isGreaterThan(readsBack)
+        assertThat(provesIt).isGreaterThan(writesElsewhere)
+        assertThat(replaces).isGreaterThan(provesIt)
+        assertThat(givesUpTheProvedCopy).isGreaterThan(replaces)
+        // Nothing may rename or delete the target on the way. A provider that refuses a rename,
+        // and several cloud ones do, would otherwise leave the day with no backup at all.
+        assertThat(worker).doesNotContain("renameTo")
     }
 }

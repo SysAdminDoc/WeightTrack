@@ -83,7 +83,9 @@ class BackupServiceTest {
                 deletions,
             ),
             goalRepository = GoalRepository(database.goalDao(), profiles, deletions),
+            profileRepository = profiles,
             settingsRepository = settings,
+            database = database,
         )
     }
 
@@ -267,6 +269,161 @@ class BackupServiceTest {
         assertThat(target.syncDao().weights()).isEmpty()
     }
 
+    @Test
+    fun `restoring onto a new phone leaves the person on their own history`() = runTest {
+        seedTwoProfiles()
+        val file = write(serviceFor(source).exportedJson().getOrThrow())
+        // What a real new phone looks like: the app makes a profile on first start, so a restore
+        // never meets an empty database.
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        // Two people restored, not three, and the person is looking at one of them rather than
+        // at the empty profile the app made for itself a minute earlier.
+        val restored = target.syncDao().profiles()
+        assertThat(restored.map { it.syncId }).containsExactly("p-me", "p-them")
+        assertThat(profiles.activeId()).isEqualTo(restored.single { it.syncId == "p-me" }.id)
+    }
+
+    @Test
+    fun `restoring onto a phone in use adds to it and takes nothing away`() = runTest {
+        seedTwoProfiles()
+        val file = write(serviceFor(source).exportedJson().getOrThrow())
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+        val mine = profiles.observeAll().first().single().id
+        target.syncDao().insertWeights(listOf(weight(mine, "w-mine", 70_000)))
+
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        // Somebody who has been using the app is being merged into. Their profile is theirs and
+        // the restore has no business tidying it away, however empty the backup thinks it is.
+        assertThat(target.syncDao().profiles()).hasSize(3)
+        assertThat(profiles.activeId()).isEqualTo(mine)
+    }
+
+    @Test
+    fun `a version one restore is one commit like the rest`() {
+        // No version-1 file can be made to break a constraint: nothing its four sections reach
+        // has a unique index, so there is no failure to inject and the behaviour cannot be
+        // driven from outside. What can be checked is that every write it makes is inside the
+        // transaction, which is what stops a database error partway through leaving the
+        // weigh-ins in and the diary out.
+        val source = File("src/main/java/com/weighttrack/data/io/BackupService.kt").readText()
+        val open = source.indexOf("database.withTransaction {")
+        assertThat(open).isGreaterThan(-1)
+        val commit = source.substring(open, closingBraceAfter(source, open))
+
+        assertThat(commit).contains("weightRepository.upsertAll")
+        assertThat(commit).contains("measurementRepository.upsertAll")
+        assertThat(commit).contains("goalRepository.setGoal")
+        assertThat(commit).contains("syncStore.apply")
+        // The active profile is resolved before the transaction. It comes off a flow, and a flow
+        // read inside a write transaction waits on the connection that transaction holds.
+        assertThat(source.indexOf("profileRepository.activeId()")).isLessThan(open)
+        assertThat(commit).doesNotContain("activeId()")
+    }
+
+    private fun closingBraceAfter(source: String, open: Int): Int {
+        var depth = 0
+        var index = source.indexOf('{', open)
+        while (index < source.length) {
+            when (source[index]) {
+                '{' -> depth++
+                '}' -> {
+                    depth--
+                    if (depth == 0) return index + 1
+                }
+            }
+            index++
+        }
+        error("the transaction is never closed")
+    }
+
+    @Test
+    fun `a version one file still restores`() = runTest {
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+        val file = write(VERSION_ONE)
+
+        val summary = serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        assertThat(summary.imported).isEqualTo(1)
+        assertThat(target.syncDao().weights()).hasSize(1)
+        assertThat(target.syncDao().measurements()).hasSize(1)
+        assertThat(target.syncDao().goals()).hasSize(1)
+        assertThat(settings.settings.first().weightUnit).isEqualTo(WeightUnit.LB)
+    }
+
     private fun write(text: String): File =
         temporary.newFile("weighttrack.json").apply { writeText(text) }
+
+    private companion object {
+        /** What 0.4.0 and earlier wrote. */
+        val VERSION_ONE = """
+            {
+              "app": "WeightTrack",
+              "formatVersion": 1,
+              "exportedAtUtcMillis": 1750000000000,
+              "entries": [
+                {
+                  "timestampUtcMillis": 1750000000000,
+                  "zoneOffsetSeconds": 0,
+                  "localDate": "2026-06-15",
+                  "grams": 80000,
+                  "clientRecordId": "old-1"
+                }
+              ],
+              "measurements": [
+                {
+                  "timestampUtcMillis": 1750000000000,
+                  "localDate": "2026-06-15",
+                  "type": "WAIST",
+                  "valueMm": 900
+                }
+              ],
+              "goals": [
+                {
+                  "direction": "LOSE",
+                  "startGrams": 84000,
+                  "targetGrams": 76000,
+                  "startDate": "2026-06-01",
+                  "milestoneStepGrams": 2000,
+                  "active": true
+                }
+              ],
+              "settings": {
+                "weightUnit": "LB",
+                "lengthUnit": "IN",
+                "themeMode": "AMOLED",
+                "heightMm": 1803,
+                "sex": "FEMALE",
+                "birthYear": 1988,
+                "activityLevel": "ACTIVE",
+                "trendWindowDays": 21,
+                "milestoneStepGrams": 2500
+              }
+            }
+        """.trimIndent()
+    }
 }

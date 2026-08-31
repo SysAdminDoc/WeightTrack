@@ -22,8 +22,15 @@ object AutoBackup {
     private const val PREFIX = "weighttrack-"
     private const val SUFFIX = ".json"
 
-    /** What a half-written backup is called until it has been read back and believed. */
-    const val PARTIAL_SUFFIX = ".part"
+    /**
+     * What marks a half-written backup, before the extension rather than after it.
+     *
+     * A name ending ".json.part" looks like the obvious answer and is not: a document provider
+     * creating a file with the JSON media type appends its own extension when the one given does
+     * not match, so the file arrives as "weighttrack-2026-08-29.json.part.json" and nothing can
+     * find it again. Kept inside the stem, the name is one the provider leaves alone.
+     */
+    const val PARTIAL_MARKER = "-part"
 
     /**
      * The name a backup taken on [date] goes under.
@@ -41,7 +48,7 @@ object AutoBackup {
      * copy of somebody's history was, and the weekly job that exists to stop them losing it is
      * the thing that lost it.
      */
-    fun partialNameFor(date: LocalDate): String = nameFor(date) + PARTIAL_SUFFIX
+    fun partialNameFor(date: LocalDate): String = "$PREFIX$date$PARTIAL_MARKER$SUFFIX"
 
     /** The date in a name this object wrote, or null for anything else in the folder. */
     fun dateOf(name: String): LocalDate? {
@@ -56,7 +63,7 @@ object AutoBackup {
 
     /** Leftovers from a run that died before it could put its file in place. */
     fun partialsIn(names: List<String>): List<String> = names.filter {
-        it.startsWith(PREFIX) && it.endsWith(PARTIAL_SUFFIX)
+        it.startsWith(PREFIX) && it.endsWith("$PARTIAL_MARKER$SUFFIX")
     }
 
     /** Every backup in the folder, newest first. Anything else there is ignored. */

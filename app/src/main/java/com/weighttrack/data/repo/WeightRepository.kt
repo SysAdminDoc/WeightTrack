@@ -239,8 +239,15 @@ class WeightRepository @Inject constructor(
     suspend fun deleteAll() = dao.deleteAll()
 
     /** Bulk path for import and sync. Existing rows are matched by identity, never duplicated. */
-    suspend fun upsertAll(entries: List<WeightEntry>) {
-        val profileId = profiles.activeId()
+    /**
+     * Brings rows in, replacing any already under the same name for that person.
+     *
+     * [owner] is here for the restore, which has to resolve the active profile before it opens
+     * its transaction: the active profile comes off a flow, and a flow read inside a write
+     * transaction waits for the connection that transaction is holding.
+     */
+    suspend fun upsertAll(entries: List<WeightEntry>, owner: Long? = null) {
+        val profileId = owner ?: profiles.activeId()
         entries.forEach { dao.upsertByIdentity(it.toEntity(profileId = profileId)) }
     }
 

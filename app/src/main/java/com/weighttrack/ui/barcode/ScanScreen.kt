@@ -51,6 +51,7 @@ import com.weighttrack.barcode.Barcodes
 import com.weighttrack.ui.components.SectionCard
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
@@ -176,7 +177,13 @@ private fun CameraPreview(
                 scope.launch {
                     try {
                         val code = reader.read(image)
-                        if (Barcodes.isProductCode(code)) onBarcode(code!!)
+                        // Handed over on the interface thread. The decode runs on a camera
+                        // thread of its own, and what a caller does with a barcode is close this
+                        // screen, which the navigation controller's lifecycle accepts only from
+                        // the main thread and throws for anywhere else.
+                        if (Barcodes.isProductCode(code)) {
+                            withContext(Dispatchers.Main) { onBarcode(code!!) }
+                        }
                     } finally {
                         // Closed whatever happened, or the camera stops sending frames.
                         image.close()

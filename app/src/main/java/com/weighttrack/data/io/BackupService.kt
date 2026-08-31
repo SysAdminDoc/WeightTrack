@@ -3,6 +3,7 @@ package com.weighttrack.data.io
 import android.content.Context
 import com.weighttrack.R
 import android.net.Uri
+import androidx.room.withTransaction
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -61,7 +62,9 @@ class BackupService @Inject constructor(
     private val weightRepository: WeightRepository,
     private val measurementRepository: MeasurementRepository,
     private val goalRepository: GoalRepository,
+    private val profileRepository: com.weighttrack.data.repo.ProfileRepository,
     private val settingsRepository: SettingsRepository,
+    private val database: com.weighttrack.data.db.WeightTrackDatabase,
 ) {
 
     suspend fun exportCsv(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
@@ -129,10 +132,10 @@ class BackupService @Inject constructor(
                 document = everything,
                 // The lists below are the version-1 shape, kept so an older build can still
                 // restore a file this one wrote. Version 2 reads `document` and ignores them.
-                foods = everything.foods,
-                recipes = everything.recipes,
-                recipeItems = everything.recipeItems,
-                foodLog = everything.foodLog,
+                //
+                // The food side is deliberately not repeated here. A long-kept diary is by far
+                // the biggest part of a backup, and writing it twice was enough on its own to
+                // push a real file past the size this app will read back in.
                 entries = entries.map(BackupCodec::entryToBackup),
                 measurements = measurements.map(BackupCodec::measurementToBackup),
                 goals = goals.map(BackupCodec::goalToBackup),
@@ -237,40 +240,50 @@ class BackupService @Inject constructor(
             backup.document?.let { return@runCatching restoreDocument(it) }
             val entries = backup.entries.mapNotNull(BackupCodec::backupToEntry)
             val measurements = backup.measurements.mapNotNull(BackupCodec::backupToMeasurement)
-            weightRepository.upsertAll(entries)
-            measurementRepository.upsertAll(measurements)
-            // Only the goal that was active is restored; retired goals would otherwise pile up
-            // and the newest of them would silently become current.
-            backup.goals.firstOrNull { it.active }
-                ?.let(BackupCodec::backupToGoal)
-                ?.let { goal ->
-                    goalRepository.setGoal(
-                        startGrams = goal.startGrams,
-                        targetGrams = goal.targetGrams,
-                        milestoneStepGrams = goal.milestoneStepGrams,
-                        startDate = goal.startDate,
-                        targetDate = goal.targetDate,
-                        direction = goal.direction,
+            // Resolved before the transaction opens: it comes off a flow, and a flow read inside
+            // a write transaction waits for the connection that transaction is holding.
+            val owner = profileRepository.activeId()
+            val now = Instant.now().toEpochMilli()
+            val profiles = syncStore.snapshot("backup", now).profiles
+            // One commit for the lot. Four separate ones left a file whose food section broke a
+            // constraint restoring the weigh-ins, the measurements and the goal and then failing,
+            // which is a half-restored database nobody asked for and no way back to the old one.
+            database.withTransaction {
+                weightRepository.upsertAll(entries, owner)
+                measurementRepository.upsertAll(measurements, owner)
+                // Only the goal that was active is restored; retired goals would otherwise pile
+                // up and the newest of them would silently become current.
+                backup.goals.firstOrNull { it.active }
+                    ?.let(BackupCodec::backupToGoal)
+                    ?.let { goal ->
+                        goalRepository.setGoal(
+                            startGrams = goal.startGrams,
+                            targetGrams = goal.targetGrams,
+                            milestoneStepGrams = goal.milestoneStepGrams,
+                            startDate = goal.startDate,
+                            targetDate = goal.targetDate,
+                            direction = goal.direction,
+                            owner = owner,
+                        )
+                    }
+                // Restored through the same path sync uses, which already knows how to bring a
+                // row in without duplicating one that is already here.
+                if (backup.foods != null || backup.recipes != null || backup.foodLog != null) {
+                    syncStore.apply(
+                        com.weighttrack.core.sync.SyncDocument(
+                            deviceId = "backup",
+                            writtenAtUtcMillis = now,
+                            // The profiles as they are here. A version-1 backup carries none of
+                            // its own, so the diary lands on whoever is on this phone.
+                            profiles = profiles,
+                            foods = backup.foods.orEmpty(),
+                            recipes = backup.recipes.orEmpty(),
+                            recipeItems = backup.recipeItems.orEmpty(),
+                            foodLog = backup.foodLog.orEmpty(),
+                        ),
+                        now,
                     )
                 }
-            // Restored through the same path sync uses, which already knows how to bring a
-            // row in without duplicating one that is already here.
-            if (backup.foods != null || backup.recipes != null || backup.foodLog != null) {
-                val now = Instant.now().toEpochMilli()
-                syncStore.apply(
-                    com.weighttrack.core.sync.SyncDocument(
-                        deviceId = "backup",
-                        writtenAtUtcMillis = now,
-                        // The profiles as they are here. A backup carries no profiles of its own,
-                        // so the diary lands on whoever is on this phone.
-                        profiles = syncStore.snapshot("backup", now).profiles,
-                        foods = backup.foods.orEmpty(),
-                        recipes = backup.recipes.orEmpty(),
-                        recipeItems = backup.recipeItems.orEmpty(),
-                        foodLog = backup.foodLog.orEmpty(),
-                    ),
-                    now,
-                )
             }
             // Written on the way out since the first version and never read on the way back,
             // so restoring on a new phone quietly lost units, theme, height and the rest.
@@ -312,7 +325,15 @@ class BackupService @Inject constructor(
         document: com.weighttrack.core.sync.SyncDocument,
     ): ImportSummary {
         val now = Instant.now().toEpochMilli()
+        // A phone that has only ever been opened once. The app makes a profile on first start,
+        // so a restore onto a new phone always meets one, and the profiles in the backup arrive
+        // beside it rather than instead of it: three profiles where there should be two, with
+        // the empty one still on screen and the person's history apparently missing.
+        val untouched = untouchedProfile(document)
         syncStore.apply(document, now)
+        if (untouched != null) {
+            adoptRestoredProfile(untouched)
+        }
         document.settings?.let { stored ->
             val current = settingsRepository.settings.first()
             settingsRepository.applySynced(
@@ -337,6 +358,42 @@ class BackupService @Inject constructor(
             skipped = 0,
             measurements = document.measurements.size,
         )
+    }
+
+    /**
+     * The empty profile the app makes on first start, when that is all there is.
+     *
+     * Null as soon as anything has been recorded against it, or as soon as there is more than
+     * one, or when the backup names it too. A phone somebody has actually used is being merged
+     * into, and nothing there is the app's to tidy away.
+     */
+    private suspend fun untouchedProfile(
+        document: com.weighttrack.core.sync.SyncDocument,
+    ): Long? {
+        if (document.profiles.isEmpty()) return null
+        val local = syncStore.snapshot("backup", Instant.now().toEpochMilli())
+        val only = local.profiles.singleOrNull() ?: return null
+        if (document.profiles.any { it.syncId == only.syncId }) return null
+        val empty = local.weights.isEmpty() && local.measurements.isEmpty() &&
+            local.water.isEmpty() && local.fasts.isEmpty() && local.goals.isEmpty() &&
+            local.macroTargets.isEmpty() && local.foodLog.isEmpty()
+        if (!empty) return null
+        return profileRepository.observeAll().first().singleOrNull()?.id
+    }
+
+    /**
+     * Moves onto the restored history and drops the empty profile that was standing in for it.
+     *
+     * In that order: the last profile cannot be deleted, and nobody should be looking at a blank
+     * screen for the moment in between.
+     */
+    private suspend fun adoptRestoredProfile(untouchedId: Long) {
+        val restored = profileRepository.observeAll().first()
+            .filterNot { it.id == untouchedId }
+            .minByOrNull { it.position }
+            ?: return
+        profileRepository.setActive(restored.id)
+        profileRepository.delete(untouchedId)
     }
 
     /**
@@ -379,8 +436,14 @@ class BackupService @Inject constructor(
         } ?: error(say(R.string.file_could_not_read))
 
     companion object {
-        /** The ceiling on a file the restore will read. */
-        const val MAX_BACKUP_BYTES = 10L * 1024 * 1024
+        /**
+         * The ceiling on a file the restore will read.
+         *
+         * Set far above any backup this app can produce rather than near it. The export is not
+         * bounded, and a limit a real person's own file could reach would turn this from a guard
+         * against a hostile file into a refusal to restore their history.
+         */
+        const val MAX_BACKUP_BYTES = 64L * 1024 * 1024
 
         private const val BUFFER_BYTES = 64 * 1024
     }
