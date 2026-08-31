@@ -129,6 +129,7 @@ data class WeightEntryEntity(
     @ColumnInfo(defaultValue = "NULL") val impedanceOhms: Double? = null,
     @ColumnInfo(defaultValue = "NULL") val basalMetabolismKcal: Double? = null,
     @ColumnInfo(defaultValue = "NULL") val scaleBmi: Double? = null,
+    @ColumnInfo(defaultValue = "NULL") val scaleHeightMm: Int? = null,
     @ColumnInfo(defaultValue = "NULL") val scaleUserId: Int? = null,
     /** Which scale, which reader understood it, and what the figures are worth. */
     @ColumnInfo(defaultValue = "NULL") val compositionDevice: String? = null,

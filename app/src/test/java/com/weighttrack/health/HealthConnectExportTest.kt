@@ -362,6 +362,38 @@ class HealthConnectExportTest {
     }
 
     @Test
+    fun `body fat taken away and allowed again reaches the readings in between`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        grant(*HealthConnectSync.bodyFatPermissions.toTypedArray())
+        weights.addFor(
+            profileId = id,
+            grams = 80_000,
+            timestamp = Instant.now().minus(2, ChronoUnit.HOURS),
+            bodyFatPercent = 22.5,
+        )
+        sync().sync().getOrThrow()
+
+        // Taken away, and a reading recorded while it was off goes across without its figure.
+        grant()
+        weights.addFor(
+            profileId = id,
+            grams = 79_500,
+            timestamp = Instant.now().minus(1, ChronoUnit.HOURS),
+            bodyFatPercent = 22.0,
+        )
+        sync().sync().getOrThrow()
+        val beforeRegrant = client.inserted
+
+        grant(*HealthConnectSync.bodyFatPermissions.toTypedArray())
+        sync().sync().getOrThrow()
+
+        // Allowing it again is the same situation the backfill exists for. A mark that only ever
+        // went true left that reading in the health record with a weight and no figure, for good.
+        assertThat(client.inserted).isGreaterThan(beforeRegrant)
+    }
+
+    @Test
     fun `a deleted reading takes its body-fat record with it`() = runTest {
         profiles.ensureDefault()
         val id = profiles.observeAll().first().single().id

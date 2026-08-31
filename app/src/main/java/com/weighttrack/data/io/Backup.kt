@@ -34,6 +34,7 @@ object WeightCsvExporter {
         // measured, which is not zero.
         "muscle_mass_kg", "fat_free_mass_kg", "soft_lean_mass_kg", "body_water_kg",
         "muscle_percent", "impedance_ohms", "basal_metabolism_kcal", "scale_bmi",
+        "scale_height_cm",
         "composition_device", "composition_protocol", "composition_quality",
     )
 
@@ -65,6 +66,9 @@ object WeightCsvExporter {
                             entry.composition?.basalMetabolismKcal?.let { decimal(it, 0) }
                                 .orEmpty(),
                             entry.composition?.scaleBmi?.let { decimal(it, 1) }.orEmpty(),
+                            entry.composition?.heightMm
+                                ?.let { decimal(UnitConverter.mmToCm(it), 1) }
+                                .orEmpty(),
                             entry.composition?.device.orEmpty(),
                             entry.composition?.protocol.orEmpty(),
                             entry.composition?.quality?.name.orEmpty(),

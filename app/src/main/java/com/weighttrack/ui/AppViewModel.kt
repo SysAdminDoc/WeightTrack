@@ -77,9 +77,18 @@ class AppViewModel @Inject constructor(
             // A goal date nobody can read used to mean today, so the same damaged row said
             // something different every morning. Written back readable, once.
             runCatching { goalRepository.repairUnreadableDates() }
-                .getOrNull()
-                ?.takeIf { it > 0 }
-                ?.let { runtimeLog.write(LogArea.DATA, LogEvent.GOAL_DATE_REPAIRED, code = it) }
+                .onSuccess { repaired ->
+                    if (repaired.isNotEmpty()) {
+                        runtimeLog.write(
+                            LogArea.DATA,
+                            LogEvent.GOAL_DATE_REPAIRED,
+                            code = repaired.size,
+                        )
+                    }
+                }
+                // A repair that threw is the one case somebody would want to read about, and it
+                // used to produce nothing at all.
+                .onFailure { runtimeLog.write(LogArea.DATA, LogEvent.GOAL_DATE_REPAIRED, cause = it) }
             // Writing the row is not enough. Alarms do not survive the app being replaced, and
             // the boot receiver has already run and found nothing enabled, so the reminder that
             // was just moved across has to be booked here or it never fires.

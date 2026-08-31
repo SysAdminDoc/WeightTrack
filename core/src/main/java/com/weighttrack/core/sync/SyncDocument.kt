@@ -196,6 +196,7 @@ data class SyncWeight(
     val impedanceOhms: Double? = null,
     val basalMetabolismKcal: Double? = null,
     val scaleBmi: Double? = null,
+    val scaleHeightMm: Int? = null,
     val scaleUserId: Int? = null,
     val compositionDevice: String? = null,
     val compositionProtocol: String? = null,

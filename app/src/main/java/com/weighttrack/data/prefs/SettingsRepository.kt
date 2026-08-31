@@ -162,8 +162,8 @@ class SettingsRepository @Inject constructor(
     suspend fun healthBodyFatExported(profileId: Long): Boolean =
         dataStore.data.first()[Keys.healthBodyFatExported(profileId)] ?: false
 
-    suspend fun setHealthBodyFatExported(profileId: Long) = edit {
-        it[Keys.healthBodyFatExported(profileId)] = true
+    suspend fun setHealthBodyFatExported(profileId: Long, exported: Boolean) = edit {
+        it[Keys.healthBodyFatExported(profileId)] = exported
     }
     /**
      * Deletions Health Connect has already been told about, for one person.

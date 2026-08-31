@@ -31,6 +31,10 @@ interface WeightEntryDao {
      * from another device carrying that device's timestamps, which is most of a history after a
      * phone switch, and those rows would then never reach Health Connect at all.
      */
+    /** The oldest reading this phone holds for one person, or null when it holds none. */
+    @Query("SELECT MIN(timestampUtcMillis) FROM weight_entries WHERE profileId = :profileId")
+    suspend fun earliestTimestamp(profileId: Long): Long?
+
     @Query(
         "SELECT * FROM weight_entries WHERE profileId = :profileId " +
             "AND healthExportedAtUtcMillis < updatedAtUtcMillis " +

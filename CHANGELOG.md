@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Seven more fixes from reviewing the last few changes. A week of Health Connect being unwell no longer quietly walks the app past readings it never saw, and recovering from a lost place now reaches back past the oldest reading on the phone rather than to the last time it looked, so a history your scale app backfilled is still picked up. Turning body fat off and on again reaches the readings recorded in between. The height a standards-compliant scale reports is kept, which the app has always read and never saved. A weight from a scale that only weighs no longer records a composition consisting of the scale's name, and a reading that carried only the scale's user slot is no longer thrown away. Repairing a damaged goal date no longer pushes this phone's guess over a perfectly readable copy of the same goal on your other one, and it now says which goal it repaired.
+
 - A progress photo that will not save now says why. A gallery grant that had already lapsed, a file that is not a picture, a phone with no room left and a refused write all used to end the same way: the picture simply did not appear, with nothing to read and nothing to do about it. Each one now says what happened and is written into the activity log, none of them leaves a row or a file behind, and trying again keeps one picture rather than two.
 
 - Sync now has a limit on what another device can ask this phone to hold. A file in a shared folder is written by something outside WeightTrack and a WebDAV server is somebody else's machine, and nothing bounded what came back: not the size, not the number of records, not the length of a single note. Anything past the limit is skipped, named on the settings row so you can go and look at it, and nothing already synced is touched.

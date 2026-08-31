@@ -91,10 +91,15 @@ class GoalDateRepairTest {
 
         val repaired = goals.repairUnreadableDates()
 
-        assertThat(repaired).isEqualTo(1)
+        // Named, not counted: the log is allowed no identifiers, so the caller gets them and
+        // can say which goal it was.
+        assertThat(repaired).containsExactly("g-1")
         // Written back, so the row stops being damaged rather than being read forgivingly for
-        // ever, and it travels to the other device as something that phone can read too.
-        assertThat(checkNotNull(database.goalDao().byId(1)).startDate).isEqualTo("2026-06-01")
+        // ever. Not stamped: a row damaged only here is a local fault, and stamping it would
+        // push this phone's guess over a perfectly readable copy on the other one.
+        val row = checkNotNull(database.goalDao().byId(1))
+        assertThat(row.startDate).isEqualTo("2026-06-01")
+        assertThat(row.updatedAtUtcMillis).isEqualTo(createdAt.toEpochMilli())
     }
 
     @Test
@@ -114,7 +119,7 @@ class GoalDateRepairTest {
 
         val repaired = goals.repairUnreadableDates()
 
-        assertThat(repaired).isEqualTo(0)
+        assertThat(repaired).isEmpty()
         assertThat(database.goalDao().byId(1)).isEqualTo(before)
     }
 
@@ -123,6 +128,6 @@ class GoalDateRepairTest {
         damagedGoal("not a date at all")
         goals.repairUnreadableDates()
 
-        assertThat(goals.repairUnreadableDates()).isEqualTo(0)
+        assertThat(goals.repairUnreadableDates()).isEmpty()
     }
 }

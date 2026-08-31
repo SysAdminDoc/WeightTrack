@@ -310,6 +310,7 @@ class ScaleViewModel @Inject constructor(
             impedanceOhms = reading.impedanceOhms,
             basalMetabolismKcal = reading.basalMetabolismKcal,
             scaleBmi = reading.bmi,
+            heightMm = reading.heightMm,
             scaleUserId = reading.scaleUserId,
             device = device?.name,
             protocol = device?.kind?.name,

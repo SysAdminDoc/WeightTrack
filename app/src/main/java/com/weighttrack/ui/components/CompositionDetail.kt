@@ -91,6 +91,15 @@ fun CompositionDetail(
                 value = "%.1f".format(it),
             )
         }
+        composition.heightMm?.let {
+            LabelledValue(
+                label = stringResource(R.string.composition_scale_height),
+                value = com.weighttrack.core.format.LengthFormatter.full(
+                    it,
+                    com.weighttrack.core.model.LengthUnit.CM,
+                ),
+            )
+        }
         composition.impedanceOhms?.let {
             LabelledValue(
                 label = stringResource(R.string.composition_impedance),

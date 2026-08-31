@@ -770,6 +770,7 @@
     <string name="composition_impedance">Impedance</string>
     <string name="composition_basal_metabolism">Basal metabolism, as the scale worked it out</string>
     <string name="composition_scale_bmi">BMI, as the scale worked it out</string>
+    <string name="composition_scale_height">Height the scale used</string>
     <string name="settings_at_time">At %1$02d:%2$02d</string>
     <string name="charts_could_not_read_movement">Health Connect could not be read just now. This is not the same as having nothing recorded, and it is worth trying again later.</string>
     <string name="settings_health_access_withdrawn">WeightTrack\'s access to Health Connect was removed, so nothing has been exchanged since. Your readings here are untouched.</string>

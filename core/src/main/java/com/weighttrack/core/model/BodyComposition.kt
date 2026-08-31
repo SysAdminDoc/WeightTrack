@@ -41,6 +41,15 @@ data class BodyComposition(
     val basalMetabolismKcal: Double? = null,
     /** What the scale worked out itself, which need not agree with what this app works out. */
     val scaleBmi: Double? = null,
+    /**
+     * The height the scale was told, when it reports one.
+     *
+     * A standards-compliant scale sends it beside the composition, and the parser has always
+     * read it. It is not this app's idea of the person's height, which lives on their profile:
+     * it is what the scale believes, and it is worth keeping because it is what every figure the
+     * scale worked out was worked out from.
+     */
+    val heightMm: Int? = null,
     /** The slot a family scale filed it under, when it has slots. Not a profile in this app. */
     val scaleUserId: Int? = null,
     /** What the scale calls itself, as it advertised. */
@@ -49,11 +58,18 @@ data class BodyComposition(
     val protocol: String? = null,
     val quality: CompositionQuality = CompositionQuality.REPORTED_BY_SCALE,
 ) {
-    /** Whether anything beyond the weight was actually captured. */
+    /**
+     * Whether anything beyond the weight was actually measured.
+     *
+     * The scale's own name is not measurement. A plain scale connected over Bluetooth reports a
+     * weight and nothing else, and treating "it told us what it is called" as composition wrote
+     * three columns and shipped them to every other device for a reading that has none.
+     */
     val hasAnything: Boolean get() = muscleMassGrams != null || fatFreeMassGrams != null ||
         softLeanMassGrams != null || bodyWaterMassGrams != null || musclePercent != null ||
-        impedanceOhms != null || basalMetabolismKcal != null || scaleBmi != null
+        impedanceOhms != null || basalMetabolismKcal != null || scaleBmi != null ||
+        heightMm != null || scaleUserId != null
 
     /** Whether it is worth saving at all: a bare weight leaves nothing to record. */
-    val isEmpty: Boolean get() = !hasAnything && device == null && protocol == null
+    val isEmpty: Boolean get() = !hasAnything
 }

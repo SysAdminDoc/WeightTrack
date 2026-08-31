@@ -496,17 +496,24 @@ class HealthConnectSync @Inject constructor(
                 // With a token in hand, only what has actually changed since last time. Without
                 // one, the whole window, which is what a first connect needs.
                 val imported = if (token == null) {
-                    importWeights(session).also { rememberToken(session) }
+                    // A full read reaches everything in the window by definition.
+                    importWeights(session).also {
+                        rememberToken(session)
+                        readToTheEnd = true
+                    }
                 } else {
                     importChanges(session, token)
                 }
-                // How far this run read, for the next one that loses its place. Written after
-                // the import rather than before it, so a failure does not move the mark past
-                // records nobody has read.
-                settingsRepository.setHealthImportedThrough(
-                    session.profileId,
-                    session.now.toEpochMilli(),
-                )
+                // How far this run read, for the next one that loses its place. Only a run that
+                // got to the end of the queue may move it: a provider having a bad week would
+                // otherwise walk the mark a week forward over records nobody had seen, and when
+                // the token finally expired the recovery would start after them.
+                if (readToTheEnd) {
+                    settingsRepository.setHealthImportedThrough(
+                        session.profileId,
+                        session.now.toEpochMilli(),
+                    )
+                }
                 val exported = exportWeights(session)
                 HealthConnectSyncResult(
                     imported = imported.first,
@@ -539,7 +546,18 @@ class HealthConnectSync @Inject constructor(
      * A token Health Connect no longer recognises is not an error: it means too much has happened
      * since, so the window is read in full and a fresh token taken.
      */
+    /**
+     * Whether the last walk of the changes got to the end of the queue.
+     *
+     * The mark of how far the import has read may only move when this is true. It used to move
+     * on every run, including the ones that read nothing because the provider was unwell, so a
+     * bad week walked the mark a week forward over records nobody had seen. When the token
+     * finally expired, the recovery started after them and they were gone for good.
+     */
+    private var readToTheEnd = false
+
     private suspend fun importChanges(session: Session, token: String): Triple<Int, Int, Int> {
+        readToTheEnd = false
         val client = session.client
         val profileId = session.profileId
         var next: String? = token
@@ -587,6 +605,7 @@ class HealthConnectSync @Inject constructor(
             // it again re-reads the same page, and every row on it counts as imported a second
             // time, so the number on the screen climbs while nothing happens.
             next = if (response.hasMore && following != null && following != next) following else null
+            if (next == null) readToTheEnd = true
         }
         return Triple(imported, skipped, removed)
     }
@@ -605,10 +624,20 @@ class HealthConnectSync @Inject constructor(
         // nothing yet, asks for the whole window.
         val readThrough = settingsRepository.healthImportedThrough(session.profileId)
         val oldest = session.now.minus(FULL_WINDOW_DAYS, ChronoUnit.DAYS)
-        val from = if (readThrough > 0) {
-            maxOf(Instant.ofEpochMilli(readThrough).minus(OVERLAP_DAYS, ChronoUnit.DAYS), oldest)
-        } else {
-            oldest
+        // The mark is a moment in wall time; a changes token hands over records whatever date
+        // they carry. Something written yesterday about a weigh-in three years ago is inside the
+        // cursor's reach and would fall outside a window that started at the mark, so the
+        // recovery reaches back to the oldest thing this phone already holds. Records older than
+        // everything here can only be ones this phone has never seen, and the full window is
+        // what a first connect asks for anyway.
+        val earliestHere = weightRepository.earliestFor(session.profileId)
+        val from = when {
+            readThrough <= 0 -> oldest
+            earliestHere != null -> maxOf(earliestHere.minus(OVERLAP_DAYS, ChronoUnit.DAYS), oldest)
+            else -> maxOf(
+                Instant.ofEpochMilli(readThrough).minus(OVERLAP_DAYS, ChronoUnit.DAYS),
+                oldest,
+            )
         }
         val full = importWeights(session.copy(start = from))
         rememberToken(session)
@@ -703,8 +732,12 @@ class HealthConnectSync @Inject constructor(
         // readings went across without their body-fat figure and were marked done, so allowing
         // it afterwards would otherwise reach nothing already recorded.
         val withBodyFat = session.granted.containsAll(bodyFatPermissions)
-        if (withBodyFat && !settingsRepository.healthBodyFatExported(session.profileId)) {
-            weightRepository.resendBodyFatToHealth(session.profileId)
+        // Follows the grant rather than latching once. Revoking body fat and allowing it again
+        // is the same situation this exists for, and a flag that only ever goes true left those
+        // readings in the health record with a weight and no figure, permanently.
+        if (withBodyFat != settingsRepository.healthBodyFatExported(session.profileId)) {
+            if (withBodyFat) weightRepository.resendBodyFatToHealth(session.profileId)
+            settingsRepository.setHealthBodyFatExported(session.profileId, withBodyFat)
         }
         val waiting = weightRepository.awaitingHealthExport(session.profileId)
             .filter { (_, entry) -> entry.source != EntrySource.HEALTH_CONNECT }
@@ -757,11 +790,6 @@ class HealthConnectSync @Inject constructor(
                 .onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }
         }
         rememberDeletionsSent(session, done)
-        // Noted only once something has actually gone across under this grant, so a run that
-        // wrote nothing does not claim the backfill has been done.
-        if (withBodyFat && sent.isNotEmpty()) {
-            settingsRepository.setHealthBodyFatExported(session.profileId)
-        }
         return written
     }
 

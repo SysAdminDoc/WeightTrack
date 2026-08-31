@@ -82,6 +82,16 @@ class WeightRepository @Inject constructor(
     suspend fun awaitingHealthExport(profileId: Long): List<Pair<Long, WeightEntry>> =
         dao.awaitingHealthExport(profileId).map { it.id to it.toDomain() }
 
+    /**
+     * The oldest reading this phone holds for one person.
+     *
+     * What a Health Connect recovery reaches back to. A record written yesterday about a
+     * weigh-in three years ago arrives through a changes token whatever its date, so a window
+     * that started at the last read moment would miss it.
+     */
+    suspend fun earliestFor(profileId: Long): java.time.Instant? =
+        dao.earliestTimestamp(profileId)?.let(java.time.Instant::ofEpochMilli)
+
     /** Sends every reading that carries a body-fat figure again, for a grant that arrived late. */
     suspend fun resendBodyFatToHealth(profileId: Long) =
         dao.forgetHealthExportOfBodyFat(profileId)

@@ -100,10 +100,11 @@ class GoalRepository @Inject constructor(
      * and writing that back means the row stops being damaged rather than being reinterpreted
      * forgivingly for ever.
      *
-     * Returns how many were repaired, for the activity log. The log deliberately carries no
-     * names or identifiers of any kind, so it gets the count.
+     * Returns the travelling names of the rows it repaired, so the caller can say which. The
+     * activity log deliberately carries no identifiers of any kind, so it gets the count and
+     * the caller gets the names.
      */
-    suspend fun repairUnreadableDates(): Int {
+    suspend fun repairUnreadableDates(): List<String> {
         val broken = dao.all().filter {
             !isReadableDate(it.startDate) || (it.targetDate != null && !isReadableDate(it.targetDate))
         }
@@ -115,11 +116,14 @@ class GoalRepository @Inject constructor(
                     // A target date nobody can read is no target date. Guessing one would put a
                     // deadline on somebody's goal that they never set.
                     targetDate = row.targetDate?.takeIf { isReadableDate(it) },
-                    updatedAtUtcMillis = System.currentTimeMillis(),
+                    // Deliberately not stamped. A row damaged only here is a local fault, and
+                    // stamping it would push this phone's guess over a perfectly readable copy
+                    // of the same goal on the other one. The repair makes the row usable here;
+                    // whichever device holds the real answer keeps it.
                 ),
             )
         }
-        return broken.size
+        return broken.map { it.syncId }
     }
 
     suspend fun deleteAll() = dao.deleteAll()

@@ -40,14 +40,26 @@ enum class HealthFailure {
          * without them a stale token is stored for ever and the sync never works again.
          */
         fun of(cause: Throwable): HealthFailure {
-            if (cause is SecurityException) return NOT_ALLOWED
-            val words = (cause.message.orEmpty() + " " + cause.javaClass.name).lowercase()
+            // The whole chain, not just the top of it. An SDK that wraps a security failure in
+            // something of its own would otherwise read as a bad minute, and the app would go on
+            // asking hourly for something it is no longer allowed to have.
+            val chain = generateSequence(cause) { it.cause }.take(MAX_DEPTH).toList()
+            if (chain.any { it is SecurityException }) return NOT_ALLOWED
+            val words = chain
+                .joinToString(" ") { it.message.orEmpty() + " " + it.javaClass.name }
+                .lowercase()
             return when {
                 words.contains("rate limit") || words.contains("ratelimit") -> RATE_LIMITED
-                words.contains("token") -> EXPIRED_TOKEN
+                // Read before the token, because a message that says both is telling us the
+                // grant has gone: acting on that as a lost cursor throws away a perfectly good
+                // one and reads five years the moment the grant comes back.
                 words.contains("permission") || words.contains("not allowed") -> NOT_ALLOWED
+                words.contains("token") -> EXPIRED_TOKEN
                 else -> TRANSIENT
             }
         }
+
+        /** A cause chain longer than this is a loop, and loops here would hang the sync. */
+        private const val MAX_DEPTH = 10
     }
 }

@@ -97,6 +97,40 @@ class BodyCompositionTest {
     }
 
     @Test
+    fun `a scale that only said its name recorded no composition`() = runTest {
+        // What a plain Bluetooth scale gives: a weight, and the name it advertises. Treating
+        // "it told us what it is called" as composition wrote three columns and shipped them to
+        // every other device for a reading that has none.
+        record(BodyComposition(device = "Plain scale", protocol = "STANDARD"))
+
+        val stored = weights.observeEntries().first().single()
+
+        assertThat(stored.composition).isNull()
+    }
+
+    @Test
+    fun `a reading that carried only the scale's user slot is kept`() = runTest {
+        // A broadcast from a family scale can carry nothing but which slot it filed the weight
+        // under, and that is the one thing that says who stood on it.
+        record(BodyComposition(scaleUserId = 3))
+
+        val stored = weights.observeEntries().first().single()
+
+        assertThat(stored.composition?.scaleUserId).isEqualTo(3)
+    }
+
+    @Test
+    fun `the height the scale used is kept as well`() = runTest {
+        // A standards-compliant scale reports it beside the composition, and the parser has
+        // always read it. It is what every figure the scale worked out was worked out from.
+        record(full.copy(heightMm = 1_803))
+
+        val stored = weights.observeEntries().first().single()
+
+        assertThat(stored.composition?.heightMm).isEqualTo(1_803)
+    }
+
+    @Test
     fun `a scale that only weighs records a complete reading`() = runTest {
         record(null)
 

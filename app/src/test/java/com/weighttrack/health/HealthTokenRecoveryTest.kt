@@ -211,6 +211,43 @@ class HealthTokenRecoveryTest {
     }
 
     @Test
+    fun `a bad week does not walk the mark forward over records nobody read`() = runTest {
+        val id = firstRun()
+        val before = settings.healthImportedThrough(id)
+
+        // Seven hourly runs against a provider that answers nothing. Each keeps its place, which
+        // is right; each used to walk the mark forward an hour, which is not.
+        repeat(7) { syncWith(AwkwardClient(fake()) { error("the provider is busy") }).sync() }
+
+        // Unmoved, so when the token does eventually expire the recovery starts where the last
+        // run that actually read something got to, not a week after it.
+        assertThat(settings.healthImportedThrough(id)).isEqualTo(before)
+    }
+
+    @Test
+    fun `recovering reaches back past the oldest reading this phone holds`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        // A history somebody's scale app backfilled: written recently, dated years ago. A
+        // changes token hands those over whatever their date, so a window measured from the
+        // last read moment would leave them permanently out of reach.
+        weights.addFor(
+            profileId = id,
+            grams = 82_000,
+            timestamp = Instant.now().minus(900, ChronoUnit.DAYS),
+        )
+        val plain = fake()
+        plain.insertRecords(listOf(record(0)))
+        syncWith(plain).sync().getOrThrow()
+        val awkward = AwkwardClient(fake()) { error("Unknown changes token") }
+
+        syncWith(awkward).sync().getOrThrow()
+
+        val from = awkward.readsFrom.first()
+        assertThat(Duration.between(from, Instant.now()).toDays()).isAtLeast(900)
+    }
+
+    @Test
     fun `a first connect still reads the whole history`() = runTest {
         profiles.ensureDefault()
         val awkward = AwkwardClient(fake()) { error("Unknown changes token") }
