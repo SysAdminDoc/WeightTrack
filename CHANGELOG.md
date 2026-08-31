@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Four more fixes from reviewing the last few changes. Editing a saved recipe is now one commit: it deletes the ingredient rows it had, and if the replacements did not follow, the recipe would have emptied itself here and then on every other device with nothing said about it. Deleting a profile now remembers its food diary too, so a deleted person's meals stop coming back from your other phone. A phone whose only content is a progress photo is no longer treated as an unused one during a restore, which was deleting the pictures. And an automatic backup that cannot finish writing removes the half-written file rather than leaving it under a backup's name, where the weekly pruning would have counted it and thrown out a real backup to make room.
+
 - One Health Connect exchange at a time, and each one decides whose readings it is moving, what it is allowed to do and how far back it is looking before it moves anything. The hourly job and the button could run at once, and each worked those out again as it went, so a change made while Health Connect was slow to answer could file the rest of a run against the wrong person.
 
 - Health Connect now belongs to one person from the moment you connect it. It used to follow whoever was on screen whenever nobody had been named, which is harmless on a phone with one profile and wrong the day you add a second: switching person quietly pointed Health Connect at them, so their scale readings landed on the first person's history. Handing it to somebody else, or taking it away, now waits for any sync in progress to finish first.

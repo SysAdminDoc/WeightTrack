@@ -226,7 +226,6 @@ class DeletionAtomicityTest {
     @Test
     fun `a diary entry survives a tombstone that cannot be written`() = runTest {
         profiles.ensureDefault()
-        val foods = FoodRepository(database.foodDao(), shelf(), working)
         val log = FoodLogRepository(database.foodLogDao(), profiles, working)
         val day = LocalDate.of(2026, 8, 29)
         log.quickAdd(kcal = 148.0, meal = com.weighttrack.core.nutrition.Meal.BREAKFAST, name = "Oats", date = day)
@@ -253,6 +252,70 @@ class DeletionAtomicityTest {
         // and the other phone puts the whole person back.
         assertThat(database.syncDao().profiles()).hasSize(2)
         assertThat(database.syncDao().weights()).hasSize(1)
+    }
+
+    @Test
+    fun `editing a recipe keeps its ingredients when the tombstone cannot be written`() = runTest {
+        profiles.ensureDefault()
+        val foods = FoodRepository(database.foodDao(), shelf(), working)
+        val oats = checkNotNull(
+            foods.byId(
+                foods.add(
+                    Food(
+                        name = "Oats",
+                        per100g = Nutrients(kcal = 370.0),
+                        origin = FoodOrigin.CUSTOM,
+                    ),
+                ),
+            ),
+        )
+        val id = foods.saveRecipe("Porridge", servings = 2, items = listOf(RecipeItem(oats, 80.0)))
+        // The tombstone goes in first here, so the failure has to come after it: a database that
+        // will not take the replacement rows, which is the shape process death has.
+        val breaking = FoodRepository(
+            object : com.weighttrack.data.db.FoodDao by database.foodDao() {
+                override suspend fun replaceRecipeItems(
+                    recipeId: Long,
+                    items: List<com.weighttrack.data.db.RecipeItemEntity>,
+                ) = error("the ingredients would not go in")
+            },
+            shelf(),
+            working,
+        )
+
+        // Editing a recipe deletes the ingredient rows it had, so it is a delete path too, and
+        // the one that was missed. An ingredient carries no time of its own, so a tombstone with
+        // no replacement row always outranks it: the recipe empties itself here and then on
+        // every other device, with nothing said about it anywhere.
+        refused { breaking.saveRecipe("Porridge", servings = 2, items = emptyList(), id = id) }
+
+        assertThat(database.syncDao().recipeItems()).hasSize(1)
+        assertThat(database.deletionDao().all()).isEmpty()
+    }
+
+    @Test
+    fun `deleting a profile remembers the days it ate as well`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.add("Them")
+        profiles.setActive(id)
+        val foods = FoodRepository(database.foodDao(), shelf(), working)
+        val log = FoodLogRepository(database.foodLogDao(), profiles, working)
+        log.quickAdd(
+            kcal = 900.0,
+            meal = com.weighttrack.core.nutrition.Meal.DINNER,
+            name = "Takeaway",
+            date = LocalDate.of(2026, 8, 29),
+        )
+        val gone = database.syncDao().foodLog().single().syncId
+
+        profiles.delete(id)
+
+        // Without this the other device goes on offering a deleted person's meals, and every
+        // sync afterwards reports them as records with nowhere to belong.
+        val tombstones = database.deletionDao().all()
+            .filter { it.kind == SyncKind.FOOD_LOG.name }
+            .map { it.syncId }
+        assertThat(tombstones).containsExactly(gone)
     }
 
     @Test

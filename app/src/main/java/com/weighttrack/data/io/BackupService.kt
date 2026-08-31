@@ -378,7 +378,11 @@ class BackupService @Inject constructor(
             local.water.isEmpty() && local.fasts.isEmpty() && local.goals.isEmpty() &&
             local.macroTargets.isEmpty() && local.foodLog.isEmpty()
         if (!empty) return null
-        return profileRepository.observeAll().first().singleOrNull()?.id
+        val id = profileRepository.observeAll().first().singleOrNull()?.id ?: return null
+        // Photographs are not in the sync document, so the emptiness above cannot see them. A
+        // phone whose only content is a progress photo is one somebody has used.
+        if (profileRepository.photoFileNamesOf(id).isNotEmpty()) return null
+        return id
     }
 
     /**
@@ -393,7 +397,11 @@ class BackupService @Inject constructor(
             .minByOrNull { it.position }
             ?: return
         profileRepository.setActive(restored.id)
-        profileRepository.delete(untouchedId)
+        // The variant that hands back the files, even though this only runs for a profile with
+        // none: the one that discards them leaves orphaned images on the phone for ever, and the
+        // day somebody widens the check above is the day that starts happening quietly.
+        val photos = profileRepository.deleteReturningPhotos(untouchedId).orEmpty()
+        check(photos.isEmpty()) { "a profile with photographs was taken for an untouched one" }
     }
 
     /**

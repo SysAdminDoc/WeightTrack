@@ -56,6 +56,10 @@ class DeletionRecorder @Inject constructor(
         SyncKind.FAST to syncDao.fastNames(profileId),
         SyncKind.GOAL to syncDao.goalNames(profileId),
         SyncKind.MACRO_TARGET to syncDao.macroTargetNames(profileId),
+        // The diary belongs to a person too, and deleting a profile takes it with it. Left out,
+        // the other device goes on offering days of eating for somebody who no longer exists,
+        // and every sync afterwards reports them as records with nowhere to belong.
+        SyncKind.FOOD_LOG to syncDao.foodLogNames(profileId),
     )
 
     /**

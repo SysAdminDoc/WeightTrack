@@ -163,6 +163,15 @@ class ProfileRepository @Inject constructor(
         }
     }
 
+    /**
+     * The progress-photo files this profile owns.
+     *
+     * Photos are not in the sync document and never have been, so nothing that reasons about a
+     * profile from its sync snapshot can see them. Anybody asking whether a profile is untouched
+     * has to ask this as well or it will decide an album of photographs is nothing at all.
+     */
+    suspend fun photoFileNamesOf(id: Long): List<String> = dao.photoFileNames(id)
+
     /** The profile Health Connect exchanges weights with, or null when nobody has claimed it. */
     val healthConnectProfileId: Flow<Long?> =
         dao.observeAll().map { rows -> rows.firstOrNull { it.healthConnectEnabled }?.id }

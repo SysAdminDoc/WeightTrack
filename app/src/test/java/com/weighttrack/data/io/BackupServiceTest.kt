@@ -317,6 +317,39 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `a phone whose only content is a photograph is not treated as untouched`() = runTest {
+        seedTwoProfiles()
+        val file = write(serviceFor(source).exportedJson().getOrThrow())
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+        val mine = profiles.observeAll().first().single().id
+        // Photographs are not in the sync document, so nothing that reasons about a profile from
+        // its snapshot can see them. A progress photo is content, and deleting the profile that
+        // holds it takes the pictures with it and leaves the files behind on the phone.
+        target.progressPhotoDao().insert(
+            com.weighttrack.data.db.ProgressPhotoEntity(
+                profileId = mine,
+                timestampUtcMillis = now,
+                localDate = "2026-08-29",
+                fileName = "front.jpg",
+                weightGrams = null,
+                note = null,
+            ),
+        )
+
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        assertThat(target.syncDao().profiles()).hasSize(3)
+        assertThat(profiles.activeId()).isEqualTo(mine)
+    }
+
+    @Test
     fun `a version one restore is one commit like the rest`() {
         // No version-1 file can be made to break a constraint: nothing its four sections reach
         // has a unique index, so there is no failure to inject and the behaviour cannot be

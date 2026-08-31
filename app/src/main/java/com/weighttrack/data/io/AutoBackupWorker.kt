@@ -75,7 +75,7 @@ class AutoBackupWorker @AssistedInject constructor(
                 ?: folder.createFile(MIME, partialName)
                 ?: error("could not create")
             writeAndCheck(partial, text)
-            // The target is written from the copy that has already been proved good, and the
+            // The target is written from a copy that has already been proved good, and the
             // proved copy is not given up until the target itself reads back. Deleting the old
             // file and renaming over it looked tidier and was not: a provider that does not
             // support renaming, which several cloud ones do not, would have left the day with no
@@ -83,7 +83,14 @@ class AutoBackupWorker @AssistedInject constructor(
             val target = folder.findFile(name)?.takeIf { it.isFile }
                 ?: folder.createFile(MIME, name)
                 ?: error("could not create")
-            writeAndCheck(target, text)
+            runCatching { writeAndCheck(target, text) }.onFailure { failure ->
+                // Writing over the target does truncate it, and a truncated file that still
+                // carries a backup's name is worse than no file: the pruning counts it as one of
+                // the four kept and throws out a real backup to make room for it. So it goes,
+                // and the proved copy beside it is what this day has.
+                runCatching { target.delete() }
+                throw failure
+            }
             partial.delete()
         }
         if (written.isFailure) {
@@ -95,7 +102,8 @@ class AutoBackupWorker @AssistedInject constructor(
             // The half-written copy is deliberately left where it is. Either it is rubbish, in
             // which case the next run overwrites it, or it is the only complete copy of this
             // week and throwing it away would be the one thing this feature must never do. It is
-            // named so that nothing mistakes it for a backup in the meantime.
+            // named so that nothing mistakes it for a backup in the meantime, and a person can
+            // still pick it by hand from the restore chooser.
             return@withContext Result.retry()
         }
 

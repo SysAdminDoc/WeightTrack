@@ -159,24 +159,33 @@ class FoodRepository @Inject constructor(
             servings = servings.coerceAtLeast(1),
             updatedAtUtcMillis = System.currentTimeMillis(),
         )
-        val recipeId = if (id > 0) {
-            // The name it travels under is kept, and so are the ingredients being replaced: the
-            // other device still holds those rows and would put them back.
-            val existing = dao.recipeById(id)
-            deletions.record(
-                SyncKind.RECIPE_ITEM,
-                existing?.items.orEmpty().map { it.syncId },
+        // Editing a recipe deletes the ingredient rows it had, so it is a delete path like any
+        // other and lands as one commit. Written as two, the tombstones could go in and the
+        // replacement rows not follow: an ingredient carries no time of its own, so a tombstone
+        // always outranks it, and the next sync would delete the recipe's contents on every
+        // device with nothing said about it.
+        return deletions.asOne {
+            val recipeId = if (id > 0) {
+                // The name it travels under is kept, and so are the ingredients being replaced:
+                // the other device still holds those rows and would put them back.
+                val existing = dao.recipeById(id)
+                deletions.record(
+                    SyncKind.RECIPE_ITEM,
+                    existing?.items.orEmpty().map { it.syncId },
+                )
+                dao.updateRecipe(entity.copy(syncId = existing?.recipe?.syncId ?: entity.syncId))
+                id
+            } else {
+                dao.insertRecipe(entity)
+            }
+            dao.replaceRecipeItems(
+                recipeId,
+                items.map {
+                    RecipeItemEntity(recipeId = recipeId, foodId = it.food.id, grams = it.grams)
+                },
             )
-            dao.updateRecipe(entity.copy(syncId = existing?.recipe?.syncId ?: entity.syncId))
-            id
-        } else {
-            dao.insertRecipe(entity)
+            recipeId
         }
-        dao.replaceRecipeItems(
-            recipeId,
-            items.map { RecipeItemEntity(recipeId = recipeId, foodId = it.food.id, grams = it.grams) },
-        )
-        return recipeId
     }
 
     suspend fun deleteRecipe(recipe: Recipe) {

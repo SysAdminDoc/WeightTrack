@@ -181,8 +181,22 @@ class AutoBackupTest {
         assertThat(provesIt).isGreaterThan(writesElsewhere)
         assertThat(replaces).isGreaterThan(provesIt)
         assertThat(givesUpTheProvedCopy).isGreaterThan(replaces)
-        // Nothing may rename or delete the target on the way. A provider that refuses a rename,
-        // and several cloud ones do, would otherwise leave the day with no backup at all.
+        // Nothing may rename the target on the way. A provider that refuses a rename, and
+        // several cloud ones do, would otherwise leave the day with no backup at all.
         assertThat(worker).doesNotContain("renameTo")
+        // And a target it could not finish writing has to go. Writing over a file truncates it,
+        // and a truncated file that still carries a backup's name is worse than none: the
+        // pruning counts it as one of the four kept and drops a real backup to make room.
+        assertThat(worker).contains("target.delete()")
+    }
+
+    @Test
+    fun `a truncated target would push a real backup out of the four that are kept`() {
+        // Why the worker deletes a target it could not finish. The name alone is enough to count
+        // as a backup: nothing opens these files to decide what to keep, and nothing could.
+        val folder = names("2026-07-18", "2026-07-25", "2026-08-01", "2026-08-08") +
+            AutoBackup.nameFor(LocalDate.of(2026, 8, 29))
+
+        assertThat(AutoBackup.toRemove(folder)).containsExactly("weighttrack-2026-07-18.json")
     }
 }
