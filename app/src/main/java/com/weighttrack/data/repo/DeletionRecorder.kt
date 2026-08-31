@@ -1,5 +1,7 @@
 package com.weighttrack.data.repo
 
+
+import androidx.room.withTransaction
 import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.DeletionDao
 import com.weighttrack.data.db.DeletionEntity
@@ -19,9 +21,26 @@ import javax.inject.Singleton
  */
 @Singleton
 class DeletionRecorder @Inject constructor(
+    private val database: com.weighttrack.data.db.WeightTrackDatabase,
     private val dao: DeletionDao,
     private val syncDao: SyncDao,
 ) {
+
+    /**
+     * Removes a row and remembers it, or does neither.
+     *
+     * Every delete path used to take the row out first and write the tombstone afterwards. The
+     * gap between those two writes is small and it is real: the process can be killed in it, and
+     * what is left is a row gone from this phone with nothing to say so. The other device still
+     * holds it, sees no reason to drop it, and hands it back on the next sync. A deletion that
+     * comes home is the single most irritating way for sync to be wrong, and it is the failure
+     * this cannot be allowed to produce.
+     *
+     * Anything that reads a flow, the active profile in particular, has to be done before the
+     * block: a Room flow collected inside a write transaction waits for a connection the
+     * transaction is holding.
+     */
+    suspend fun <T> asOne(block: suspend () -> T): T = database.withTransaction { block() }
 
     /**
      * What a profile owns, by the names its rows travel under.

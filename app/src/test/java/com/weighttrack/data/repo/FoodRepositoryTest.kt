@@ -37,7 +37,7 @@ class FoodRepositoryTest {
         foods = FoodRepository(
             database.foodDao(),
             OfflineFoodStore(ApplicationProvider.getApplicationContext()),
-            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            DeletionRecorder(database, database.deletionDao(), database.syncDao()),
         )
     }
 

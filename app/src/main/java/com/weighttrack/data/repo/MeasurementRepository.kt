@@ -68,8 +68,10 @@ class MeasurementRepository @Inject constructor(
 
     suspend fun delete(measurement: BodyMeasurement) {
         val existing = dao.byId(measurement.id) ?: return
-        dao.delete(existing)
-        deletions.record(SyncKind.MEASUREMENT, existing.syncId, profileId = existing.profileId)
+        deletions.asOne {
+            dao.delete(existing)
+            deletions.record(SyncKind.MEASUREMENT, existing.syncId, profileId = existing.profileId)
+        }
     }
 
     /** Read back off the stored row so an edit cannot move a measurement to another profile. */
@@ -78,12 +80,18 @@ class MeasurementRepository @Inject constructor(
 
     suspend fun deleteByIds(ids: List<Long>) {
         if (ids.isEmpty()) return
-        // Read before deleting. Afterwards there is nothing left to say what these rows were
-        // called on the person's other devices, and the deletion would not travel.
-        val rows = ids.mapNotNull { dao.byId(it) }
-        dao.deleteByIds(ids)
-        rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
-            deletions.record(SyncKind.MEASUREMENT, owned.map { it.syncId }, profileId = profileId)
+        deletions.asOne {
+            // Read before deleting. Afterwards there is nothing left to say what these rows were
+            // called on the person's other devices, and the deletion would not travel.
+            val rows = ids.mapNotNull { dao.byId(it) }
+            dao.deleteByIds(ids)
+            rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
+                deletions.record(
+                    SyncKind.MEASUREMENT,
+                    owned.map { it.syncId },
+                    profileId = profileId,
+                )
+            }
         }
     }
 

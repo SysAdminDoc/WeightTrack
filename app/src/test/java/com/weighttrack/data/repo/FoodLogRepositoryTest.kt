@@ -45,18 +45,18 @@ class FoodLogRepositoryTest {
         profiles = ProfileRepository(
             database.profileDao(),
             settings,
-            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            DeletionRecorder(database, database.deletionDao(), database.syncDao()),
             database.weightEntryDao(),
         )
         foods = FoodRepository(
             database.foodDao(),
             OfflineFoodStore(ApplicationProvider.getApplicationContext()),
-            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            DeletionRecorder(database, database.deletionDao(), database.syncDao()),
         )
         log = FoodLogRepository(
             database.foodLogDao(),
             profiles,
-            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            DeletionRecorder(database, database.deletionDao(), database.syncDao()),
         )
     }
 

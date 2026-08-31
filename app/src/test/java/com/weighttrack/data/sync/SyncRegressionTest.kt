@@ -121,7 +121,7 @@ class SyncRegressionTest {
         phone.syncDao().insertWeights(
             listOf(weight(me, "shared", 79_000), weight(them, "shared", 62_000)),
         )
-        val recorder = DeletionRecorder(phone.deletionDao(), phone.syncDao())
+        val recorder = DeletionRecorder(phone, phone.deletionDao(), phone.syncDao())
         // Deleted for one of them only.
         phone.syncDao().deleteWeights(me, listOf("shared"))
         recorder.record(com.weighttrack.core.sync.SyncKind.WEIGHT, "shared", now)
@@ -142,7 +142,7 @@ class SyncRegressionTest {
         assertThat(tablet.syncDao().profiles()).hasSize(2)
 
         // Deleted the way the repository does it: the profile and everything it owned.
-        val recorder = DeletionRecorder(phone.deletionDao(), phone.syncDao())
+        val recorder = DeletionRecorder(phone, phone.deletionDao(), phone.syncDao())
         val owned = recorder.namesOwnedBy(them)
         phone.syncDao().deleteWeights(them, listOf("w2"))
         phone.syncDao().deleteProfiles(listOf("p2"))
@@ -163,7 +163,7 @@ class SyncRegressionTest {
         val them = profile(phone, "p2", "Them", position = 1)
         sync(phoneStore, "aaa", tabletStore, "bbb")
 
-        val recorder = DeletionRecorder(phone.deletionDao(), phone.syncDao())
+        val recorder = DeletionRecorder(phone, phone.deletionDao(), phone.syncDao())
         phone.syncDao().deleteProfiles(listOf("p2"))
         recorder.record(com.weighttrack.core.sync.SyncKind.PROFILE, "p2", now + 1_000)
         sync(phoneStore, "aaa", tabletStore, "bbb")
@@ -295,11 +295,11 @@ class SyncRegressionTest {
         profile(tablet, "p1", "Me", position = 0)
         profile(tablet, "p2", "Them", position = 1)
 
-        val onPhone = DeletionRecorder(phone.deletionDao(), phone.syncDao())
+        val onPhone = DeletionRecorder(phone, phone.deletionDao(), phone.syncDao())
         phone.syncDao().deleteProfiles(listOf("p1"))
         onPhone.record(com.weighttrack.core.sync.SyncKind.PROFILE, "p1", now + 1_000)
 
-        val onTablet = DeletionRecorder(tablet.deletionDao(), tablet.syncDao())
+        val onTablet = DeletionRecorder(tablet, tablet.deletionDao(), tablet.syncDao())
         tablet.syncDao().deleteProfiles(listOf("p2"))
         onTablet.record(com.weighttrack.core.sync.SyncKind.PROFILE, "p2", now + 1_000)
 
@@ -334,7 +334,7 @@ class SyncRegressionTest {
         )
         sync(phoneStore, "aaa", tabletStore, "bbb")
 
-        val recorder = DeletionRecorder(phone.deletionDao(), phone.syncDao())
+        val recorder = DeletionRecorder(phone, phone.deletionDao(), phone.syncDao())
         phone.syncDao().deleteFasts(listOf("f1"))
         recorder.record(com.weighttrack.core.sync.SyncKind.FAST, "f1", now + 1_000)
         sync(phoneStore, "aaa", tabletStore, "bbb")

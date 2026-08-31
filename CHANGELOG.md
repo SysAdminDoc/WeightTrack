@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Deleting anything now removes the row and records the deletion in one go. They were two separate writes, and the app being killed between them left a row gone from this phone with nothing to say so, which is how a deleted reading, fast, drink, meal or whole profile could come back from your other device.
+
 - A phone that will not encrypt your WebDAV password or your USDA key now saves neither, tells you so, and records it in the activity log. It used to fall back to writing them down in plain text, which made the promise on the settings screen untrue on exactly the devices where it mattered, with nothing said about it.
 
 - Restoring a backup now shows you what is in the file first, and says that it merges rather than replaces. Picking the wrong file out of a folder of weekly copies used to restore it on the spot with nothing asked.

@@ -69,10 +69,10 @@ class BackupServiceTest {
         val profiles = ProfileRepository(
             database.profileDao(),
             settings,
-            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            DeletionRecorder(database, database.deletionDao(), database.syncDao()),
             database.weightEntryDao(),
         )
-        val deletions = DeletionRecorder(database.deletionDao(), database.syncDao())
+        val deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao())
         return BackupService(
             syncStore = SyncStore(database, database.syncDao(), database.deletionDao()),
             context = ApplicationProvider.getApplicationContext(),

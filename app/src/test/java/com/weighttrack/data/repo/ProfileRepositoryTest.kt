@@ -33,10 +33,10 @@ class ProfileRepositoryTest {
         profiles = ProfileRepository(
             database.profileDao(),
             settings,
-            DeletionRecorder(database.deletionDao(), database.syncDao()),
+            DeletionRecorder(database, database.deletionDao(), database.syncDao()),
             database.weightEntryDao(),
         )
-        weights = WeightRepository(database.weightEntryDao(), profiles, DeletionRecorder(database.deletionDao(), database.syncDao()))
+        weights = WeightRepository(database.weightEntryDao(), profiles, DeletionRecorder(database, database.deletionDao(), database.syncDao()))
     }
 
     @After

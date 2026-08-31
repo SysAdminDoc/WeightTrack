@@ -121,22 +121,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: The profile ID, permission snapshot, time window, and token are immutable for one run; switching profiles during a blocked fake-client call does not redirect any row; simultaneous worker and manual requests execute one at a time and produce one cursor advance.
   Complexity: M
 
-- [ ] P0: Commit local deletion and its sync tombstone in one transaction
-  Why: Several repositories delete the live row before recording its tombstone, so process death between those writes can let a peer resurrect deleted data.
-  Evidence: `app/src/main/java/com/weighttrack/data/repo/DeletionRecorder.kt`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt:121-130`; `app/src/main/java/com/weighttrack/data/repo/FastRepository.kt`
-  Touches: `data/db/WeightTrackDatabase.kt`, `data/repo/DeletionRecorder.kt`, every repository delete path, `DeletionCoverageTest`
-  Acceptance: An injected failure between row removal and tombstone insertion rolls back both; every `SyncKind` delete path passes the same transaction contract; profile cascade deletion commits all child tombstones before photo files are removed after commit.
-  Complexity: L
-
-- [ ] P0: Register Android developer identity and release keys ahead of the 2027 global rollout
-  Why: Enforcement on 2026-09-30 applies only to participating stores in Brazil, Indonesia, Singapore, and Thailand; direct sideloading and other stores do not change during that phase, but global rollout is announced for 2027 without a specific date as of 2026-08-31 and Play-distributed apps across form factors must be registered.
-  Evidence: https://developer.android.com/developer-verification; https://developer.android.com/developer-verification/guides/faq; `app/build.gradle.kts`
-  Touches: Android Developer Console, Play Console, `com.weighttrack`, release signing certificate inventory for both variants, release checklist
-  Acceptance: `com.weighttrack` and every active release signing certificate used by the Play and FOSS variants show registered and verified; signed release APKs install under that registered identity; the local release checklist records how to repeat the certificate check without storing credentials.
-  Complexity: S
-
-### P1
-
 - [ ] P1: Distinguish Health Connect token expiry from transient failure
   Why: Any `getChanges` exception currently clears the token and triggers a five-year reread, turning outages and rate limits into expensive full imports.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:401-456`; https://developer.android.com/health-and-fitness/health-connect/sync-data; https://developer.android.com/health-and-fitness/health-connect/rate-limiting

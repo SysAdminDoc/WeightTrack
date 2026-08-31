@@ -207,7 +207,7 @@ class FoodSyncTest {
         sync(phoneStore, "aaa", tabletStore, "bbb")
         assertThat(tablet.syncDao().foodLog()).hasSize(1)
 
-        val recorder = DeletionRecorder(phone.deletionDao(), phone.syncDao())
+        val recorder = DeletionRecorder(phone, phone.deletionDao(), phone.syncDao())
         phone.syncDao().deleteFoodLog(listOf("l1"))
         recorder.record(SyncKind.FOOD_LOG, "l1", now + 1_000, profileId = me)
 

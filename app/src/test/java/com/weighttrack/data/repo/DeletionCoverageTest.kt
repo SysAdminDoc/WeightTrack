@@ -37,7 +37,7 @@ class DeletionCoverageTest {
             ApplicationProvider.getApplicationContext(),
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
-        deletions = DeletionRecorder(database.deletionDao(), database.syncDao())
+        deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao())
         profiles = ProfileRepository(database.profileDao(), testSettingsRepository(), deletions, database.weightEntryDao())
         weights = WeightRepository(database.weightEntryDao(), profiles, deletions)
         fasts = FastRepository(database.fastDao(), profiles, deletions)

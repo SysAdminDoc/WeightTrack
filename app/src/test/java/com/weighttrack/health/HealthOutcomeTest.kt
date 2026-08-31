@@ -55,7 +55,7 @@ class HealthOutcomeTest {
             WeightTrackDatabase::class.java,
         ).allowMainThreadQueries().build()
         val settings = testSettingsRepository()
-        val deletions = DeletionRecorder(database.deletionDao(), database.syncDao())
+        val deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao())
         profiles = ProfileRepository(database.profileDao(), settings, deletions, database.weightEntryDao())
         weights = WeightRepository(database.weightEntryDao(), profiles, deletions)
     }

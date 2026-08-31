@@ -51,14 +51,16 @@ class FastRepository @Inject constructor(
     /** Abandons the running fast without recording it, for a start tapped by mistake. */
     suspend fun cancelActive(): Boolean {
         val open = dao.active(profiles.activeId()) ?: return false
-        dao.delete(open)
         // A cancelled fast is a deleted row like any other. Without this it comes back running
         // on the next sync, which is the app arguing with somebody about whether they are eating.
-        deletions.record(
-            com.weighttrack.core.sync.SyncKind.FAST,
-            open.syncId,
-            profileId = open.profileId,
-        )
+        deletions.asOne {
+            dao.delete(open)
+            deletions.record(
+                com.weighttrack.core.sync.SyncKind.FAST,
+                open.syncId,
+                profileId = open.profileId,
+            )
+        }
         return true
     }
 
@@ -86,12 +88,14 @@ class FastRepository @Inject constructor(
 
     suspend fun delete(fast: Fast) {
         val existing = dao.byId(fast.id) ?: return
-        dao.delete(existing)
-        deletions.record(
-            com.weighttrack.core.sync.SyncKind.FAST,
-            existing.syncId,
-            profileId = existing.profileId,
-        )
+        deletions.asOne {
+            dao.delete(existing)
+            deletions.record(
+                com.weighttrack.core.sync.SyncKind.FAST,
+                existing.syncId,
+                profileId = existing.profileId,
+            )
+        }
     }
 
     suspend fun deleteAll() = dao.deleteAll()

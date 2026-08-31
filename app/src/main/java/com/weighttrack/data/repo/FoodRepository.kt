@@ -124,10 +124,12 @@ class FoodRepository @Inject constructor(
 
     suspend fun delete(food: Food) {
         val existing = dao.byId(food.id) ?: return
-        dao.delete(existing)
         // A food belongs to the household rather than to one person, so its deletion names no
         // profile.
-        deletions.record(SyncKind.FOOD, existing.syncId)
+        deletions.asOne {
+            dao.delete(existing)
+            deletions.record(SyncKind.FOOD, existing.syncId)
+        }
     }
 
     /**
@@ -181,9 +183,11 @@ class FoodRepository @Inject constructor(
         val existing = dao.recipeById(recipe.id) ?: return
         // The ingredients go with it, and each of them has to be remembered separately: the
         // other device holds them as rows of their own and would hand them back.
-        deletions.record(SyncKind.RECIPE_ITEM, existing.items.map { it.syncId })
-        dao.deleteRecipe(existing.recipe)
-        deletions.record(SyncKind.RECIPE, existing.recipe.syncId)
+        deletions.asOne {
+            deletions.record(SyncKind.RECIPE_ITEM, existing.items.map { it.syncId })
+            dao.deleteRecipe(existing.recipe)
+            deletions.record(SyncKind.RECIPE, existing.recipe.syncId)
+        }
     }
 
     private suspend fun RecipeWithItems.toDomain(): Recipe = Recipe(

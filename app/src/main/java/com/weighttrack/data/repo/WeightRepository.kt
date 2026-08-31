@@ -183,14 +183,21 @@ class WeightRepository @Inject constructor(
     }
 
     suspend fun delete(entry: WeightEntry) {
-        dao.byId(entry.id)?.let {
-            deletions.record(
-                com.weighttrack.core.sync.SyncKind.WEIGHT,
-                it.clientRecordId,
-                profileId = it.profileId,
-            )
+        val existing = dao.byId(entry.id)
+        // Resolved before the transaction, because the fallback reads the active profile off a
+        // flow, and a flow read inside a write transaction waits on the connection that
+        // transaction is holding.
+        val profileId = existing?.profileId ?: profiles.activeId()
+        deletions.asOne {
+            existing?.let {
+                deletions.record(
+                    com.weighttrack.core.sync.SyncKind.WEIGHT,
+                    it.clientRecordId,
+                    profileId = it.profileId,
+                )
+            }
+            dao.delete(entry.toEntity(profileId = profileId))
         }
-        dao.delete(entry.toEntity(profileId = profileOf(entry.id)))
     }
 
     private suspend fun profileOf(id: Long): Long =
@@ -198,17 +205,19 @@ class WeightRepository @Inject constructor(
 
     suspend fun deleteByIds(ids: List<Long>) {
         if (ids.isEmpty()) return
-        // Read before deleting. Afterwards nothing says what these rows were called on the
-        // person's other devices, so the deletion would not travel: the other phone still holds
-        // them, has no reason to drop them, and hands them straight back.
-        val rows = ids.mapNotNull { dao.byId(it) }
-        dao.deleteByIds(ids)
-        rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
-            deletions.record(
-                com.weighttrack.core.sync.SyncKind.WEIGHT,
-                owned.map { it.clientRecordId },
-                profileId = profileId,
-            )
+        deletions.asOne {
+            // Read before deleting. Afterwards nothing says what these rows were called on the
+            // person's other devices, so the deletion would not travel: the other phone still
+            // holds them, has no reason to drop them, and hands them straight back.
+            val rows = ids.mapNotNull { dao.byId(it) }
+            dao.deleteByIds(ids)
+            rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
+                deletions.record(
+                    com.weighttrack.core.sync.SyncKind.WEIGHT,
+                    owned.map { it.clientRecordId },
+                    profileId = profileId,
+                )
+            }
         }
     }
 

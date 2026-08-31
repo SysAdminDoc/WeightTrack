@@ -86,16 +86,20 @@ class WaterRepository @Inject constructor(
 
     suspend fun delete(entry: WaterEntry) {
         val existing = dao.byId(entry.id) ?: return
-        dao.delete(existing)
-        deletions.record(SyncKind.WATER, existing.syncId, profileId = existing.profileId)
+        deletions.asOne {
+            dao.delete(existing)
+            deletions.record(SyncKind.WATER, existing.syncId, profileId = existing.profileId)
+        }
     }
 
     /** Undoes a whole day, for the "I tapped that four times by accident" case. */
     suspend fun clearDate(date: LocalDate) {
         val profileId = profiles.activeId()
-        val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
-        dao.deleteForDate(profileId, date.toString())
-        deletions.record(SyncKind.WATER, gone, profileId = profileId)
+        deletions.asOne {
+            val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
+            dao.deleteForDate(profileId, date.toString())
+            deletions.record(SyncKind.WATER, gone, profileId = profileId)
+        }
     }
 
     suspend fun deleteAll() = dao.deleteAll()

@@ -119,18 +119,27 @@ class ProfileRepository @Inject constructor(
         if (dao.count() <= 1) return null
         val existing = dao.byId(id) ?: return null
         val photos = dao.photoFileNames(id)
-        // Everything this person owned, named before it is gone. One tombstone for the profile is
-        // not enough: the other device holds their weigh-ins too, and with nothing to say those
-        // are deleted it hands the whole history back and the deleted person reappears.
-        val owned = deletions.namesOwnedBy(id)
-        dao.deleteWithData(existing)
-        deletions.record(SyncKind.PROFILE, existing.syncId)
-        // Named from the row read a moment ago. By now the profile is gone, so there is nothing
-        // left to look its name up from.
-        owned.forEach { (kind, names) -> deletions.recordOwned(kind, names, existing.syncId) }
-        if (settingsRepository.settings.first().activeProfileId == id) {
+        // Read before the transaction: whether this person is the one on screen comes out of a
+        // preferences flow, and the answer cannot change while the rows are going.
+        val wasActive = settingsRepository.settings.first().activeProfileId == id
+        deletions.asOne {
+            // Everything this person owned, named before it is gone. One tombstone for the
+            // profile is not enough: the other device holds their weigh-ins too, and with nothing
+            // to say those are deleted it hands the whole history back and the deleted person
+            // reappears.
+            val owned = deletions.namesOwnedBy(id)
+            dao.deleteWithData(existing)
+            deletions.record(SyncKind.PROFILE, existing.syncId)
+            // Named from the row read a moment ago. By now the profile is gone, so there is
+            // nothing left to look its name up from.
+            owned.forEach { (kind, names) -> deletions.recordOwned(kind, names, existing.syncId) }
+        }
+        if (wasActive) {
             dao.all().firstOrNull()?.let { settingsRepository.setActiveProfile(it.id) }
         }
+        // The names are handed back only now, after the rows are committed. Unlinking the files
+        // first and then failing would leave a person's history pointing at pictures that are
+        // gone, and there is no undoing a deleted file.
         return photos
     }
 

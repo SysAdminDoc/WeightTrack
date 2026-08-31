@@ -58,24 +58,28 @@ class MacroTargetRepository @Inject constructor(
     /** Removes a day's own target, which puts it back on the everyday one. */
     suspend fun clear(day: DayOfWeek?) {
         val profileId = profiles.activeId()
-        dao.forDay(profileId, day?.name)?.let {
-            deletions.record(
-                com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
-                it.syncId,
-                profileId = profileId,
-            )
+        deletions.asOne {
+            dao.forDay(profileId, day?.name)?.let {
+                deletions.record(
+                    com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
+                    it.syncId,
+                    profileId = profileId,
+                )
+            }
+            dao.clear(profileId, day?.name)
         }
-        dao.clear(profileId, day?.name)
     }
 
     suspend fun clearAll() {
         val profileId = profiles.activeId()
-        deletions.record(
-            com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
-            dao.all(profileId).map { it.syncId },
-            profileId = profileId,
-        )
-        dao.clearAll(profileId)
+        deletions.asOne {
+            deletions.record(
+                com.weighttrack.core.sync.SyncKind.MACRO_TARGET,
+                dao.all(profileId).map { it.syncId },
+                profileId = profileId,
+            )
+            dao.clearAll(profileId)
+        }
     }
 
     private fun List<MacroTargetEntity>.toTargets(): MacroTargets {

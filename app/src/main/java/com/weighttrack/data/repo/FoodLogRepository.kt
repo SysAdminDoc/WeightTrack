@@ -176,25 +176,30 @@ class FoodLogRepository @Inject constructor(
     }
 
     suspend fun delete(entry: FoodLogEntry) {
-        dao.byId(entry.id)?.let {
+        val existing = dao.byId(entry.id) ?: return
+        deletions.asOne {
+            dao.delete(existing)
             deletions.record(
                 com.weighttrack.core.sync.SyncKind.FOOD_LOG,
-                it.syncId,
-                profileId = it.profileId,
+                existing.syncId,
+                profileId = existing.profileId,
             )
         }
-        dao.byId(entry.id)?.let { dao.delete(it) }
     }
 
     suspend fun clearDay(date: LocalDate) {
+        // The active profile is read out here on purpose: it comes off a flow, and a flow read
+        // inside a write transaction waits for a connection the transaction is holding.
         val profileId = profiles.activeId()
-        val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
-        dao.deleteForDate(profileId, date.toString())
-        deletions.record(
-            com.weighttrack.core.sync.SyncKind.FOOD_LOG,
-            gone,
-            profileId = profileId,
-        )
+        deletions.asOne {
+            val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
+            dao.deleteForDate(profileId, date.toString())
+            deletions.record(
+                com.weighttrack.core.sync.SyncKind.FOOD_LOG,
+                gone,
+                profileId = profileId,
+            )
+        }
     }
 
     suspend fun deleteAll() = dao.deleteAll()
