@@ -83,7 +83,14 @@ class ProgressCalculator @Inject constructor(
         val trendGrams = series.latestTrendGrams
 
         val projection = goal?.let {
-            GoalProjector.project(it.direction, it.startGrams, it.targetGrams, series, rate)
+            GoalProjector.project(
+                it.direction,
+                it.startGrams,
+                it.targetGrams,
+                series,
+                rate,
+                bandGrams = it.bandGrams,
+            )
         }
         val milestones = goal
             ?.takeIf { it.direction != GoalDirection.MAINTAIN }

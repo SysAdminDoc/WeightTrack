@@ -310,6 +310,32 @@ class WeightTrackDatabaseMigrationTest {
     }
 
     @Test
+    fun `a goal made before the band column keeps the kilogram the tolerance used to be`() = runTest {
+        createDatabaseAtVersion(16)
+        withOldDatabase { db ->
+            db.execSQL(
+                """
+                INSERT INTO profiles (id, name, position, createdAtUtcMillis)
+                VALUES (1, 'Someone', 0, 0)
+                """.trimIndent(),
+            )
+            db.execSQL(
+                """
+                INSERT INTO goals
+                (profileId, direction, startGrams, targetGrams, startDate, targetDate,
+                 milestoneStepGrams, active, createdAtUtcMillis, syncId, updatedAtUtcMillis)
+                VALUES (1, 'MAINTAIN', 80000, 80000, '2026-08-01', NULL, 2000, 1, 0, 'goal-1', 0)
+                """.trimIndent(),
+            )
+        }
+
+        val goal = openCurrent().goalDao().active(DEFAULT_PROFILE)
+
+        // The band the maintain tolerance was a constant at, so nobody's goal changes meaning
+        // on the morning they update the app.
+        assertThat(goal!!.bandGrams).isEqualTo(1_000)
+    }
+    @Test
     fun `the newest step has a case of its own, whatever the newest step is`() = runTest {
         // The version before this one, read off the database rather than typed in, so this keeps
         // covering the newest migration without anybody remembering to come back here. A phone

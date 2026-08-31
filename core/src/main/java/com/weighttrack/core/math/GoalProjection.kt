@@ -1,5 +1,6 @@
 package com.weighttrack.core.math
 
+import com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.core.model.WeightUnit
 import java.time.LocalDate
@@ -40,6 +41,28 @@ enum class NoEtaReason {
     TOO_FAR_OFF,
 }
 
+/**
+ * Where the trend stands against the target.
+ *
+ * "Reached" on its own describes two different situations that want different words. Somebody
+ * holding at their target is doing what they set out to do. Somebody two kilograms below a loss
+ * target is past it, and calling that an improving trend is the thing Happy Scale is criticised
+ * for: it reads as encouragement to keep going, which is not what the person set the goal to do.
+ */
+enum class GoalStanding {
+    /** Still on the way. */
+    WORKING,
+
+    /** At the target, inside the band. */
+    HOLDING,
+
+    /** Past the target by more than the band: below it for a loss goal, above it for a gain. */
+    PAST_TARGET,
+
+    /** Out of the band on the near side. Only a maintain goal can be here. */
+    DRIFTED,
+}
+
 data class GoalProjection(
     val direction: GoalDirection,
     val startGrams: Int,
@@ -52,6 +75,10 @@ data class GoalProjection(
     val etaDaysPessimistic: Double?,
     val movingTowardGoal: Boolean,
     val reached: Boolean,
+    /** Which of the four situations this is, once [reached] alone stops being enough. */
+    val standing: GoalStanding = GoalStanding.WORKING,
+    /** The band the standing was judged against, in grams. */
+    val bandGrams: Int = DEFAULT_GOAL_BAND_GRAMS,
     /** Null when there is a date. Otherwise which of the reasons applied. */
     val noEtaReason: NoEtaReason? = null,
     /** The span the rate was fitted across, in days. */
@@ -75,8 +102,6 @@ object GoalProjector {
     /** Beyond this the estimate is noise, so no date is offered at all. */
     const val MAX_PROJECTION_DAYS = 3.0 * 365
 
-    /** Half-width of the band that counts as holding steady for a maintain goal. */
-    const val MAINTAIN_TOLERANCE_GRAMS = 1000
 
     fun project(
         direction: GoalDirection,
@@ -84,12 +109,15 @@ object GoalProjector {
         targetGrams: Int,
         series: TrendSeries,
         rate: TrendRate,
+        /** How far either way still counts as being there. Never below a gram. */
+        bandGrams: Int = DEFAULT_GOAL_BAND_GRAMS,
     ): GoalProjection? {
+        val band = max(1, bandGrams)
         val currentTrend = series.latestTrendGrams ?: return null
 
         if (direction == GoalDirection.MAINTAIN) {
             val drift = currentTrend - targetGrams
-            val withinBand = abs(drift) <= MAINTAIN_TOLERANCE_GRAMS
+            val withinBand = abs(drift) <= band
             return GoalProjection(
                 direction = direction,
                 startGrams = startGrams,
@@ -102,6 +130,8 @@ object GoalProjector {
                 etaDaysPessimistic = null,
                 movingTowardGoal = withinBand,
                 reached = withinBand,
+                standing = if (withinBand) GoalStanding.HOLDING else GoalStanding.DRIFTED,
+                bandGrams = band,
                 // Holding steady is being there; having drifted out of the band is not, and
                 // saying so in a sheet whose other line reads "still to go 3.0 kg" is a
                 // contradiction on one screen.
@@ -164,6 +194,18 @@ object GoalProjector {
             if (sign(slower) == wantedSign) daysFor(remaining, slower) else null
         }
 
+        // Past the target is not the same as at it. Somebody two kilograms below a loss target
+        // has gone further than they set out to, and a screen that reads as encouragement to
+        // keep going is telling them the wrong thing.
+        val standing = when {
+            !reached -> GoalStanding.WORKING
+            direction == GoalDirection.LOSE && currentTrend < targetGrams - band ->
+                GoalStanding.PAST_TARGET
+            direction == GoalDirection.GAIN && currentTrend > targetGrams + band ->
+                GoalStanding.PAST_TARGET
+            else -> GoalStanding.HOLDING
+        }
+
         return GoalProjection(
             direction = direction,
             startGrams = startGrams,
@@ -176,6 +218,8 @@ object GoalProjector {
             etaDaysPessimistic = etaPessimistic,
             movingTowardGoal = movingToward,
             reached = reached,
+            standing = standing,
+            bandGrams = band,
             noEtaReason = why,
             fittedDays = rate.sampleDays,
             fittedWeighIns = rate.weighIns,

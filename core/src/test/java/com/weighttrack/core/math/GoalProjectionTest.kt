@@ -188,6 +188,99 @@ class GoalProjectionTest {
             GoalProjector.requiredGramsPerDay(95_000.0, 90_000, day0, day0.minusDays(1)),
         ).isNull()
     }
+
+    @Test
+    fun `a chosen band decides what counts as holding a maintain goal`() {
+        // A kilogram was the constant, and 1.8 kg of drift failed it. Somebody who says two
+        // kilograms is fine is on track at that drift, and off it past their own band.
+        val tight = GoalProjector.project(
+            GoalDirection.MAINTAIN, 75_000, 75_000, seriesAt(76_800.0), rate(5.0),
+            bandGrams = 1_000,
+        )!!
+        assertThat(tight.reached).isFalse()
+        assertThat(tight.standing).isEqualTo(GoalStanding.DRIFTED)
+
+        val chosen = GoalProjector.project(
+            GoalDirection.MAINTAIN, 75_000, 75_000, seriesAt(76_800.0), rate(5.0),
+            bandGrams = 2_000,
+        )!!
+        assertThat(chosen.reached).isTrue()
+        assertThat(chosen.standing).isEqualTo(GoalStanding.HOLDING)
+        assertThat(chosen.bandGrams).isEqualTo(2_000)
+
+        val beyond = GoalProjector.project(
+            GoalDirection.MAINTAIN, 75_000, 75_000, seriesAt(77_500.0), rate(5.0),
+            bandGrams = 2_000,
+        )!!
+        assertThat(beyond.reached).isFalse()
+    }
+
+    @Test
+    fun `a reached loss goal that keeps falling is past the target, not still improving`() {
+        val holding = GoalProjector.project(
+            GoalDirection.LOSE, 90_000, 80_000, seriesAt(79_600.0), rate(-30.0),
+            bandGrams = 1_000,
+        )!!
+        assertThat(holding.reached).isTrue()
+        assertThat(holding.standing).isEqualTo(GoalStanding.HOLDING)
+
+        val past = GoalProjector.project(
+            GoalDirection.LOSE, 90_000, 80_000, seriesAt(77_500.0), rate(-30.0),
+            bandGrams = 1_000,
+        )!!
+        assertThat(past.reached).isTrue()
+        assertThat(past.standing).isEqualTo(GoalStanding.PAST_TARGET)
+
+        // The chosen band, not the constant it used to be: 1.5 kg under is past a one-kilogram
+        // band and still holding inside a two-kilogram one.
+        val wider = GoalProjector.project(
+            GoalDirection.LOSE, 90_000, 80_000, seriesAt(78_500.0), rate(-30.0),
+            bandGrams = 2_000,
+        )!!
+        assertThat(wider.standing).isEqualTo(GoalStanding.HOLDING)
+        val narrower = GoalProjector.project(
+            GoalDirection.LOSE, 90_000, 80_000, seriesAt(78_500.0), rate(-30.0),
+            bandGrams = 1_000,
+        )!!
+        assertThat(narrower.standing).isEqualTo(GoalStanding.PAST_TARGET)
+    }
+
+    @Test
+    fun `a gain goal reads the band the other way round`() {
+        val past = GoalProjector.project(
+            GoalDirection.GAIN, 60_000, 68_000, seriesAt(70_000.0), rate(30.0),
+            bandGrams = 1_000,
+        )!!
+        assertThat(past.standing).isEqualTo(GoalStanding.PAST_TARGET)
+
+        val holding = GoalProjector.project(
+            GoalDirection.GAIN, 60_000, 68_000, seriesAt(68_500.0), rate(30.0),
+            bandGrams = 1_000,
+        )!!
+        assertThat(holding.standing).isEqualTo(GoalStanding.HOLDING)
+    }
+
+    @Test
+    fun `a goal still on the way is working, whatever its band`() {
+        val working = GoalProjector.project(
+            GoalDirection.LOSE, 90_000, 80_000, seriesAt(85_000.0), rate(-100.0),
+            bandGrams = 5_000,
+        )!!
+        assertThat(working.standing).isEqualTo(GoalStanding.WORKING)
+        // A band wider than the remaining distance must not make an unreached goal read as
+        // reached: reaching is about crossing the target, not about being near it.
+        assertThat(working.reached).isFalse()
+    }
+
+    @Test
+    fun `a band of zero is treated as a gram rather than as no band at all`() {
+        val exact = GoalProjector.project(
+            GoalDirection.MAINTAIN, 75_000, 75_000, seriesAt(75_000.0), rate(0.0),
+            bandGrams = 0,
+        )!!
+        assertThat(exact.reached).isTrue()
+        assertThat(exact.bandGrams).isEqualTo(1)
+    }
 }
 
 class MilestonesTest {

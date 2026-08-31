@@ -86,6 +86,14 @@ data class BodyMeasurement(
     val note: String? = null,
 )
 
+/**
+ * How far either way still counts as being at the target.
+ *
+ * A kilogram, until somebody says otherwise. Nobody holds a weight to the gram, and a band that
+ * is only a rounding error turns a maintain goal into a thing that is failed most mornings.
+ */
+const val DEFAULT_GOAL_BAND_GRAMS = 1000
+
 data class Goal(
     val id: Long = 0,
     val direction: GoalDirection,
@@ -94,6 +102,13 @@ data class Goal(
     val startDate: LocalDate,
     val targetDate: LocalDate? = null,
     val milestoneStepGrams: Int,
+    /**
+     * How far either way still counts as being there.
+     *
+     * A maintain goal is held inside this band. A loss or gain goal uses it to tell holding at
+     * the target apart from having gone past it, which are different things to be told.
+     */
+    val bandGrams: Int = DEFAULT_GOAL_BAND_GRAMS,
     val active: Boolean = true,
 )
 

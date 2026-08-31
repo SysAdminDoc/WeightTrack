@@ -422,6 +422,20 @@ private fun GoalCard(
                 Column(Modifier.weight(1f)) {
                     Text(
                         text = when {
+                            // Holding at the target and having gone past it are different
+                            // things to be told, and one word for both reads as encouragement
+                            // to keep going when the person meant to stop.
+                            projection.standing == com.weighttrack.core.math.GoalStanding.PAST_TARGET ->
+                                stringResource(
+                                    if (projection.direction == GoalDirection.LOSE) {
+                                        R.string.home_below_target
+                                    } else {
+                                        R.string.home_above_target
+                                    },
+                                )
+                            projection.standing == com.weighttrack.core.math.GoalStanding.HOLDING &&
+                                projection.direction == GoalDirection.MAINTAIN ->
+                                stringResource(R.string.home_holding)
                             projection.reached -> stringResource(R.string.home_reached)
                             etaDate == null -> stringResource(R.string.home_not_on_this_trend)
                             else -> stringResource(R.string.home_projected, DateFormatters.projection(etaDate, today))

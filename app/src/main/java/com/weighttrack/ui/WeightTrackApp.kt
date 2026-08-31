@@ -547,11 +547,13 @@ fun WeightTrackApp(
                 GoalScreen(
                     state = state,
                     milestoneOptions = viewModel.milestoneOptions(),
+                    bandOptions = viewModel.bandOptions(),
                     onDigit = viewModel::onDigit,
                     onBackspace = viewModel::onBackspace,
                     onClear = viewModel::onClear,
                     onTargetDateChange = viewModel::onTargetDateChange,
                     onMilestoneStepChange = viewModel::onMilestoneStepChange,
+                    onBandChange = viewModel::onBandChange,
                     onSave = viewModel::save,
                     onClearGoal = viewModel::clearGoal,
                     onClose = { navController.popBackStack() },

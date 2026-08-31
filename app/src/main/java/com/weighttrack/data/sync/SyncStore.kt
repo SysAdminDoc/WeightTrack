@@ -459,6 +459,7 @@ class SyncStore @Inject constructor(
                     startDate = remote.startDate,
                     targetDate = remote.targetDate,
                     milestoneStepGrams = remote.milestoneStepGrams,
+                    bandGrams = remote.bandGrams,
                     active = remote.active,
                     createdAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
@@ -472,6 +473,7 @@ class SyncStore @Inject constructor(
                     startDate = remote.startDate,
                     targetDate = remote.targetDate,
                     milestoneStepGrams = remote.milestoneStepGrams,
+                    bandGrams = remote.bandGrams,
                     active = remote.active,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
@@ -946,6 +948,7 @@ class SyncStore @Inject constructor(
         startDate = startDate,
         targetDate = targetDate,
         milestoneStepGrams = milestoneStepGrams,
+        bandGrams = bandGrams,
         active = active,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )

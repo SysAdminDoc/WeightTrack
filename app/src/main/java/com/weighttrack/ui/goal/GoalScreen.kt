@@ -63,11 +63,13 @@ import kotlin.math.roundToInt
 fun GoalScreen(
     state: GoalUiState,
     milestoneOptions: List<Pair<String, Int>>,
+    bandOptions: List<Pair<String, Int>>,
     onDigit: (Char) -> Unit,
     onBackspace: () -> Unit,
     onClear: () -> Unit,
     onTargetDateChange: (LocalDate?) -> Unit,
     onMilestoneStepChange: (Int) -> Unit,
+    onBandChange: (Int) -> Unit,
     onSave: () -> Unit,
     onClearGoal: () -> Unit,
     onClose: () -> Unit,
@@ -153,6 +155,27 @@ fun GoalScreen(
                 onClear = onClear,
                 keyHeight = 48.dp,
             )
+
+            LedgerSection(contentPadding = PaddingValues(vertical = 12.dp)) {
+                SectionHeading(stringResource(R.string.goal_band))
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.goal_band_explained),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    bandOptions.forEach { (label, grams) ->
+                        SegmentButton(
+                            label = label,
+                            selected = state.bandGrams == grams,
+                            onClick = { onBandChange(grams) },
+                            modifier = Modifier.weight(1f),
+                        )
+                    }
+                }
+            }
 
             LedgerSection(contentPadding = PaddingValues(vertical = 12.dp)) {
                 SectionHeading(stringResource(R.string.goal_milestones))

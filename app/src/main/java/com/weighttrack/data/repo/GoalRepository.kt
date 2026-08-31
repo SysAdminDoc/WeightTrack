@@ -44,6 +44,7 @@ class GoalRepository @Inject constructor(
         startGrams: Int,
         targetGrams: Int,
         milestoneStepGrams: Int,
+        bandGrams: Int = com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
         startDate: LocalDate = LocalDate.now(),
         targetDate: LocalDate? = null,
         direction: GoalDirection = directionFor(startGrams, targetGrams),
@@ -60,6 +61,7 @@ class GoalRepository @Inject constructor(
                 startDate = startDate,
                 targetDate = targetDate,
                 milestoneStepGrams = milestoneStepGrams,
+                bandGrams = bandGrams,
                 active = true,
             ).toEntity(profileId = profileId),
         )

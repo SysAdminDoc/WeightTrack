@@ -30,6 +30,8 @@ data class GoalUiState(
     val targetDigits: String = "",
     val targetDate: LocalDate? = null,
     val milestoneStepGrams: Int = 0,
+    /** How far either way still counts as being there. */
+    val bandGrams: Int = com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
     val hasExistingGoal: Boolean = false,
     val saved: Boolean = false,
 ) {
@@ -78,6 +80,8 @@ class GoalViewModel @Inject constructor(
                         KeypadValue.fromGrams(active.targetGrams, settings.weightUnit)
                     }.orEmpty(),
                     targetDate = goal?.targetDate,
+                    bandGrams = goal?.bandGrams
+                        ?: com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
                     milestoneStepGrams = goal?.milestoneStepGrams
                         ?: settings.milestoneStepGrams.takeIf { step -> step > 0 }
                         ?: Milestones.defaultStepGrams(settings.weightUnit),
@@ -101,6 +105,18 @@ class GoalViewModel @Inject constructor(
 
     fun onMilestoneStepChange(grams: Int) = _state.update { it.copy(milestoneStepGrams = grams) }
 
+    fun onBandChange(grams: Int) = _state.update { it.copy(bandGrams = grams) }
+
+    /** The spans people actually hold a weight within, in whichever unit they read. */
+    fun bandOptions(): List<Pair<String, Int>> = when (state.value.unit) {
+        WeightUnit.KG -> listOf("0.5 kg" to 500, "1 kg" to 1_000, "2 kg" to 2_000)
+        WeightUnit.LB, WeightUnit.ST_LB -> listOf(
+            "1 lb" to UnitConverter.lbToGrams(1.0),
+            "2 lb" to UnitConverter.lbToGrams(2.0),
+            "5 lb" to UnitConverter.lbToGrams(5.0),
+        )
+    }
+
     /** The two spacings people actually pick, offered in whichever unit they read. */
     fun milestoneOptions(): List<Pair<String, Int>> = when (state.value.unit) {
         WeightUnit.KG -> listOf("1 kg" to 1_000, "2 kg" to 2_000, "5 kg" to 5_000)
@@ -120,6 +136,7 @@ class GoalViewModel @Inject constructor(
                 startGrams = startGrams,
                 targetGrams = current.targetGrams,
                 milestoneStepGrams = current.milestoneStepGrams,
+                bandGrams = current.bandGrams,
                 startDate = existing?.startDate ?: LocalDate.now(),
                 targetDate = current.targetDate,
             )

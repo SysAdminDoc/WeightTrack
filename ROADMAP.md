@@ -133,13 +133,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: a fixture where steps double in week two moves the estimate faster than the same intake and weight without steps; changing a goal from lose to maintain shifts the recommended intake immediately by the documented factor; a test proves steps never enter the kcal arithmetic directly.
   Complexity: M
 
-- [ ] P2: User-set maintain band, and a maintenance mode when a loss goal is reached
-  Why: the maintain tolerance is a fixed 1 kg constant; trale #454 asks for a chosen band; Happy Scale is criticised for telling someone below their loss goal that the trend "improved".
-  Evidence: core/src/main/java/com/weighttrack/core/math/GoalProjection.kt:47 ; https://github.com/QuantumPhysique/trale/issues/454 ; https://unimeal.reviews/weight-loss-apps/happy-scale/
-  Touches: core/math/GoalProjection.kt, data/db GoalEntity (band grams, Room v12 auto-migration), ui/goal/GoalScreen.kt, domain/ProgressCalculator.kt (reached loss goal reports "holding" not "still losing")
-  Acceptance: a 2 kg band keeps a maintain goal "on track" at +1.8 kg drift; a reached loss goal whose trend keeps falling is described as below target rather than improving; migration test covers the new column.
-  Complexity: S
-
 - [ ] P2: Refresh cached online foods and dedupe Open Food Facts units
   Why: a product kept from a lookup never updates when the label changes (Food You #241, 6 reactions), and OSS trackers' loudest food complaint is contradictory or meaningless units from crowdsourced entries.
   Evidence: https://github.com/maksimowiczm/FoodYou/issues/241 ; https://lemmy.world/post/22208606 ; data/food and core/nutrition (no fetchedAt or refresh path, repo scan 2026-08-29)

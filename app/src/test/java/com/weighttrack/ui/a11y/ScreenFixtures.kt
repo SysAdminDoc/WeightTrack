@@ -250,11 +250,13 @@ internal object ScreenFixtures {
             GoalScreen(
                 state = GoalUiState(),
                 milestoneOptions = listOf("1 kg" to 1_000, "2.5 kg" to 2_500),
+                bandOptions = listOf("0.5 kg" to 500, "1 kg" to 1_000, "2 kg" to 2_000),
                 onDigit = {},
                 onBackspace = {},
                 onClear = {},
                 onTargetDateChange = {},
                 onMilestoneStepChange = {},
+                onBandChange = {},
                 onSave = {},
                 onClearGoal = {},
                 onClose = {},

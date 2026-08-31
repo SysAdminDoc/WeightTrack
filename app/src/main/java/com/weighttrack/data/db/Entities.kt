@@ -190,6 +190,13 @@ data class GoalEntity(
     val active: Boolean,
     val createdAtUtcMillis: Long,
     /**
+     * How far either way still counts as being at the target.
+     *
+     * A kilogram for every goal that existed before this column, which is the constant the
+     * maintain tolerance used to be.
+     */
+    @ColumnInfo(defaultValue = "1000") val bandGrams: Int = com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
+    /**
      * What this row is called on every device.
      *
      * A row's own identifier is a counting number handed out by whichever database created it,

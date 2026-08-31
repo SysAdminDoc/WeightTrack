@@ -255,6 +255,13 @@ data class SyncGoal(
     val startDate: String,
     val targetDate: String? = null,
     val milestoneStepGrams: Int,
+    /**
+     * How far either way still counts as being at the target.
+     *
+     * Defaulted for a document written before the band existed, so an older device's goal
+     * arrives with the kilogram the tolerance used to be rather than with nothing.
+     */
+    val bandGrams: Int = com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
     val active: Boolean,
     val updatedAtUtcMillis: Long,
 )

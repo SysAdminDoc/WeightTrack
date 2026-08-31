@@ -148,6 +148,7 @@ fun GoalEntity.toDomain(): Goal = Goal(
     startDate = parseDateOrDerive(startDate, createdAtUtcMillis, 0),
     targetDate = targetDate?.let { raw -> runCatching { LocalDate.parse(raw) }.getOrNull() },
     milestoneStepGrams = milestoneStepGrams,
+    bandGrams = bandGrams,
     active = active,
 )
 
@@ -168,6 +169,7 @@ fun Goal.toEntity(
     startDate = startDate.toString(),
     targetDate = targetDate?.toString(),
     milestoneStepGrams = milestoneStepGrams,
+    bandGrams = bandGrams,
     active = active,
     createdAtUtcMillis = createdAtUtcMillis,
 )
