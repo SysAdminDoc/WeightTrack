@@ -1,5 +1,6 @@
 package com.weighttrack.data.sync
 
+import androidx.room.withTransaction
 import com.weighttrack.core.sync.SyncDeletion
 import com.weighttrack.core.sync.SyncDocument
 import com.weighttrack.core.sync.SyncFast
@@ -67,6 +68,7 @@ data class SyncChanges(
  */
 @Singleton
 class SyncStore @Inject constructor(
+    private val database: com.weighttrack.data.db.WeightTrackDatabase,
     private val dao: SyncDao,
     private val deletions: DeletionDao,
 ) {
@@ -123,6 +125,15 @@ class SyncStore @Inject constructor(
      * anything on this phone pointing at that row still points at it.
      */
     suspend fun apply(merged: SyncDocument, now: Long): SyncChanges = withContext(Dispatchers.IO) {
+        // One commit for the whole document. It spans eleven tables and the ingredients and the
+        // diary both point at rows written earlier in the same run, so a failure halfway through
+        // used to leave a database that no single writer could have produced: a recipe with no
+        // food under it, a day's eating attached to a profile that never arrived. A restore is
+        // the moment somebody has the most to lose, so it either lands or it does not.
+        database.withTransaction { applyEverything(merged, now) }
+    }
+
+    private suspend fun applyEverything(merged: SyncDocument, now: Long): SyncChanges {
         var changes = applyProfiles(merged)
         val profileIdOf = dao.profiles().associate { it.syncId to it.id }
 
@@ -150,7 +161,7 @@ class SyncStore @Inject constructor(
             },
         )
         deletions.forgetBefore(now - SyncMerge.TOMBSTONE_LIFETIME_MILLIS)
-        changes
+        return changes
     }
 
     // ---- profiles ----

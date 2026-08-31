@@ -133,4 +133,48 @@ class AutoBackupTest {
             java.io.File("src/main/java/com/weighttrack/data/io/AutoBackupWorker.kt").readText(),
         ).contains("folder.findFile(name)")
     }
+
+    @Test
+    fun `a half-written backup has a name of its own`() {
+        val day = LocalDate.of(2026, 8, 29)
+
+        val partial = AutoBackup.partialNameFor(day)
+
+        assertThat(partial).isEqualTo(AutoBackup.nameFor(day) + AutoBackup.PARTIAL_SUFFIX)
+        // It must not read as a backup, or the pruning would count it as one of the four kept
+        // and the restore picker would offer a truncated file.
+        assertThat(AutoBackup.dateOf(partial)).isNull()
+        assertThat(AutoBackup.backupsIn(listOf(partial))).isEmpty()
+    }
+
+    @Test
+    fun `leftovers from a run that died are found and nothing else is`() {
+        val names = listOf(
+            "weighttrack-2026-08-29.json",
+            "weighttrack-2026-08-29.json.part",
+            "weighttrack-2026-08-22.json.part",
+            "holiday.jpg",
+            "budget.json",
+        )
+
+        assertThat(AutoBackup.partialsIn(names))
+            .containsExactly("weighttrack-2026-08-29.json.part", "weighttrack-2026-08-22.json.part")
+    }
+
+    @Test
+    fun `the good copy is only given up once the new one has been read back`() {
+        // A DocumentFile tree cannot be stood up in a unit test, so the order of the worker's
+        // three steps is checked in its source. The order is the whole point: write elsewhere,
+        // read it back, and only then touch the file somebody's history is in.
+        val worker = java.io.File("src/main/java/com/weighttrack/data/io/AutoBackupWorker.kt")
+            .readText()
+
+        val writesElsewhere = worker.indexOf("partialNameFor")
+        val readsBack = worker.indexOf("did not read back")
+        val replaces = worker.indexOf("renameTo(name)")
+
+        assertThat(writesElsewhere).isGreaterThan(-1)
+        assertThat(readsBack).isGreaterThan(writesElsewhere)
+        assertThat(replaces).isGreaterThan(readsBack)
+    }
 }

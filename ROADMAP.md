@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0: Make restore and automatic backup bounded and atomic
-  Why: Restore mutates repositories sequentially after an unbounded read, while a same-day automatic backup can replace the only good copy directly.
-  Evidence: `app/src/main/java/com/weighttrack/data/io/BackupService.kt:155-243`; `app/src/main/java/com/weighttrack/data/io/AutoBackup.kt`; https://developer.android.com/privacy-and-security/risks/content-resolver
-  Touches: `data/io/BackupService.kt`, `data/io/AutoBackup.kt`, `data/db/WeightTrackDatabase.kt`, restore preview UI and tests
-  Acceptance: Wrong-format, unsupported-version, oversized, truncated, and injected mid-restore failures change zero database rows; the preview reports record counts and merge or replace behavior before its explicit restore action; automatic backup writes a temporary file and replaces the target only after validation, leaving the previous valid copy recoverable on failure.
-  Complexity: M
-
 - [ ] P0: Align Health Connect background access, rationale, and release declarations
   Why: Hourly sync is scheduled without `READ_HEALTH_DATA_IN_BACKGROUND`, record permissions do not match implemented reads and writes, and the repository has no dedicated rationale page or public policy URL.
   Evidence: `app/src/main/AndroidManifest.xml`; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:667-720`; https://developer.android.com/health-and-fitness/health-connect/publish

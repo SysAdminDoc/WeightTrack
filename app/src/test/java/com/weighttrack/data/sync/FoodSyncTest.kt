@@ -45,8 +45,8 @@ class FoodSyncTest {
     fun setUp() {
         phone = database()
         tablet = database()
-        phoneStore = SyncStore(phone.syncDao(), phone.deletionDao())
-        tabletStore = SyncStore(tablet.syncDao(), tablet.deletionDao())
+        phoneStore = SyncStore(phone, phone.syncDao(), phone.deletionDao())
+        tabletStore = SyncStore(tablet, tablet.syncDao(), tablet.deletionDao())
     }
 
     @After

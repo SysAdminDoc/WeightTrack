@@ -29,6 +29,26 @@ data class ImportSummary(
 )
 
 /**
+ * What is in a backup, read without writing anything.
+ *
+ * Restoring is the one action in the app that can quietly change every screen at once, and until
+ * now it happened the instant a file was picked. Picking the wrong file from a folder of four
+ * weekly copies is an easy thing to do.
+ */
+data class BackupPreview(
+    val formatVersion: Int,
+    val exportedAtUtcMillis: Long,
+    val profiles: Int,
+    val weights: Int,
+    val measurements: Int,
+    val water: Int,
+    val fasts: Int,
+    val goals: Int,
+    val foods: Int,
+    val foodLog: Int,
+)
+
+/**
  * Reads and writes the user's data through the storage picker.
  *
  * Everything runs off the main thread and through the content resolver, so the app never needs
@@ -169,10 +189,51 @@ class BackupService @Inject constructor(
             }
         }
 
+    /**
+     * What a file holds, without touching a single row.
+     *
+     * The same reading and the same refusals as the restore itself, so a file this accepts is one
+     * the restore will accept and a file it rejects never reaches the database.
+     */
+    suspend fun previewJson(uri: Uri): Result<BackupPreview> = withContext(Dispatchers.IO) {
+        runCatching {
+            val backup = readBackup(uri)
+            val document = backup.document
+            BackupPreview(
+                formatVersion = backup.formatVersion,
+                exportedAtUtcMillis = backup.exportedAtUtcMillis,
+                profiles = document?.profiles?.size ?: 0,
+                weights = document?.weights?.size ?: backup.entries.size,
+                measurements = document?.measurements?.size ?: backup.measurements.size,
+                water = document?.water?.size ?: 0,
+                fasts = document?.fasts?.size ?: 0,
+                goals = document?.goals?.size ?: backup.goals.size,
+                foods = document?.foods?.size ?: backup.foods?.size ?: 0,
+                foodLog = document?.foodLog?.size ?: backup.foodLog?.size ?: 0,
+            )
+        }
+    }
+
+    /**
+     * Reads and checks a file before anything is allowed to act on it.
+     *
+     * Bounded on the way in: a content URI is somebody else's file and reading all of it into
+     * memory first is how a truncated or absurd one takes the app down before it can be judged.
+     */
+    private fun readBackup(uri: Uri): BackupFile {
+        val backup = BackupCodec.decode(readText(uri))
+            ?: error(say(R.string.import_not_a_backup))
+        // A file from a newer version may describe records this build has no idea how to place.
+        // Reading what it recognises and dropping the rest would look like a successful restore.
+        if (backup.formatVersion > BackupCodec.FORMAT_VERSION) {
+            error(say(R.string.import_newer_version))
+        }
+        return backup
+    }
+
     suspend fun importJson(uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
         runCatching {
-            val backup = BackupCodec.decode(readText(uri))
-                ?: error(say(R.string.import_not_a_backup))
+            val backup = readBackup(uri)
             backup.document?.let { return@runCatching restoreDocument(it) }
             val entries = backup.entries.mapNotNull(BackupCodec::backupToEntry)
             val measurements = backup.measurements.mapNotNull(BackupCodec::backupToMeasurement)
@@ -296,8 +357,31 @@ class BackupService @Inject constructor(
         } ?: error(say(R.string.file_could_not_write))
     }
 
+    /**
+     * Reads a chosen file, with a ceiling.
+     *
+     * A content URI names somebody else's file and the provider behind it is free to say
+     * anything about its size, so the only honest limit is the one applied while reading. Ten
+     * megabytes is far past a plausible backup: an export of ten years of daily weigh-ins with a
+     * full food diary comes to a small fraction of it.
+     */
     private fun readText(uri: Uri): String =
         context.contentResolver.openInputStream(uri)?.use { stream ->
-            stream.readBytes().toString(Charsets.UTF_8)
+            val buffer = ByteArray(BUFFER_BYTES)
+            val out = java.io.ByteArrayOutputStream()
+            while (true) {
+                val read = stream.read(buffer)
+                if (read < 0) break
+                if (out.size() + read > MAX_BACKUP_BYTES) error(say(R.string.import_too_large))
+                out.write(buffer, 0, read)
+            }
+            out.toString(Charsets.UTF_8.name())
         } ?: error(say(R.string.file_could_not_read))
+
+    companion object {
+        /** The ceiling on a file the restore will read. */
+        const val MAX_BACKUP_BYTES = 10L * 1024 * 1024
+
+        private const val BUFFER_BYTES = 64 * 1024
+    }
 }

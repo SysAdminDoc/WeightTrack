@@ -37,6 +37,12 @@ import java.time.DayOfWeek
 import java.time.ZonedDateTime
 import javax.inject.Inject
 
+/** A backup that has been read and described, waiting for somebody to say yes to it. */
+data class PendingRestore(
+    val uri: Uri,
+    val preview: com.weighttrack.data.io.BackupPreview,
+)
+
 data class HealthConnectState(
     val availability: HealthConnectAvailability = HealthConnectAvailability.NOT_SUPPORTED,
     val granted: Boolean = false,
@@ -95,6 +101,9 @@ class SettingsViewModel @Inject constructor(
 
     private val _busy = MutableStateFlow(false)
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
+
+    private val _pendingRestore = MutableStateFlow<PendingRestore?>(null)
+    val pendingRestore: StateFlow<PendingRestore?> = _pendingRestore.asStateFlow()
 
     private val _crashReportCount = MutableStateFlow(0)
     val crashReportCount: StateFlow<Int> = _crashReportCount.asStateFlow()
@@ -315,13 +324,41 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    fun importJson(uri: Uri) = runBackup {
-        backupService.importJson(uri).fold(
-            onSuccess = { summary ->
-                strings[R.string.settings_restored_readings_and_measurements, summary.imported, summary.measurements]
-            },
-            onFailure = { strings[R.string.settings_restore_failed, it.message.orEmpty()] },
-        )
+    /**
+     * Reads a chosen file and says what is in it, without writing anything.
+     *
+     * Restoring used to happen the instant a file was picked, which is the one action in the app
+     * that can change every screen at once and the easiest to do to the wrong file: a folder of
+     * weekly backups is four files with almost the same name.
+     */
+    fun previewRestore(uri: Uri) {
+        viewModelScope.launch {
+            _busy.value = true
+            backupService.previewJson(uri).fold(
+                onSuccess = { _pendingRestore.value = PendingRestore(uri, it) },
+                onFailure = {
+                    _message.value = strings[R.string.settings_restore_failed, it.message.orEmpty()]
+                },
+            )
+            _busy.value = false
+        }
+    }
+
+    fun cancelRestore() {
+        _pendingRestore.value = null
+    }
+
+    fun confirmRestore() {
+        val pending = _pendingRestore.value ?: return
+        _pendingRestore.value = null
+        runBackup {
+            backupService.importJson(pending.uri).fold(
+                onSuccess = { summary ->
+                    strings[R.string.settings_restored_readings_and_measurements, summary.imported, summary.measurements]
+                },
+                onFailure = { strings[R.string.settings_restore_failed, it.message.orEmpty()] },
+            )
+        }
     }
 
     fun syncHealthConnect() {

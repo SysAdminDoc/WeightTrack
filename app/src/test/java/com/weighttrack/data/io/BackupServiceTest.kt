@@ -74,7 +74,7 @@ class BackupServiceTest {
         )
         val deletions = DeletionRecorder(database.deletionDao(), database.syncDao())
         return BackupService(
-            syncStore = SyncStore(database.syncDao(), database.deletionDao()),
+            syncStore = SyncStore(database, database.syncDao(), database.deletionDao()),
             context = ApplicationProvider.getApplicationContext(),
             weightRepository = WeightRepository(database.weightEntryDao(), profiles, deletions),
             measurementRepository = MeasurementRepository(
@@ -171,6 +171,100 @@ class BackupServiceTest {
         val restored = importing.settings.first()
         assertThat(restored.weightUnit).isEqualTo(WeightUnit.LB)
         assertThat(restored.trendWindowDays).isEqualTo(21)
+    }
+
+    @Test
+    fun `the preview reports what is in the file and writes nothing`() = runTest {
+        seedTwoProfiles()
+        val file = write(serviceFor(source).exportedJson().getOrThrow())
+
+        val preview = serviceFor(target).previewJson(Uri.fromFile(file)).getOrThrow()
+
+        assertThat(preview.formatVersion).isEqualTo(2)
+        assertThat(preview.profiles).isEqualTo(2)
+        assertThat(preview.weights).isEqualTo(2)
+        assertThat(target.syncDao().profiles()).isEmpty()
+        assertThat(target.syncDao().weights()).isEmpty()
+    }
+
+    @Test
+    fun `a file that is not a backup is refused and changes nothing`() = runTest {
+        val file = write("date,weight_kg\n2026-08-29,80.0\n")
+
+        val result = serviceFor(target).importJson(Uri.fromFile(file))
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(target.syncDao().weights()).isEmpty()
+        assertThat(target.syncDao().profiles()).isEmpty()
+    }
+
+    @Test
+    fun `a truncated backup is refused and changes nothing`() = runTest {
+        seedTwoProfiles()
+        val whole = serviceFor(source).exportedJson().getOrThrow()
+        val file = write(whole.take(whole.length / 2))
+
+        val result = serviceFor(target).importJson(Uri.fromFile(file))
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(target.syncDao().weights()).isEmpty()
+        assertThat(target.syncDao().profiles()).isEmpty()
+    }
+
+    @Test
+    fun `a backup from a newer version is refused rather than half understood`() = runTest {
+        seedTwoProfiles()
+        val whole = serviceFor(source).exportedJson().getOrThrow()
+        val fromTheFuture = whole.replace(
+            "\"formatVersion\": ${BackupCodec.FORMAT_VERSION}",
+            "\"formatVersion\": ${BackupCodec.FORMAT_VERSION + 1}",
+        )
+        val file = write(fromTheFuture)
+
+        val result = serviceFor(target).importJson(Uri.fromFile(file))
+
+        // Reading the parts it recognises and dropping the rest would look like it had worked.
+        assertThat(result.isFailure).isTrue()
+        assertThat(target.syncDao().profiles()).isEmpty()
+        assertThat(serviceFor(target).previewJson(Uri.fromFile(file)).isFailure).isTrue()
+    }
+
+    @Test
+    fun `a file too large to be a backup is refused before it is all read`() = runTest {
+        seedTwoProfiles()
+        // A perfectly valid backup, padded past the ceiling. Anything malformed would be refused
+        // by the parser anyway and would prove nothing about the ceiling.
+        val whole = serviceFor(source).exportedJson().getOrThrow()
+        val padded = whole.replace(
+            BackupCodec.PHOTOS_NOT_INCLUDED,
+            "x".repeat((BackupService.MAX_BACKUP_BYTES + 1024).toInt()),
+        )
+        val file = write(padded)
+
+        val result = serviceFor(target).importJson(Uri.fromFile(file))
+
+        assertThat(file.length()).isGreaterThan(BackupService.MAX_BACKUP_BYTES)
+        assertThat(result.isFailure).isTrue()
+        assertThat(target.syncDao().profiles()).isEmpty()
+        assertThat(target.syncDao().weights()).isEmpty()
+    }
+
+    @Test
+    fun `a restore that fails partway through changes no row at all`() = runTest {
+        seedTwoProfiles()
+        val whole = serviceFor(source).exportedJson().getOrThrow()
+        // Two weigh-ins with one name inside one profile. The table refuses the second, and the
+        // profiles have already been written by the time it does.
+        val broken = whole.replace("\"syncId\": \"w-them\"", "\"syncId\": \"w-me\"")
+            .replace("\"clientRecordId\": \"w-them\"", "\"clientRecordId\": \"w-me\"")
+            .replace("\"profileSyncId\": \"p-them\"", "\"profileSyncId\": \"p-me\"")
+        val file = write(broken)
+
+        val result = serviceFor(target).importJson(Uri.fromFile(file))
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(target.syncDao().profiles()).isEmpty()
+        assertThat(target.syncDao().weights()).isEmpty()
     }
 
     private fun write(text: String): File =

@@ -22,6 +22,9 @@ object AutoBackup {
     private const val PREFIX = "weighttrack-"
     private const val SUFFIX = ".json"
 
+    /** What a half-written backup is called until it has been read back and believed. */
+    const val PARTIAL_SUFFIX = ".part"
+
     /**
      * The name a backup taken on [date] goes under.
      *
@@ -29,6 +32,16 @@ object AutoBackup {
      * reading it and for the pruning below, without either having to open a file.
      */
     fun nameFor(date: LocalDate): String = "$PREFIX$date$SUFFIX"
+
+    /**
+     * Where the week's backup is written before it is allowed to become the backup.
+     *
+     * A run on a day that already has one used to open the good copy and write straight over it.
+     * A crash, a full card or a card pulled out halfway leaves a truncated file where the only
+     * copy of somebody's history was, and the weekly job that exists to stop them losing it is
+     * the thing that lost it.
+     */
+    fun partialNameFor(date: LocalDate): String = nameFor(date) + PARTIAL_SUFFIX
 
     /** The date in a name this object wrote, or null for anything else in the folder. */
     fun dateOf(name: String): LocalDate? {
@@ -39,6 +52,11 @@ object AutoBackup {
         } catch (_: DateTimeParseException) {
             null
         }
+    }
+
+    /** Leftovers from a run that died before it could put its file in place. */
+    fun partialsIn(names: List<String>): List<String> = names.filter {
+        it.startsWith(PREFIX) && it.endsWith(PARTIAL_SUFFIX)
     }
 
     /** Every backup in the folder, newest first. Anything else there is ignored. */

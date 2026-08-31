@@ -63,16 +63,33 @@ class AutoBackupWorker @AssistedInject constructor(
             return@withContext Result.retry()
         }
 
-        val name = AutoBackup.nameFor(LocalDate.now())
+        val today = LocalDate.now()
+        val name = AutoBackup.nameFor(today)
+        val partialName = AutoBackup.partialNameFor(today)
+        // Written beside the target, read back, and only then allowed to become it. A run on a
+        // day that already has a backup used to open the good copy and write over it, so a crash
+        // or a card pulled out halfway through left a truncated file where the only copy of
+        // somebody's history had been.
         val written = runCatching {
-            // Reused rather than replaced. Creating over an existing name gives a second file
-            // called "weighttrack-2026-08-29 (1).json", and the folder fills up with copies of
-            // one day rather than a month of history.
-            val existing = folder.findFile(name)?.takeIf { it.isFile }
-            val file = existing ?: folder.createFile(MIME, name) ?: error("could not create")
-            applicationContext.contentResolver.openOutputStream(file.uri, "wt")?.use {
+            val partial = folder.findFile(partialName)?.takeIf { it.isFile }
+                ?: folder.createFile(MIME, partialName)
+                ?: error("could not create")
+            applicationContext.contentResolver.openOutputStream(partial.uri, "wt")?.use {
                 it.write(text.toByteArray(Charsets.UTF_8))
             } ?: error("could not write")
+            val readBack = applicationContext.contentResolver.openInputStream(partial.uri)?.use {
+                it.readBytes().toString(Charsets.UTF_8)
+            } ?: error("could not read back")
+            // The file that lands has to be one this app would accept back. A short write and a
+            // provider that reported success are indistinguishable until something reads it.
+            if (readBack != text || BackupCodec.decode(readBack) == null) {
+                error("the written backup did not read back")
+            }
+            // Only now is the previous copy given up. Renaming over an existing name gives a
+            // second file called "weighttrack-2026-08-29 (1).json" on most providers, so the old
+            // one goes first and the window where neither exists is a single call wide.
+            folder.findFile(name)?.takeIf { it.isFile }?.delete()
+            if (!partial.renameTo(name)) error("could not put the backup in place")
         }
         if (written.isFailure) {
             runtimeLog.write(
@@ -80,10 +97,17 @@ class AutoBackupWorker @AssistedInject constructor(
                 LogEvent.BACKUP_FAILED,
                 cause = written.exceptionOrNull(),
             )
+            // The half-written file is not left behind to be mistaken for a backup, and the
+            // previous good copy has not been touched.
+            runCatching { folder.findFile(partialName)?.delete() }
             return@withContext Result.retry()
         }
 
         val names = runCatching { folder.listFiles().mapNotNull { it.name } }.getOrDefault(emptyList())
+        // Anything a killed earlier run left behind, so the folder does not fill up with them.
+        AutoBackup.partialsIn(names).forEach { stale ->
+            runCatching { folder.findFile(stale)?.delete() }
+        }
         AutoBackup.toRemove(names).forEach { old ->
             runCatching { folder.findFile(old)?.delete() }
         }

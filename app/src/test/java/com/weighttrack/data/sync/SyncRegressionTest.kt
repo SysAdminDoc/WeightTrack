@@ -45,8 +45,8 @@ class SyncRegressionTest {
     fun setUp() {
         phone = database()
         tablet = database()
-        phoneStore = SyncStore(phone.syncDao(), phone.deletionDao())
-        tabletStore = SyncStore(tablet.syncDao(), tablet.deletionDao())
+        phoneStore = SyncStore(phone, phone.syncDao(), phone.deletionDao())
+        tabletStore = SyncStore(tablet, tablet.syncDao(), tablet.deletionDao())
     }
 
     @After
@@ -260,7 +260,7 @@ class SyncRegressionTest {
         // allows one row per profile and day, and both were inserted.
         val third = database()
         try {
-            val thirdStore = SyncStore(third.syncDao(), third.deletionDao())
+            val thirdStore = SyncStore(third, third.syncDao(), third.deletionDao())
             third.syncDao().insertProfile(
                 ProfileEntity(
                     name = "Me",

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Restoring a backup now shows you what is in the file first, and says that it merges rather than replaces. Picking the wrong file out of a folder of weekly copies used to restore it on the spot with nothing asked.
+- A backup that is truncated, oversized, not a backup at all, or written by a newer version of the app is refused before a single row changes, and a restore that fails partway through now leaves the database exactly as it was.
+- The weekly automatic backup writes beside the old copy and reads the new one back before replacing it. Writing straight over the only copy of your history is how a full card or a crash could destroy it.
+
 - The JSON backup is now the whole phone rather than one profile's readings. Water, fasts, macro targets, the profiles themselves with their names and reminder times, and the record of what you had deleted were never written at all, and restoring onto a phone whose profiles were set up in a different order could drop the food diary. A backup taken by an older version still restores, and the file now says plainly that progress photos are not in it.
 
 - A barcode you scan now always reaches the Foods screen. The scanner closed itself the moment it read a code, which took the half-finished lookup down with it, so a slow answer, a product that is not in the database and a rate-limited request could all disappear before you saw anything.

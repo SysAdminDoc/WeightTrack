@@ -73,6 +73,7 @@ import com.weighttrack.health.HealthConnectSync
 import com.weighttrack.security.AppLockAvailability
 import com.weighttrack.security.AppLockSupport
 import com.weighttrack.notifications.ReminderReceiver
+import com.weighttrack.data.io.BackupPreview
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.ResumeEffect
 import com.weighttrack.ui.components.SectionHeading
@@ -140,7 +141,7 @@ fun SettingsScreen(
 
     val restoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
-    ) { uri -> uri?.let(viewModel::importJson) }
+    ) { uri -> uri?.let(viewModel::previewRestore) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -776,6 +777,15 @@ fun SettingsScreen(
         )
     }
 
+    val pendingRestore by viewModel.pendingRestore.collectAsStateWithLifecycle()
+    pendingRestore?.let { pending ->
+        RestoreDialog(
+            preview = pending.preview,
+            onConfirm = viewModel::confirmRestore,
+            onDismiss = viewModel::cancelRestore,
+        )
+    }
+
     if (showReminderTime) {
         val timeState = rememberTimePickerState(
             initialHour = activeProfile.reminderHour,
@@ -806,6 +816,67 @@ fun SettingsScreen(
             },
         )
     }
+}
+
+/**
+ * What is in the file, before anything is written.
+ *
+ * A restore reaches into every screen at once and there is no undo for it, so the counts are put
+ * in front of somebody first. It also says what a restore does to what is already here, because
+ * "restore" reads to most people as "replace" and this one merges.
+ */
+@Composable
+private fun RestoreDialog(
+    preview: BackupPreview,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.restore_title)) },
+        text = {
+            Column(Modifier.fillMaxWidth()) {
+                Text(
+                    stringResource(R.string.restore_merges),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(12.dp))
+                // Zero is shown rather than hidden: a backup with no diary in it is a fact worth
+                // seeing before it lands on a phone that has one.
+                LabelledValue(
+                    stringResource(R.string.restore_count_profiles),
+                    preview.profiles.toString(),
+                )
+                LabelledValue(
+                    stringResource(R.string.restore_count_weights),
+                    preview.weights.toString(),
+                )
+                LabelledValue(
+                    stringResource(R.string.restore_count_measurements),
+                    preview.measurements.toString(),
+                )
+                LabelledValue(stringResource(R.string.restore_count_water), preview.water.toString())
+                LabelledValue(stringResource(R.string.restore_count_fasts), preview.fasts.toString())
+                LabelledValue(stringResource(R.string.restore_count_goals), preview.goals.toString())
+                LabelledValue(stringResource(R.string.restore_count_foods), preview.foods.toString())
+                LabelledValue(
+                    stringResource(R.string.restore_count_food_log),
+                    preview.foodLog.toString(),
+                )
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.restore_photos_excluded),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) { Text(stringResource(R.string.restore_action)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
+    )
 }
 
 @Composable
