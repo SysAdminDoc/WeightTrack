@@ -50,6 +50,7 @@ class HealthChangesTest {
     private lateinit var settings: SettingsRepository
     private lateinit var profiles: ProfileRepository
     private lateinit var weights: WeightRepository
+    private val runtimeLogFile: File get() = File(temporary.root, "log.txt")
 
     @Before
     fun setUp() {
@@ -74,7 +75,7 @@ class HealthChangesTest {
         settingsRepository = settings,
         profileRepository = profiles,
         deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao()),
-        runtimeLog = RuntimeLog(File(temporary.root, "log.txt")),
+        runtimeLog = RuntimeLog(runtimeLogFile),
         clientSource = { client },
     )
 
@@ -143,6 +144,51 @@ class HealthChangesTest {
 
         assertThat(second.imported).isEqualTo(1)
         assertThat(weights.entriesFor(profiles.activeId())).hasSize(2)
+    }
+
+    @Test
+    fun `incremental readings outside the timestamp window are counted and logged`() = runTest {
+        val now = Instant.parse("2026-08-29T12:00:00Z")
+        val client = client()
+        profiles.ensureDefault()
+        client.insertRecords(
+            listOf(
+                WeightRecord(
+                    time = now.minusSeconds(60),
+                    zoneOffset = null,
+                    weight = Mass.kilograms(80.0),
+                    metadata = Metadata.manualEntry(clientRecordId = "valid"),
+                ),
+            ),
+        )
+        sync(client).sync(now = now).getOrThrow()
+        client.insertRecords(
+            listOf(
+                WeightRecord(
+                    time = Instant.EPOCH.minusSeconds(1),
+                    zoneOffset = null,
+                    weight = Mass.kilograms(81.0),
+                    metadata = Metadata.manualEntry(clientRecordId = "before-epoch"),
+                ),
+                WeightRecord(
+                    time = now.plusSeconds(24 * 60 * 60L + 1),
+                    zoneOffset = null,
+                    weight = Mass.kilograms(82.0),
+                    metadata = Metadata.manualEntry(clientRecordId = "too-far-ahead"),
+                ),
+            ),
+        )
+
+        val result = sync(client).sync(now = now).getOrThrow()
+
+        assertThat(result.imported).isEqualTo(0)
+        assertThat(result.skipped).isEqualTo(2)
+        assertThat(weights.entriesFor(profiles.activeId())).hasSize(1)
+        assertThat(
+            runtimeLogFile.readLines().count {
+                "health_connect health_record_refused code=1" in it
+            },
+        ).isEqualTo(2)
     }
 
     @Test

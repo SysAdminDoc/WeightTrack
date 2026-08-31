@@ -2,6 +2,7 @@ package com.weighttrack.data.io
 
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.EntrySource
+import com.weighttrack.core.model.WeightPlausibility
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
 import java.time.Instant
@@ -29,6 +30,9 @@ data class ImportPreview(
     val detectedFrom: String?,
     val header: List<String>,
     val sampleRowCount: Int,
+    val importableRowCount: Int,
+    val skippedRows: Int,
+    val problems: List<RowProblem>,
 )
 
 data class ImportResult(
@@ -88,13 +92,22 @@ object WeightCsvImporter {
         "MMM d, yyyy",
     )
 
-    fun preview(table: CsvTable, fallbackUnit: WeightUnit): ImportPreview {
+    fun preview(
+        table: CsvTable,
+        fallbackUnit: WeightUnit,
+        zone: ZoneId = ZoneId.systemDefault(),
+        now: Instant = Instant.now(),
+    ): ImportPreview {
         val mapping = detect(table, fallbackUnit)
+        val result = mapping?.let { this.import(table, it, zone, now) }
         return ImportPreview(
             mapping = mapping,
             detectedFrom = mapping?.let { describe(table, it) },
             header = table.header,
             sampleRowCount = table.rows.size,
+            importableRowCount = result?.entries?.size ?: 0,
+            skippedRows = result?.skippedRows ?: table.rows.size,
+            problems = result?.problems.orEmpty(),
         )
     }
 
@@ -186,6 +199,7 @@ object WeightCsvImporter {
         table: CsvTable,
         mapping: ImportMapping,
         zone: ZoneId = ZoneId.systemDefault(),
+        now: Instant = Instant.now(),
     ): ImportResult {
         val entries = ArrayList<WeightEntry>()
         val problems = ArrayList<RowProblem>()
@@ -218,6 +232,19 @@ object WeightCsvImporter {
 
             val grams = UnitConverter.displayToGrams(weightValue, mapping.unit)
             val instant = dateTime.atZone(zone).toInstant()
+            val plausibility = WeightPlausibility.problem(grams, instant, now)
+            if (plausibility != null) {
+                skipped++
+                if (problems.size < 5) {
+                    problems += when (plausibility) {
+                        WeightPlausibility.Problem.WEIGHT ->
+                            RowProblem(index + 2, RowProblem.Field.WEIGHT, rawWeight)
+                        WeightPlausibility.Problem.TIMESTAMP ->
+                            RowProblem(index + 2, RowProblem.Field.DATE, rawDate)
+                    }
+                }
+                return@forEachIndexed
+            }
             val bodyFat = mapping.bodyFatIndex
                 ?.let { table.value(row, it) }
                 ?.let { parseNumber(it) }
@@ -276,12 +303,14 @@ object WeightCsvImporter {
         // the same zone the rest of the import uses, or a file of epoch seconds lands on the
         // wrong day for anyone not sitting on UTC.
         date.toLongOrNull()?.let { number ->
-            if (number > 100_000_000_000L) {
-                return LocalDateTime.ofInstant(Instant.ofEpochMilli(number), zone)
-            }
-            if (number > 100_000_000L) {
-                return LocalDateTime.ofInstant(Instant.ofEpochSecond(number), zone)
-            }
+            val instant = runCatching {
+                when {
+                    number > 100_000_000_000L -> Instant.ofEpochMilli(number)
+                    number > 100_000_000L -> Instant.ofEpochSecond(number)
+                    else -> null
+                }
+            }.getOrNull()
+            if (instant != null) return LocalDateTime.ofInstant(instant, zone)
         }
 
         val combined = if (rawTime.isNullOrBlank()) date else "$date ${rawTime.trim()}"

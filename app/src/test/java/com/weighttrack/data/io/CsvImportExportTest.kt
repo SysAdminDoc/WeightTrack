@@ -78,11 +78,16 @@ class CsvParserTest {
 class WeightCsvImporterTest {
 
     private val zone: ZoneId = ZoneOffset.UTC
+    private val now: Instant = Instant.parse("2026-08-31T12:00:00Z")
 
-    private fun importAll(text: String, fallback: WeightUnit = WeightUnit.KG): ImportResult {
+    private fun importAll(
+        text: String,
+        fallback: WeightUnit = WeightUnit.KG,
+        at: Instant = now,
+    ): ImportResult {
         val table = Csv.parse(text)!!
         val mapping = WeightCsvImporter.detect(table, fallback)!!
-        return WeightCsvImporter.import(table, mapping, zone)
+        return WeightCsvImporter.import(table, mapping, zone, at)
     }
 
     @Test
@@ -190,6 +195,36 @@ class WeightCsvImporterTest {
     }
 
     @Test
+    fun `implausible weights are counted and reported`() {
+        val result = importAll(
+            "Date,Weight (kg)\n2026-01-01,80\n2026-01-02,0.005\n" +
+                "2026-01-03,-1\n2026-01-04,401",
+        )
+
+        assertThat(result.entries.map { it.grams }).containsExactly(80_000)
+        assertThat(result.skippedRows).isEqualTo(3)
+        assertThat(result.problems.map { it.field })
+            .containsExactly(
+                RowProblem.Field.WEIGHT,
+                RowProblem.Field.WEIGHT,
+                RowProblem.Field.WEIGHT,
+            )
+    }
+
+    @Test
+    fun `dates before 1970 and over one day ahead are counted and reported`() {
+        val result = importAll(
+            "Date,Weight (kg)\n1969-12-31,80\n2026-09-01 12:00:00,81\n" +
+                "2026-09-01 12:00:01,82\n2094-09-16,83",
+        )
+
+        assertThat(result.entries.map { it.grams }).containsExactly(81_000)
+        assertThat(result.skippedRows).isEqualTo(3)
+        assertThat(result.problems.map { it.field }.toSet())
+            .containsExactly(RowProblem.Field.DATE)
+    }
+
+    @Test
     fun `a file with no recognisable columns is refused`() {
         val table = Csv.parse("colour,size\nred,large")!!
         assertThat(WeightCsvImporter.detect(table, WeightUnit.KG)).isNull()
@@ -223,11 +258,18 @@ class WeightCsvImporterTest {
 
     @Test
     fun `a preview describes what it found without importing`() {
-        val table = Csv.parse("Date,Weight (lb)\n2026-01-01,180.0")!!
-        val preview = WeightCsvImporter.preview(table, WeightUnit.KG)
+        val table = Csv.parse(
+            "Date,Weight (lb)\n2026-01-01,180.0\n2094-09-16,180.0\n2026-01-02,0.01",
+        )!!
+        val preview = WeightCsvImporter.preview(table, WeightUnit.KG, zone, now)
         assertThat(preview.mapping).isNotNull()
-        assertThat(preview.sampleRowCount).isEqualTo(1)
+        assertThat(preview.sampleRowCount).isEqualTo(3)
         assertThat(preview.detectedFrom).contains("pounds")
+        assertThat(preview.importableRowCount).isEqualTo(1)
+        assertThat(preview.skippedRows).isEqualTo(2)
+        assertThat(preview.problems.map { it.field })
+            .containsExactly(RowProblem.Field.DATE, RowProblem.Field.WEIGHT)
+            .inOrder()
     }
 }
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CSV and Health Connect imports now refuse weights below 20 kg or above 400 kg, dates before 1970, and dates more than one day ahead. CSV previews and import results identify rejected rows. Health Connect counts and records each refusal without putting the reading in diagnostics. A corrupt low reading can no longer hide a valid one when lowest-of-day import is enabled.
+
 - The phone and watch version check now builds all three release manifests before reading them. Running it on a clean checkout no longer fails because an older build happened to leave no manifest behind, and it requires both phone flavors rather than accepting whichever one was already there.
 
 - Release checks now render every top-level screen in both themes, at normal and 200 percent text size, in right-to-left layouts, and in Android's two pseudo-languages. Named fixtures cover empty, loading, refused permission, recoverable error and undo states. The checks found five switches in Settings that TalkBack announced only as "off". Each one now uses the visible row label, and the same tests guard labels, touch targets and horizontal clipping in both builds.

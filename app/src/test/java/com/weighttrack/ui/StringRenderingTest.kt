@@ -67,6 +67,6 @@ class StringRenderingTest {
     fun `the messages about a row that would not read quote the value`() {
         val rendered = context.getString(R.string.settings_import_bad_weight, 4, "abc")
 
-        assertThat(rendered).isEqualTo("Row 4: could not read the weight \"abc\"")
+        assertThat(rendered).isEqualTo("Row 4: \"abc\" is not a supported weight")
     }
 }

@@ -691,9 +691,9 @@
     <string name="reminder_channel_description">A daily nudge to step on the scale.</string>
     <string name="summary_channel_name">Weekly summary</string>
     <string name="summary_channel_description">A short read on how the week went.</string>
-    <string name="settings_import_skipped">, skipped %1$d unreadable rows</string>
-    <string name="settings_import_bad_weight">Row %1$d: could not read the weight \"%2$s\"</string>
-    <string name="settings_import_bad_date">Row %1$d: could not read the date \"%2$s\"</string>
+    <string name="settings_import_skipped">, skipped %1$d rows that could not be imported</string>
+    <string name="settings_import_bad_weight">Row %1$d: \"%2$s\" is not a supported weight</string>
+    <string name="settings_import_bad_date">Row %1$d: \"%2$s\" is not a supported date</string>
     <string name="import_not_a_csv">That file does not look like a CSV export.</string>
     <string name="import_no_columns">Could not find a date column and a weight column in that file.</string>
     <string name="import_not_a_backup">That file is not a WeightTrack backup.</string>

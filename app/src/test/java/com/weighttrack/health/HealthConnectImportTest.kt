@@ -41,6 +41,8 @@ class HealthConnectImportTest {
     private lateinit var profiles: ProfileRepository
     private lateinit var weights: WeightRepository
 
+    private val runtimeLogFile: File get() = File(temporary.root, "log.txt")
+
     @get:org.junit.Rule
     val temporary = org.junit.rules.TemporaryFolder()
 
@@ -78,7 +80,10 @@ class HealthConnectImportTest {
         )
     }
 
-    private suspend fun syncWith(records: List<WeightRecord>): HealthConnectSyncResult {
+    private suspend fun syncWith(
+        records: List<WeightRecord>,
+        now: Instant = NOW,
+    ): HealthConnectSyncResult {
         val permissions = FakePermissionController()
         permissions.grantPermissions(
             setOf(
@@ -104,10 +109,10 @@ class HealthConnectImportTest {
             settingsRepository = settings,
             profileRepository = profiles,
             deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao()),
-            runtimeLog = RuntimeLog(File(temporary.root, "log.txt")),
+            runtimeLog = RuntimeLog(runtimeLogFile),
             clientSource = { fake },
         )
-        return sync.sync().getOrThrow()
+        return sync.sync(now = now).getOrThrow()
     }
 
     @Test
@@ -136,6 +141,61 @@ class HealthConnectImportTest {
 
         assertThat(result.imported).isEqualTo(0)
         assertThat(weights.entriesFor(profiles.activeId())).isEmpty()
+    }
+
+    @Test
+    fun `implausible Health Connect weights are counted and written to diagnostics`() = runTest {
+        val records = listOf(
+            weightRecord(0),
+            WeightRecord(
+                time = START.minus(1, ChronoUnit.DAYS),
+                zoneOffset = null,
+                weight = Mass.kilograms(0.005),
+                metadata = Metadata.manualEntry(clientRecordId = "five-grams"),
+            ),
+            WeightRecord(
+                time = START.minus(2, ChronoUnit.DAYS),
+                zoneOffset = null,
+                weight = Mass.kilograms(401.0),
+                metadata = Metadata.manualEntry(clientRecordId = "too-heavy"),
+            ),
+        )
+
+        val result = syncWith(records)
+
+        assertThat(result.imported).isEqualTo(1)
+        assertThat(result.skipped).isEqualTo(2)
+        assertThat(weights.entriesFor(profiles.activeId())).hasSize(1)
+        assertThat(
+            runtimeLogFile.readLines().count {
+                "health_connect health_record_refused code=0" in it
+            },
+        ).isEqualTo(2)
+    }
+
+    @Test
+    fun `an implausible low reading cannot hide the valid lowest reading of its day`() = runTest {
+        settings.setImportLowestOfDay(true)
+        val records = listOf(
+            WeightRecord(
+                time = START,
+                zoneOffset = null,
+                weight = Mass.kilograms(0.005),
+                metadata = Metadata.manualEntry(clientRecordId = "corrupt-low"),
+            ),
+            WeightRecord(
+                time = START.plusSeconds(60),
+                zoneOffset = null,
+                weight = Mass.kilograms(80.0),
+                metadata = Metadata.manualEntry(clientRecordId = "valid-low"),
+            ),
+        )
+
+        val result = syncWith(records)
+
+        assertThat(result.imported).isEqualTo(1)
+        assertThat(result.skipped).isEqualTo(1)
+        assertThat(weights.entriesFor(profiles.activeId()).single().grams).isEqualTo(80_000)
     }
 
     @Test
@@ -217,5 +277,6 @@ class HealthConnectImportTest {
 
     private companion object {
         val START: Instant = Instant.parse("2026-08-29T07:00:00Z")
+        val NOW: Instant = Instant.parse("2026-08-31T12:00:00Z")
     }
 }

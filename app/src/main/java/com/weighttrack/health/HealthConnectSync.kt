@@ -27,6 +27,7 @@ import androidx.health.connect.client.units.Percentage
 import androidx.health.connect.client.units.Volume
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.HealthDirection
+import com.weighttrack.core.model.WeightPlausibility
 import com.weighttrack.core.model.RecordOrigin
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.data.prefs.SettingsRepository
@@ -476,12 +477,15 @@ class HealthConnectSync @Inject constructor(
      * needs the history permission; without it Health Connect simply returns less, which is
      * why this does not fail when the grant is missing.
      */
-    suspend fun sync(sinceDays: Long = 365 * 5): Result<HealthConnectSyncResult> =
+    suspend fun sync(
+        sinceDays: Long = 365 * 5,
+        now: Instant = Instant.now(),
+    ): Result<HealthConnectSyncResult> =
         withContext(Dispatchers.IO) {
             running.withLock {
             runCatching {
                 val client = clientOrNull() ?: error(context.getString(com.weighttrack.R.string.health_not_available))
-                val at = Instant.now()
+                val at = now
                 val stored = settingsRepository.settings.first()
                 val way = stored.healthDirection
                 val granted = grantedPermissions()
@@ -673,23 +677,26 @@ class HealthConnectSync @Inject constructor(
         }
         var imported = 0
         var skipped = 0
+        // Refuse corrupt readings before choosing the day's lowest. Otherwise a 5 g record wins
+        // the comparison, is refused later, and hides the valid reading beside it.
+        val plausible = records.filter { record ->
+            val accepted = accepts(session, record)
+            if (!accepted) skipped++
+            accepted
+        }
         val wanted = if (session.lowestOfDayOnly) {
-            val kept = lowestPerDay(records, session.zone)
-            skipped += records.size - kept.size
+            val kept = lowestPerDay(plausible, session.zone)
+            skipped += plausible.size - kept.size
             kept
         } else {
-            records
+            plausible
         }
-        wanted.forEach { record -> if (take(session, record)) imported++ else skipped++ }
+        wanted.forEach { record ->
+            if (take(session, record, checkPlausibility = false)) imported++ else skipped++
+        }
         return Triple(imported, skipped, 0)
     }
 
-    /**
-     * Files one reading from Health Connect, or decides not to.
-     *
-     * Shared by the first full read and by the incremental one afterwards, so a record arriving
-     * through a change notification is treated exactly like one arriving through a query.
-     */
     /**
      * One reading a day: the lowest.
      *
@@ -704,9 +711,33 @@ class HealthConnectSync @Inject constructor(
             .values
             .mapNotNull { sameDay -> sameDay.minByOrNull { it.weight.inKilograms } }
 
-    private suspend fun take(session: Session, record: WeightRecord): Boolean {
+    private fun accepts(session: Session, record: WeightRecord): Boolean {
         val grams = (record.weight.inKilograms * 1000).toInt()
-        if (grams <= 0) return false
+        val plausibility = WeightPlausibility.problem(grams, record.time, session.now)
+        if (plausibility != null) {
+            runtimeLog.write(
+                LogArea.HEALTH_CONNECT,
+                LogEvent.HEALTH_RECORD_REFUSED,
+                code = plausibility.ordinal,
+            )
+            return false
+        }
+        return true
+    }
+
+    /**
+     * Files one reading from Health Connect, or decides not to.
+     *
+     * Shared by the first full read and by the incremental one afterwards, so a record arriving
+     * through a change notification is treated exactly like one arriving through a query.
+     */
+    private suspend fun take(
+        session: Session,
+        record: WeightRecord,
+        checkPlausibility: Boolean = true,
+    ): Boolean {
+        if (checkPlausibility && !accepts(session, record)) return false
+        val grams = (record.weight.inKilograms * 1000).toInt()
         val origin = originOf(record)
         // A phone that also syncs a watch and a fitness tracker gets the same morning three
         // times from three writers. Saying so once is the only way to stop it.

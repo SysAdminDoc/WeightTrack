@@ -38,6 +38,9 @@ enum class LogEvent {
     HEALTH_READ_FAILED,
     HEALTH_WRITE_FAILED,
     HEALTH_PERMISSION_MISSING,
+
+    /** A Health Connect reading was outside the supported weight or timestamp boundaries. */
+    HEALTH_RECORD_REFUSED,
     SCALE_SCAN_FAILED,
     SCALE_CONNECT_FAILED,
     SCALE_DISCONNECTED,

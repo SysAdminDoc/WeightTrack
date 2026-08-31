@@ -320,13 +320,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### Additions from 2026-08-31 (afternoon pass)
 
-- [ ] P1: Refuse implausible weights and timestamps at every import boundary
-  Why: Health Connect import files any record with positive grams at any instant, and CSV import guesses epoch millis versus seconds with no range check, while the BLE path already refuses outside 20 to 400 kg; corrupted scale timestamps reaching trackers is a live upstream failure class as of 2026-08-31.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt` take(); `app/src/main/java/com/weighttrack/data/io/WeightCsvImporter.kt:280-283`; `app/src/main/java/com/weighttrack/ble/ScaleReadingRouter.kt:60-62`; https://github.com/oliexdev/openScale/issues/1500 ("Sep 16 2094", 2026-08-31); https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/6349 (year-2800 timestamps into Health Connect)
-  Touches: health/HealthConnectSync.kt, data/io/WeightCsvImporter.kt, sync result counts, runtime log, tests
-  Acceptance: a Health Connect record outside the plausible weight bounds or dated outside a sane window (before 1970 or more than a day in the future) is refused, counted as skipped, and logged; a CSV row with a year-2094 date or a 5-gram weight is reported in the import preview rather than filed; the refusal bounds are shared with the BLE constants rather than re-declared; existing valid imports are unchanged and a test proves each boundary refuses and counts.
-  Complexity: S
-
 - [ ] P3: Make the last two absolute privacy lines as precise as the settings copy
   Why: Onboarding still says "Your readings stay on this phone" and the extraction-rules comment says data is never uploaded anywhere, while user-configured folder or WebDAV sync deliberately moves readings and demographics off the phone; the settings copy was already corrected this cycle and these two were missed.
   Evidence: `app/src/main/res/values/strings.xml:245`; `app/src/main/res/xml/data_extraction_rules.xml:3-5`; `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt` (demographics travel in sync)

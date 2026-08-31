@@ -1,5 +1,6 @@
 package com.weighttrack.ble
 
+import com.weighttrack.core.model.WeightPlausibility
 import kotlin.math.abs
 
 /** Whether a reading off a scale looks like it belongs to the person using the app. */
@@ -59,8 +60,8 @@ sealed interface ScaleRouting {
 object ScaleReadingRouter {
 
     /** Nobody using this app weighs less or more than these. */
-    const val MIN_GRAMS = 20_000
-    const val MAX_GRAMS = 400_000
+    const val MIN_GRAMS = WeightPlausibility.MIN_GRAMS
+    const val MAX_GRAMS = WeightPlausibility.MAX_GRAMS
 
     /**
      * How far from the last known weight a reading may land and still be the same person.
@@ -76,7 +77,7 @@ object ScaleReadingRouter {
         lastKnownGrams: Int?,
         toleranceGrams: Int = DEFAULT_TOLERANCE_GRAMS,
     ): ScaleMatch = when {
-        grams < MIN_GRAMS || grams > MAX_GRAMS -> ScaleMatch.IMPLAUSIBLE
+        !WeightPlausibility.isWeightPlausible(grams) -> ScaleMatch.IMPLAUSIBLE
         lastKnownGrams == null -> ScaleMatch.NO_HISTORY
         abs(grams - lastKnownGrams) <= toleranceGrams -> ScaleMatch.MATCHES
         else -> ScaleMatch.OUT_OF_RANGE
@@ -103,7 +104,7 @@ object ScaleReadingRouter {
         toleranceGrams: Int = DEFAULT_TOLERANCE_GRAMS,
         marginGrams: Int = AMBIGUOUS_MARGIN_GRAMS,
     ): ScaleRouting {
-        if (grams < MIN_GRAMS || grams > MAX_GRAMS) return ScaleRouting.Unknown
+        if (!WeightPlausibility.isWeightPlausible(grams)) return ScaleRouting.Unknown
         val near = lastKnownByProfile
             .filterValues { abs(grams - it) <= toleranceGrams }
             .entries
