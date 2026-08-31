@@ -83,15 +83,13 @@ tasks.register("checkFormFactorVersions") {
                 }
             }
             release.forEach { file ->
-                val text = file.readText()
-                val found = Regex("""android:versionCode="(\d+)"""").find(text)?.groupValues?.get(1)
-                val name = Regex("""android:versionName="([^"]+)"""").find(text)?.groupValues?.get(1)
-                if (found != code.toString()) {
-                    problems += "${file.name} for the $form says version code $found, not $code"
-                }
-                if (name != null && !name.startsWith(expectedName)) {
-                    problems += "${file.name} for the $form says version name $name, not $expectedName"
-                }
+                problems += ReleaseManifestVersion.problems(
+                    text = file.readText(),
+                    fileName = file.name,
+                    form = form,
+                    expectedCode = code,
+                    expectedName = expectedName,
+                )
             }
         }
         inspect(phoneManifests, "phone", expectedPhone, setOf("playRelease", "fossRelease"))

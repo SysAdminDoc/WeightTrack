@@ -39,3 +39,32 @@ object Versions {
             "$name is missing from gradle.properties"
         }
 }
+
+/** Reads the version identity from one packaged Android manifest. */
+object ReleaseManifestVersion {
+
+    fun problems(
+        text: String,
+        fileName: String,
+        form: String,
+        expectedCode: Int,
+        expectedName: String,
+    ): List<String> {
+        val foundCode = Regex("""android:versionCode="(\d+)"""")
+            .find(text)
+            ?.groupValues
+            ?.get(1)
+        val foundName = Regex("""android:versionName="([^"]+)"""")
+            .find(text)
+            ?.groupValues
+            ?.get(1)
+        return buildList {
+            if (foundCode != expectedCode.toString()) {
+                add("$fileName for the $form says version code $foundCode, not $expectedCode")
+            }
+            if (foundName != expectedName) {
+                add("$fileName for the $form says version name $foundName, not $expectedName")
+            }
+        }
+    }
+}
