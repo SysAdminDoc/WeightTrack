@@ -79,6 +79,7 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew :app:testFossDebugUnitTest # 1,095 F-Droid-flavour tests
 ./gradlew :core:testDebugUnitTest    # 330 for the maths, scale protocols, food clients and merge
 ./gradlew :wear:testDebugUnitTest    # 19 for the watch
+./gradlew checkFormFactorVersions    # build and compare both phone manifests with the watch
 ```
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.

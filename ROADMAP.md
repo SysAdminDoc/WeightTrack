@@ -257,13 +257,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0 additions from 2026-08-31
 
-- [ ] P1: Make the form-factor version gate build the manifests it checks
-  Why: `checkFormFactorVersions` reads release manifests but does not depend on the tasks that generate them, so a clean combined release run can execute the check first and fail because no manifest exists.
-  Evidence: root `build.gradle.kts`; clean task-graph verification on 2026-08-31
-  Touches: root build task wiring and release-gate tests
-  Acceptance: On a clean checkout, `./gradlew checkFormFactorVersions` generates the required phone and Wear release manifests itself, validates both phone flavors plus Wear, and still fails for colliding codes or mismatched version names.
-  Complexity: S
-
 - [ ] P1: Lock resolved dependencies and verify every fetched artifact
   Why: The version catalog pins direct coordinates and the wrapper has a checksum, but transitive versions and downloaded plugin or library bytes can still change without a reviewed lock or verification failure.
   Evidence: `gradle/libs.versions.toml`; `gradle/wrapper/gradle-wrapper.properties`; absent `gradle.lockfile` and `gradle/verification-metadata.xml`; https://docs.gradle.org/current/userguide/dependency_locking.html; https://docs.gradle.org/current/userguide/dependency_verification.html

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The phone and watch version check now builds all three release manifests before reading them. Running it on a clean checkout no longer fails because an older build happened to leave no manifest behind, and it requires both phone flavors rather than accepting whichever one was already there.
+
 - Release checks now render every top-level screen in both themes, at normal and 200 percent text size, in right-to-left layouts, and in Android's two pseudo-languages. Named fixtures cover empty, loading, refused permission, recoverable error and undo states. The checks found five switches in Settings that TalkBack announced only as "off". Each one now uses the visible row label, and the same tests guard labels, touch targets and horizontal clipping in both builds.
 
 - Health Connect readings now say which app wrote them, and you can choose which apps to take them from. Health Connect is a shared pool: a watch, a scale's own app and a fitness tracker can all write the same morning into it, and nothing on the row said which was which, so three weigh-ins a minute apart had no explanation and no way to stop. Each imported reading now shows the app and, when the app says, the scale. Settings lists the apps that have written and lets you turn one off. Nothing already in your log is removed when you do.

@@ -16,19 +16,36 @@ plugins {
  * numbers now come from one place, and this reads what actually reached the manifests rather
  * than what the build files say, because the two are only the same until somebody overrides one.
  *
- * Run it against a built release: `./gradlew checkFormFactorVersions`.
+ * Run it directly: `./gradlew checkFormFactorVersions` generates the manifests it inspects.
  */
 tasks.register("checkFormFactorVersions") {
     group = "verification"
     description = "Checks the phone and watch version codes cannot collide."
+    dependsOn(
+        ":app:processPlayReleaseManifestForPackage",
+        ":app:processFossReleaseManifestForPackage",
+        ":wear:processReleaseManifestForPackage",
+    )
 
     // The packaged manifest is the one that goes into the APK, so it is the one worth reading.
-    val phoneManifests = fileTree("app/build/intermediates/packaged_manifests") {
-        include("**/AndroidManifest.xml")
-    }
-    val wearManifests = fileTree("wear/build/intermediates/packaged_manifests") {
-        include("**/AndroidManifest.xml")
-    }
+    // Keep these inputs exact. Declaring the whole parent directories also claims debug manifests
+    // produced by a combined test-and-release run and creates undeclared task dependencies.
+    val phoneManifests = listOf(
+        file(
+            "app/build/intermediates/packaged_manifests/playRelease/" +
+                "processPlayReleaseManifestForPackage/AndroidManifest.xml",
+        ),
+        file(
+            "app/build/intermediates/packaged_manifests/fossRelease/" +
+                "processFossReleaseManifestForPackage/AndroidManifest.xml",
+        ),
+    )
+    val wearManifests = listOf(
+        file(
+            "wear/build/intermediates/packaged_manifests/release/" +
+                "processReleaseManifestForPackage/AndroidManifest.xml",
+        ),
+    )
     val expectedPhone = Versions.phoneCode(project)
     val expectedWear = Versions.wearCode(project)
     val expectedName = Versions.name(project)
@@ -43,7 +60,12 @@ tasks.register("checkFormFactorVersions") {
         }
 
         val problems = mutableListOf<String>()
-        fun inspect(manifests: Iterable<File>, form: String, code: Int) {
+        fun inspect(
+            manifests: Iterable<File>,
+            form: String,
+            code: Int,
+            requiredVariants: Set<String>,
+        ) {
             // Any flavour of release: the app builds playRelease and fossRelease, the watch a
             // plain release. A debug build carries a suffixed application id and is never
             // published, so holding it to the same rule would say nothing useful.
@@ -53,6 +75,12 @@ tasks.register("checkFormFactorVersions") {
             if (release.isEmpty()) {
                 problems += "no built release manifest for the $form, so nothing was checked"
                 return
+            }
+            requiredVariants.forEach { variant ->
+                val marker = "/${variant.lowercase()}/"
+                if (release.none { marker in it.invariantSeparatorsPath.lowercase() }) {
+                    problems += "no built $variant manifest for the $form"
+                }
             }
             release.forEach { file ->
                 val text = file.readText()
@@ -66,8 +94,8 @@ tasks.register("checkFormFactorVersions") {
                 }
             }
         }
-        inspect(phoneManifests, "phone", expectedPhone)
-        inspect(wearManifests, "watch", expectedWear)
+        inspect(phoneManifests, "phone", expectedPhone, setOf("playRelease", "fossRelease"))
+        inspect(wearManifests, "watch", expectedWear, setOf("release"))
 
         check(problems.isEmpty()) { problems.joinToString("\n") }
         logger.lifecycle("Release versions agree: $summary")
