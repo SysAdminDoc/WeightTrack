@@ -60,6 +60,14 @@ enum class LogEvent {
      * no names and no identifiers of any kind, on purpose.
      */
     GOAL_DATE_REPAIRED,
+
+    /**
+     * A progress photo could not be kept.
+     *
+     * The number beside it says which of the five reasons, which is as much as this log is
+     * allowed to carry: no names, no paths, nothing about the picture itself.
+     */
+    PHOTO_FAILED,
 }
 
 /**

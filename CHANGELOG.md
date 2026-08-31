@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A progress photo that will not save now says why. A gallery grant that had already lapsed, a file that is not a picture, a phone with no room left and a refused write all used to end the same way: the picture simply did not appear, with nothing to read and nothing to do about it. Each one now says what happened and is written into the activity log, none of them leaves a row or a file behind, and trying again keeps one picture rather than two.
+
 - Sync now has a limit on what another device can ask this phone to hold. A file in a shared folder is written by something outside WeightTrack and a WebDAV server is somebody else's machine, and nothing bounded what came back: not the size, not the number of records, not the length of a single note. Anything past the limit is skipped, named on the settings row so you can go and look at it, and nothing already synced is touched.
 
 - A goal with a damaged date is now repaired once instead of being read as today, every day. The same broken row used to say something different every morning: the progress bar moved, the projected date moved, and nothing said the date could not be read. It is now read as the day the goal was made, written back so the row stops being damaged, and noted in the activity log.

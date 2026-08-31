@@ -489,6 +489,7 @@ fun WeightTrackApp(
             composable(Routes.PHOTOS) {
                 val viewModel: PhotosViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
+                val photoMessage by viewModel.message.collectAsStateWithLifecycle()
                 PhotosScreen(
                     state = state,
                     onToggleSelection = viewModel::toggleSelection,
@@ -498,6 +499,8 @@ fun WeightTrackApp(
                     onCaptureResult = viewModel::onCaptureResult,
                     onDelete = viewModel::delete,
                     onBack = { navController.popBackStack() },
+                    message = photoMessage,
+                    onDismissMessage = viewModel::dismissMessage,
                 )
             }
 

@@ -8,6 +8,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.data.db.WeightTrackDatabase
+import com.weighttrack.diagnostics.RuntimeLog
 import com.weighttrack.data.testProfileRepository
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -33,7 +34,12 @@ class ProgressPhotoRepositoryTest {
         database = Room.inMemoryDatabaseBuilder(context, WeightTrackDatabase::class.java)
             .allowMainThreadQueries()
             .build()
-        repository = ProgressPhotoRepository(context, database.progressPhotoDao(), testProfileRepository(database))
+        repository = ProgressPhotoRepository(
+            context,
+            database.progressPhotoDao(),
+            testProfileRepository(database),
+            RuntimeLog(java.io.File(context.cacheDir, "log.txt")),
+        )
     }
 
     @After
@@ -109,10 +115,14 @@ class ProgressPhotoRepositoryTest {
     @Test
     fun `a captured photo is recorded and listed`() = runTest {
         val file = writtenCaptureFile()
-        val photo = repository.record(file, weightGrams = 82_500, timestamp = Instant.ofEpochMilli(1_000))
+        val photo = repository.record(
+            file,
+            weightGrams = 82_500,
+            timestamp = Instant.ofEpochMilli(1_000),
+        )
 
-        assertThat(photo).isNotNull()
-        assertThat(photo!!.weightGrams).isEqualTo(82_500)
+        assertThat(photo).isInstanceOf(PhotoOutcome.Saved::class.java)
+        assertThat((photo as PhotoOutcome.Saved).photo.weightGrams).isEqualTo(82_500)
         assertThat(repository.observeAll().first()).hasSize(1)
     }
 
@@ -120,7 +130,8 @@ class ProgressPhotoRepositoryTest {
     fun `a capture that produced no bytes is refused rather than listed as a blank tile`() = runTest {
         // A cancelled camera leaves an empty file behind.
         val empty = repository.newCaptureFile().apply { createNewFile() }
-        assertThat(repository.record(empty, weightGrams = null)).isNull()
+        assertThat(repository.record(empty, weightGrams = null))
+            .isEqualTo(PhotoOutcome.Failed(PhotoOutcome.Problem.GONE))
         assertThat(repository.observeAll().first()).isEmpty()
         assertThat(empty.exists()).isFalse()
     }
@@ -128,13 +139,14 @@ class ProgressPhotoRepositoryTest {
     @Test
     fun `a file that never existed is refused`() = runTest {
         val missing = repository.newCaptureFile()
-        assertThat(repository.record(missing, weightGrams = null)).isNull()
+        assertThat(repository.record(missing, weightGrams = null))
+            .isEqualTo(PhotoOutcome.Failed(PhotoOutcome.Problem.GONE))
         assertThat(repository.observeAll().first()).isEmpty()
     }
 
     @Test
     fun `deleting a photo removes the image as well as the row`() = runTest {
-        val photo = repository.record(writtenCaptureFile(), weightGrams = 80_000)!!
+        val photo = (repository.record(writtenCaptureFile(), weightGrams = 80_000) as PhotoOutcome.Saved).photo
         val file = photo.file
         assertThat(file.exists()).isTrue()
 
@@ -147,7 +159,7 @@ class ProgressPhotoRepositoryTest {
 
     @Test
     fun `a row whose image has gone is not listed`() = runTest {
-        val photo = repository.record(writtenCaptureFile(), weightGrams = 80_000)!!
+        val photo = (repository.record(writtenCaptureFile(), weightGrams = 80_000) as PhotoOutcome.Saved).photo
         // Something outside the app removed the file, or a restore brought the row back
         // without it. Listing it would render an empty tile that cannot be opened.
         photo.file.delete()
@@ -168,6 +180,7 @@ class ProgressPhotoRepositoryTest {
             checkingContext,
             database.progressPhotoDao(),
             testProfileRepository(database),
+            RuntimeLog(java.io.File(context.cacheDir, "log.txt")),
         )
         checkingRepository.record(
             checkingRepository.newCaptureFile().apply { writeBytes(byteArrayOf(1, 2, 3)) },
@@ -201,8 +214,8 @@ class ProgressPhotoRepositoryTest {
 
     @Test
     fun `clearing removes every photo and its image`() = runTest {
-        val first = repository.record(writtenCaptureFile(), weightGrams = 1_000)!!
-        val second = repository.record(writtenCaptureFile(), weightGrams = 2_000)!!
+        val first = (repository.record(writtenCaptureFile(), weightGrams = 1_000) as PhotoOutcome.Saved).photo
+        val second = (repository.record(writtenCaptureFile(), weightGrams = 2_000) as PhotoOutcome.Saved).photo
 
         repository.deleteAll()
 
@@ -214,7 +227,7 @@ class ProgressPhotoRepositoryTest {
     @Test
     fun `a photo taken with no weight logged still records`() = runTest {
         val photo = repository.record(writtenCaptureFile(), weightGrams = null)
-        assertThat(photo).isNotNull()
-        assertThat(photo!!.weightGrams).isNull()
+        assertThat(photo).isInstanceOf(PhotoOutcome.Saved::class.java)
+        assertThat((photo as PhotoOutcome.Saved).photo.weightGrams).isNull()
     }
 }

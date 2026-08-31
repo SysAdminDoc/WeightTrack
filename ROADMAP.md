@@ -135,13 +135,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: A clear nearest match still files automatically; a tie or small margin creates one pending reading and an inline profile picker; choosing a profile files exactly once and records enough context to make the next unambiguous session easier without changing another profile.
   Complexity: M
 
-- [ ] P1: Surface and recover progress-photo failures
-  Why: Capture, copy, decode, and database failures collapse to null and can leave the person without an explanation or retry path.
-  Evidence: `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; `app/src/test/java/com/weighttrack/data/repo/ProgressPhotoRepositoryTest.kt`
-  Touches: progress-photo result type, ViewModel, photo UI, diagnostics, orphan cleanup tests
-  Acceptance: Invalid format, unreadable URI, insufficient storage, database failure, and missing file each produce a specific toast or inline status and diagnostic event; no failed operation leaves a database row or orphan file; retry succeeds without duplicating the photo.
-  Complexity: S
-
 - [ ] P1: Gate releases on accessibility and UI state coverage
   Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
   Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/

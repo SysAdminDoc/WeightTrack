@@ -6,6 +6,8 @@ import android.provider.MediaStore
 import androidx.exifinterface.media.ExifInterface
 import com.weighttrack.data.db.ProgressPhotoDao
 import com.weighttrack.data.db.ProgressPhotoEntity
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -24,6 +26,38 @@ import java.time.format.DateTimeFormatter
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+
+/**
+ * What happened to a photo somebody tried to keep.
+ *
+ * Capture, copy, decode and database failures all used to collapse into null. From the screen
+ * that is a picture that simply did not appear, with nothing to read and nothing to do about it:
+ * a gallery grant that lapsed, a file that is not an image, a full phone and a refused write all
+ * looked exactly the same and none of them looked like anything.
+ */
+sealed interface PhotoOutcome {
+    data class Saved(val photo: ProgressPhoto) : PhotoOutcome
+
+    data class Failed(val problem: Problem) : PhotoOutcome
+
+    /** Why it did not work, in the terms somebody can act on. */
+    enum class Problem {
+        /** The image could not be opened. A gallery grant that has already lapsed does this. */
+        UNREADABLE,
+
+        /** It opened, and what came out is not a picture. */
+        NOT_AN_IMAGE,
+
+        /** There is no room on the phone for it. */
+        NO_ROOM,
+
+        /** It was copied and the database would not have it. */
+        NOT_SAVED,
+
+        /** The camera said it took one and the file is not there, or is empty. */
+        GONE,
+    }
+}
 
 data class ProgressPhoto(
     val id: Long,
@@ -48,6 +82,7 @@ class ProgressPhotoRepository @Inject constructor(
     @param:ApplicationContext private val context: Context,
     private val dao: ProgressPhotoDao,
     private val profiles: ProfileRepository,
+    private val runtimeLog: com.weighttrack.diagnostics.RuntimeLog,
 ) {
     private val directory: File
         get() = File(context.filesDir, DIRECTORY_NAME).apply { mkdirs() }
@@ -119,20 +154,55 @@ class ProgressPhotoRepository @Inject constructor(
         weightGrams: Int?,
         timestamp: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
-    ): ProgressPhoto? = withContext(Dispatchers.IO) {
+    ): PhotoOutcome = withContext(Dispatchers.IO) {
         val target = File(directory, "photo-${UUID.randomUUID()}.jpg")
-        val copied = runCatching {
+        val copy = runCatching {
             context.contentResolver.openInputStream(source)?.use { input ->
                 target.outputStream().use { output -> input.copyTo(output) }
-            } ?: return@runCatching false
-            true
-        }.getOrDefault(false)
-
-        if (!copied || target.length() == 0L) {
+            } ?: error("nothing to read")
+        }
+        copy.exceptionOrNull()?.let { failure ->
+            // Nothing half-copied is left where a later pass could mistake it for a photo.
             target.delete()
-            return@withContext null
+            return@withContext failed(
+                if (outOfRoom(failure)) {
+                    PhotoOutcome.Problem.NO_ROOM
+                } else {
+                    PhotoOutcome.Problem.UNREADABLE
+                },
+            )
+        }
+        if (target.length() == 0L) {
+            target.delete()
+            return@withContext failed(PhotoOutcome.Problem.UNREADABLE)
+        }
+        // Opened, copied, and not a picture. A file picker will hand over anything at all, and a
+        // row pointing at something that cannot be drawn is a permanent blank in the grid.
+        if (!isAnImage(target)) {
+            target.delete()
+            return@withContext failed(PhotoOutcome.Problem.NOT_AN_IMAGE)
         }
         record(target, weightGrams, timestamp, zone)
+    }
+
+    /** Whether what was copied is something that can actually be drawn. */
+    private fun isAnImage(file: File): Boolean {
+        val bounds = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        runCatching { android.graphics.BitmapFactory.decodeFile(file.path, bounds) }
+        return bounds.outWidth > 0 && bounds.outHeight > 0
+    }
+
+    /** Whether a failure is the phone being full rather than the file being wrong. */
+    private fun outOfRoom(failure: Throwable): Boolean {
+        val words = (failure.message.orEmpty() + " " + failure.javaClass.name).lowercase()
+        return words.contains("enospc") || words.contains("no space") ||
+            words.contains("insufficient")
+    }
+
+    private fun failed(problem: PhotoOutcome.Problem): PhotoOutcome {
+        // Recorded, because every one of these used to be a photo that simply did not appear.
+        runtimeLog.write(LogArea.DATA, LogEvent.PHOTO_FAILED, code = problem.ordinal)
+        return PhotoOutcome.Failed(problem)
     }
 
     /** Records a file already written into the photo directory, as the camera does. */
@@ -141,10 +211,10 @@ class ProgressPhotoRepository @Inject constructor(
         weightGrams: Int?,
         timestamp: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
-    ): ProgressPhoto? = withContext(Dispatchers.IO) {
+    ): PhotoOutcome = withContext(Dispatchers.IO) {
         if (!file.isFile || file.length() == 0L) {
             file.delete()
-            return@withContext null
+            return@withContext failed(PhotoOutcome.Problem.GONE)
         }
         val entity = ProgressPhotoEntity(
             profileId = profiles.activeId(),
@@ -156,10 +226,14 @@ class ProgressPhotoRepository @Inject constructor(
         )
         val id = runCatching { dao.insert(entity) }.getOrDefault(-1L)
         if (id <= 0) {
+            // No row, so no file either: an image nothing points at is an orphan nobody will
+            // ever find or clear.
             file.delete()
-            return@withContext null
+            return@withContext failed(PhotoOutcome.Problem.NOT_SAVED)
         }
-        entity.copy(id = id).toDomain()
+        val saved = entity.copy(id = id).toDomain()
+            ?: return@withContext failed(PhotoOutcome.Problem.NOT_SAVED)
+        PhotoOutcome.Saved(saved)
     }
 
     /** Deletes the row and the image together, so no orphan file is left behind. */

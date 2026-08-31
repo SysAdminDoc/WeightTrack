@@ -2,14 +2,17 @@ package com.weighttrack.ui.photos
 
 import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
+import com.weighttrack.R
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.data.repo.ProgressPhoto
+import com.weighttrack.data.repo.PhotoOutcome
 import com.weighttrack.data.repo.ProgressPhotoRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.domain.ProgressCalculator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
@@ -45,11 +48,39 @@ data class PhotosUiState(
 class PhotosViewModel @Inject constructor(
     private val photoRepository: ProgressPhotoRepository,
     private val weightRepository: WeightRepository,
+    private val strings: com.weighttrack.ui.AppStrings,
     progressCalculator: ProgressCalculator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     private val selectedIds = MutableStateFlow<Set<Long>>(emptySet())
+
+    /**
+     * What went wrong with the last photo, for the screen to say.
+     *
+     * Every failure used to be a picture that simply did not appear: a lapsed gallery grant, a
+     * file that is not an image, a full phone and a refused write all looked the same, and none
+     * of them looked like anything at all.
+     */
+    private val _message = MutableStateFlow<String?>(null)
+    val message: StateFlow<String?> = _message.asStateFlow()
+
+    fun dismissMessage() {
+        _message.value = null
+    }
+
+    private fun say(outcome: PhotoOutcome) {
+        val problem = (outcome as? PhotoOutcome.Failed)?.problem ?: return
+        _message.value = strings[
+            when (problem) {
+                PhotoOutcome.Problem.UNREADABLE -> R.string.photo_unreadable
+                PhotoOutcome.Problem.NOT_AN_IMAGE -> R.string.photo_not_an_image
+                PhotoOutcome.Problem.NO_ROOM -> R.string.photo_no_room
+                PhotoOutcome.Problem.NOT_SAVED -> R.string.photo_not_saved
+                PhotoOutcome.Problem.GONE -> R.string.photo_gone
+            },
+        ]
+    }
     private val pendingCapture = PendingPhotoCaptureState(savedStateHandle)
     private var recordingCapturePath: String? = null
 
@@ -97,10 +128,12 @@ class PhotosViewModel @Inject constructor(
     fun importFrom(uri: Uri) {
         viewModelScope.launch {
             val takenAt = photoRepository.takenAt(uri) ?: Instant.now()
-            photoRepository.importFrom(
-                uri,
-                weightGrams = weightGramsAt(takenAt),
-                timestamp = takenAt,
+            say(
+                photoRepository.importFrom(
+                    uri,
+                    weightGrams = weightGramsAt(takenAt),
+                    timestamp = takenAt,
+                ),
             )
         }
     }
@@ -138,9 +171,14 @@ class PhotosViewModel @Inject constructor(
         viewModelScope.launch {
             try {
                 val at = Instant.now()
-                photoRepository.record(file, weightGrams = weightGramsAt(at), timestamp = at)
+                val outcome =
+                    photoRepository.record(file, weightGrams = weightGramsAt(at), timestamp = at)
+                say(outcome)
                 // Clear only after the database write returns. If this coroutine is cancelled
                 // by process death, the restored ViewModel sees the path and retries it.
+                //
+                // A failure clears it too: nothing was kept and the file is gone, so a retry of
+                // the same path would only fail the same way for ever.
                 pendingCapture.clear(file)
             } finally {
                 recordingCapturePath = null

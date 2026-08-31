@@ -81,10 +81,21 @@ fun PhotosScreen(
     onCaptureResult: (Boolean) -> Unit,
     onDelete: (ProgressPhoto) -> Unit,
     onBack: () -> Unit,
+    /** What went wrong with the last picture, or null when nothing did. */
+    message: String? = null,
+    onDismissMessage: () -> Unit = {},
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
     val context = LocalContext.current
+    val snackbarHostState = androidx.compose.runtime.remember {
+        androidx.compose.material3.SnackbarHostState()
+    }
+    androidx.compose.runtime.LaunchedEffect(message) {
+        val text = message ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(text)
+        onDismissMessage()
+    }
 
     val pickPhoto = rememberLauncherForActivityResult(
         ActivityResultContracts.PickVisualMedia(),
@@ -96,6 +107,7 @@ fun PhotosScreen(
 
     Scaffold(
         modifier = modifier,
+        snackbarHost = { androidx.compose.material3.SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.home_progress_photos)) },
