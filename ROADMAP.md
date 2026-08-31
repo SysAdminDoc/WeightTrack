@@ -114,13 +114,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: A second unchanged sync issues zero inserts; an edit upserts the same stable client record; local deletion removes only the app-owned Health Connect record; partial batch failure leaves affected operations pending and visible in the runtime log; no height record is emitted until height export is an enabled, permitted feature.
   Complexity: L
 
-- [ ] P0: Pin and serialize each Health Connect sync session
-  Why: One run resolves the active or claimed profile more than once, and manual plus worker sync can overlap, allowing tokens, imports, and exports to cross profile boundaries.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:137`; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:371-641`; `app/src/main/java/com/weighttrack/data/sync/SyncEngine.kt:58`
-  Touches: `health/HealthConnectSync.kt`, `sync/SyncWorker.kt`, settings manual-sync path, concurrency tests
-  Acceptance: The profile ID, permission snapshot, time window, and token are immutable for one run; switching profiles during a blocked fake-client call does not redirect any row; simultaneous worker and manual requests execute one at a time and produce one cursor advance.
-  Complexity: M
-
 - [ ] P1: Distinguish Health Connect token expiry from transient failure
   Why: Any `getChanges` exception currently clears the token and triggers a five-year reread, turning outages and rate limits into expensive full imports.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:401-456`; https://developer.android.com/health-and-fitness/health-connect/sync-data; https://developer.android.com/health-and-fitness/health-connect/rate-limiting

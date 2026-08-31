@@ -16,6 +16,7 @@ import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.data.testSettingsRepository
 import com.weighttrack.diagnostics.RuntimeLog
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import org.junit.After
@@ -77,7 +78,22 @@ class HealthConnectClaimTest {
         metadata = Metadata.manualEntry(clientRecordId = "scale-$index"),
     )
 
-    private fun syncFor(records: List<WeightRecord>): HealthConnectSync {
+    /** Released by a test that wants to hold a read open while it changes something. */
+    private val blocked = kotlinx.coroutines.CompletableDeferred<Unit>()
+
+    /**
+     * How many reads have been started, across every run.
+     *
+     * Counting clients handed out does not work: one run asks for the client more than once, to
+     * check what it is allowed to do as well as to read.
+     */
+    @Volatile
+    private var readsStarted = 0
+
+    private fun syncFor(
+        records: List<WeightRecord>,
+        beforeRead: suspend () -> Unit = {},
+    ): HealthConnectSync {
         val permissions = FakePermissionController()
         permissions.grantPermissions(
             setOf(
@@ -93,8 +109,21 @@ class HealthConnectClaimTest {
             settingsRepository = settings,
             profileRepository = profiles,
             runtimeLog = RuntimeLog(File(temporary.root, "log.txt")),
-            clientSource = { fake },
+            clientSource = { WaitingClient(fake) { readsStarted++; beforeRead() } },
         )
+    }
+
+    /** The fake, with a pause it can be held at. */
+    private class WaitingClient(
+        private val real: androidx.health.connect.client.HealthConnectClient,
+        private val beforeRead: suspend () -> Unit,
+    ) : androidx.health.connect.client.HealthConnectClient by real {
+        override suspend fun <T : androidx.health.connect.client.records.Record> readRecords(
+            request: androidx.health.connect.client.request.ReadRecordsRequest<T>,
+        ): androidx.health.connect.client.response.ReadRecordsResponse<T> {
+            beforeRead()
+            return real.readRecords(request)
+        }
     }
 
     @Test
@@ -157,6 +186,63 @@ class HealthConnectClaimTest {
         sync.sync().getOrThrow()
         assertThat(weights.entriesFor(second)).hasSize(1)
         assertThat(weights.entriesFor(first)).isEmpty()
+    }
+
+    @Test
+    fun `switching profile while a read is in flight redirects nothing`() = runTest {
+        profiles.ensureDefault()
+        val first = profiles.observeAll().first().single().id
+        val opened = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val sync = syncFor(listOf(record(0)), beforeRead = { opened.complete(Unit); blocked.await() })
+        sync.claimProfile()
+
+        val running = async { sync.sync() }
+        opened.await()
+        // Health Connect changes hands while the provider is slow to answer. The settings screen
+        // waits for a sync to finish before doing this, but nothing in the database enforces it,
+        // and a run that asked again per record would file the rest of the import on the new
+        // owner and then export the new owner's readings under the old one's window.
+        val second = profiles.add("Them")
+        profiles.setHealthConnect(second, enabled = true)
+        blocked.complete(Unit)
+        running.await().getOrThrow()
+
+        // Whose run it is was settled before the first record was asked for.
+        assertThat(profiles.healthConnectId()).isEqualTo(second)
+        assertThat(weights.entriesFor(first)).hasSize(1)
+        assertThat(weights.entriesFor(second)).isEmpty()
+    }
+
+    @Test
+    fun `two syncs at once run one after the other`() = runTest {
+        profiles.ensureDefault()
+        val only = profiles.observeAll().first().single().id
+        val insideFirst = kotlinx.coroutines.CompletableDeferred<Unit>()
+        val sync = syncFor(
+            listOf(record(0), record(1)),
+            beforeRead = {
+                insideFirst.complete(Unit)
+                blocked.await()
+            },
+        )
+
+        // The hourly job and the button, at the same moment.
+        val worker = async { sync.sync() }
+        insideFirst.await()
+        val button = async { sync.sync() }
+        // Long enough for the second run to have got somewhere if it were going to. A run only
+        // reaches the client after taking the lock, so the count is what the lock is holding.
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { Thread.sleep(300) }
+
+        assertThat(readsStarted).isEqualTo(1)
+        blocked.complete(Unit)
+        worker.await().getOrThrow()
+        button.await().getOrThrow()
+
+        // And one cursor, not two: the second run finds the token the first stored and asks
+        // only what has changed since, so it reads nothing again and imports nothing twice.
+        assertThat(weights.entriesFor(only)).hasSize(2)
+        assertThat(settings.healthChangesToken(only)).isNotNull()
     }
 
     @Test

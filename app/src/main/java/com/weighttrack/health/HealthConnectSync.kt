@@ -161,6 +161,27 @@ class HealthConnectSync @Inject constructor(
     private val running = Mutex()
 
     /**
+     * Everything one run has decided, decided once.
+     *
+     * These used to be worked out again wherever they were wanted. Whose profile it is came off
+     * a flow and was re-read for every single record, so a person switching profile while the
+     * provider was slow to answer had the rest of that import filed against somebody else, and
+     * the export that followed it read a third person's readings. The window moved as the run
+     * went on, so a long import asked for a slightly different span each time it started again.
+     * None of that is visible afterwards: the rows simply belong to the wrong person.
+     */
+    private data class Session(
+        val client: HealthConnectClient,
+        val profileId: Long,
+        val granted: Set<String>,
+        val zone: ZoneId,
+        val start: Instant,
+        val now: Instant,
+        val lowestOfDayOnly: Boolean,
+        val heightMm: Int,
+    )
+
+    /**
      * Notes that something went wrong, since almost everything here answers with a default.
      *
      * A revoked grant and a broken provider both used to look exactly like "you have no data",
@@ -338,11 +359,20 @@ class HealthConnectSync @Inject constructor(
 
     suspend fun hasHydrationPermission(): Boolean = hasGranted(hydrationPermissions)
 
-    private suspend fun hasGranted(required: Set<String>): Boolean {
-        val client = clientOrNull() ?: return false
-        return runCatching {
-            client.permissionController.getGrantedPermissions().containsAll(required)
-        }.getOrDefault(false)
+    private suspend fun hasGranted(required: Set<String>): Boolean =
+        grantedPermissions().containsAll(required)
+
+    /**
+     * What this app is allowed to do right now.
+     *
+     * Read once at the start of a run and carried through it. A grant can be withdrawn from the
+     * system settings while a sync is in flight, and asking again halfway would let one run
+     * import under one answer and export under another.
+     */
+    private suspend fun grantedPermissions(): Set<String> {
+        val client = clientOrNull() ?: return emptySet()
+        return runCatching { client.permissionController.getGrantedPermissions() }
+            .getOrDefault(emptySet())
     }
 
     /**
@@ -396,20 +426,32 @@ class HealthConnectSync @Inject constructor(
             running.withLock {
             runCatching {
                 val client = clientOrNull() ?: error(context.getString(com.weighttrack.R.string.health_not_available))
-                if (!hasPermissions()) error(context.getString(com.weighttrack.R.string.health_not_granted))
+                val granted = grantedPermissions()
+                if (!granted.containsAll(corePermissions)) {
+                    error(context.getString(com.weighttrack.R.string.health_not_granted))
+                }
 
-                val zone = ZoneId.systemDefault()
-                val profileId = syncProfileId()
-                val token = settingsRepository.healthChangesToken(profileId)
+                val at = Instant.now()
+                val stored = settingsRepository.settings.first()
+                val session = Session(
+                    client = client,
+                    profileId = syncProfileId(),
+                    granted = granted,
+                    zone = ZoneId.systemDefault(),
+                    start = at.minus(sinceDays, ChronoUnit.DAYS),
+                    now = at,
+                    lowestOfDayOnly = stored.importLowestOfDay,
+                    heightMm = stored.profile.heightMm,
+                )
+                val token = settingsRepository.healthChangesToken(session.profileId)
                 // With a token in hand, only what has actually changed since last time. Without
                 // one, the whole window, which is what a first connect needs.
                 val imported = if (token == null) {
-                    val start = Instant.now().minus(sinceDays, ChronoUnit.DAYS)
-                    importWeights(client, start, zone).also { rememberToken(client, profileId) }
+                    importWeights(session).also { rememberToken(session) }
                 } else {
-                    importChanges(client, zone, profileId, token)
+                    importChanges(session, token)
                 }
-                val exported = exportWeights(client, zone)
+                val exported = exportWeights(session)
                 HealthConnectSyncResult(
                     imported = imported.first,
                     exported = exported,
@@ -421,7 +463,9 @@ class HealthConnectSync @Inject constructor(
         }
 
     /** Notes where Health Connect has got to, so the next sync can ask only for what changed. */
-    private suspend fun rememberToken(client: HealthConnectClient, profileId: Long) {
+    private suspend fun rememberToken(session: Session) {
+        val client = session.client
+        val profileId = session.profileId
         runCatching {
             client.getChangesToken(ChangesTokenRequest(recordTypes = setOf(WeightRecord::class)))
         }.onSuccess { settingsRepository.setHealthChangesToken(profileId, it) }
@@ -439,12 +483,9 @@ class HealthConnectSync @Inject constructor(
      * A token Health Connect no longer recognises is not an error: it means too much has happened
      * since, so the window is read in full and a fresh token taken.
      */
-    private suspend fun importChanges(
-        client: HealthConnectClient,
-        zone: ZoneId,
-        profileId: Long,
-        token: String,
-    ): Triple<Int, Int, Int> {
+    private suspend fun importChanges(session: Session, token: String): Triple<Int, Int, Int> {
+        val client = session.client
+        val profileId = session.profileId
         var next: String? = token
         var imported = 0
         var skipped = 0
@@ -456,16 +497,16 @@ class HealthConnectSync @Inject constructor(
             // failure left the stale token stored, so sync stayed broken for good.
             val response = runCatching { client.getChanges(next) }.getOrElse { failure ->
                 failed(LogEvent.HEALTH_READ_FAILED, failure)
-                return startAgain(client, zone, profileId, removed)
+                return startAgain(session, removed)
             }
             pages++
-            if (response.changesTokenExpired) return startAgain(client, zone, profileId, removed)
+            if (response.changesTokenExpired) return startAgain(session, removed)
             val gone = mutableListOf<String>()
             for (change in response.changes) {
                 when (change) {
                     is UpsertionChange -> {
                         val record = change.record as? WeightRecord ?: continue
-                        if (take(record, zone)) imported++ else skipped++
+                        if (take(session, record)) imported++ else skipped++
                     }
                     is DeletionChange -> gone += change.recordId
                     else -> Unit
@@ -490,30 +531,23 @@ class HealthConnectSync @Inject constructor(
      * What to do when the place in the queue is no longer any good: too much has happened since,
      * or the token means nothing to this provider any more.
      */
-    private suspend fun startAgain(
-        client: HealthConnectClient,
-        zone: ZoneId,
-        profileId: Long,
-        removed: Int,
-    ): Triple<Int, Int, Int> {
-        settingsRepository.setHealthChangesToken(profileId, null)
-        val start = Instant.now().minus(FULL_WINDOW_DAYS, ChronoUnit.DAYS)
-        val full = importWeights(client, start, zone)
-        rememberToken(client, profileId)
+    private suspend fun startAgain(session: Session, removed: Int): Triple<Int, Int, Int> {
+        settingsRepository.setHealthChangesToken(session.profileId, null)
+        // Measured from the moment this run started, not from now. A long import that has to
+        // start again would otherwise ask for a window that has quietly moved under it.
+        val full = importWeights(
+            session.copy(start = session.now.minus(FULL_WINDOW_DAYS, ChronoUnit.DAYS)),
+        )
+        rememberToken(session)
         return Triple(full.first, full.second, removed)
     }
 
-    private suspend fun importWeights(
-        client: HealthConnectClient,
-        start: Instant,
-        zone: ZoneId,
-    ): Triple<Int, Int, Int> {
-        val now = Instant.now()
+    private suspend fun importWeights(session: Session): Triple<Int, Int, Int> {
         val records = readAllPages { token ->
-            val page = client.readRecords(
+            val page = session.client.readRecords(
                 ReadRecordsRequest(
                     recordType = WeightRecord::class,
-                    timeRangeFilter = TimeRangeFilter.between(start, now),
+                    timeRangeFilter = TimeRangeFilter.between(session.start, session.now),
                     pageToken = token,
                 ),
             )
@@ -521,14 +555,14 @@ class HealthConnectSync @Inject constructor(
         }
         var imported = 0
         var skipped = 0
-        val wanted = if (settingsRepository.settings.first().importLowestOfDay) {
-            val kept = lowestPerDay(records, zone)
+        val wanted = if (session.lowestOfDayOnly) {
+            val kept = lowestPerDay(records, session.zone)
             skipped += records.size - kept.size
             kept
         } else {
             records
         }
-        wanted.forEach { record -> if (take(record, zone)) imported++ else skipped++ }
+        wanted.forEach { record -> if (take(session, record)) imported++ else skipped++ }
         return Triple(imported, skipped, 0)
     }
 
@@ -552,7 +586,7 @@ class HealthConnectSync @Inject constructor(
             .values
             .mapNotNull { sameDay -> sameDay.minByOrNull { it.weight.inKilograms } }
 
-    private suspend fun take(record: WeightRecord, zone: ZoneId): Boolean {
+    private suspend fun take(session: Session, record: WeightRecord): Boolean {
         val grams = (record.weight.inKilograms * 1000).toInt()
         if (grams <= 0) return false
         // A record we wrote comes back carrying our own client id. Re-importing it would be
@@ -560,15 +594,15 @@ class HealthConnectSync @Inject constructor(
         val ourClientId = record.metadata.clientRecordId
         if (
             ourClientId != null &&
-            weightRepository.byClientRecordIdFor(syncProfileId(), ourClientId) != null
+            weightRepository.byClientRecordIdFor(session.profileId, ourClientId) != null
         ) {
             return false
         }
         weightRepository.addFor(
-            profileId = syncProfileId(),
+            profileId = session.profileId,
             grams = grams,
             timestamp = record.time,
-            zone = zone,
+            zone = session.zone,
             source = EntrySource.HEALTH_CONNECT,
             healthConnectId = record.metadata.id,
             clientRecordId = ourClientId ?: "hc:${record.metadata.id}",
@@ -576,9 +610,10 @@ class HealthConnectSync @Inject constructor(
         return true
     }
 
-    private suspend fun exportWeights(client: HealthConnectClient, zone: ZoneId): Int {
-        val settings = settingsRepository.settings.first()
-        val entries = weightRepository.entriesFor(syncProfileId())
+    private suspend fun exportWeights(session: Session): Int {
+        val client = session.client
+        val zone = session.zone
+        val entries = weightRepository.entriesFor(session.profileId)
             .filter { it.source != EntrySource.HEALTH_CONNECT }
         if (entries.isEmpty()) return 0
 
@@ -591,7 +626,7 @@ class HealthConnectSync @Inject constructor(
                 .onSuccess { written += batch.size }
         }
         // Height is written once, not per reading, so it never floods the other app's log.
-        settings.profile.heightMm.takeIf { it > 0 }?.let { heightMm ->
+        session.heightMm.takeIf { it > 0 }?.let { heightMm ->
             runCatching {
                 client.insertRecords(
                     listOf(

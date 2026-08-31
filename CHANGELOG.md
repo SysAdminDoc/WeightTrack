@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- One Health Connect exchange at a time, and each one decides whose readings it is moving, what it is allowed to do and how far back it is looking before it moves anything. The hourly job and the button could run at once, and each worked those out again as it went, so a change made while Health Connect was slow to answer could file the rest of a run against the wrong person.
+
 - Health Connect now belongs to one person from the moment you connect it. It used to follow whoever was on screen whenever nobody had been named, which is harmless on a phone with one profile and wrong the day you add a second: switching person quietly pointed Health Connect at them, so their scale readings landed on the first person's history. Handing it to somebody else, or taking it away, now waits for any sync in progress to finish first.
 
 - A sync now writes everything it merged in one go, or none of it. A failure partway through used to leave a database no single device could have produced, and this phone then published that half to your other devices as though it were the answer. The units, theme and height that travel with a sync live outside the database and cannot join that commit, so a note is kept until they have landed and the next sync finishes the job.
