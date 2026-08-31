@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Weeks are weeks now. The weekly bars, the week-over-week comparison, the steps and sleep associations and the weekly summary all counted seven days back from your newest reading, so every one of them shifted a day each morning and none of them lined up with the week you were actually thinking of. They all use calendar weeks, and you choose which day a week begins on: the phone's own region by default, which is Monday across most of Europe and Sunday across most of North America, or Monday, Saturday or Sunday if you read it differently. The week in progress is left out of the chart rather than drawn half-height beside whole ones, and the weekly summary describes the week that finished instead of the seven days ending whenever it was sent. Your readings keep the dates they were taken on whatever you pick; the setting decides how days are gathered up and nothing else.
+
 - The weekly copy now writes a spreadsheet beside the backup. A backup restores the app and cannot be read by a person or handed to anything else; the readings can be. Four of each are kept, counted apart, so a month of backups no longer throws out every spreadsheet next to them.
 
 - Google Fit is gone and a takeout file is what its users are left holding. One imports now, and the column it reads is the day's average rather than the maximum sitting beside it, which would have brought a year of somebody's history in several hundred grams heavy with nothing saying so. Importing the same file twice lands on the same rows, as every other import already did.

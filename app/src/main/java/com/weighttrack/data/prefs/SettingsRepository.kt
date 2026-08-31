@@ -42,6 +42,13 @@ data class AppSettings(
     val waterServingMl: Int = 250,
     val weeklySummaryEnabled: Boolean = false,
     val weeklySummaryDay: DayOfWeek = DayOfWeek.SUNDAY,
+    /**
+     * Where a week begins, or null to follow the phone's own region.
+     *
+     * Monday across most of Europe, Sunday across most of North America, and the phone already
+     * knows which. Somebody who reads it the other way can say so.
+     */
+    val firstDayOfWeek: DayOfWeek? = null,
     val weeklySummaryHour: Int = 19,
     /** The Bluetooth scale last used, so the next weigh-in does not start with a scan. */
     /** Whose readings the app is showing. */
@@ -74,7 +81,18 @@ data class AppSettings(
     val updatedAtUtcMillis: Long = 0,
     val scaleAddress: String? = null,
     val scaleName: String? = null,
-)
+) {
+    /**
+     * Where a week begins, for everything that gathers days into weeks.
+     *
+     * The chosen day, or what the phone's region says. Derived rather than stored, so a person
+     * who changes their phone's region gets the week their region uses without having to come
+     * here, and nothing in the database is rewritten either way.
+     */
+    val weekRule: com.weighttrack.core.math.WeekRule
+        get() = firstDayOfWeek?.let { com.weighttrack.core.math.WeekRule(it) }
+            ?: com.weighttrack.core.math.WeekRule.forLocale()
+}
 
 @Singleton
 class SettingsRepository @Inject constructor(
@@ -216,6 +234,11 @@ class SettingsRepository @Inject constructor(
         it[Keys.WATER_SERVING_ML] = millilitres.coerceIn(25, 2_000)
     }
 
+    /** Null puts it back to whatever the phone's region says. */
+    suspend fun setFirstDayOfWeek(day: DayOfWeek?) = edit {
+        if (day == null) it.remove(Keys.FIRST_DAY_OF_WEEK) else it[Keys.FIRST_DAY_OF_WEEK] = day.name
+    }
+
     suspend fun setWeeklySummary(enabled: Boolean, day: DayOfWeek, hour: Int) = edit {
         it[Keys.WEEKLY_SUMMARY_ENABLED] = enabled
         it[Keys.WEEKLY_SUMMARY_DAY] = day.name
@@ -293,6 +316,8 @@ class SettingsRepository @Inject constructor(
         waterTargetMl = this[Keys.WATER_TARGET_ML] ?: 2_000,
         waterServingMl = this[Keys.WATER_SERVING_ML] ?: 250,
         weeklySummaryEnabled = this[Keys.WEEKLY_SUMMARY_ENABLED] ?: false,
+        firstDayOfWeek = this[Keys.FIRST_DAY_OF_WEEK]
+            ?.let { name -> DayOfWeek.entries.firstOrNull { it.name == name } },
         weeklySummaryDay = this[Keys.WEEKLY_SUMMARY_DAY]
             ?.let { name -> DayOfWeek.entries.firstOrNull { it.name == name } }
             ?: DayOfWeek.SUNDAY,
@@ -395,6 +420,7 @@ class SettingsRepository @Inject constructor(
         val WATER_SERVING_ML = intPreferencesKey("water_serving_ml")
         val WEEKLY_SUMMARY_ENABLED = booleanPreferencesKey("weekly_summary_enabled")
         val WEEKLY_SUMMARY_DAY = stringPreferencesKey("weekly_summary_day")
+        val FIRST_DAY_OF_WEEK = stringPreferencesKey("first_day_of_week")
         val WEEKLY_SUMMARY_HOUR = intPreferencesKey("weekly_summary_hour")
         val ACTIVE_PROFILE_ID = longPreferencesKey("active_profile_id")
         val LEGACY_REMINDER_ADOPTED = booleanPreferencesKey("legacy_reminder_adopted")

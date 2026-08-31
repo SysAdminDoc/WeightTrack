@@ -8,27 +8,37 @@ import com.weighttrack.core.model.WeightUnit
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import com.weighttrack.core.math.WeekRule
 import java.time.LocalDate
 
 @RunWith(RobolectricTestRunner::class)
 class WeeklySummaryTest {
 
+    /** A Monday, so the week being reported is the Monday-to-Sunday one that just finished. */
     private val today: LocalDate = LocalDate.of(2026, 6, 15)
+    private val reportedStart: LocalDate = LocalDate.of(2026, 6, 8)
 
-    /** [weighedDays] is how many of the last eight days carried a real reading. */
+    /**
+     * A history covering the week the summary reports, plus the day it is measured from.
+     *
+     * The trend moves from [startGrams] on the Sunday before the week to [endGrams] on the
+     * Sunday that ends it, which is the change the summary is about. [weighedDays] is how many
+     * days of that week carried a real reading; days outside it never count towards it.
+     */
     private fun series(
         startGrams: Double,
         endGrams: Double,
-        weighedDays: Int = 8,
-        days: Int = 8,
+        weighedDays: Int = 7,
     ): TrendSeries {
-        val step = if (days > 1) (endGrams - startGrams) / (days - 1) else 0.0
-        val points = (0 until days).map { index ->
-            val date = today.minusDays((days - 1 - index).toLong())
+        val measuredFrom = reportedStart.minusDays(1)
+        val step = (endGrams - startGrams) / 7.0
+        val points = (0..8).map { index ->
+            val inWeek = index in 1..7
+            val trend = startGrams + step * minOf(index, 7)
             TrendPoint(
-                date = date,
-                trendGrams = startGrams + step * index,
-                actualGrams = if (index >= days - weighedDays) (startGrams + step * index).toInt() else null,
+                date = measuredFrom.plusDays(index.toLong()),
+                trendGrams = trend,
+                actualGrams = if (inWeek && index > 7 - weighedDays) trend.toInt() else null,
             )
         }
         return TrendSeries(points, 0.1)
@@ -124,5 +134,49 @@ class WeeklySummaryTest {
     fun `one reading is described in the singular when it still qualifies`() {
         val summary = build(series(85_000.0, 84_300.0, weighedDays = 2))!!
         assertThat(summary.detailText()).contains("2 readings")
+    }
+
+    @Test
+    fun `the week reported is the one that finished, whatever day the summary is sent`() {
+        val history = series(85_000.0, 84_300.0)
+
+        // Sent on the Monday, and again on the Thursday of the same week. Both describe the
+        // week that finished, so the figure does not change under the person between them.
+        val monday = WeeklySummaryBuilder.build(
+            history,
+            WeightUnit.KG,
+            GoalDirection.LOSE,
+            null,
+            today,
+            WeekRule.MONDAY,
+        )!!
+        val thursday = WeeklySummaryBuilder.build(
+            history,
+            WeightUnit.KG,
+            GoalDirection.LOSE,
+            null,
+            today.plusDays(3),
+            WeekRule.MONDAY,
+        )!!
+
+        assertThat(thursday.changeGrams).isWithin(1e-6).of(monday.changeGrams)
+        assertThat(monday.changeGrams).isWithin(1e-6).of(-700.0)
+    }
+
+    @Test
+    fun `where the week starts decides which week is reported`() {
+        assertThat(WeeklySummaryBuilder.weekStart(today, WeekRule.MONDAY))
+            .isEqualTo(LocalDate.of(2026, 6, 8))
+        // Under a Sunday rule, Monday the fifteenth is the second day of a week in progress, so
+        // the week that finished began on Sunday the seventh.
+        assertThat(WeeklySummaryBuilder.weekStart(today, WeekRule.SUNDAY))
+            .isEqualTo(LocalDate.of(2026, 6, 7))
+    }
+
+    @Test
+    fun `a summary sent on the last day of a week reports that week`() {
+        // Sunday the fourteenth is the end of the Monday week, which has therefore finished.
+        assertThat(WeeklySummaryBuilder.weekStart(LocalDate.of(2026, 6, 14), WeekRule.MONDAY))
+            .isEqualTo(LocalDate.of(2026, 6, 8))
     }
 }

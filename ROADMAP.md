@@ -221,13 +221,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P2 additions from 2026-08-31
 
-- [ ] P2: Use one configurable calendar-week rule everywhere
-  Why: Weekly analytics currently count backward from the latest point while Settings has a summary day but no first-day-of-week rule, a correctness class that caused wrong-row selection in openScale and appeared again in a 2026-08-31 tracker discussion.
-  Evidence: `app/src/main/java/com/weighttrack/domain`; `app/src/main/java/com/weighttrack/ui/charts`; https://github.com/oliexdev/openScale/issues/1454; https://www.reddit.com/r/loseit/comments/1vvcm8n/what_apps_or_calorie_trackers_are_people_using/
-  Touches: shared week-boundary helper, analytics and chart grouping, weekly summary, settings and sync preference, locale tests
-  Acceptance: Locale default and an explicit Sunday-through-Saturday override produce consistent boundaries in charts, summaries, averages, comparisons, and exports; US and German locale fixtures select the expected rows across year boundaries; changing the rule never rewrites stored dates.
-  Complexity: M
-
 - [ ] P2: Publish a versioned interchange schema separate from private restore state
   Why: CSV and JSON exist, but third-party tools have no stable machine-readable contract, compatibility policy, or extension rules; adjacent local-first tools make documented open files the integration boundary.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://github.com/LuminaAppsDev/cairn; https://github.com/woop/awesome-quantified-self

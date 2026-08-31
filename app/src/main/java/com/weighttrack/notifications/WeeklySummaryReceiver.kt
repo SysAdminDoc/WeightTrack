@@ -50,10 +50,19 @@ class WeeklySummaryReceiver : BroadcastReceiver() {
 
                 val snapshot = progressCalculator.observe().first()
                 val today = LocalDate.now()
-                // A milestone crossed in the last week is the one thing worth leading with.
+                val rule = snapshot.settings.weekRule
+                // A milestone crossed in the week being reported is the one thing worth leading
+                // with. The same week the rest of the summary is about, or the notification
+                // leads with something the figures beside it do not cover.
+                val summaryWeekStart = WeeklySummaryBuilder.weekStart(today, rule)
+                val summaryWeekEnd =
+                    summaryWeekStart.plusDays(com.weighttrack.core.math.WeekRule.DAYS_IN_WEEK - 1L)
                 val milestone = snapshot.milestones
                     .filter { it.reached && it.reachedOn != null }
-                    .filter { !it.reachedOn!!.isBefore(today.minusDays(6)) }
+                    .filter {
+                        !it.reachedOn!!.isBefore(summaryWeekStart) &&
+                            !it.reachedOn!!.isAfter(summaryWeekEnd)
+                    }
                     .maxByOrNull { it.reachedOn!! }
                     ?.grams
 
@@ -63,6 +72,7 @@ class WeeklySummaryReceiver : BroadcastReceiver() {
                     goalDirection = snapshot.goal?.direction,
                     milestoneReachedThisWeek = milestone,
                     today = today,
+                    rule = rule,
                 ) ?: return@launch
 
                 post(

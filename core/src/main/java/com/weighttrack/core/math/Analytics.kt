@@ -22,27 +22,48 @@ data class WeekdayEffect(
 object Analytics {
 
     /**
-     * Change in the smoothed line across each of the most recent whole weeks.
+     * Change in the smoothed line across each of the most recent complete weeks.
      *
-     * Weeks are counted back from the latest reading rather than from Monday, so the newest
-     * bar always covers the last seven days and does not shrink as the week goes on.
+     * Calendar weeks under [rule], not seven-day blocks counted back from the newest reading.
+     * Counted back, every bar moved a day whenever a reading arrived, "last week" meant something
+     * different each morning, and none of it lined up with the week the person was thinking of.
+     *
+     * Each week's change is measured from the last day of the week before it, so a bar covers
+     * seven days of movement rather than the six between a week's own ends. The week in progress
+     * is left out: half a week of change drawn beside whole ones reads as a week that went well.
      */
-    fun weeklyChanges(series: TrendSeries, weeks: Int = 12): List<WeeklyChange> {
+    fun weeklyChanges(
+        series: TrendSeries,
+        weeks: Int = 12,
+        rule: WeekRule = WeekRule.MONDAY,
+    ): List<WeeklyChange> {
         val points = series.points
         if (points.size < 8) return emptyList()
+        val byDate = points.associateBy { it.date }
+        val earliest = points.first().date
 
         val result = ArrayList<WeeklyChange>()
-        var endIndex = points.lastIndex
-        while (endIndex >= 7 && result.size < weeks) {
-            val startIndex = endIndex - 7
-            val start = points[startIndex]
-            val end = points[endIndex]
-            result += WeeklyChange(
-                weekStart = start.date,
-                weekEnd = end.date,
-                changeGrams = end.trendGrams - start.trendGrams,
-            )
-            endIndex -= 7
+        var weekStart = rule.startOf(points.last().date)
+        while (result.size < weeks) {
+            // The day before the week began, which is what its change is measured from.
+            val before = weekStart.minusDays(1)
+            val lastDay = weekStart.plusDays(WeekRule.DAYS_IN_WEEK - 1L)
+            if (before < earliest) break
+            val start = byDate[before]
+            val end = byDate[lastDay]
+            if (start != null && end != null) {
+                result += WeeklyChange(
+                    weekStart = weekStart,
+                    weekEnd = end.date,
+                    changeGrams = end.trendGrams - start.trendGrams,
+                )
+            } else if (result.isNotEmpty()) {
+                // A hole in the middle, which the series does not produce. The week in progress
+                // is the only week that legitimately has no last day, and it is the first one
+                // looked at.
+                break
+            }
+            weekStart = weekStart.minusDays(WeekRule.DAYS_IN_WEEK.toLong())
         }
         return result.reversed()
     }

@@ -39,6 +39,17 @@ data class WeeklySummary(
 
 object WeeklySummaryBuilder {
 
+    /**
+     * The first day of the week a summary sent on [today] describes.
+     *
+     * The week that has finished, unless today is the last day of the week in progress, in
+     * which case that week has finished too and is the one worth reporting.
+     */
+    fun weekStart(
+        today: LocalDate,
+        rule: com.weighttrack.core.math.WeekRule,
+    ): LocalDate = if (rule.endOf(today) == today) rule.startOf(today) else rule.lastCompleteWeekStart(today)
+
     /** Below this a week is noise rather than movement. */
     const val MEANINGFUL_CHANGE_GRAMS = 100.0
 
@@ -51,13 +62,25 @@ object WeeklySummaryBuilder {
         goalDirection: GoalDirection?,
         milestoneReachedThisWeek: Int?,
         today: LocalDate = LocalDate.now(),
+        rule: com.weighttrack.core.math.WeekRule = com.weighttrack.core.math.WeekRule.MONDAY,
     ): WeeklySummary? {
         val trend = series.latestTrendGrams?.roundToInt() ?: return null
-        val weekStart = today.minusDays(6)
-        val daysWeighed = series.points.count { !it.date.isBefore(weekStart) && it.actualGrams != null }
+        // The week that has finished, under the same rule the charts draw. The trailing seven
+        // days moved every morning, so a summary sent on a Tuesday and one sent on a Friday
+        // covered different weeks and neither was the week the person was thinking of.
+        val weekStart = weekStart(today, rule)
+        val weekEnd = weekStart.plusDays(com.weighttrack.core.math.WeekRule.DAYS_IN_WEEK - 1L)
+        val daysWeighed = series.points.count {
+            !it.date.isBefore(weekStart) && !it.date.isAfter(weekEnd) && it.actualGrams != null
+        }
         if (daysWeighed < MINIMUM_DAYS_WEIGHED) return null
 
-        val change = series.changeOverDays(7) ?: return null
+        // Across that week, from where the trend stood the day before it began. A week's figure
+        // has to be about the week, not about the seven days ending whenever this was sent.
+        val trendByDate = series.points.associate { it.date to it.trendGrams }
+        val before = trendByDate[weekStart.minusDays(1)] ?: return null
+        val after = trendByDate[weekEnd] ?: return null
+        val change = after - before
 
         val headline = when {
             milestoneReachedThisWeek != null -> WeeklySummary.Headline.MILESTONE

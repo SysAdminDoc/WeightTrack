@@ -87,7 +87,10 @@ fun ChartsScreen(
 
     var range by remember { mutableStateOf(ChartRange.MONTH) }
     val unit = snapshot.settings.weightUnit
-    val weekly = remember(snapshot.series) { Analytics.weeklyChanges(snapshot.series) }
+    val weekRule = snapshot.settings.weekRule
+    val weekly = remember(snapshot.series, weekRule) {
+        Analytics.weeklyChanges(snapshot.series, rule = weekRule)
+    }
     val weekdays = remember(snapshot.series) { Analytics.weekdayEffects(snapshot.series) }
 
     LazyColumn(

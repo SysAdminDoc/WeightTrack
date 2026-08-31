@@ -19,29 +19,66 @@ class AnalyticsTest {
         )
 
     @Test
-    fun `weekly changes need at least eight days`() {
-        assertThat(Analytics.weeklyChanges(series(List(7) { 90_000.0 }))).isEmpty()
-        assertThat(Analytics.weeklyChanges(series(List(8) { 90_000.0 }))).hasSize(1)
+    fun `a bar needs a whole week and the day the week is measured from`() {
+        // The series starts on a Thursday, so the first Monday-to-Sunday week it can cover
+        // whole is 2026-01-05 to 2026-01-11, and its change is measured from the Sunday before.
+        // Eight days from a Thursday reaches neither.
+        assertThat(Analytics.weeklyChanges(series(List(8) { 90_000.0 }), rule = WeekRule.MONDAY))
+            .isEmpty()
+        // Thursday 2026-01-01 plus fourteen days is Wednesday 2026-01-14, which covers
+        // 2026-01-04 through 2026-01-11 and nothing else whole.
+        val fortnight = Analytics.weeklyChanges(series(List(14) { 90_000.0 }), rule = WeekRule.MONDAY)
+        assertThat(fortnight).hasSize(1)
+        assertThat(fortnight.single().weekStart).isEqualTo(LocalDate.of(2026, 1, 5))
     }
 
     @Test
     fun `each bar covers seven days of the trend`() {
-        val values = (0..20).map { 100_000.0 - 100.0 * it }
-        val changes = Analytics.weeklyChanges(series(values))
-        assertThat(changes).hasSize(2)
+        val values = (0..27).map { 100_000.0 - 100.0 * it }
+        val changes = Analytics.weeklyChanges(series(values), rule = WeekRule.MONDAY)
+        assertThat(changes).isNotEmpty()
         changes.forEach {
             assertThat(it.changeGrams).isWithin(1e-6).of(-700.0)
             assertThat(java.time.temporal.ChronoUnit.DAYS.between(it.weekStart, it.weekEnd))
-                .isEqualTo(7)
+                .isEqualTo(6)
         }
     }
 
     @Test
-    fun `weekly changes read oldest first and end on the latest day`() {
-        val values = (0..20).map { 100_000.0 - 100.0 * it }
-        val changes = Analytics.weeklyChanges(series(values))
+    fun `weekly changes read oldest first and only cover finished weeks`() {
+        val values = (0..27).map { 100_000.0 - 100.0 * it }
+        val changes = Analytics.weeklyChanges(series(values), rule = WeekRule.MONDAY)
         assertThat(changes.first().weekStart).isLessThan(changes.last().weekStart)
-        assertThat(changes.last().weekEnd).isEqualTo(day0.plusDays(20))
+        // The series ends on 2026-01-28, a Wednesday, so the week in progress is left out and
+        // the newest bar ends on the Sunday before it.
+        assertThat(changes.last().weekEnd).isEqualTo(LocalDate.of(2026, 1, 25))
+        changes.forEach { assertThat(it.weekStart.dayOfWeek).isEqualTo(DayOfWeek.MONDAY) }
+    }
+
+    @Test
+    fun `the week a bar covers depends on where the week starts`() {
+        val values = (0..27).map { 100_000.0 - 100.0 * it }
+        val monday = Analytics.weeklyChanges(series(values), rule = WeekRule.MONDAY)
+        val sunday = Analytics.weeklyChanges(series(values), rule = WeekRule.SUNDAY)
+
+        assertThat(monday.first().weekStart.dayOfWeek).isEqualTo(DayOfWeek.MONDAY)
+        assertThat(sunday.first().weekStart.dayOfWeek).isEqualTo(DayOfWeek.SUNDAY)
+        // Same history, same total movement, different boundaries. Counted back from the newest
+        // reading, both would have produced the same arbitrary blocks.
+        assertThat(monday.map { it.weekStart }).containsNoneIn(sunday.map { it.weekStart })
+    }
+
+    @Test
+    fun `bars do not move as the week goes on`() {
+        // The bug this replaced: every bar shifted a day each morning, so "last week" meant
+        // something different every time somebody looked at it.
+        val wednesday = (0..27).map { 100_000.0 - 100.0 * it }
+        val thursday = (0..28).map { 100_000.0 - 100.0 * it }
+
+        val before = Analytics.weeklyChanges(series(wednesday), rule = WeekRule.MONDAY)
+        val after = Analytics.weeklyChanges(series(thursday), rule = WeekRule.MONDAY)
+
+        assertThat(after.map { it.weekStart }).isEqualTo(before.map { it.weekStart })
     }
 
     @Test

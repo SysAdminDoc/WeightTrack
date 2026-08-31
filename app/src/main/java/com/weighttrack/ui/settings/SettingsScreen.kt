@@ -536,6 +536,32 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
+                SectionHeading(stringResource(R.string.settings_week_starts_on))
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_week_starts_on_explained),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                ChipRow(
+                    options = listOf(
+                        null to stringResource(R.string.settings_week_follow_region),
+                        DayOfWeek.MONDAY to
+                            DayOfWeek.MONDAY.getDisplayName(TextStyle.SHORT, locale),
+                        DayOfWeek.SATURDAY to
+                            DayOfWeek.SATURDAY.getDisplayName(TextStyle.SHORT, locale),
+                        DayOfWeek.SUNDAY to
+                            DayOfWeek.SUNDAY.getDisplayName(TextStyle.SHORT, locale),
+                    ),
+                    selected = settings.firstDayOfWeek,
+                    onSelect = viewModel::setFirstDayOfWeek,
+                )
+            }
+        }
+
+        item {
+            SettingsSection {
                 SectionHeading(stringResource(R.string.settings_weekly_summary))
                 Spacer(Modifier.height(6.dp))
                 ToggleRow(

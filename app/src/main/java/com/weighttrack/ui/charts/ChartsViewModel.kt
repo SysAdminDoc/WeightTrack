@@ -133,6 +133,7 @@ class ChartsViewModel @Inject constructor(
             return
         }
         val series = current.series
+        val rule = current.settings.weekRule
         val stepsByDate: Map<LocalDate, Double> = days
             .mapNotNull { day -> day.steps?.let { day.date to it.toDouble() } }
             .toMap()
@@ -142,8 +143,8 @@ class ChartsViewModel @Inject constructor(
             .valueOrNull()
             .orEmpty()
         _associations.value = AssociationState(
-            steps = Insights.weeklyAssociation(series, stepsByDate),
-            sleep = Insights.weeklyAssociation(series, sleepByDate),
+            steps = Insights.weeklyAssociation(series, stepsByDate, rule = rule),
+            sleep = Insights.weeklyAssociation(series, sleepByDate, rule = rule),
         )
     }
 

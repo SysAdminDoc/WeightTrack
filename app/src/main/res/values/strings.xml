@@ -306,6 +306,9 @@
     <string name="settings_only_used_to_work_out_bmi">Only used to work out BMI, body fat and how many calories you burn, for this profile. Nothing here is uploaded. It leaves the phone only where you send it: into a backup or export you take, and to your other devices if you have turned sync on. Health Connect never receives it.</string>
     <string name="settings_activity_level">Activity level</string>
     <string name="settings_weekly_summary">Weekly summary</string>
+    <string name="settings_week_starts_on">Weeks start on</string>
+    <string name="settings_week_starts_on_explained">Charts, weekly comparisons and the weekly summary all count from this day. Your readings keep the dates they were taken on whatever you pick.</string>
+    <string name="settings_week_follow_region">Follow the phone</string>
     <string name="settings_send_a_weekly_read">Send a weekly read</string>
     <string name="settings_a_short_note_on_how_the">A short note on how the week went, and nothing at all in a week with too few readings to say anything honest about.</string>
     <string name="settings_your_data">Your data</string>

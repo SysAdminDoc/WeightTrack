@@ -59,6 +59,7 @@ object Insights {
         series: TrendSeries,
         valuesByDate: Map<LocalDate, Double>,
         minWeeks: Int = MIN_PAIRED_WEEKS,
+        rule: WeekRule = WeekRule.MONDAY,
     ): Association? {
         if (series.points.size < (minWeeks + 1) * 7) return null
         val actualByDate = series.points
@@ -73,7 +74,11 @@ object Insights {
         data class Week(val start: LocalDate, val meanGrams: Double, val value: Double)
 
         val weeks = mutableListOf<Week>()
-        var weekStart = start
+        // Aligned to the same weeks the charts draw, rather than to whichever day the history
+        // happens to begin on. Two people with the same steps and the same weights got
+        // different answers depending on when they installed the app.
+        var weekStart = rule.startOf(start)
+        if (weekStart < start) weekStart = weekStart.plusDays(WeekRule.DAYS_IN_WEEK.toLong())
         while (weekStart.plusDays(6) <= end) {
             val days = (0..6).map { weekStart.plusDays(it.toLong()) }
             val values = days.mapNotNull { valuesByDate[it] }

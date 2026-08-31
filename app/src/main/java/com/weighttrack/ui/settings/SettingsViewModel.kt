@@ -548,6 +548,11 @@ class SettingsViewModel @Inject constructor(
         }
     }
 
+    /** Null puts it back to whatever the phone's region says. */
+    fun setFirstDayOfWeek(day: java.time.DayOfWeek?) {
+        viewModelScope.launch { settingsRepository.setFirstDayOfWeek(day) }
+    }
+
     fun renameProfile(id: Long, name: String) {
         viewModelScope.launch {
             profileRepository.rename(id, name)

@@ -154,4 +154,25 @@ class ExportRoundTripTest {
         )
         assertThat(BackupCodec.backupToEntry(bad)).isNull()
     }
+
+    @Test
+    fun `where a week starts changes nothing about an exported row`() {
+        // The rule decides how days are gathered into weeks and nothing else. An export that
+        // moved when somebody changed their region, or the setting that overrides it, would mean
+        // the rule had rewritten their history.
+        val entries = (0..13).map { entry(day = it + 1, grams = 80_000 - it * 100) }
+        val original = java.util.Locale.getDefault()
+        try {
+            java.util.Locale.setDefault(java.util.Locale.US)
+            val american = WeightCsvExporter.toCsv(entries, zone)
+            java.util.Locale.setDefault(java.util.Locale.GERMANY)
+            val german = WeightCsvExporter.toCsv(entries, zone)
+
+            assertThat(german).isEqualTo(american)
+            // And the days in it are the days the readings were taken on.
+            entries.forEach { assertThat(american).contains(it.localDate.toString()) }
+        } finally {
+            java.util.Locale.setDefault(original)
+        }
+    }
 }
