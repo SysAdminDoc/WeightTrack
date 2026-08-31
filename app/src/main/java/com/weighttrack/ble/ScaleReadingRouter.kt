@@ -24,6 +24,32 @@ enum class ScaleMatch {
 }
 
 /**
+ * Who a weight off a shared scale belongs to, as far as the weight can say.
+ *
+ * The old answer was a profile or nothing, and "nearest inside eight kilograms" was treated as
+ * an answer however close the second-nearest was. Two adults within a few kilograms of each
+ * other is not an unusual household, and in one the app was quietly filing every weigh-in under
+ * whoever happened to be marginally nearer that morning: a step change in one person's trend and
+ * a hole in the other's, with nothing on any screen suggesting a choice had been made.
+ */
+sealed interface ScaleRouting {
+
+    /** One person is clearly nearest. Filed without asking, which is the point of the feature. */
+    data class Clear(val profileId: Long) : ScaleRouting
+
+    /**
+     * Two or more people whose last weights sit too close together to tell apart.
+     *
+     * Named in order of nearness, so a picker can lead with the likeliest. Asking is the honest
+     * answer here: the scale cannot tell them apart and neither can this.
+     */
+    data class Ambiguous(val profileIds: List<Long>) : ScaleRouting
+
+    /** Nobody is near enough. The screen asks in its own way. */
+    data object Unknown : ScaleRouting
+}
+
+/**
  * Decides what to do with a weight that arrived on its own.
  *
  * A reading typed into the app is deliberate. One off a scale is not: whoever stood on it last
@@ -75,6 +101,45 @@ object ScaleReadingRouter {
             .filterValues { abs(grams - it) <= toleranceGrams }
             .minByOrNull { abs(grams - it.value) }
             ?.key
+    }
+
+    /**
+     * How much nearer the best match has to be than the next one to count as an answer.
+     *
+     * Two kilograms. Inside that, two people in a household are not distinguishable by weight on
+     * one morning, and the app has no business deciding for them: a wrong guess puts a step
+     * change in one person's trend and a hole in the other's, and neither is visible.
+     */
+    const val AMBIGUOUS_MARGIN_GRAMS = 2_000
+
+    /**
+     * Who a reading belongs to, or that it cannot be told.
+     *
+     * Everybody inside the tolerance, nearest first. Clear when the nearest is enough clearer
+     * than the next; ambiguous when it is not.
+     */
+    fun route(
+        grams: Int,
+        lastKnownByProfile: Map<Long, Int>,
+        toleranceGrams: Int = DEFAULT_TOLERANCE_GRAMS,
+        marginGrams: Int = AMBIGUOUS_MARGIN_GRAMS,
+    ): ScaleRouting {
+        if (grams < MIN_GRAMS || grams > MAX_GRAMS) return ScaleRouting.Unknown
+        val near = lastKnownByProfile
+            .filterValues { abs(grams - it) <= toleranceGrams }
+            .entries
+            .sortedWith(compareBy({ abs(grams - it.value) }, { it.key }))
+        if (near.isEmpty()) return ScaleRouting.Unknown
+        if (near.size == 1) return ScaleRouting.Clear(near.first().key)
+
+        val nearest = abs(grams - near[0].value)
+        val next = abs(grams - near[1].value)
+        if (next - nearest >= marginGrams) return ScaleRouting.Clear(near.first().key)
+        // Everybody who is within the margin of the nearest, so the picker offers the people it
+        // genuinely could be rather than the whole household.
+        return ScaleRouting.Ambiguous(
+            near.filter { abs(grams - it.value) - nearest < marginGrams }.map { it.key },
+        )
     }
 
     /** Whether a reading may be recorded without asking first. */

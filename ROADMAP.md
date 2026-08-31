@@ -128,13 +128,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: German comma decimals, French grouped values, and Arabic digits parse and round-trip in every weight, measurement, serving, and macro field; weekdays and default profile text use the active locale; the hardcoded-text test catches builder arguments, fragments, wrappers, and enum-derived labels.
   Complexity: M
 
-- [ ] P1: Require explicit routing for ambiguous BLE profile matches
-  Why: Nearest-last-weight routing accepts any winner inside 8 kg, even when two household profiles are nearly tied and automatic ownership is unreliable.
-  Evidence: `app/src/main/java/com/weighttrack/ble/ScaleReadingRouter.kt`; https://support.withings.com/hc/en-us/articles/32171073185937-Scales-Setting-up-your-scale-for-multiple-users
-  Touches: `ble/ScaleReadingRouter.kt`, `ui/scale/ScaleScreen.kt`, profile routing preferences, router tests
-  Acceptance: A clear nearest match still files automatically; a tie or small margin creates one pending reading and an inline profile picker; choosing a profile files exactly once and records enough context to make the next unambiguous session easier without changing another profile.
-  Complexity: M
-
 - [ ] P1: Gate releases on accessibility and UI state coverage
   Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
   Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/

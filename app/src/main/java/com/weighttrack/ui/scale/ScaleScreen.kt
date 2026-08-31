@@ -52,6 +52,7 @@ fun ScaleScreen(
     onConnect: (ScaleDevice) -> Unit,
     onSave: () -> Unit,
     onSaveToSuggested: () -> Unit,
+    onSaveTo: (Long) -> Unit,
     onDiscard: () -> Unit,
     onForgetScale: () -> Unit,
     onBack: () -> Unit,
@@ -135,6 +136,42 @@ fun ScaleScreen(
                     }
                 }
             }
+
+            state.ambiguousProfiles.takeIf { it.isNotEmpty() && state.stage == ScaleStage.MEASURED }
+                ?.let { candidates ->
+                    item {
+                        SectionCard {
+                            Text(
+                                // The scale cannot tell two people a couple of kilograms apart
+                                // and neither can this. Guessing puts a step change in one
+                                // trend and a hole in the other, and neither is visible.
+                                text = stringResource(R.string.scale_too_close_to_tell),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            candidates.forEach { candidate ->
+                                Button(
+                                    onClick = { onSaveTo(candidate.id) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(
+                                        stringResource(
+                                            R.string.scale_save_as_somebody,
+                                            candidate.name,
+                                        ),
+                                    )
+                                }
+                                Spacer(Modifier.height(6.dp))
+                            }
+                            TextButton(onClick = onDiscard) {
+                                Text(
+                                    stringResource(R.string.scale_neither),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+                    }
+                }
 
             state.suggestedProfile?.takeIf { state.stage == ScaleStage.MEASURED }?.let { suggested ->
                 item {
@@ -298,7 +335,8 @@ private fun headline(state: ScaleUiState): String = when (state.stage) {
     ScaleStage.SEARCHING -> stringResource(R.string.scale_looking_for_your_scale)
     ScaleStage.WAITING_FOR_WEIGHT -> stringResource(R.string.scale_step_on_the_scale)
     ScaleStage.MEASURED -> when {
-        state.suggestedProfile != null -> stringResource(R.string.scale_whose_is_this)
+        state.suggestedProfile != null || state.ambiguousProfiles.isNotEmpty() ->
+            stringResource(R.string.scale_whose_is_this)
         state.match == ScaleMatch.OUT_OF_RANGE -> stringResource(R.string.scale_is_this_you)
         else -> stringResource(R.string.scale_recording)
     }

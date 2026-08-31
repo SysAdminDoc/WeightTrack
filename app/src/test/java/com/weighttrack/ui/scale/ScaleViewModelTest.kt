@@ -38,6 +38,7 @@ import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Before
 import org.junit.Test
+import java.time.Instant
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
@@ -195,6 +196,76 @@ class ScaleViewModelTest {
 
         assertThat(viewModel.state.value.stage).isEqualTo(ScaleStage.SAVED)
         assertThat(weightRepository.latest()!!.grams).isEqualTo(62_000)
+    }
+
+    @Test
+    fun `two people too close to tell apart are asked about rather than guessed`() =
+        runTest(dispatcher) {
+            // An ordinary household: two adults within a kilogram of each other. Guessing puts
+            // a step change in one trend and a hole in the other, and neither is visible.
+            profiles.ensureDefault()
+        val alice = profiles.observeAll().first().single().id
+            val bob = profiles.add("Bob")
+            profiles.setActive(alice)
+            weightRepository.addFor(profileId = alice, grams = 80_400, timestamp = Instant.now())
+            weightRepository.addFor(profileId = bob, grams = 80_900, timestamp = Instant.now())
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            scanEvents.emit(broadcast(80_000))
+            advanceUntilIdle()
+
+            assertThat(viewModel.state.value.stage).isEqualTo(ScaleStage.MEASURED)
+            assertThat(viewModel.state.value.ambiguousProfiles.map { it.id })
+                .containsExactly(alice, bob)
+            // Nothing recorded while the question is on screen.
+            assertThat(weightRepository.entriesFor(alice)).hasSize(1)
+            assertThat(weightRepository.entriesFor(bob)).hasSize(1)
+        }
+
+    @Test
+    fun `picking a person files it once, under them, and nobody else`() = runTest(dispatcher) {
+        profiles.ensureDefault()
+        val alice = profiles.observeAll().first().single().id
+        val bob = profiles.add("Bob")
+        profiles.setActive(alice)
+        weightRepository.addFor(profileId = alice, grams = 80_400, timestamp = Instant.now())
+        weightRepository.addFor(profileId = bob, grams = 80_900, timestamp = Instant.now())
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        scanEvents.emit(broadcast(80_000))
+        advanceUntilIdle()
+
+        viewModel.saveTo(bob)
+        // A second tap on a picker that has not gone away yet must not record it twice.
+        viewModel.saveTo(bob)
+        advanceUntilIdle()
+
+        assertThat(weightRepository.entriesFor(bob).map { it.grams })
+            .containsExactly(80_900, 80_000)
+        assertThat(weightRepository.entriesFor(alice)).hasSize(1)
+        assertThat(viewModel.state.value.stage).isEqualTo(ScaleStage.SAVED)
+        assertThat(viewModel.state.value.ambiguousProfiles).isEmpty()
+    }
+
+    @Test
+    fun `a clear nearest match is still filed without asking`() = runTest(dispatcher) {
+        profiles.ensureDefault()
+        val alice = profiles.observeAll().first().single().id
+        val bob = profiles.add("Bob")
+        profiles.setActive(alice)
+        weightRepository.addFor(profileId = alice, grams = 80_400, timestamp = Instant.now())
+        weightRepository.addFor(profileId = bob, grams = 92_000, timestamp = Instant.now())
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        scanEvents.emit(broadcast(80_000))
+        advanceUntilIdle()
+
+        // Ten kilograms apart is not a question, and asking one would make the feature a
+        // dialogue instead of a scale.
+        assertThat(viewModel.state.value.ambiguousProfiles).isEmpty()
+        assertThat(viewModel.state.value.stage).isEqualTo(ScaleStage.SAVED)
     }
 
     @Test

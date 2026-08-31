@@ -9,6 +9,7 @@ import com.weighttrack.ble.ScaleKind
 import com.weighttrack.ble.ScaleMatch
 import com.weighttrack.ble.ScaleProblem
 import com.weighttrack.ble.ScaleReadingRouter
+import com.weighttrack.ble.ScaleRouting
 import com.weighttrack.ble.ScaleScanEvent
 import com.weighttrack.ble.ScaleScanner
 import com.weighttrack.core.model.BodyComposition
@@ -70,11 +71,20 @@ data class ScaleUiState(
      * open, when it plainly belongs to somebody else in the house, is the mistake worth avoiding.
      */
     val suggestedProfile: Profile? = null,
+    /**
+     * The people this reading could equally be, when the weight cannot tell them apart.
+     *
+     * Empty when it can. Two adults within a couple of kilograms of each other is an ordinary
+     * household, and the app used to file every weigh-in under whoever was marginally nearer
+     * that morning: a step change in one trend, a hole in the other, and nothing said so.
+     */
+    val ambiguousProfiles: List<Profile> = emptyList(),
 ) {
     /** Whether the reading needs a yes before it is recorded. */
     val needsConfirming: Boolean
         get() = reading != null &&
             suggestedProfile == null &&
+            ambiguousProfiles.isEmpty() &&
             match != null &&
             !ScaleReadingRouter.recordsWithoutAsking(match)
 }
@@ -248,10 +258,16 @@ class ScaleViewModel @Inject constructor(
 
         // On a shared scale the weight is the only thing that says who stood on it.
         val activeId = profiles.firstOrNull { it.id == rememberedActiveId }?.id
-        val owner = ScaleReadingRouter.owner(assembled.reading.grams, lastKnownByProfile)
-        val suggested = owner
+        val routing = ScaleReadingRouter.route(assembled.reading.grams, lastKnownByProfile)
+        val suggested = (routing as? ScaleRouting.Clear)?.profileId
             ?.takeIf { it != activeId }
             ?.let { id -> profiles.firstOrNull { it.id == id } }
+        // Too close to call. Asked rather than guessed: the scale cannot tell them apart and
+        // neither can the app, and a wrong guess is invisible on both people's trends.
+        val ambiguous = (routing as? ScaleRouting.Ambiguous)
+            ?.profileIds
+            ?.mapNotNull { id -> profiles.firstOrNull { it.id == id } }
+            .orEmpty()
 
         _state.update {
             it.copy(
@@ -259,6 +275,7 @@ class ScaleViewModel @Inject constructor(
                 reading = assembled.reading,
                 match = match,
                 suggestedProfile = suggested,
+                ambiguousProfiles = ambiguous,
                 liveGrams = null,
                 connectedTo = device,
                 rememberedName = device.name,
@@ -286,6 +303,8 @@ class ScaleViewModel @Inject constructor(
             rememberedAddress = device.address
             val match = _state.value.match ?: return@launch
             if (_state.value.suggestedProfile != null) return@launch
+            // A question on screen is not answered by waiting.
+            if (_state.value.ambiguousProfiles.isNotEmpty()) return@launch
             if (ScaleReadingRouter.recordsWithoutAsking(match)) save()
         }
     }
@@ -358,10 +377,22 @@ class ScaleViewModel @Inject constructor(
      */
     fun saveToSuggested() {
         val suggested = _state.value.suggestedProfile ?: return
+        saveTo(suggested.id)
+    }
+
+    /**
+     * Files the reading under the person somebody picked.
+     *
+     * Exactly once: the reading is cleared as it goes, so a second tap on a picker that has not
+     * yet gone away cannot record the same weight twice. Only that person's history is touched,
+     * and their last known weight moving is what makes the next morning easier to tell apart.
+     */
+    fun saveTo(profileId: Long) {
         val reading = _state.value.reading ?: return
+        _state.update { it.copy(reading = null) }
         viewModelScope.launch {
             weightRepository.addFor(
-                profileId = suggested.id,
+                profileId = profileId,
                 grams = reading.grams,
                 timestamp = java.time.Instant.now(),
                 bodyFatPercent = reading.bodyFatPercent,
@@ -373,6 +404,7 @@ class ScaleViewModel @Inject constructor(
                     stage = ScaleStage.SAVED,
                     savedGrams = reading.grams,
                     suggestedProfile = null,
+                    ambiguousProfiles = emptyList(),
                 )
             }
             surfaceUpdater.refresh()

@@ -271,6 +271,7 @@
     <string name="scale_save_as_somebody">Save as %1$s</string>
     <string name="scale_no_it_is_mine">No, it is mine</string>
     <string name="scale_neither">Neither</string>
+    <string name="scale_too_close_to_tell">This weight is too close to tell two of you apart. Whose is it?</string>
     <string name="scale_that_is_a_long_way_from">That is a long way from your last reading. Record it anyway?</string>
     <string name="scale_it_is_mine">It is mine</string>
     <string name="scale_not_me">Not me</string>
