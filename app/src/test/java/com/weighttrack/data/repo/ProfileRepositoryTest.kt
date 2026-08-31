@@ -218,10 +218,13 @@ class ProfileRepositoryTest {
 
         val lastKnown = weights.latestPerProfile().mapValues { it.value.grams }
 
-        assertThat(com.weighttrack.ble.ScaleReadingRouter.owner(82_300, lastKnown)).isEqualTo(me)
-        assertThat(com.weighttrack.ble.ScaleReadingRouter.owner(63_800, lastKnown)).isEqualTo(sam)
+        assertThat(com.weighttrack.ble.ScaleReadingRouter.route(82_300, lastKnown))
+            .isEqualTo(com.weighttrack.ble.ScaleRouting.Clear(me))
+        assertThat(com.weighttrack.ble.ScaleReadingRouter.route(63_800, lastKnown))
+            .isEqualTo(com.weighttrack.ble.ScaleRouting.Clear(sam))
         // Nobody in the house is this weight, so there is nobody to offer it to.
-        assertThat(com.weighttrack.ble.ScaleReadingRouter.owner(45_000, lastKnown)).isNull()
+        assertThat(com.weighttrack.ble.ScaleReadingRouter.route(45_000, lastKnown))
+            .isEqualTo(com.weighttrack.ble.ScaleRouting.Unknown)
     }
 
     @Test

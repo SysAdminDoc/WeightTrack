@@ -105,7 +105,17 @@ class SyncEngine @Inject constructor(
                         }
                     }
                 }
-                is SyncOutcome.Refused -> return@withLock finish(now, SyncResult.Refused(read.reason))
+                // One peer's file, not the sync. A file too large to read, or one this app did
+                // not write, is skipped and named: aborting here meant a single stray file in a
+                // shared folder killed the whole household's sync for good, because this phone
+                // then never merged anybody else's data and never republished its own either,
+                // and the file would be the same size in an hour.
+                is SyncOutcome.Refused -> {
+                    runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_DOCUMENT_REFUSED)
+                    refused += read.reason
+                }
+                // A peer that cannot be reached is different: the folder or the server is having
+                // a problem, not the file, and there is nothing to be gained by walking the rest.
                 is SyncOutcome.Unreachable ->
                     return@withLock finish(now, SyncResult.Unreachable(read.reason))
             }

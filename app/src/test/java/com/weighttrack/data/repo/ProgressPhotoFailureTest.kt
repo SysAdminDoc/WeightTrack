@@ -123,6 +123,50 @@ class ProgressPhotoFailureTest {
     }
 
     @Test
+    fun `a phone with no room left says that, not that the file is wrong`() = runTest {
+        val uri = Uri.parse("content://gallery/no-room")
+        // What a full phone actually throws part way through a copy.
+        shadowOf(context.contentResolver).registerInputStream(
+            uri,
+            object : java.io.InputStream() {
+                override fun read(): Int =
+                    throw java.io.IOException("write failed: ENOSPC (No space left on device)")
+            },
+        )
+
+        val outcome = repository.importFrom(uri, weightGrams = null)
+
+        // "Free some space" and "that file is not a picture" are different problems with
+        // different answers, and telling somebody the wrong one sends them looking in the wrong
+        // place. Half a copy is not left behind either.
+        assertThat(outcome).isEqualTo(PhotoOutcome.Failed(PhotoOutcome.Problem.NO_ROOM))
+        assertThat(files()).isEmpty()
+        assertThat(repository.observeAll().first()).isEmpty()
+        assertThat(log.read()).contains("photo_failed")
+    }
+
+    @Test
+    fun `an image that goes after the row is written leaves no row behind`() = runTest {
+        val directory = File(context.filesDir, ProgressPhotoRepository.DIRECTORY_NAME)
+        val vanishing = ProgressPhotoRepository(
+            context,
+            VanishingPhotoDao(database.progressPhotoDao(), directory),
+            testProfileRepository(database),
+            log,
+        )
+        val file = vanishing.newCaptureFile().apply { writeBytes(onePixelJpeg()) }
+
+        val outcome = vanishing.record(file, weightGrams = null)
+
+        // Reporting a failure and keeping the row means the retry produces two pictures, one of
+        // which is a permanent blank tile pointing at nothing.
+        assertThat(outcome).isEqualTo(PhotoOutcome.Failed(PhotoOutcome.Problem.NOT_SAVED))
+        assertThat(vanishing.observeAll().first()).isEmpty()
+        assertThat(database.progressPhotoDao().all()).isEmpty()
+        assertThat(files()).isEmpty()
+    }
+
+    @Test
     fun `trying again after a failure keeps one picture, not two`() = runTest {
         val uri = Uri.parse("content://gallery/broken")
         offer(uri, "not a photograph".toByteArray())
@@ -147,6 +191,20 @@ class ProgressPhotoFailureTest {
         val out = java.io.ByteArrayOutputStream()
         bitmap.compress(android.graphics.Bitmap.CompressFormat.JPEG, 90, out)
         return out.toByteArray()
+    }
+
+    /** A row that commits, with the image gone by the time anything reads it back. */
+    private class VanishingPhotoDao(
+        private val real: com.weighttrack.data.db.ProgressPhotoDao,
+        private val directory: File,
+    ) : com.weighttrack.data.db.ProgressPhotoDao by real {
+        override suspend fun insert(
+            photo: com.weighttrack.data.db.ProgressPhotoEntity,
+        ): Long {
+            val id = real.insert(photo)
+            File(directory, photo.fileName).delete()
+            return id
+        }
     }
 
     /** A database that refuses the row, which is what a full or damaged one does. */

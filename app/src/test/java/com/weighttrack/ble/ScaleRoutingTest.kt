@@ -97,13 +97,12 @@ class ScaleRoutingTest {
     }
 
     @Test
-    fun `the old answer is still the answer wherever it was a good one`() {
-        // `owner` is what the rest of the app used and its behaviour has not moved for the
-        // unambiguous cases, so nothing that relied on it has quietly changed meaning.
+    fun `the unambiguous cases answer the way they always did`() {
+        // Nearest wins where nearest means something, which is what the app did before it
+        // learned to ask. Nothing that worked has quietly changed meaning.
         val nearest = mapOf(alice to 80_400, bob to 92_000)
 
-        assertThat(ScaleReadingRouter.owner(80_000, nearest)).isEqualTo(alice)
-        assertThat(ScaleReadingRouter.route(80_000, nearest))
-            .isEqualTo(ScaleRouting.Clear(checkNotNull(ScaleReadingRouter.owner(80_000, nearest))))
+        assertThat(ScaleReadingRouter.route(80_000, nearest)).isEqualTo(ScaleRouting.Clear(alice))
+        assertThat(ScaleReadingRouter.route(91_500, nearest)).isEqualTo(ScaleRouting.Clear(bob))
     }
 }

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Ten more fixes from reviewing the last few changes. One file a shared folder will not hand over no longer stops the sync: it used to abort the whole run, so this phone stopped reading anybody else's data and stopped publishing its own, and the file would be the same size in an hour. The limit on what a peer can send now covers the tags on a reading, which were the one list nothing counted, and every piece of text a document carries rather than a handful of fields somebody thought of. Answering "whose weight is this?" is now final: the scale goes on shouting the same weight for a second afterwards, and the question used to come back and file it a second time under a name of its own. A picture whose file goes missing between being copied and being read back no longer leaves a row pointing at nothing, and a phone with no room left says so rather than blaming the file.
+
 - Every number field now reads numbers the way you write them. Most of Europe writes 82,4 for a weight, France groups with a space that is not a space, and an Arabic or Devanagari keyboard produces digits that are not 0 to 9 at all. All of those typed an ordinary weight into WeightTrack and got nothing back: a save button that stayed grey with no explanation, which reads as the app being broken rather than as the number being wrong.
 - The screen that asks for your fingerprint speaks your language too. Its two lines were the last English words in the app, on the first screen anybody meets, and the check that watches for that could not see them because they go in through a builder rather than onto a screen.
 

@@ -29,6 +29,14 @@ class SyncBudgetTest {
         foods = foods,
     )
 
+    private fun profile() = SyncProfile(
+        syncId = "p",
+        name = "Me",
+        position = 0,
+        createdAtUtcMillis = 1_800_000_000_000,
+        updatedAtUtcMillis = 1_800_000_000_000,
+    )
+
     private fun weight(name: String, note: String? = null) = SyncWeight(
         syncId = name,
         profileSyncId = "p",
@@ -125,6 +133,54 @@ class SyncBudgetTest {
         )
 
         assertThat(SyncBudget.problemWith(absurd)).isNotNull()
+    }
+
+    @Test
+    fun `a list inside one row is a collection too`() {
+        // Thirty megabytes of tags on a single weigh-in fits inside every other limit there is,
+        // and lands as one database cell that every list rendering it then has to split.
+        val absurd = document(
+            weights = listOf(weight("w-1").copy(tags = (0..SyncBudget.MAX_TAGS).map { "t$it" })),
+        )
+
+        val problem = SyncBudget.problemWith(absurd)
+
+        assertThat(problem).isNotNull()
+        assertThat(problem).contains("tags")
+    }
+
+    @Test
+    fun `a tag the length of a book is refused as well`() {
+        val absurd = document(
+            weights = listOf(weight("w-1").copy(tags = listOf("x".repeat(50_000)))),
+        )
+
+        assertThat(SyncBudget.problemWith(absurd)).isNotNull()
+    }
+
+    @Test
+    fun `a name nobody typed is refused wherever it appears`() {
+        // A list of the interesting fields goes stale the moment somebody adds one, so every
+        // string a document carries is checked rather than a handful chosen by hand.
+        val long = "x".repeat(50_000)
+
+        assertThat(
+            SyncBudget.problemWith(
+                document(profiles = listOf(profile().copy(reminderDays = long))),
+            ),
+        ).isNotNull()
+        assertThat(
+            SyncBudget.problemWith(document(weights = listOf(weight("w-1").copy(source = long)))),
+        ).isNotNull()
+    }
+
+    @Test
+    fun `a handful of tags on a reading is perfectly ordinary`() {
+        val ordinary = document(
+            weights = listOf(weight("w-1").copy(tags = listOf("MORNING", "AFTER_EXERCISE"))),
+        )
+
+        assertThat(SyncBudget.problemWith(ordinary)).isNull()
     }
 
     @Test

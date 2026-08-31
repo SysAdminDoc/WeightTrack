@@ -67,7 +67,8 @@ class WebDavSyncTarget(
         when (val result = client.read(name)) {
             is WebDavClient.Result.Ok -> SyncOutcome.Ok(result.value)
             WebDavClient.Result.Missing -> SyncOutcome.Ok(null)
-            else -> result.asFailure()
+            // Named, so a refusal says which peer's file it was rather than only which server.
+            else -> result.asFailure(name)
         }
 
     override suspend fun write(name: String, content: String): SyncOutcome<Unit> {
@@ -80,7 +81,10 @@ class WebDavSyncTarget(
         }
     }
 
-    private fun WebDavClient.Result<*>.asFailure(): SyncOutcome<Nothing> = when (this) {
+    /** [what] is the file or address being asked for, so a refusal names it. */
+    private fun WebDavClient.Result<*>.asFailure(
+        what: String = baseUrl,
+    ): SyncOutcome<Nothing> = when (this) {
         WebDavClient.Result.NotAllowed ->
             SyncOutcome.Refused(say(com.weighttrack.R.string.sync_wrong_password, emptyArray()))
         WebDavClient.Result.Missing ->
@@ -95,7 +99,7 @@ class WebDavSyncTarget(
             // size in an hour, and nothing already synced is touched.
             code == TOO_LARGE ->
                 SyncOutcome.Refused(
-                    say(com.weighttrack.R.string.sync_file_too_large, arrayOf(baseUrl)),
+                    say(com.weighttrack.R.string.sync_file_too_large, arrayOf(what)),
                 )
             // Nothing the person can do about these, and they usually pass.
             code == 0 ->

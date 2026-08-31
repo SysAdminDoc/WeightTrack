@@ -249,6 +249,39 @@ class ScaleViewModelTest {
     }
 
     @Test
+    fun `the scale still shouting the same weight cannot file it twice`() = runTest(dispatcher) {
+        profiles.ensureDefault()
+        val alice = profiles.observeAll().first().single().id
+        val bob = profiles.add("Bob")
+        profiles.setActive(alice)
+        weightRepository.addFor(profileId = alice, grams = 80_400, timestamp = Instant.now())
+        weightRepository.addFor(profileId = bob, grams = 80_900, timestamp = Instant.now())
+        val viewModel = viewModel()
+        advanceUntilIdle()
+        scanEvents.emit(broadcast(80_000))
+        // Only far enough for the question to come up. The scan is still running, which is the
+        // state a real scale is in for a second or so after somebody answers it.
+        advanceTimeBy(100)
+
+        viewModel.saveTo(bob)
+        advanceTimeBy(100)
+        // The same settled frame off the air again, and a tap that lands on it.
+        scanEvents.emit(broadcast(80_000))
+        advanceUntilIdle()
+        viewModel.saveTo(bob)
+        advanceUntilIdle()
+
+        // One row, and no question back on screen about a weight that is already filed. The
+        // second answer used to write a second row under a name of its own, which is not a
+        // duplicate any deduplication would ever match.
+        assertThat(weightRepository.entriesFor(bob).map { it.grams })
+            .containsExactly(80_900, 80_000)
+        assertThat(weightRepository.entriesFor(alice)).hasSize(1)
+        assertThat(viewModel.state.value.ambiguousProfiles).isEmpty()
+        assertThat(viewModel.state.value.stage).isEqualTo(ScaleStage.SAVED)
+    }
+
+    @Test
     fun `a clear nearest match is still filed without asking`() = runTest(dispatcher) {
         profiles.ensureDefault()
         val alice = profiles.observeAll().first().single().id

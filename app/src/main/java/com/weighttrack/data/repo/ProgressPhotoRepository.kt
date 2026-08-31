@@ -232,7 +232,14 @@ class ProgressPhotoRepository @Inject constructor(
             return@withContext failed(PhotoOutcome.Problem.NOT_SAVED)
         }
         val saved = entity.copy(id = id).toDomain()
-            ?: return@withContext failed(PhotoOutcome.Problem.NOT_SAVED)
+        if (saved == null) {
+            // Committed and then unreadable: the file went between the check above and here.
+            // Reporting a failure while leaving the row behind would make a retry produce two
+            // pictures, one of which points at nothing.
+            runCatching { dao.byId(id)?.let { dao.delete(it) } }
+            file.delete()
+            return@withContext failed(PhotoOutcome.Problem.NOT_SAVED)
+        }
         PhotoOutcome.Saved(saved)
     }
 

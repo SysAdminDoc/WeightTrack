@@ -68,13 +68,17 @@ class SyncEngineCommitTest {
     }
 
     /** A folder in memory, which also remembers whether this device ever published. */
-    private class RecordingTarget(private val files: MutableMap<String, String>) : SyncTarget {
+    private class RecordingTarget(val files: MutableMap<String, String>) : SyncTarget {
         override val describe = "a folder in memory"
         var published: String? = null
 
+        /** Files this target will not hand over, as an oversized one would be. */
+        val refuse = mutableSetOf<String>()
+
         override suspend fun list(): SyncOutcome<List<String>> = SyncOutcome.Ok(files.keys.toList())
 
-        override suspend fun read(name: String): SyncOutcome<String?> = SyncOutcome.Ok(files[name])
+        override suspend fun read(name: String): SyncOutcome<String?> =
+            if (name in refuse) SyncOutcome.Refused("too large") else SyncOutcome.Ok(files[name])
 
         override suspend fun write(name: String, content: String): SyncOutcome<Unit> {
             published = content
@@ -216,6 +220,24 @@ class SyncEngineCommitTest {
         // something nobody could have written must not stop the phone syncing with the rest.
         assertThat(result).isInstanceOf(SyncResult.Done::class.java)
         assertThat(database.syncDao().weights()).isEmpty()
+        assertThat(target.published).isNotNull()
+    }
+
+    @Test
+    fun `a peer whose file cannot be read does not stop the rest of the sync`() = runTest {
+        val engine = engineWith(peerDocument(listOf(weight("w-1", 80_000))))
+        // What an oversized or unreadable file looks like coming back from a target.
+        target.refuse += SyncDocument.fileName("peer")
+        target.files[SyncDocument.fileName("other")] =
+            SyncDocument.encode(peerDocument(listOf(weight("w-2", 79_000))))
+
+        val result = engine.syncNow(now)
+
+        // The other device's readings still arrive, and this phone still publishes its own.
+        // Aborting here meant one stray file in a shared folder killed a whole household's sync
+        // for good, because it would be the same size in an hour.
+        assertThat(result).isInstanceOf(SyncResult.Done::class.java)
+        assertThat(database.syncDao().weights().map { it.clientRecordId }).containsExactly("w-2")
         assertThat(target.published).isNotNull()
     }
 

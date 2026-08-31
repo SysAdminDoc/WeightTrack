@@ -27,6 +27,14 @@ object SyncBudget {
     const val MAX_STRING = 4_000
 
     /**
+     * The most tags one reading may carry.
+     *
+     * There are a handful to choose from. A number this far above that is not somebody being
+     * thorough.
+     */
+    const val MAX_TAGS = 100
+
+    /**
      * Reads at most [limit] bytes, or answers null when there are more.
      *
      * Checked while reading rather than from a length the other side reported. A content provider
@@ -68,6 +76,11 @@ object SyncBudget {
         ).firstOrNull { (_, count) -> count > MAX_RECORDS }
         if (tooMany != null) return "${tooMany.first}: ${tooMany.second}"
 
+        // A list inside a row is a collection too. One weigh-in carrying a hundred thousand tags
+        // is joined into a single database cell on arrival and counts against nothing above.
+        val mostTags = document.weights.maxOfOrNull { it.tags.size } ?: 0
+        if (mostTags > MAX_TAGS) return "tags on one reading: $mostTags"
+
         val longest = longestString(document)
         if (longest > MAX_STRING) return "a stored value of $longest characters"
         return null
@@ -76,18 +89,56 @@ object SyncBudget {
     /**
      * The longest single string anywhere in a document.
      *
-     * Only the fields a person can put text in. A million-character note is not a note, and one
-     * of them is enough to make every list that renders it unusable on the other phone.
+     * Every string, not the ones that came to mind. A list of the interesting fields goes stale
+     * the moment somebody adds one, and the field that was missed the first time round was the
+     * tags on a weigh-in: not a note, not a name, joined into one database cell on arrival, and
+     * thirty megabytes of it passed every check there was.
      */
-    private fun longestString(document: SyncDocument): Int = maxOf(
-        document.profiles.maxOfOrNull { it.name.length } ?: 0,
-        document.weights.maxOfOrNull { maxOf(it.note?.length ?: 0, it.syncId.length) } ?: 0,
-        document.measurements.maxOfOrNull { it.note?.length ?: 0 } ?: 0,
-        document.fasts.maxOfOrNull { it.note?.length ?: 0 } ?: 0,
-        document.foods.maxOfOrNull { maxOf(it.name.length, it.brand?.length ?: 0) } ?: 0,
-        document.recipes.maxOfOrNull { it.name.length } ?: 0,
-        document.foodLog.maxOfOrNull { it.name.length } ?: 0,
-    )
+    private fun longestString(document: SyncDocument): Int =
+        allStrings(document).maxOfOrNull { it.length } ?: 0
+
+    /**
+     * Every piece of text a document carries, including the ones inside its own lists.
+     *
+     * A list of strings is a collection too: one weigh-in with a hundred thousand tags on it is
+     * as much of a problem as a hundred thousand weigh-ins, and it counts against neither of the
+     * per-collection limits.
+     */
+    private fun allStrings(document: SyncDocument): List<String> = buildList {
+        document.profiles.forEach { add(it.name); add(it.syncId); add(it.reminderDays) }
+        document.weights.forEach {
+            add(it.syncId)
+            add(it.profileSyncId)
+            add(it.source)
+            add(it.localDate)
+            it.note?.let(::add)
+            addAll(it.tags)
+            it.compositionDevice?.let(::add)
+            it.compositionProtocol?.let(::add)
+            it.compositionQuality?.let(::add)
+        }
+        document.measurements.forEach {
+            add(it.syncId); add(it.type); add(it.localDate); it.note?.let(::add)
+        }
+        document.water.forEach { add(it.syncId); add(it.localDate) }
+        document.fasts.forEach { add(it.syncId); it.note?.let(::add) }
+        document.goals.forEach {
+            add(it.syncId); add(it.direction); add(it.startDate); it.targetDate?.let(::add)
+        }
+        document.macroTargets.forEach { add(it.syncId); add(it.basis); it.dayOfWeek?.let(::add) }
+        document.foods.forEach {
+            add(it.syncId); add(it.name); add(it.origin)
+            it.brand?.let(::add); it.barcode?.let(::add)
+        }
+        document.recipes.forEach { add(it.syncId); add(it.name) }
+        document.recipeItems.forEach { add(it.syncId); add(it.recipeSyncId); add(it.foodSyncId) }
+        document.foodLog.forEach {
+            add(it.syncId); add(it.name); add(it.meal); add(it.localDate)
+            it.foodSyncId?.let(::add)
+        }
+        document.deletions.forEach { add(it.syncId); add(it.profileSyncId) }
+        document.settings?.let { add(it.weightUnit); add(it.lengthUnit); add(it.themeMode) }
+    }
 
     private const val BUFFER_BYTES = 64 * 1024
 }

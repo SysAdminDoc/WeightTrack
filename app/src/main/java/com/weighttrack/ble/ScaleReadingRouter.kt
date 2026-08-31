@@ -83,27 +83,6 @@ object ScaleReadingRouter {
     }
 
     /**
-     * Which profile a weight off a shared scale belongs to.
-     *
-     * The nearest last known weight wins, as long as it is near enough to be the same person.
-     * This is the whole point of a family scale: whoever stood on it last is who it belongs to,
-     * and the weight is the only thing the scale can say about them.
-     *
-     * Null when nobody is close enough, which is the case the screen has to ask about.
-     */
-    fun owner(
-        grams: Int,
-        lastKnownByProfile: Map<Long, Int>,
-        toleranceGrams: Int = DEFAULT_TOLERANCE_GRAMS,
-    ): Long? {
-        if (grams < MIN_GRAMS || grams > MAX_GRAMS) return null
-        return lastKnownByProfile
-            .filterValues { abs(grams - it) <= toleranceGrams }
-            .minByOrNull { abs(grams - it.value) }
-            ?.key
-    }
-
-    /**
      * How much nearer the best match has to be than the next one to count as an answer.
      *
      * Two kilograms. Inside that, two people in a household are not distinguishable by weight on

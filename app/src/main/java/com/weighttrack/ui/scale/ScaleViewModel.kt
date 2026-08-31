@@ -116,6 +116,16 @@ class ScaleViewModel @Inject constructor(
     private var rememberedAddress: String? = null
     private var rememberedActiveId: Long = 1L
     private var rejectedGrams: Int? = null
+
+    /**
+     * Whether the reading in hand has already been answered for.
+     *
+     * A latch rather than a flag held for the length of the write. Two taps on a picker land
+     * before the first insert finishes, and a scale that has been answered for goes on
+     * advertising the same settled frame afterwards, so "in flight" is too short a window. It
+     * is let go when a fresh reading arrives, which is the only thing there is left to record.
+     */
+    private var answered = false
     private var lastKnownByProfile: Map<Long, Int> = emptyMap()
     private var profiles: List<Profile> = emptyList()
 
@@ -145,6 +155,7 @@ class ScaleViewModel @Inject constructor(
             _state.update { it.copy(stage = ScaleStage.BLOCKED, problem = problem) }
             return
         }
+        answered = false
         _state.update {
             it.copy(
                 stage = ScaleStage.SEARCHING,
@@ -153,6 +164,9 @@ class ScaleViewModel @Inject constructor(
                 reading = null,
                 match = null,
                 suggestedProfile = null,
+                // A question nobody answered goes with the reading it was about. Left behind,
+                // it is a picker whose taps land on a reading that is no longer there.
+                ambiguousProfiles = emptyList(),
                 liveGrams = null,
                 savedGrams = null,
             )
@@ -255,6 +269,8 @@ class ScaleViewModel @Inject constructor(
         if (assembled.reading.grams == rejectedGrams) return
         val match = ScaleReadingRouter.match(assembled.reading.grams, lastKnownGrams)
         if (match == ScaleMatch.IMPLAUSIBLE) return
+        // A reading of its own to record, so whatever was said about the last one is spent.
+        answered = false
 
         // On a shared scale the weight is the only thing that says who stood on it.
         val activeId = profiles.firstOrNull { it.id == rememberedActiveId }?.id
@@ -343,6 +359,8 @@ class ScaleViewModel @Inject constructor(
     /** Records the reading. Also the yes to "that does not look like you". */
     fun save() {
         val reading = _state.value.reading ?: return
+        if (answered) return
+        answered = true
         viewModelScope.launch {
             weightRepository.add(
                 grams = reading.grams,
@@ -383,13 +401,21 @@ class ScaleViewModel @Inject constructor(
     /**
      * Files the reading under the person somebody picked.
      *
-     * Exactly once: the reading is cleared as it goes, so a second tap on a picker that has not
-     * yet gone away cannot record the same weight twice. Only that person's history is touched,
-     * and their last known weight moving is what makes the next morning easier to tell apart.
+     * Exactly once, whatever happens: the picker goes at once and a second call while the first
+     * is still in flight does nothing. Only that person's history is touched, and their last
+     * known weight moving is what makes the next morning easier to tell apart.
      */
     fun saveTo(profileId: Long) {
         val reading = _state.value.reading ?: return
-        _state.update { it.copy(reading = null) }
+        if (answered) return
+        answered = true
+        // The reading stays put and the weight is remembered as answered. A broadcast scale goes
+        // on advertising the same settled frame for a second or so after it is filed, and the
+        // only thing that stopped it re-opening this picker was the reading being non-null:
+        // clearing it let the question come back for a weight already recorded, and the second
+        // answer wrote a second row under a name of its own that nothing would ever dedupe.
+        rejectedGrams = reading.grams
+        _state.update { it.copy(ambiguousProfiles = emptyList(), suggestedProfile = null) }
         viewModelScope.launch {
             weightRepository.addFor(
                 profileId = profileId,
