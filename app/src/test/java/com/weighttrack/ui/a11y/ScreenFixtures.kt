@@ -55,6 +55,7 @@ import com.weighttrack.ui.photos.PhotosUiState
 import com.weighttrack.ui.scale.ScaleScreen
 import com.weighttrack.ui.scale.ScaleStage
 import com.weighttrack.ui.scale.ScaleUiState
+import com.weighttrack.ui.settings.AutoBackupState
 import com.weighttrack.ui.settings.HealthConnectState
 import com.weighttrack.ui.settings.PendingRestore
 import com.weighttrack.ui.settings.SettingsScreen
@@ -111,7 +112,7 @@ private fun settingsViewModel(): SettingsViewModel {
         doReturn(MutableStateFlow(UserProfile())).`when`(viewModel).demographics
         doReturn(MutableStateFlow(SyncSettings())).`when`(viewModel).syncSettings
         doReturn(MutableStateFlow(false)).`when`(viewModel).syncing
-        doReturn(MutableStateFlow(SettingsViewModel.AutoBackupState()))
+        doReturn(MutableStateFlow(AutoBackupState()))
             .`when`(viewModel).autoBackup
         doReturn(MutableStateFlow(0)).`when`(viewModel).crashReportCount
         doReturn(MutableStateFlow<PendingRestore?>(null)).`when`(viewModel).pendingRestore

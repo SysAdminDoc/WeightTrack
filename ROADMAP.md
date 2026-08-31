@@ -133,12 +133,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: a fixture where steps double in week two moves the estimate faster than the same intake and weight without steps; changing a goal from lose to maintain shifts the recommended intake immediately by the documented factor; a test proves steps never enter the kcal arithmetic directly.
   Complexity: M
 
-- [ ] P2: Split SettingsScreen and add view model tests for the untested screens
-  Why: SettingsScreen.kt is 941 lines and the app has no tests for SettingsRepository, SyncWorker, or the goal, history (undo), log, onboarding and settings view models; Compose UI test dependencies are declared and never used.
-  Evidence: app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt ; app/build.gradle.kts:199,202 ; repo test inventory 2026-08-29
-  Touches: ui/settings/* (one file per section), new tests under app/src/test for SettingsRepository, HistoryViewModel undo, GoalViewModel, LogWeightViewModel, SyncWorker (WorkManager test helpers)
-  Acceptance: no settings file over 300 lines; the undo path has a test that goes red when `undoDelete` is stubbed out; SyncWorker returns `success` on `Refused` and `retry` on a network failure under `TestListenableWorkerBuilder`.
-  Complexity: M
 
 - [ ] P2: Replace wall-clock tombstone expiry with peer acknowledgements
   Why: Last-write-wins timestamps come from device clocks and tombstones expire after six months, so a skewed or long-offline peer can republish an older live row after its deletion marker disappears.
