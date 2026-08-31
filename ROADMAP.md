@@ -128,13 +128,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: An injected failure between row removal and tombstone insertion rolls back both; every `SyncKind` delete path passes the same transaction contract; profile cascade deletion commits all child tombstones before photo files are removed after commit.
   Complexity: L
 
-- [ ] P0: Fail closed when secret protection is unavailable
-  Why: WebDAV passwords and USDA API keys currently fall back to plaintext when Android Keystore protection fails.
-  Evidence: `app/src/main/java/com/weighttrack/data/sync/SyncPreferences.kt:106-113`; `app/src/main/java/com/weighttrack/data/prefs/SettingsRepository.kt`; https://mas.owasp.org/MASWE/MASVS-STORAGE/MASWE-0002/
-  Touches: `security/SecretStore.kt`, `data/sync/SyncPreferences.kt`, `data/prefs/SettingsRepository.kt`, settings error state and tests
-  Acceptance: A forced Keystore failure persists no secret, keeps the affected integration disabled, and produces a user-visible error plus diagnostic entry; legacy plaintext is removed only after a protected rewrite succeeds; tests assert DataStore never receives the original secret.
-  Complexity: S
-
 - [ ] P0: Register Android developer identity and release keys ahead of the 2027 global rollout
   Why: Enforcement on 2026-09-30 applies only to participating stores in Brazil, Indonesia, Singapore, and Thailand; direct sideloading and other stores do not change during that phase, but global rollout is announced for 2027 without a specific date as of 2026-08-31 and Play-distributed apps across form factors must be registered.
   Evidence: https://developer.android.com/developer-verification; https://developer.android.com/developer-verification/guides/faq; `app/build.gradle.kts`

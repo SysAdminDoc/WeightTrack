@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A phone that will not encrypt your WebDAV password or your USDA key now saves neither, tells you so, and records it in the activity log. It used to fall back to writing them down in plain text, which made the promise on the settings screen untrue on exactly the devices where it mattered, with nothing said about it.
+
 - Restoring a backup now shows you what is in the file first, and says that it merges rather than replaces. Picking the wrong file out of a folder of weekly copies used to restore it on the spot with nothing asked.
 - A backup that is truncated, oversized, not a backup at all, or written by a newer version of the app is refused before a single row changes, and a restore that fails partway through now leaves the database exactly as it was.
 - The weekly automatic backup writes beside the old copy and reads the new one back before replacing it. Writing straight over the only copy of your history is how a full card or a crash could destroy it.

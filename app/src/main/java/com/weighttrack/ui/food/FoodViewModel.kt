@@ -243,11 +243,13 @@ class FoodViewModel @Inject constructor(
     /** Where somebody puts their own key, since this app will not ship a shared one. */
     fun setUsdaKey(key: String) {
         viewModelScope.launch {
-            settingsRepository.setUsdaApiKey(key.trim().takeIf { it.isNotEmpty() })
-            message.value = if (key.isBlank()) {
-                strings[R.string.food_usda_key_cleared]
-            } else {
-                strings[R.string.food_usda_key_saved_ingredient_searches_will]
+            val stored = settingsRepository.setUsdaApiKey(key.trim().takeIf { it.isNotEmpty() })
+            message.value = when {
+                // Nothing was written, so saying it was saved would be a lie and the searches
+                // would go on failing with no explanation.
+                !stored -> strings[R.string.secret_not_stored_key]
+                key.isBlank() -> strings[R.string.food_usda_key_cleared]
+                else -> strings[R.string.food_usda_key_saved_ingredient_searches_will]
             }
         }
     }

@@ -698,6 +698,8 @@
     <string name="file_could_not_write">Could not write to that file.</string>
     <string name="file_could_not_read">Could not read that file.</string>
     <string name="import_too_large">That file is too large to be a WeightTrack backup.</string>
+    <string name="secret_not_stored_password">This phone would not encrypt the password, so nothing was saved and WebDAV sync is still off. It has been recorded in the activity log.</string>
+    <string name="secret_not_stored_key">This phone would not encrypt the key, so nothing was saved. It has been recorded in the activity log.</string>
     <string name="import_newer_version">That backup was written by a newer version of WeightTrack. Update the app and try again.</string>
     <string name="restore_title">Restore this backup?</string>
     <string name="restore_merges">This adds to what is already on the phone. Where the same record exists in both, the newer one wins. Nothing already here is removed unless the backup records that you deleted it.</string>

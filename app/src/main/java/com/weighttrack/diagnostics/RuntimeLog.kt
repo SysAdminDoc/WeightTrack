@@ -11,7 +11,7 @@ import java.util.Locale
  *
  * Few on purpose. A log nobody can scan is a log nobody reads.
  */
-enum class LogArea { SYNC, HEALTH_CONNECT, SCALE }
+enum class LogArea { SYNC, HEALTH_CONNECT, SCALE, SECRETS }
 
 /**
  * What happened. A closed list, and that is the point.
@@ -38,6 +38,14 @@ enum class LogEvent {
     SCALE_BOND_LOST,
     BACKUP_FOLDER_GONE,
     BACKUP_FAILED,
+
+    /**
+     * The phone would not give a key, so a password was not stored at all.
+     *
+     * Worth a line of its own. The alternative used to be writing the password down in the clear,
+     * which nobody was told about and nobody could have found out afterwards.
+     */
+    SECRET_NOT_PROTECTED,
 }
 
 /**

@@ -248,13 +248,21 @@ class SettingsRepository @Inject constructor(
         it[Keys.IMPORT_LOWEST_OF_DAY] = only
     }
 
-    suspend fun setUsdaApiKey(key: String?) = edit {
+    /**
+     * Stores somebody's own USDA key, or refuses to.
+     *
+     * False means the phone would not give a key to encrypt it with, and nothing was written. It
+     * is somebody's own quota on a public service, so it gets the same care as a password: the
+     * old fallback wrote it in the clear and said nothing.
+     */
+    suspend fun setUsdaApiKey(key: String?): Boolean {
         if (key == null) {
-            it.remove(Keys.USDA_API_KEY)
-        } else {
-            // Somebody's own quota on a public service, so worth the same care as a password.
-            it[Keys.USDA_API_KEY] = secrets.protect(key) ?: key
+            edit { it.remove(Keys.USDA_API_KEY) }
+            return true
         }
+        val protected = secrets.protect(key) ?: return false
+        edit { it[Keys.USDA_API_KEY] = protected }
+        return true
     }
 
     /** Remembers a scale, or forgets it when the address is null. */

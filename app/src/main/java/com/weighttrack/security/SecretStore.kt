@@ -3,6 +3,9 @@ package com.weighttrack.security
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.RuntimeLog
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -72,7 +75,16 @@ internal object Secrets {
  * worse thing than an export missing one.
  */
 @Singleton
-class SecretStore internal constructor(keySource: () -> SecretKey) {
+class SecretStore internal constructor(
+    keySource: () -> SecretKey,
+    /**
+     * Told when the phone will not protect a secret.
+     *
+     * A failure here used to be invisible: the value was written in the clear and nothing said
+     * so, which meant nobody could find out afterwards either.
+     */
+    private val report: () -> Unit = {},
+) {
 
     /**
      * Fetched once and held.
@@ -91,16 +103,20 @@ class SecretStore internal constructor(keySource: () -> SecretKey) {
      * fallback that stores the value plain.
      */
     @Inject
-    constructor() : this({ keystoreKey() })
+    constructor(runtimeLog: RuntimeLog) : this(
+        { keystoreKey() },
+        { runtimeLog.write(LogArea.SECRETS, LogEvent.SECRET_NOT_PROTECTED) },
+    )
 
     /**
      * Answers null when the phone will not give a key, which no ordinary device does.
      *
-     * A caller that gets null stores the plain value, because somebody whose sync quietly stopped
-     * working is worse off than somebody whose password sits in a file only root can read.
+     * A caller that gets null must store nothing. Writing the plain value instead, which is what
+     * this used to invite, quietly turns "your password is encrypted" into a false statement on
+     * exactly the devices where it matters, and nobody is ever told.
      */
     fun protect(secret: String): String? =
-        runCatching { Secrets.protect(secret, key) }.getOrNull()
+        runCatching { Secrets.protect(secret, key) }.getOrNull().also { if (it == null) report() }
 
     /**
      * Reads one back.

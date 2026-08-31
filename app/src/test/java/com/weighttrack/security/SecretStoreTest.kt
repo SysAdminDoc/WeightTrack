@@ -1,6 +1,7 @@
 package com.weighttrack.security
 
 import com.google.common.truth.Truth.assertThat
+import kotlinx.coroutines.flow.first
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -89,7 +90,7 @@ class SecretStoreTest {
     @Test
     fun `the stored preferences hold no readable password`() = kotlinx.coroutines.test.runTest {
         // What the item is actually about: not the cipher, but what ends up in the file.
-        val keyed = SecretStore { key }
+        val keyed = SecretStore({ key })
         val preferences = com.weighttrack.data.InMemoryPreferences()
         val sync = com.weighttrack.data.sync.SyncPreferences(preferences, keyed)
 
@@ -105,7 +106,7 @@ class SecretStoreTest {
     fun `a password stored before this existed is rewritten encrypted`() = kotlinx.coroutines.test.runTest {
         // Reading a plain value works either way, so without a rewrite it would stay legible in
         // the file for as long as nobody edited it, which for most people is for ever.
-        val keyed = SecretStore { key }
+        val keyed = SecretStore({ key })
         val preferences = com.weighttrack.data.InMemoryPreferences()
         val name = androidx.datastore.preferences.core.stringPreferencesKey("sync_webdav_password")
         preferences.updateData { it.toMutablePreferences().apply { set(name, "old-plain") } }
@@ -121,7 +122,7 @@ class SecretStoreTest {
 
     @Test
     fun `rewriting an already encrypted password leaves it alone`() = kotlinx.coroutines.test.runTest {
-        val keyed = SecretStore { key }
+        val keyed = SecretStore({ key })
         val preferences = com.weighttrack.data.InMemoryPreferences()
         val sync = com.weighttrack.data.sync.SyncPreferences(preferences, keyed)
         sync.useWebDav("https://cloud.example.com/dav", "me", "already-safe")
@@ -135,7 +136,7 @@ class SecretStoreTest {
 
     @Test
     fun `a password stored before this existed still works`() = kotlinx.coroutines.test.runTest {
-        val keyed = SecretStore { key }
+        val keyed = SecretStore({ key })
         val preferences = com.weighttrack.data.InMemoryPreferences()
         preferences.updateData {
             it.toMutablePreferences().apply {
@@ -147,6 +148,77 @@ class SecretStoreTest {
 
         assertThat(sync.current().webDavPassword).isEqualTo("old-plain")
     }
+
+    /** A store on a phone that will not give a key, which is the case this is all about. */
+    private fun refusing(report: () -> Unit = {}) =
+        SecretStore({ error("this phone has no keystore") }, report)
+
+    @Test
+    fun `a phone that will not encrypt stores no password and leaves sync off`() =
+        kotlinx.coroutines.test.runTest {
+            val preferences = com.weighttrack.data.InMemoryPreferences()
+            val sync = com.weighttrack.data.sync.SyncPreferences(preferences, refusing())
+
+            val stored = sync.useWebDav("https://cloud.example.com/dav", "me", "hunter2")
+
+            assertThat(stored).isFalse()
+            // Not the password, and not the address or the switch either: a half-configured sync
+            // that cannot work is its own kind of confusing.
+            val written = preferences.data.value.asMap().values.joinToString(" ")
+            assertThat(written).doesNotContain("hunter2")
+            assertThat(written).doesNotContain("cloud.example.com")
+            assertThat(sync.current().mode).isEqualTo(com.weighttrack.data.sync.SyncMode.OFF)
+            assertThat(sync.current().webDavPassword).isNull()
+        }
+
+    @Test
+    fun `a phone that will not encrypt stores no usda key`() = kotlinx.coroutines.test.runTest {
+        val preferences = com.weighttrack.data.InMemoryPreferences()
+        val settings = com.weighttrack.data.prefs.SettingsRepository(preferences, refusing())
+
+        val stored = settings.setUsdaApiKey("my-own-usda-key")
+
+        assertThat(stored).isFalse()
+        val written = preferences.data.value.asMap().values.joinToString(" ")
+        assertThat(written).doesNotContain("my-own-usda-key")
+        assertThat(settings.settings.first().usdaApiKey).isNull()
+    }
+
+    @Test
+    fun `clearing the key still works when the phone will not encrypt`() =
+        kotlinx.coroutines.test.runTest {
+            val preferences = com.weighttrack.data.InMemoryPreferences()
+            val settings = com.weighttrack.data.prefs.SettingsRepository(preferences, refusing())
+
+            // Removing a secret needs no key, and refusing it would trap somebody with a key
+            // they cannot delete.
+            assertThat(settings.setUsdaApiKey(null)).isTrue()
+        }
+
+    @Test
+    fun `a refusal is recorded rather than passing quietly`() {
+        var reported = 0
+
+        refusing { reported++ }.protect("hunter2")
+
+        assertThat(reported).isEqualTo(1)
+    }
+
+    @Test
+    fun `a password stored before this existed is left alone when it cannot be rewritten`() =
+        kotlinx.coroutines.test.runTest {
+            // Removing it would take away a working password to fix a problem nobody had.
+            val preferences = com.weighttrack.data.InMemoryPreferences()
+            val name = androidx.datastore.preferences.core
+                .stringPreferencesKey("sync_webdav_password")
+            preferences.updateData { it.toMutablePreferences().apply { set(name, "old-plain") } }
+            val sync = com.weighttrack.data.sync.SyncPreferences(preferences, refusing())
+
+            sync.protectStoredSecrets()
+
+            assertThat(preferences.data.value[name]).isEqualTo("old-plain")
+            assertThat(sync.current().webDavPassword).isEqualTo("old-plain")
+        }
 
     @Test
     fun `rubbish that claims to be protected does not throw`() {

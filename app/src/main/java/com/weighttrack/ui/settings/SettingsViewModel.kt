@@ -544,7 +544,13 @@ class SettingsViewModel @Inject constructor(
 
     fun useWebDav(url: String, user: String, password: String) {
         viewModelScope.launch {
-            syncPreferences.useWebDav(url, user, password)
+            // Nothing is stored when the phone will not encrypt the password, so sync stays off
+            // and is not scheduled. Saying so is the whole point: the alternative was writing the
+            // password down in the clear and letting somebody believe otherwise.
+            if (!syncPreferences.useWebDav(url, user, password)) {
+                _message.value = strings[R.string.secret_not_stored_password]
+                return@launch
+            }
             syncScheduler.reschedule()
             syncNow()
         }

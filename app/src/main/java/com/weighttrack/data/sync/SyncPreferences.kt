@@ -78,6 +78,8 @@ class SyncPreferences @Inject constructor(
     suspend fun protectStoredSecrets() {
         val stored = dataStore.data.first()[Keys.WEBDAV_PASSWORD] ?: return
         if (secrets.isProtected(stored)) return
+        // The plain value is left exactly where it is when the rewrite cannot be done. Removing
+        // it would take a working password away to fix a problem the person did not have.
         val protected = secrets.protect(stored) ?: return
         dataStore.edit { it[Keys.WEBDAV_PASSWORD] = protected }
     }
@@ -102,14 +104,25 @@ class SyncPreferences @Inject constructor(
         it[Keys.FOLDER_URI] = uri
     }
 
-    suspend fun useWebDav(url: String, user: String, password: String) = dataStore.edit {
-        it[Keys.MODE] = SyncMode.WEBDAV.name
-        it[Keys.WEBDAV_URL] = url.trim()
-        it[Keys.WEBDAV_USER] = user.trim()
-        // Encrypted with a key that never leaves this phone, so the stored file is of no use
-        // to anything that reads it. Stored plain only if the phone refuses a key at all, which
-        // no ordinary one does: a sync that silently stopped working would be worse.
-        it[Keys.WEBDAV_PASSWORD] = secrets.protect(password) ?: password
+    /**
+     * Points sync at a WebDAV server, or refuses to.
+     *
+     * False means the phone would not give a key to encrypt the password with, and nothing was
+     * written: not the password, not the address, and not the switch that turns sync on. The old
+     * behaviour was to store the password in the clear and carry on, which quietly made the
+     * promise on the settings screen untrue on exactly the devices where it mattered. Somebody
+     * whose sync will not turn on can be told why; somebody whose password was written down in
+     * plain sight never finds out.
+     */
+    suspend fun useWebDav(url: String, user: String, password: String): Boolean {
+        val protected = secrets.protect(password) ?: return false
+        dataStore.edit {
+            it[Keys.MODE] = SyncMode.WEBDAV.name
+            it[Keys.WEBDAV_URL] = url.trim()
+            it[Keys.WEBDAV_USER] = user.trim()
+            it[Keys.WEBDAV_PASSWORD] = protected
+        }
+        return true
     }
 
     /**

@@ -24,8 +24,19 @@ internal class InMemoryPreferences : DataStore<Preferences> {
     ): Preferences = transform(state.value).also { state.value = it }
 }
 
+/**
+ * A secret store with a real key, generated here.
+ *
+ * The Android keystore does not exist off a device, so a store built the way the app builds one
+ * refuses every key and every test would only ever see the refusal path.
+ */
+internal fun testSecretStore(): com.weighttrack.security.SecretStore =
+    com.weighttrack.security.SecretStore(
+        { javax.crypto.KeyGenerator.getInstance("AES").apply { init(256) }.generateKey() },
+    )
+
 internal fun testSettingsRepository(): SettingsRepository =
-    SettingsRepository(InMemoryPreferences(), com.weighttrack.security.SecretStore())
+    SettingsRepository(InMemoryPreferences(), testSecretStore())
 
 /**
  * The profile repository every data repository needs.
