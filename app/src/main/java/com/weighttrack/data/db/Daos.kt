@@ -304,6 +304,11 @@ interface GoalDao {
     @Query("SELECT * FROM goals WHERE id = :id")
     suspend fun byId(id: Long): GoalEntity?
 
+    /** Every goal on the phone, for the repair pass. Not scoped: a damaged row belongs to a
+     * person who may not be the one on screen. */
+    @Query("SELECT * FROM goals")
+    suspend fun all(): List<GoalEntity>
+
     /**
      * Retires every goal for a profile.
      *

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A goal with a damaged date is now repaired once instead of being read as today, every day. The same broken row used to say something different every morning: the progress bar moved, the projected date moved, and nothing said the date could not be read. It is now read as the day the goal was made, written back so the row stops being damaged, and noted in the activity log.
+
 - Health Connect having a bad minute no longer costs you a five-year reread. Any failure at all used to be treated as the app having lost its place, so a busy provider, a rate limit and a permission withdrawn months ago all triggered the most expensive query the app can make, once an hour, until whatever it was went away. Only a place Health Connect has genuinely forgotten is replaced now, and even then the app reads back a couple of days rather than five years.
 
 - Six more fixes from reviewing the last few changes. A Health Connect too old to offer the background-read permission is no longer asked for it, and the hourly exchange keeps running on those phones instead of being cancelled for good; that permission was one release away from repeating a trap this app has already fallen into once. Turning Health Connect off no longer leaves the hourly job failing and retrying every hour. Restoring a backup taken before this release brings your height, sex, year of birth and activity level back instead of quietly leaving them behind. Allowing body fat after WeightTrack has already sent some readings now reaches those readings rather than only the ones that come afterwards, and deleting a weigh-in takes its body-fat record with it. The settings text also now names the drinks and meals Health Connect receives, which it had left out.

@@ -149,13 +149,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Configured hard limits are checked while streaming and before decode; oversized documents, excessive collections, and oversized strings are rejected with the source filename or URL; the last valid local and remote documents remain unchanged; boundary-size tests pass for folder and WebDAV targets.
   Complexity: M
 
-- [ ] P1: Repair corrupt goal dates deterministically
-  Why: An invalid stored goal date maps to the current date, so the same damaged row changes meaning every day without a diagnostic.
-  Evidence: `app/src/main/java/com/weighttrack/data/db/Mappers.kt`; `app/src/main/java/com/weighttrack/data/db/Entities.kt`
-  Touches: goal mapper, migration or repair routine, diagnostics, mapper tests
-  Acceptance: A corrupt date maps to one stable fallback derived from stored creation time or is quarantined for repair; the app records the affected sync ID; repeated loads on different dates return the same result; valid rows are unchanged.
-  Complexity: S
-
 - [ ] P1: Gate releases on accessibility and UI state coverage
   Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
   Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/

@@ -137,7 +137,10 @@ fun GoalEntity.toDomain(): Goal = Goal(
     direction = decodeEnum(direction, GoalDirection.entries, GoalDirection.LOSE),
     startGrams = startGrams,
     targetGrams = targetGrams,
-    startDate = runCatching { LocalDate.parse(startDate) }.getOrElse { LocalDate.now() },
+    // Derived from when the goal was made, not from today. A damaged date used to read as the
+    // current one, so the same broken row said something different every morning: the progress
+    // bar moved, the projected date moved, and nothing anywhere said the date was unreadable.
+    startDate = parseDateOrDerive(startDate, createdAtUtcMillis, 0),
     targetDate = targetDate?.let { raw -> runCatching { LocalDate.parse(raw) }.getOrNull() },
     milestoneStepGrams = milestoneStepGrams,
     active = active,
@@ -181,8 +184,20 @@ private fun <T : Enum<T>> decodeEnum(raw: String, values: List<T>, fallback: T):
  * Falls back to deriving the local date from the timestamp when the stored text is missing or
  * malformed, so a bad row degrades to the right day rather than disappearing.
  */
+/**
+ * A stored date, or one worked out from the moment the row records.
+ *
+ * The fallback is deliberately something the row already holds rather than the current date. A
+ * date derived from today changes meaning every day: the same damaged row reads differently each
+ * morning, so nothing built on it can be reproduced and nobody can tell it is damaged. This one
+ * is the same answer tomorrow as it was yesterday.
+ */
 private fun parseDateOrDerive(raw: String, timestampUtcMillis: Long, offsetSeconds: Int): LocalDate =
     runCatching { LocalDate.parse(raw) }.getOrElse {
         val offset = runCatching { ZoneOffset.ofTotalSeconds(offsetSeconds) }.getOrDefault(ZoneOffset.UTC)
         Instant.ofEpochMilli(timestampUtcMillis).atOffset(offset).toLocalDate()
     }
+
+/** Whether a stored date can be read at all. What a repair pass looks for. */
+fun isReadableDate(raw: String?): Boolean =
+    raw != null && runCatching { LocalDate.parse(raw) }.isSuccess

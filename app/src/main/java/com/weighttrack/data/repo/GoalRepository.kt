@@ -3,6 +3,7 @@ package com.weighttrack.data.repo
 import com.weighttrack.core.model.Goal
 import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.data.db.GoalDao
+import com.weighttrack.data.db.isReadableDate
 import com.weighttrack.data.db.toDomain
 import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.toEntity
@@ -89,6 +90,37 @@ class GoalRepository @Inject constructor(
     /** Read back off the stored row, so an edit cannot move a goal to another profile. */
     private suspend fun profileOf(id: Long): Long =
         dao.byId(id)?.profileId ?: profiles.activeId()
+
+    /**
+     * Writes a readable date over one that cannot be read.
+     *
+     * A damaged date used to be interpreted as today, so the same broken row meant something
+     * different every morning: the progress bar moved, the projected date moved, and nothing
+     * anywhere said the date was unreadable. Reading it as the day the goal was made is stable,
+     * and writing that back means the row stops being damaged rather than being reinterpreted
+     * forgivingly for ever.
+     *
+     * Returns how many were repaired, for the activity log. The log deliberately carries no
+     * names or identifiers of any kind, so it gets the count.
+     */
+    suspend fun repairUnreadableDates(): Int {
+        val broken = dao.all().filter {
+            !isReadableDate(it.startDate) || (it.targetDate != null && !isReadableDate(it.targetDate))
+        }
+        broken.forEach { row ->
+            val repaired = row.toDomain()
+            dao.update(
+                row.copy(
+                    startDate = repaired.startDate.toString(),
+                    // A target date nobody can read is no target date. Guessing one would put a
+                    // deadline on somebody's goal that they never set.
+                    targetDate = row.targetDate?.takeIf { isReadableDate(it) },
+                    updatedAtUtcMillis = System.currentTimeMillis(),
+                ),
+            )
+        }
+        return broken.size
+    }
 
     suspend fun deleteAll() = dao.deleteAll()
 

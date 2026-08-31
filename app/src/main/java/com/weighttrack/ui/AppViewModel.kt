@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.ProfileRepository
+import com.weighttrack.diagnostics.LogArea
+import com.weighttrack.diagnostics.LogEvent
 import com.weighttrack.wear.WearBridge
 import com.weighttrack.wear.WearSummaryBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,6 +27,8 @@ import javax.inject.Inject
 class AppViewModel @Inject constructor(
     settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
+    private val goalRepository: com.weighttrack.data.repo.GoalRepository,
+    private val runtimeLog: com.weighttrack.diagnostics.RuntimeLog,
     private val reminderScheduler: com.weighttrack.notifications.ReminderScheduler,
     private val healthConnect: com.weighttrack.health.HealthConnectSync,
     private val wearBridge: WearBridge,
@@ -70,6 +74,12 @@ class AppViewModel @Inject constructor(
             // phone go to whoever was using it, once. Handing them to every profile would tell
             // a household everybody is the same height.
             profileRepository.adoptLegacyDemographics()
+            // A goal date nobody can read used to mean today, so the same damaged row said
+            // something different every morning. Written back readable, once.
+            runCatching { goalRepository.repairUnreadableDates() }
+                .getOrNull()
+                ?.takeIf { it > 0 }
+                ?.let { runtimeLog.write(LogArea.DATA, LogEvent.GOAL_DATE_REPAIRED, code = it) }
             // Writing the row is not enough. Alarms do not survive the app being replaced, and
             // the boot receiver has already run and found nothing enabled, so the reminder that
             // was just moved across has to be booked here or it never fires.

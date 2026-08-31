@@ -11,7 +11,7 @@ import java.util.Locale
  *
  * Few on purpose. A log nobody can scan is a log nobody reads.
  */
-enum class LogArea { SYNC, HEALTH_CONNECT, SCALE, SECRETS }
+enum class LogArea { SYNC, HEALTH_CONNECT, SCALE, SECRETS, DATA }
 
 /**
  * What happened. A closed list, and that is the point.
@@ -49,6 +49,14 @@ enum class LogEvent {
      * which nobody was told about and nobody could have found out afterwards.
      */
     SECRET_NOT_PROTECTED,
+
+    /**
+     * A stored date could not be read and was written back readable.
+     *
+     * The number beside it is how many rows, which is all this log is allowed to say: it carries
+     * no names and no identifiers of any kind, on purpose.
+     */
+    GOAL_DATE_REPAIRED,
 }
 
 /**
