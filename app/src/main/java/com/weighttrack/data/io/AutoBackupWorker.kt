@@ -12,7 +12,10 @@ import androidx.work.WorkerParameters
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.diagnostics.LogArea
 import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.LogTask
 import com.weighttrack.diagnostics.RuntimeLog
+import com.weighttrack.diagnostics.WorkOutcome
+import com.weighttrack.diagnostics.recorded
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -43,8 +46,11 @@ class AutoBackupWorker @AssistedInject constructor(
     private val runtimeLog: RuntimeLog,
 ) : CoroutineWorker(context, parameters) {
 
-    override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
-        val folderUri = settingsRepository.autoBackupFolder() ?: return@withContext Result.success()
+    override suspend fun doWork(): Result =
+        recorded(runtimeLog, LogTask.AUTO_BACKUP) { backUp() }
+
+    private suspend fun backUp(): WorkOutcome = withContext(Dispatchers.IO) {
+        val folderUri = settingsRepository.autoBackupFolder() ?: return@withContext WorkOutcome.DONE
         val folder = DocumentFile.fromTreeUri(applicationContext, Uri.parse(folderUri))
             ?.takeIf { it.isDirectory && it.canWrite() }
         if (folder == null) {
@@ -55,16 +61,16 @@ class AutoBackupWorker @AssistedInject constructor(
             // the settings screen can say so, because a backup that has silently stopped is the
             // failure this feature exists to prevent.
             settingsRepository.setAutoBackupProblem(true)
-            return@withContext Result.success()
+            return@withContext WorkOutcome.DONE
         }
 
         val text = backupService.exportedJson().getOrElse {
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKUP_FAILED, cause = it)
-            return@withContext Result.retry()
+            return@withContext WorkOutcome.RETRY
         }
         val csv = backupService.exportedCsv().getOrElse {
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKUP_FAILED, cause = it)
-            return@withContext Result.retry()
+            return@withContext WorkOutcome.RETRY
         }
 
         val today = LocalDate.now()
@@ -131,7 +137,7 @@ class AutoBackupWorker @AssistedInject constructor(
             // week and throwing it away would be the one thing this feature must never do. It is
             // named so that nothing mistakes it for a backup in the meantime, and a person can
             // still pick it by hand from the restore chooser.
-            return@withContext Result.retry()
+            return@withContext WorkOutcome.RETRY
         }
 
         val names = runCatching { folder.listFiles().mapNotNull { it.name } }.getOrDefault(emptyList())
@@ -144,7 +150,7 @@ class AutoBackupWorker @AssistedInject constructor(
         }
         settingsRepository.setAutoBackupProblem(false)
         settingsRepository.setLastAutoBackup(System.currentTimeMillis())
-        Result.success()
+        WorkOutcome.DONE
     }
 
     /**

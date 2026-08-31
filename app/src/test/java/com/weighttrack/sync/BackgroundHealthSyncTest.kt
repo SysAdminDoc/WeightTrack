@@ -52,7 +52,7 @@ class BackgroundHealthSyncTest {
     @Test
     fun `the widget and the watch are refreshed only when something changed`() {
         // A quiet hourly run must not keep rebuilding the widget and waking the watch.
-        val refresh = worker.substringAfter("summary.imported > 0").substringBefore("Result.success()")
+        val refresh = worker.substringAfter("summary.imported > 0").substringBefore("WorkOutcome.DONE")
 
         assertThat(refresh).contains("surfaces.refresh()")
         assertThat(worker).contains("summary.removed > 0")
@@ -63,7 +63,7 @@ class BackgroundHealthSyncTest {
         val guard = worker.substringAfter("private suspend fun syncHealthConnect")
             .substringBefore("val result =")
 
-        assertThat(guard).contains("Result.success()")
+        assertThat(guard).contains("WorkOutcome.DONE")
         assertThat(guard).contains("hasPermissions()")
     }
 }

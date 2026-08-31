@@ -161,13 +161,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Mutations use a hybrid logical clock with device ID tie-breaking; a tombstone is pruned only after the retention floor and acknowledgement from every non-retired known peer; a fixture returning after nine months cannot resurrect its deleted row; clock rollback and equal-millisecond edits converge identically on every merge order.
   Complexity: XL
 
-- [ ] P2: Record startup and worker failures in runtime diagnostics
-  Why: Crash reports and the runtime log exist, but initialization exceptions, progress-worker stop reasons, and scheduler decisions can disappear before the user can diagnose missed background work.
-  Evidence: `app/src/main/java/com/weighttrack/diagnostics`; `app/src/main/java/com/weighttrack/sync/SyncWorker.kt`; `app/src/main/java/com/weighttrack/data/io/AutoBackupWorker.kt`
-  Touches: application initializer, WorkManager workers and observers, runtime log event model, diagnostics UI and tests
-  Acceptance: Each worker records start, completion, retry cause, cancellation, and platform stop reason with profile-safe context; startup component failures appear on the next diagnostics screen; a support export redacts secrets; tests verify one terminal event per work run.
-  Complexity: M
-
 - [ ] P2: Add a long-history performance regression fixture
   Why: Weight trackers commonly accumulate years of daily data, and trale issue 279 reports navigation degradation on large histories; WeightTrack has no pinned dataset or frame-time budget for this case.
   Evidence: https://github.com/QuantumPhysique/trale/issues/279; `app/src/main/java/com/weighttrack/ui/charts`; `app/src/main/java/com/weighttrack/data/db/Daos.kt`
@@ -221,6 +214,19 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P2 additions from 2026-08-31
 
+- [ ] P2: Replace the SyncWorker source-text guard with a real worker test
+  Why: `BackgroundHealthSyncTest` reads `SyncWorker.kt` and asserts substrings, which the repo has twice learned is not a test: it broke on a rename that changed no behaviour, and it would pass just as happily with the call it looks for moved into a branch nothing reaches.
+  Evidence: `app/src/test/java/com/weighttrack/sync/BackgroundHealthSyncTest.kt`; `CLAUDE.md` note "A source-text guard is not a test"
+  Touches: seams for SyncEngine, SyncPreferences, HealthConnectSync and SurfaceUpdater, a TestListenableWorkerBuilder test for SyncWorker
+  Acceptance: the Health Connect exchange runs before the folder settings are read, proven by a fake that records the order; the job returns success on Refused and retry on a network failure; deleting the `healthConnect.sync()` call turns a test red; no test in the file reads a source file.
+  Complexity: M
+
+- [ ] P2: Stop the weekly backup from pruning a hand-made export with the same name
+  Why: the manual JSON export suggests `weighttrack-<date>.json`, which is exactly the name the weekly job writes and prunes, so a person who saves one by hand into their backup folder has it counted as one of the four kept and deleted once a fifth appears. The scheduled spreadsheet was given a distinct name for this reason; the backup itself still has the collision, and it is a shipped name.
+  Evidence: `app/src/main/java/com/weighttrack/data/io/AutoBackup.kt`; `BackupCodec.suggestedFileName`; `app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt`
+  Touches: AutoBackup naming, a migration that keeps recognising the files already in people's folders, the manual export's suggested name
+  Acceptance: a file the app did not write is never returned by `toRemove`, whatever it is called; backups already in a folder are still recognised and still pruned; a test plants a hand-made export beside four scheduled ones and proves it survives.
+  Complexity: S
 - [ ] P2: Publish a versioned interchange schema separate from private restore state
   Why: CSV and JSON exist, but third-party tools have no stable machine-readable contract, compatibility policy, or extension rules; adjacent local-first tools make documented open files the integration boundary.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://github.com/LuminaAppsDev/cairn; https://github.com/woop/awesome-quantified-self

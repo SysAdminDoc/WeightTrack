@@ -7,6 +7,7 @@ import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.ProfileRepository
 import com.weighttrack.diagnostics.LogArea
 import com.weighttrack.diagnostics.LogEvent
+import com.weighttrack.diagnostics.step
 import com.weighttrack.wear.WearBridge
 import com.weighttrack.wear.WearSummaryBuilder
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -66,14 +67,18 @@ class AppViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
-            // A fresh install has no profile until something makes one, and anyone who had a
-            // daily reminder set before profiles existed would otherwise lose it silently.
-            profileRepository.ensureDefault()
-            profileRepository.adoptLegacyReminder()
-            // The height, sex, year of birth and activity level that used to belong to the
-            // phone go to whoever was using it, once. Handing them to every profile would tell
-            // a household everybody is the same height.
-            profileRepository.adoptLegacyDemographics()
+            // Recorded when it fails. Without a profile there is nowhere to put a reading, so a
+            // failure here is the largest thing that can go quietly wrong on the way up.
+            runtimeLog.step(com.weighttrack.diagnostics.LogTask.STARTUP_PROFILES) {
+                // A fresh install has no profile until something makes one, and anyone who had a
+                // daily reminder set before profiles existed would otherwise lose it silently.
+                profileRepository.ensureDefault()
+                profileRepository.adoptLegacyReminder()
+                // The height, sex, year of birth and activity level that used to belong to the
+                // phone go to whoever was using it, once. Handing them to every profile would
+                // tell a household everybody is the same height.
+                profileRepository.adoptLegacyDemographics()
+            }
             // A goal date nobody can read used to mean today, so the same damaged row said
             // something different every morning. Written back readable, once.
             runCatching { goalRepository.repairUnreadableDates() }
@@ -92,13 +97,15 @@ class AppViewModel @Inject constructor(
             // Writing the row is not enough. Alarms do not survive the app being replaced, and
             // the boot receiver has already run and found nothing enabled, so the reminder that
             // was just moved across has to be booked here or it never fires.
-            reminderScheduler.reschedule(profileRepository.observeAll().first())
+            runtimeLog.step(com.weighttrack.diagnostics.LogTask.STARTUP_REMINDERS) {
+                reminderScheduler.reschedule(profileRepository.observeAll().first())
+            }
             // Whose Health Connect this is, settled at the first opportunity rather than at the
             // first background sync up to an hour later. Every install that connected before the
             // claim existed arrives here with nobody holding it, and the person switching profile
             // inside that window would have had it claimed for the wrong one, permanently.
-            if (healthConnect.hasPermissions()) {
-                runCatching { healthConnect.claimProfile() }
+            runtimeLog.step(com.weighttrack.diagnostics.LogTask.STARTUP_HEALTH_CLAIM) {
+                if (healthConnect.hasPermissions()) healthConnect.claimProfile()
             }
         }
 
@@ -106,7 +113,11 @@ class AppViewModel @Inject constructor(
         // changes a reading goes through SurfaceUpdater, but a watch paired since the last
         // weigh-in would otherwise have nothing until the next one.
         if (wearBridge.isSupported) {
-            viewModelScope.launch { wearBridge.publish(wearSummaryBuilder.current()) }
+            viewModelScope.launch {
+                runtimeLog.step(com.weighttrack.diagnostics.LogTask.STARTUP_WEAR_PUBLISH) {
+                    wearBridge.publish(wearSummaryBuilder.current())
+                }
+            }
         }
 
         viewModelScope.launch {

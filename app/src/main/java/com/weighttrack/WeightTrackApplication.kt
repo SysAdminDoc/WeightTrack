@@ -4,6 +4,9 @@ import android.app.Application
 import androidx.hilt.work.HiltWorkerFactory
 import androidx.work.Configuration
 import com.weighttrack.diagnostics.CrashReporter
+import com.weighttrack.diagnostics.LogTask
+import com.weighttrack.diagnostics.RuntimeLog
+import com.weighttrack.diagnostics.step
 import com.weighttrack.sync.SyncScheduler
 import dagger.hilt.android.HiltAndroidApp
 import kotlinx.coroutines.CoroutineScope
@@ -30,6 +33,8 @@ class WeightTrackApplication : Application(), Configuration.Provider {
 
     @Inject lateinit var progressPhotos: com.weighttrack.data.repo.ProgressPhotoRepository
 
+    @Inject lateinit var runtimeLog: RuntimeLog
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
@@ -41,17 +46,22 @@ class WeightTrackApplication : Application(), Configuration.Provider {
         // and unwaited: nothing on screen depends on it, and blocking startup on a database read
         // would be a visible cost for something nobody is watching.
         CoroutineScope(SupervisorJob() + Dispatchers.Default).launch {
-            runCatching { syncScheduler.reschedule() }
+            // Each one recorded when it fails. They were already wrapped so a failure here could
+            // not take the launch with it, which is right, and left nothing at all behind: a
+            // schedule that quietly stopped being restored after an update had no evidence.
+            runtimeLog.step(LogTask.STARTUP_SYNC_SCHEDULE) { syncScheduler.reschedule() }
             // The weekly copy, put back for the same reason.
-            runCatching { autoBackupScheduler.reschedule() }
+            runtimeLog.step(LogTask.STARTUP_BACKUP_SCHEDULE) { autoBackupScheduler.reschedule() }
             // A password stored before it was being encrypted would otherwise stay legible in the
             // file until somebody happened to edit it, which for most people is never.
-            runCatching { syncPreferences.protectStoredSecrets() }
-            runCatching { settingsRepository.protectStoredSecrets() }
+            runtimeLog.step(LogTask.STARTUP_SYNC_SECRETS) { syncPreferences.protectStoredSecrets() }
+            runtimeLog.step(LogTask.STARTUP_SETTINGS_SECRETS) {
+                settingsRepository.protectStoredSecrets()
+            }
             // A picture deleted with its undo still on screen is moved aside rather than
             // unlinked, and a process killed in that moment leaves it there with nothing that
             // knows about it. Collected on the next launch.
-            runCatching { progressPhotos.purgeAbandonedRecovery() }
+            runtimeLog.step(LogTask.STARTUP_PHOTO_SWEEP) { progressPhotos.purgeAbandonedRecovery() }
         }
     }
 }

@@ -16,6 +16,8 @@ import com.weighttrack.data.sync.SyncResult
 import com.weighttrack.diagnostics.LogArea
 import com.weighttrack.diagnostics.LogEvent
 import com.weighttrack.diagnostics.RuntimeLog
+import com.weighttrack.diagnostics.WorkOutcome
+import com.weighttrack.diagnostics.recorded
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -42,7 +44,7 @@ class SyncWorker @AssistedInject constructor(
     private val scheduler: SyncScheduler,
 ) : CoroutineWorker(context, parameters) {
 
-    override suspend fun doWork(): Result {
+    override suspend fun doWork(): Result = recorded(runtimeLog, com.weighttrack.diagnostics.LogTask.SYNC) {
         // Health Connect first, and whether or not folder sync is set up. Everything the changes
         // walk is for, a reading added or deleted in the scale's own app, used to reach the app
         // only when somebody opened Settings and pressed the button, which meant the trend, the
@@ -50,20 +52,22 @@ class SyncWorker @AssistedInject constructor(
         val health = syncHealthConnect()
 
         val settings = preferences.current()
-        if (!settings.isOn || !settings.isReady || !settings.syncInBackground) return health
+        if (!settings.isOn || !settings.isReady || !settings.syncInBackground) {
+            return@recorded health
+        }
         val outcome = runCatching { engine.syncNow() }.getOrElse {
             // A worker that throws is a crash nobody asked for and nobody sees. Whatever went
             // wrong is worth another go later rather than taking the process with it.
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
-            return Result.retry()
+            return@recorded WorkOutcome.RETRY
         }
-        return when (outcome) {
+        when (outcome) {
             is SyncResult.Done -> health
             // Worth another go later: no signal, a server having a bad day.
-            is SyncResult.Unreachable -> Result.retry()
+            is SyncResult.Unreachable -> WorkOutcome.RETRY
             // A wrong password will still be wrong in an hour, and retrying would hammer somebody
             // else's server for nothing. The reason is on the settings screen for them to read.
-            is SyncResult.Refused -> Result.success()
+            is SyncResult.Refused -> WorkOutcome.DONE
             SyncResult.NotSetUp -> health
         }
     }
@@ -74,20 +78,20 @@ class SyncWorker @AssistedInject constructor(
      * Answers success when it is not connected: that is not a failure and retrying would achieve
      * nothing. A failure is worth another go, since the usual cause is the provider being busy.
      */
-    private suspend fun syncHealthConnect(): Result {
+    private suspend fun syncHealthConnect(): WorkOutcome {
         if (healthConnect.availability() != com.weighttrack.health.HealthConnectAvailability.INSTALLED) {
-            return Result.success()
+            return WorkOutcome.DONE
         }
-        if (!healthConnect.hasPermissions()) return Result.success()
+        if (!healthConnect.hasPermissions()) return WorkOutcome.DONE
         // Given up or revoked since the job was booked. Either way there is nothing to do and
         // nothing retrying would fix, so the job stands itself down and Settings offers it back.
         if (!healthConnect.backgroundReadIsPossible() || !healthConnect.isTiedToAProfile()) {
             runCatching { scheduler.reschedule() }
-            return Result.success()
+            return WorkOutcome.DONE
         }
         val result = runCatching { healthConnect.sync() }.getOrElse {
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
-            return Result.retry()
+            return WorkOutcome.RETRY
         }
         return result.fold(
             onSuccess = { summary ->
@@ -96,9 +100,9 @@ class SyncWorker @AssistedInject constructor(
                 if (summary.imported > 0 || summary.removed > 0) {
                     runCatching { surfaces.refresh() }
                 }
-                Result.success()
+                WorkOutcome.DONE
             },
-            onFailure = { Result.retry() },
+            onFailure = { WorkOutcome.RETRY },
         )
     }
 }

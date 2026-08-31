@@ -11,7 +11,33 @@ import java.util.Locale
  *
  * Few on purpose. A log nobody can scan is a log nobody reads.
  */
-enum class LogArea { SYNC, HEALTH_CONNECT, SCALE, SECRETS, DATA }
+enum class LogArea { SYNC, HEALTH_CONNECT, SCALE, SECRETS, DATA, WORK, STARTUP }
+
+/**
+ * Which piece of background or startup work a line is about.
+ *
+ * A closed list for the same reason the events are: naming the job in free text would be one
+ * careless string away from a file path or a server address in a log people are asked to share.
+ */
+enum class LogTask {
+    /** The hourly job: folder or WebDAV sync, and the Health Connect exchange. */
+    SYNC,
+
+    /** The weekly copy into a chosen folder. */
+    AUTO_BACKUP,
+
+    // Startup, in the order the application runs them.
+    STARTUP_SYNC_SCHEDULE,
+    STARTUP_BACKUP_SCHEDULE,
+    STARTUP_SYNC_SECRETS,
+    STARTUP_SETTINGS_SECRETS,
+    STARTUP_PHOTO_SWEEP,
+    STARTUP_PROFILES,
+    STARTUP_GOAL_REPAIR,
+    STARTUP_REMINDERS,
+    STARTUP_HEALTH_CLAIM,
+    STARTUP_WEAR_PUBLISH,
+}
 
 /**
  * What happened. A closed list, and that is the point.
@@ -71,6 +97,34 @@ enum class LogEvent {
      * allowed to carry: no names, no paths, nothing about the picture itself.
      */
     PHOTO_FAILED,
+
+    /** A background job began. Exactly one terminal line follows it. */
+    WORK_STARTED,
+
+    WORK_SUCCEEDED,
+
+    /** It asked to be run again. The cause is there when something threw. */
+    WORK_RETRY,
+
+    WORK_FAILED,
+
+    /**
+     * Android stopped it partway.
+     *
+     * The number beside it is the platform's own stop reason where the phone reports one, which
+     * is the only way to tell "the person swapped to another app" from "the battery saver took
+     * it" and from a bug in here.
+     */
+    WORK_STOPPED,
+
+    /**
+     * Something the app does on the way up did not work.
+     *
+     * Each of these was already wrapped so a failure could not take the launch with it, which
+     * meant a reminder that stopped being booked, or a schedule that stopped being restored,
+     * left nothing at all behind.
+     */
+    STARTUP_FAILED,
 }
 
 /**
@@ -105,7 +159,13 @@ class RuntimeLog(
      * here is already on an unhappy path.
      */
     @Synchronized
-    fun write(area: LogArea, event: LogEvent, code: Int? = null, cause: Throwable? = null) {
+    fun write(
+        area: LogArea,
+        event: LogEvent,
+        code: Int? = null,
+        cause: Throwable? = null,
+        task: LogTask? = null,
+    ) {
         runCatching {
             file.parentFile?.let { if (!it.exists()) it.mkdirs() }
             val line = buildString {
@@ -114,6 +174,7 @@ class RuntimeLog(
                 append(area.name.lowercase())
                 append(' ')
                 append(event.name.lowercase())
+                task?.let { append(' ').append(it.name.lowercase()) }
                 code?.let { append(" code=").append(it) }
                 cause?.let { append(" cause=").append(it.javaClass.name) }
             }
