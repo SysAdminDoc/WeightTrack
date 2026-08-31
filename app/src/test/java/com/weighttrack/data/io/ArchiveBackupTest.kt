@@ -316,4 +316,140 @@ class ArchiveBackupTest {
         val ownerName = target.profileDao().byId(restoredOwner)?.name
         assertThat(ownerName).isEqualTo("Someone else")
     }
+
+    @Test
+    fun `a picture called backup json does not overwrite the export beside it`() = runTest {
+        // The two names live in one archive and a photograph may legitimately be called this.
+        // Unpacked into one folder they collided, and the picture truncated the export.
+        val json = BackupCodec.encode(
+            BackupFile(
+                exportedAtUtcMillis = 1,
+                photoRows = listOf(
+                    BackupPhoto(
+                        profileSyncId = "",
+                        timestampUtcMillis = 1_800_000_000_000,
+                        localDate = "2026-08-31",
+                        fileName = "backup.json",
+                    ),
+                ),
+            ),
+        ).toByteArray()
+        val picture = ByteArray(900) { 42 }
+        val file = temporary.newFile("collision.wtarchive")
+        ArchiveCodec.write(
+            file.outputStream(),
+            password.copyOf(),
+            listOf(
+                ArchiveEntry(ArchiveCodec.BACKUP_ENTRY, json.size.toLong()) {
+                    java.io.ByteArrayInputStream(json)
+                },
+                ArchiveEntry(ArchiveCodec.PHOTO_PREFIX + "backup.json", picture.size.toLong()) {
+                    java.io.ByteArrayInputStream(picture)
+                },
+            ),
+        )
+
+        val to = rig(target)
+        to.profiles.ensureDefault()
+        to.service.importArchive(Uri.fromFile(file), password.copyOf()).getOrThrow()
+
+        assertThat(to.photos.observeAll().first().single().file.readBytes()).isEqualTo(picture)
+    }
+
+    @Test
+    fun `two people with the same name keep their own photographs`() = runTest {
+        val from = rig(source)
+        from.profiles.ensureDefault()
+        val first = from.profiles.activeId()
+        from.profiles.rename(first, "Sam")
+        val second = from.profiles.add("Sam")
+        // One picture each, under two profiles sharing a display name.
+        from.profiles.setActive(first)
+        val hers = ByteArray(700) { 1 }
+        from.photos.record(
+            from.photos.newCaptureFile().apply { writeBytes(hers) },
+            weightGrams = null,
+            timestamp = Instant.ofEpochMilli(1_800_000_000_000),
+        )
+        from.profiles.setActive(second)
+        val his = ByteArray(700) { 2 }
+        from.photos.record(
+            from.photos.newCaptureFile().apply { writeBytes(his) },
+            weightGrams = null,
+            timestamp = Instant.ofEpochMilli(1_800_000_100_000),
+        )
+        val archive = temporary.newFile("household.wtarchive")
+        from.service.exportArchive(Uri.fromFile(archive), password.copyOf()).getOrThrow()
+
+        photoDirectory().deleteRecursively()
+        val to = rig(target)
+        to.profiles.ensureDefault()
+        to.service.importArchive(Uri.fromFile(archive), password.copyOf()).getOrThrow()
+
+        // Resolved by the profile's own travelling name. Through the display name, both
+        // pictures landed on whichever Sam the map happened to keep.
+        val owners = target.progressPhotoDao().all().map { it.profileId }.toSet()
+        assertThat(owners).hasSize(2)
+    }
+
+    @Test
+    fun `a photo row naming a path outside the folder is ignored`() = runTest {
+        val escape = java.io.File(context.filesDir, "escaped.jpg")
+        escape.delete()
+        val json = BackupCodec.encode(
+            BackupFile(
+                exportedAtUtcMillis = 1,
+                photoRows = listOf(
+                    BackupPhoto(
+                        profileSyncId = "",
+                        timestampUtcMillis = 1_800_000_000_000,
+                        localDate = "2026-08-31",
+                        // Never checked by the codec: entry names are, row names were not.
+                        fileName = "../escaped.jpg",
+                    ),
+                ),
+            ),
+        ).toByteArray()
+        val file = temporary.newFile("traversal.wtarchive")
+        ArchiveCodec.write(
+            file.outputStream(),
+            password.copyOf(),
+            listOf(
+                ArchiveEntry(ArchiveCodec.BACKUP_ENTRY, json.size.toLong()) {
+                    java.io.ByteArrayInputStream(json)
+                },
+            ),
+        )
+
+        val to = rig(target)
+        to.profiles.ensureDefault()
+        to.service.importArchive(Uri.fromFile(file), password.copyOf()).getOrThrow()
+
+        assertThat(escape.exists()).isFalse()
+        assertThat(target.progressPhotoDao().all()).isEmpty()
+    }
+
+    @Test
+    fun `a restore that cannot place a picture leaves the phone exactly as it was`() = runTest {
+        val from = rig(source)
+        val name = seed(from, ByteArray(1_200) { 6 })
+        val file = temporary.newFile("archive.wtarchive")
+        from.service.exportArchive(Uri.fromFile(file), password.copyOf()).getOrThrow()
+
+        photoDirectory().deleteRecursively()
+        val to = rig(target)
+        to.profiles.ensureDefault()
+        // An ordinary file standing where the photo folder has to be, so nothing can be written
+        // inside it and the copy throws partway through what used to be an already-committed
+        // restore.
+        photoDirectory().writeBytes(byteArrayOf(1))
+        assertThat(name).isNotEmpty()
+
+        val result = to.service.importArchive(Uri.fromFile(file), password.copyOf())
+
+        assertThat(result.isFailure).isTrue()
+        assertThat(target.syncDao().weights()).isEmpty()
+        assertThat(target.progressPhotoDao().all()).isEmpty()
+        photoDirectory().delete()
+    }
 }

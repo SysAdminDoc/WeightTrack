@@ -47,8 +47,9 @@ class ArchiveException(val problem: ArchiveProblem) : Exception(problem.name)
 /**
  * One thing in an archive: a name, a length, and a way to open the bytes.
  *
- * [open] is called more than once, because the digest is written in front of the payload and
- * both passes read the same source.
+ * [open] is called once. The digest is computed from the same pass that writes the payload, so
+ * a file replaced mid-export is caught by the length check rather than sealed with a digest of
+ * bytes nobody ever stored.
  */
 class ArchiveEntry(
     val name: String,
@@ -179,15 +180,26 @@ object ArchiveCodec {
                 out.writeShort(name.size)
                 out.write(name)
                 out.writeLong(entry.sizeBytes)
-                // The digest goes in front of the bytes so a restore can check what it read
-                // against what the writer meant, without holding the whole entry to compare.
-                out.write(digestOf(entry))
+                // Hashed while it is written, not in a pass of its own. Two reads of the same
+                // file can disagree: a picture replaced between them produces an archive whose
+                // digest is of bytes nobody ever stored, and it fails only at restore time.
+                val digest = MessageDigest.getInstance("SHA-256")
+                var written = 0L
                 entry.open().use { source ->
-                    val written = source.copyTo(out)
-                    check(written == entry.sizeBytes) {
-                        "archive entry ${entry.name} changed size while being written"
+                    val buffer = ByteArray(COPY_BUFFER)
+                    while (true) {
+                        val read = source.read(buffer)
+                        if (read < 0) break
+                        digest.update(buffer, 0, read)
+                        out.write(buffer, 0, read)
+                        written += read
                     }
                 }
+                check(written == entry.sizeBytes) {
+                    "archive entry ${entry.name} changed size while being written"
+                }
+                // The digest follows the bytes, because it is only known once they are gone.
+                out.write(digest.digest())
             }
             out.writeByte(MARK_END.toInt())
         }
@@ -229,6 +241,10 @@ object ArchiveCodec {
         if (slotCount !in 1..MAX_SLOTS) throw ArchiveException(ArchiveProblem.NOT_AN_ARCHIVE)
 
         var master: ByteArray? = null
+        // What every slot in the file may cost between them, not what each may cost. Eight slots
+        // at the per-slot ceiling is minutes of a phone's processor spent on a file that was
+        // written to do exactly that.
+        var budget = MAX_TOTAL_ITERATIONS
         repeat(slotCount) { index ->
             val kdfId = head.readUnsignedByteOrFail()
             val iterations = head.readIntOrFail()
@@ -253,6 +269,8 @@ object ArchiveCodec {
             // A slot naming an absurd cost would otherwise spend minutes deriving a key for a
             // file that was made to do exactly that.
             if (iterations !in 1..MAX_ITERATIONS) return@repeat
+            if (iterations > budget) return@repeat
+            budget -= iterations
             if (salt.size !in MIN_SALT_BYTES..MAX_SALT_BYTES) return@repeat
             if (nonce.size != NONCE_BYTES) return@repeat
             if (wrapped.size != WRAPPED_KEY_BYTES) return@repeat
@@ -294,7 +312,6 @@ object ArchiveCodec {
             }
             total += size
             if (total > limits.maxTotalBytes) throw ArchiveException(ArchiveProblem.TOO_LARGE)
-            val expected = body.readSizedOrDamaged(DIGEST_BYTES)
 
             val digest = MessageDigest.getInstance("SHA-256")
             receive(name, size).use { sink ->
@@ -310,6 +327,7 @@ object ArchiveCodec {
                 }
                 sink.flush()
             }
+            val expected = body.readSizedOrDamaged(DIGEST_BYTES)
             // Belt as well as braces. The chunk tags already prove nothing was altered, but the
             // digest proves the writer and the reader agree about where this entry ended, which
             // a framing bug of our own would break without any tag noticing.
@@ -342,18 +360,6 @@ object ArchiveCodec {
         }
     }
 
-    private fun digestOf(entry: ArchiveEntry): ByteArray {
-        val digest = MessageDigest.getInstance("SHA-256")
-        entry.open().use { source ->
-            val buffer = ByteArray(COPY_BUFFER)
-            while (true) {
-                val read = source.read(buffer)
-                if (read < 0) break
-                digest.update(buffer, 0, read)
-            }
-        }
-        return digest.digest()
-    }
 
     private fun deriveKey(
         password: CharArray,
@@ -543,6 +549,7 @@ object ArchiveCodec {
     private const val DIGEST_BYTES = 32
     private const val MAX_SLOTS = 8
     private const val MAX_ITERATIONS = 10_000_000
+    private const val MAX_TOTAL_ITERATIONS = 12_000_000
     private const val MIN_SALT_BYTES = 8
     private const val MAX_SALT_BYTES = 64
     private const val MAX_LEAF_LENGTH = 200

@@ -74,8 +74,13 @@ class UndoCoordinator @Inject constructor() {
         afterwards = {}
         _offer.value = null
         scope.launch {
-            restore.undo()
-            then()
+            // Caught rather than allowed out. This scope has no owner to hand a failure to, so
+            // an exception here reaches the thread's default handler and takes the app down; a
+            // restore that cannot happen has to be a restore that did not happen. A profile
+            // whose rows arrived from a sync while the snackbar was up is the real case: the
+            // insert aborts on a unique index and there is nothing to be done about it.
+            runCatching { restore.undo() }
+            runCatching { then() }
         }
     }
 
@@ -89,6 +94,6 @@ class UndoCoordinator @Inject constructor() {
         val lapsing = pending ?: return
         pending = null
         afterwards = {}
-        scope.launch { lapsing.lapse() }
+        scope.launch { runCatching { lapsing.lapse() } }
     }
 }

@@ -190,16 +190,22 @@ class BackupService @Inject constructor(
         withContext(Dispatchers.IO) {
             runCatching {
                 val rows = progressPhotoRepository.allRows()
-                val profilesById = profileRepository.observeAll().first().associateBy { it.id }
-                val syncIds = syncStore.snapshot("archive", Instant.now().toEpochMilli())
-                    .profiles.associateBy({ it.name }, { it.syncId })
-                val included = rows.filter { progressPhotoRepository.fileOf(it.fileName).isFile }
+                // Read off the row rather than looked up through a display name. Two people in
+                // a household called the same thing is ordinary, and the name lookup put every
+                // one of their photographs on whichever of them came last.
+                val ownerNames = rows.map { it.profileId }.distinct().associateWith {
+                    profileRepository.syncIdOf(it).orEmpty()
+                }
+                val included = rows.filter {
+                    progressPhotoRepository.fileOf(it.fileName).isFile &&
+                        // A picture whose own name would not be an acceptable entry cannot be
+                        // put back safely on the other phone, so it is not promised here.
+                        ArchiveCodec.isSafeName(ArchiveCodec.PHOTO_PREFIX + it.fileName)
+                }
                 val json = buildBackup(
                     photoRows = included.map { row ->
                         BackupPhoto(
-                            profileSyncId = profilesById[row.profileId]
-                                ?.let { syncIds[it.name] }
-                                .orEmpty(),
+                            profileSyncId = ownerNames[row.profileId].orEmpty(),
                             timestampUtcMillis = row.timestampUtcMillis,
                             localDate = row.localDate,
                             fileName = row.fileName,
@@ -222,9 +228,20 @@ class BackupService @Inject constructor(
                         )
                     }
                 }
-                context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
-                    ArchiveCodec.write(stream, password, entries)
-                } ?: error(say(R.string.file_could_not_write))
+                // Built whole in the cache first. Writing straight to the chosen file truncates
+                // it on open, so a photo that disappeared halfway through left a half-written
+                // archive sitting where a backup should be, looking exactly like one.
+                val staged = java.io.File(context.cacheDir, "archive-export.tmp")
+                try {
+                    staged.delete()
+                    staged.outputStream().use { ArchiveCodec.write(it, password, entries) }
+                    context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
+                        staged.inputStream().use { it.copyTo(stream) }
+                        stream.flush()
+                    } ?: error(say(R.string.file_could_not_write))
+                } finally {
+                    staged.delete()
+                }
                 ArchiveSummary(photos = included.size)
             }
         }
@@ -242,18 +259,26 @@ class BackupService @Inject constructor(
                 deleteRecursively()
                 mkdirs()
             }
+            // Two folders, not one. The archive has two namespaces and a photo may legitimately
+            // be called backup.json: flattened into one folder, that picture overwrites the
+            // export it was supposed to sit beside.
+            val stagedBackup = java.io.File(staging, "backup").apply { mkdirs() }
+            val stagedPhotos = java.io.File(staging, "photos").apply { mkdirs() }
             try {
                 runCatching {
                     val unpacked = mutableMapOf<String, java.io.File>()
                     try {
                         context.contentResolver.openInputStream(uri)?.use { stream ->
                             ArchiveCodec.read(stream, password) { name, _ ->
-                                // Named from the entry, and the entry's name has already been
-                                // checked against the one shape this writes to. The leaf is taken
-                                // again here so a change to that check can never let a path out.
-                                val leaf = name.substringAfterLast('/')
+                                // The codec has already checked the name against the one shape
+                                // this writes to. Taken apart again here so a change to that
+                                // check on its own can never let a path out.
                                 check(ArchiveCodec.isSafeName(name)) { "unsafe archive name" }
-                                val target = java.io.File(staging, leaf)
+                                val target = if (name == ArchiveCodec.BACKUP_ENTRY) {
+                                    java.io.File(stagedBackup, name)
+                                } else {
+                                    java.io.File(stagedPhotos, name.removePrefix(ArchiveCodec.PHOTO_PREFIX))
+                                }
                                 unpacked[name] = target
                                 target.outputStream()
                             }
@@ -270,46 +295,105 @@ class BackupService @Inject constructor(
                         error(say(R.string.import_newer_version))
                     }
 
-                    val summary = restore(backup)
+                    // Every picture into place before a row moves, and every one of them undone
+                    // if any of them fails. A phone that runs out of room halfway used to end up
+                    // with the whole history restored and half the album, reported as a failure.
+                    val placed = placePhotos(backup.photoRows.orEmpty(), unpacked, stagedPhotos)
+                    val summary = try {
+                        restore(backup)
+                    } catch (failure: Throwable) {
+                        placed.forEach { it.undo() }
+                        throw failure
+                    }
+                    restorePhotoRows(placed)
                     ImportSummary(
                         imported = summary.imported,
                         skipped = summary.skipped,
                         measurements = summary.measurements,
-                    ).also { restorePhotos(backup.photoRows.orEmpty(), unpacked, staging) }
+                    )
                 }
             } finally {
                 staging.deleteRecursively()
             }
         }
 
+    /** A picture put where the app keeps them, and what it replaced if anything. */
+    private class PlacedPhoto(
+        val row: BackupPhoto,
+        val target: java.io.File,
+        val replaced: java.io.File?,
+    ) {
+        /** Puts the photo directory back as it was. */
+        fun undo() {
+            target.delete()
+            replaced?.renameTo(target)
+        }
+    }
+
     /**
-     * Moves the unpacked pictures into place and puts their rows back.
+     * Copies the unpacked pictures into the photo directory, or none of them.
      *
-     * Files first. A row whose image is not there yet reads as a photo that has gone, and the
-     * screen simply does not list it.
+     * Files before rows. A row whose image is not there yet reads as a photo that has gone, and
+     * the screen simply does not list it.
      */
-    private suspend fun restorePhotos(
+    private fun placePhotos(
         rows: List<BackupPhoto>,
         unpacked: Map<String, java.io.File>,
-        staging: java.io.File,
-    ) {
-        if (rows.isEmpty()) return
+        stagedPhotos: java.io.File,
+    ): List<PlacedPhoto> {
+        val placed = mutableListOf<PlacedPhoto>()
+        try {
+            rows.forEach { row ->
+                // The name in the JSON is not the name the codec checked: the entry names went
+                // through `isSafeName` and these did not. A row is only followed when its own
+                // name would have been an acceptable entry.
+                if (!ArchiveCodec.isSafeName(ArchiveCodec.PHOTO_PREFIX + row.fileName)) {
+                    return@forEach
+                }
+                val source = unpacked[ArchiveCodec.PHOTO_PREFIX + row.fileName] ?: return@forEach
+                if (!source.isFile) return@forEach
+                if (source.parentFile?.canonicalFile != stagedPhotos.canonicalFile) return@forEach
+                val target = progressPhotoRepository.fileOf(row.fileName)
+                // Whatever was there is moved aside rather than overwritten, so an abandoned
+                // restore leaves the picture that was already on the phone.
+                val replaced = if (target.isFile) {
+                    java.io.File(stagedPhotos, "replaced-${row.fileName}")
+                        .takeIf { target.renameTo(it) }
+                } else {
+                    null
+                }
+                source.copyTo(target, overwrite = true)
+                placed += PlacedPhoto(row, target, replaced)
+            }
+        } catch (failure: Throwable) {
+            placed.forEach { it.undo() }
+            throw failure
+        }
+        return placed
+    }
+
+    /** Puts the rows in, once every picture they point at is where they say it is. */
+    private suspend fun restorePhotoRows(placed: List<PlacedPhoto>) {
+        if (placed.isEmpty()) return
         val profiles = profileRepository.observeAll().first()
+        // Keyed on the profile's own travelling name, read off the row rather than looked up
+        // through a display name. Two people called the same thing is an ordinary household,
+        // and a name is not an identity.
         val bySyncId = profiles.mapNotNull { profile ->
-            profileRepository.syncIdOf(profile.id)?.let { it to profile.id }
+            profileRepository.syncIdOf(profile.id)
+                ?.takeIf { it.isNotBlank() }
+                ?.let { it to profile.id }
         }.toMap()
         val fallback = profileRepository.activeId()
-        rows.forEach { row ->
-            val source = unpacked[ArchiveCodec.PHOTO_PREFIX + row.fileName] ?: return@forEach
-            if (!source.isFile) return@forEach
-            // Checked again against the staging folder it was written into, so a name that ever
-            // got past the codec still cannot land outside the photo directory.
-            if (source.parentFile?.canonicalFile != staging.canonicalFile) return@forEach
-            val target = progressPhotoRepository.fileOf(row.fileName)
-            source.copyTo(target, overwrite = true)
+        placed.forEach { placement ->
+            val row = placement.row
             progressPhotoRepository.restoreRow(
                 com.weighttrack.data.db.ProgressPhotoEntity(
-                    profileId = bySyncId[row.profileSyncId] ?: fallback,
+                    // A blank owner means the archive did not say. It must not match a profile
+                    // that has simply never synced, which also carries a blank name.
+                    profileId = row.profileSyncId.takeIf { it.isNotBlank() }
+                        ?.let { bySyncId[it] }
+                        ?: fallback,
                     timestampUtcMillis = row.timestampUtcMillis,
                     localDate = row.localDate,
                     fileName = row.fileName,
@@ -319,7 +403,6 @@ class BackupService @Inject constructor(
             )
         }
     }
-
     private fun archiveMessage(problem: ArchiveProblem): Int = when (problem) {
         ArchiveProblem.NOT_AN_ARCHIVE -> R.string.archive_not_an_archive
         ArchiveProblem.UNSUPPORTED_VERSION -> R.string.archive_newer_version

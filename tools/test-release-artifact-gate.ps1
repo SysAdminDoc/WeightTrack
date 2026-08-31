@@ -1,6 +1,7 @@
 <#
 .SYNOPSIS
-Proves the release gate rejects package, signer, version, and checksum mismatches.
+Proves the release gate rejects package, signer, version, version-code, checksum and
+undocumented-fingerprint faults.
 #>
 [CmdletBinding()]
 param(
@@ -36,13 +37,14 @@ function Invoke-Gate {
     param(
         [string[]] $ExtraArguments = @(),
         [string] $Checksums = $checksumPath,
-        [string] $Artifacts = $artifactRoot
+        [string] $Artifacts = $artifactRoot,
+        [string] $Root = $rootPath
     )
 
     $arguments = @(
         '-NoProfile',
         '-File', $checker,
-        '-Root', $rootPath,
+        '-Root', $Root,
         '-ArtifactsPath', $Artifacts,
         '-ChecksumFile', $Checksums
     ) + $ExtraArguments
@@ -122,7 +124,25 @@ try {
         -Result (Invoke-Gate -Checksums $tamperedChecksum) `
         -Pattern 'checksum mismatch'
 
-    Write-Host 'Release gate rejected package, signer, version, version-code and checksum mismatches.'
+    # A fingerprint that only exists in the trust file is one nobody installing can check
+    # against, so the gate has to notice when the published guide stops naming it.
+    $undocumentedRoot = Join-Path $testRoot 'undocumented'
+    New-Item -ItemType Directory -Path (Join-Path $undocumentedRoot 'tools') | Out-Null
+    Copy-Item `
+        -LiteralPath (Join-Path $rootPath 'gradle.properties') `
+        -Destination (Join-Path $undocumentedRoot 'gradle.properties')
+    Copy-Item `
+        -LiteralPath (Join-Path $rootPath 'tools/release-trust.json') `
+        -Destination (Join-Path $undocumentedRoot 'tools/release-trust.json')
+    $stripped = (Get-Content -LiteralPath (Join-Path $rootPath 'SECURITY.md') -Raw) `
+        -replace '[0-9a-fA-F]{64}', 'not-a-fingerprint'
+    [IO.File]::WriteAllText((Join-Path $undocumentedRoot 'SECURITY.md'), $stripped)
+    Assert-Rejected `
+        -Name 'undocumented fingerprint' `
+        -Result (Invoke-Gate -Root $undocumentedRoot) `
+        -Pattern 'SECURITY\.md does not publish'
+
+    Write-Host 'Release gate rejected package, signer, version, version-code, checksum and undocumented-fingerprint faults.'
 } finally {
     $resolvedTestRoot = [IO.Path]::GetFullPath($testRoot)
     $safeLeaf = (Split-Path -Leaf $resolvedTestRoot) -like 'weighttrack-release-gate-*'

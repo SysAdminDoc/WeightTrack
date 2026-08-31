@@ -247,6 +247,10 @@ class UndoDeleteTest {
 
         val undo = goals.clearActive()
         assertThat(goals.active()).isNull()
+        // The stamp the clearing wrote. The restore has to beat this, not merely repeat the
+        // stamp the goal carried before it was cleared.
+        val clearedAt = database.syncDao().goals().single().updatedAtUtcMillis
+        assertThat(clearedAt).isGreaterThan(0L)
 
         undo!!.undo()
 
@@ -255,7 +259,7 @@ class UndoDeleteTest {
         // Stamped at the restore. Left with the stamp it had, the other device's copy of the
         // clearing is newer and takes the goal away again on the next sync.
         val row = database.syncDao().goals().single()
-        assertThat(row.updatedAtUtcMillis).isAtLeast(row.createdAtUtcMillis)
+        assertThat(row.updatedAtUtcMillis).isAtLeast(clearedAt)
     }
 
     @Test

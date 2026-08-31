@@ -87,8 +87,9 @@ A signing key is only useful as a promise if the promise is written down before 
 - A rotation means existing installs cannot update in place. We will say so in the release notes
   along with the export-and-reinstall steps, not leave people to discover it from a failed install.
 
-`tools/release-trust.json` is the machine-readable copy of the same facts, and the release gate
-reads it, so the fingerprints here and the ones enforced at build time cannot drift apart.
+`tools/release-trust.json` is the machine-readable copy of the same facts. The release gate reads
+it, and then refuses to pass unless this page publishes the current fingerprint and every retired
+one, so the two cannot drift apart.
 
 ## How releases are checked before they go out
 
@@ -101,8 +102,11 @@ refuses to pass unless, for every APK:
 - the version code matches the expected phone or watch band
 - there is exactly one signing certificate and it's the fingerprint above
 - the SHA-256 matches its `SHA256SUMS.txt` line, with no missing, extra or duplicate entry
+- the v2 or v3 signature scheme verified, not v1 alone
 - the archive is aligned for 16 KB memory pages
 - any native library present includes a 64-bit ABI
+
+It also refuses if this page has stopped naming the fingerprints it enforces.
 
 `tools/test-release-artifact-gate.ps1` proves the gate can fail. It runs the checker against a
 prepared release four more times with a wrong package, a wrong signer, a wrong version and a

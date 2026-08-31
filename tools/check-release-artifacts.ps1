@@ -5,7 +5,9 @@ Checks prepared release APKs, their signing identity, and SHA-256 checksums.
 .DESCRIPTION
 Requires the exact Play, FOSS, and Wear release set for the project version. Each APK must carry
 the expected package, version, version-code band, signing certificate, supported native ABIs, and
-16 KB zip alignment. SHA256SUMS.txt must name every APK exactly once and contain no extra entry.
+16 KB zip alignment, and a v2 or v3 signature. SHA256SUMS.txt must name every APK exactly once
+and contain no extra entry. SECURITY.md must publish the enforced fingerprint and every retired
+one, because a fingerprint nobody can read is a fingerprint nobody can check against.
 #>
 [CmdletBinding()]
 param(
@@ -44,9 +46,22 @@ function Find-AndroidTool {
         throw "Android SDK not found: $sdk"
     }
 
+    # Sorted by parsed version, not by name. "9.0.0" sorts above "36.0.0" as text, and an
+    # ancient zipalign has no -P flag, so a correct release fails the alignment check on any
+    # machine that still has a single-digit build-tools installed.
     $tool = Get-ChildItem -LiteralPath (Join-Path $sdk 'build-tools') -Filter $Name -File -Recurse |
-        Sort-Object FullName -Descending |
-        Select-Object -First 1 -ExpandProperty FullName
+        ForEach-Object {
+            $folder = Split-Path -Leaf (Split-Path -Parent $_.FullName)
+            $parsed = $null
+            if (-not [Version]::TryParse($folder, [ref] $parsed)) {
+                $grandparent = Split-Path -Leaf (Split-Path -Parent (Split-Path -Parent $_.FullName))
+                [void][Version]::TryParse($grandparent, [ref] $parsed)
+            }
+            [pscustomobject]@{ Path = $_.FullName; Version = $parsed }
+        } |
+        Where-Object { $_.Version } |
+        Sort-Object Version -Descending |
+        Select-Object -First 1 -ExpandProperty Path
     if (-not $tool) {
         throw "$Name was not found in the Android SDK."
     }
@@ -205,6 +220,15 @@ foreach ($spec in $specs) {
     if ($signatureExit -ne 0) {
         $problems.Add("APK signature verification failed for $($spec.Name)")
     } else {
+        # The published guide tells people to check that a modern signature scheme verified.
+        # apksigner's exit code alone passes a v1-only APK carrying the right certificate.
+        $modern = [regex]::Matches(
+            $signatureText,
+            '(?im)^Verified using v([2-9])\s+scheme[^:]*:\s*true\s*$'
+        )
+        if ($modern.Count -eq 0) {
+            $problems.Add("$($spec.Name) is not signed with the v2 or v3 scheme")
+        }
         $fingerprints = @(
             [regex]::Matches(
                 $signatureText,
@@ -244,6 +268,26 @@ foreach ($spec in $specs) {
         $problems.Add("$($spec.Name) ships no 64-bit native code")
     } else {
         Write-Host "   native ABIs=$($abis -join ', ')"
+    }
+}
+
+# The permanent guide is what a person actually reads before installing, so a fingerprint that
+# only exists in the trust file is a fingerprint nobody can check against.
+$guide = Join-Path $rootPath 'SECURITY.md'
+if (-not (Test-Path -LiteralPath $guide -PathType Leaf)) {
+    $problems.Add('SECURITY.md is missing, so no fingerprint is published anywhere a person reads.')
+} else {
+    $published = (Get-Content -LiteralPath $guide -Raw)
+    $documented = @([regex]::Matches($published, '[0-9a-fA-F]{64}') |
+        ForEach-Object { $_.Value.ToLowerInvariant() })
+    if ($ExpectedCertificateSha256 -notin $documented) {
+        $problems.Add('SECURITY.md does not publish the signing fingerprint the gate enforces.')
+    }
+    foreach ($retired in @($trust.retiredCertificates)) {
+        $value = Normalize-Fingerprint -Value ([string]$retired.certificateSha256)
+        if ($value -and $value -notin $documented) {
+            $problems.Add("SECURITY.md does not record the retired fingerprint $value.")
+        }
     }
 }
 

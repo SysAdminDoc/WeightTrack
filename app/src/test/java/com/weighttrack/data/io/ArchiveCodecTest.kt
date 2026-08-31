@@ -106,6 +106,75 @@ class ArchiveCodecTest {
     }
 
     @Test
+    fun `two chunks swapped over is refused`() {
+        // Three chunks, so the swap is of two whole ones rather than of a chunk with itself.
+        val bytes = archive(
+            listOf(ArchiveCodec.BACKUP_ENTRY to Random(11).nextBytes(160_000)),
+        )
+        val frames = chunkFrames(bytes)
+        assertThat(frames.size).isAtLeast(3)
+
+        val header = bytes.copyOfRange(0, frames[0].first)
+        val reordered = ByteArrayOutputStream().apply {
+            write(header)
+            write(bytes, frames[1].first, frames[1].second)
+            write(bytes, frames[0].first, frames[0].second)
+            frames.drop(2).forEach { write(bytes, it.first, it.second) }
+        }.toByteArray()
+
+        val thrown = assertThrows(ArchiveException::class.java) { unpack(reordered) }
+
+        // Each chunk carries its own index inside the tag, so a chunk read in the wrong place
+        // fails to authenticate rather than decrypting into rubbish the framing then trusts.
+        assertThat(thrown.problem).isEqualTo(ArchiveProblem.DAMAGED)
+    }
+
+    @Test
+    fun `a chunk copied over another is refused`() {
+        val bytes = archive(
+            listOf(ArchiveCodec.BACKUP_ENTRY to Random(12).nextBytes(160_000)),
+        )
+        val frames = chunkFrames(bytes)
+        val spliced = bytes.copyOf()
+        // The first chunk written a second time in the second chunk's place: identical lengths,
+        // so nothing about the framing changes.
+        assertThat(frames[0].second).isEqualTo(frames[1].second)
+        System.arraycopy(bytes, frames[0].first, spliced, frames[1].first, frames[0].second)
+
+        val thrown = assertThrows(ArchiveException::class.java) { unpack(spliced) }
+
+        assertThat(thrown.problem).isEqualTo(ArchiveProblem.DAMAGED)
+    }
+
+    /**
+     * Where each chunk frame starts and how long it is.
+     *
+     * The header is everything before the first frame: magic, version, slot count, then one slot
+     * of key-derivation parameters. Walked rather than computed, because the point of these
+     * tests is to move whole frames about.
+     */
+    private fun chunkFrames(bytes: ByteArray): List<Pair<Int, Int>> {
+        var at = "WTARCH\n".length + 2
+        at += 1 + 4                       // key-derivation id, iterations
+        at += 1 + bytes[at].toInt()       // salt
+        at += 1 + bytes[at].toInt()       // nonce
+        val wrapped = ((bytes[at].toInt() and 0xFF) shl 8) or (bytes[at + 1].toInt() and 0xFF)
+        at += 2 + wrapped
+        val frames = mutableListOf<Pair<Int, Int>>()
+        while (at < bytes.size) {
+            val start = at
+            val length = ((bytes[at + 1].toInt() and 0xFF) shl 24) or
+                ((bytes[at + 2].toInt() and 0xFF) shl 16) or
+                ((bytes[at + 3].toInt() and 0xFF) shl 8) or
+                (bytes[at + 4].toInt() and 0xFF)
+            val frame = 1 + 4 + 12 + length
+            frames += start to frame
+            at += frame
+        }
+        return frames
+    }
+
+    @Test
     fun `a truncated archive is refused rather than read as far as it goes`() {
         val bytes = archive(listOf(ArchiveCodec.BACKUP_ENTRY to Random(2).nextBytes(200_000)))
         val cut = bytes.copyOf(bytes.size - 1_000)
