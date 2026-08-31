@@ -317,18 +317,31 @@ open class SyncTargets @Inject constructor(
             val user = settings.webDavUser
             if (url.isNullOrBlank() || user.isNullOrBlank()) {
                 null
+            } else if (!com.weighttrack.core.sync.SyncAddress.isUsable(url)) {
+                // Stored before the address was checked at all, so an http:// server from an
+                // older install is still in there. It cannot work and it never could, and
+                // failing silently every hour says nothing about why.
+                runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_ADDRESS_REFUSED)
+                null
             } else {
                 WebDavSyncTarget(
                     baseUrl = url,
                     username = user,
                     password = settings.webDavPassword.orEmpty(),
                     runtimeLog = runtimeLog,
-                    // Only when the person picked one. A file that has stopped being a
-                    // certificate leaves the phone's own trust store deciding, which is what
-                    // would have happened anyway.
-                    pinnedCertificate = settings.webDavCertificate
-                        ?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
-                        ?.let { PinnedTrust.certificateFrom(it) },
+                    // Only when the person picked one. A stored value that has stopped being a
+                    // certificate leaves the phone's own trust store deciding, which is not
+                    // what the settings screen is saying, so it is recorded.
+                    pinnedCertificate = settings.webDavCertificate?.let { stored ->
+                        val bytes = runCatching {
+                            android.util.Base64.decode(stored, android.util.Base64.NO_WRAP)
+                        }.getOrNull()
+                        val certificate = bytes?.let { PinnedTrust.certificateFrom(it) }
+                        if (certificate == null) {
+                            runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_CERTIFICATE_UNREADABLE)
+                        }
+                        certificate
+                    },
                 ) { id, arguments -> strings.get(id, *arguments) }
             }
         }

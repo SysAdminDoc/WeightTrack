@@ -81,19 +81,19 @@ class AppViewModel @Inject constructor(
             }
             // A goal date nobody can read used to mean today, so the same damaged row said
             // something different every morning. Written back readable, once.
-            runCatching { goalRepository.repairUnreadableDates() }
-                .onSuccess { repaired ->
-                    if (repaired.isNotEmpty()) {
-                        runtimeLog.write(
-                            LogArea.DATA,
-                            LogEvent.GOAL_DATE_REPAIRED,
-                            code = repaired.size,
-                        )
-                    }
+            // A repair that threw used to be written under the same event as one that worked,
+            // so the only way to tell them apart in a shared log was to notice a cause on the
+            // end of the line.
+            runtimeLog.step(com.weighttrack.diagnostics.LogTask.STARTUP_GOAL_REPAIR) {
+                val repaired = goalRepository.repairUnreadableDates()
+                if (repaired.isNotEmpty()) {
+                    runtimeLog.write(
+                        LogArea.DATA,
+                        LogEvent.GOAL_DATE_REPAIRED,
+                        code = repaired.size,
+                    )
                 }
-                // A repair that threw is the one case somebody would want to read about, and it
-                // used to produce nothing at all.
-                .onFailure { runtimeLog.write(LogArea.DATA, LogEvent.GOAL_DATE_REPAIRED, cause = it) }
+            }
             // Writing the row is not enough. Alarms do not survive the app being replaced, and
             // the boot receiver has already run and found nothing enabled, so the reminder that
             // was just moved across has to be booked here or it never fires.

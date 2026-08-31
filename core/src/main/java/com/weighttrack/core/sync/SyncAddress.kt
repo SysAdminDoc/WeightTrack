@@ -25,6 +25,15 @@ enum class AddressProblem {
 
     /** A scheme this does not speak. */
     NOT_WEB,
+
+    /**
+     * A password written into the address itself.
+     *
+     * Legal, and every WebDAV client shows one, but the address is stored and put on the settings
+     * screen in plain sight while the password field beside it is kept under the phone's keystore.
+     * Accepting it here quietly undoes that.
+     */
+    CREDENTIALS_IN_ADDRESS,
 }
 
 /**
@@ -52,14 +61,47 @@ object SyncAddress {
         if (trimmed.isEmpty()) return AddressProblem.EMPTY
         if (!trimmed.contains("://")) return AddressProblem.UNREADABLE
         val scheme = trimmed.substringBefore("://").lowercase()
-        return when {
-            scheme.isEmpty() -> AddressProblem.UNREADABLE
-            scheme == "http" -> AddressProblem.NOT_ENCRYPTED
-            scheme != "https" -> AddressProblem.NOT_WEB
-            hostOf(trimmed).isNullOrBlank() -> AddressProblem.UNREADABLE
-            else -> null
-        }
+        if (scheme.isEmpty()) return AddressProblem.UNREADABLE
+        if (scheme == "http") return AddressProblem.NOT_ENCRYPTED
+        if (scheme != "https") return AddressProblem.NOT_WEB
+        val authority = trimmed.substringAfter("://")
+            .takeWhile { it != '/' && it != '?' && it != '#' }
+        if (authority.contains('@')) return AddressProblem.CREDENTIALS_IN_ADDRESS
+        val host = hostOf(trimmed)
+        if (host.isNullOrBlank()) return AddressProblem.UNREADABLE
+        // Checked rather than merely non-blank. A stray space or an impossible port is stored,
+        // and then the request cannot be built at all: the run fails hourly with a message that
+        // says only that the server could not be reached, which is the thing this exists to stop.
+        if (!isReadableHost(host)) return AddressProblem.UNREADABLE
+        val port = portOf(authority)
+        if (port != null && port !in 1..65_535) return AddressProblem.UNREADABLE
+        return null
     }
+
+    /** Whether a host is one a request can actually be built for. */
+    private fun isReadableHost(host: String): Boolean {
+        if (host.length > MAX_HOST_LENGTH) return false
+        // An IPv6 literal carries colons and hexadecimal and nothing else worth checking here.
+        if (host.contains(':')) {
+            return host.all { it in "0123456789abcdefABCDEF:.%" }
+        }
+        if (host.startsWith('.') || host.endsWith('.') || host.contains("..")) return false
+        return host.all { it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' }
+    }
+
+    /** The port somebody wrote, or null when they wrote none. */
+    private fun portOf(authority: String): Int? {
+        val hostAndPort = authority.substringAfterLast('@')
+        val text = when {
+            hostAndPort.startsWith("[") -> hostAndPort.substringAfter(']').removePrefix(":")
+            hostAndPort.count { it == ':' } != 1 -> return null
+            else -> hostAndPort.substringAfter(':')
+        }
+        if (text.isEmpty()) return null
+        return text.toIntOrNull() ?: 0
+    }
+
+    private const val MAX_HOST_LENGTH = 253
 
     fun isUsable(raw: String): Boolean = problemWith(raw) == null
 

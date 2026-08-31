@@ -112,6 +112,25 @@ It also refuses if this page has stopped naming the fingerprints it enforces.
 prepared release four more times with a wrong package, a wrong signer, a wrong version and a
 tampered checksum, and fails if any of those is accepted.
 
+## Trusting your own server's certificate
+
+Sync talks to a WebDAV server you choose. Plain `http://` is refused: everything the app sends
+carries either a password or a record of what you eat.
+
+A server on your own network usually has a certificate it signed itself, which nothing on the
+phone has any reason to believe. Rather than asking you to turn certificate checking off, the app
+lets you pick the certificate your server presents, and then accepts that exact certificate.
+
+Exact means exact. The bytes the server presents are compared against the bytes you picked, with
+no chain building and no delegation. Picking a certificate authority's file gains an attacker
+nothing: nothing that authority signs is trusted, only the file itself, and only for the host you
+configured. The certificate's own expiry is checked, so a key taken from a server years ago does
+not keep working. Everything the public authorities already vouch for is checked the ordinary way,
+so pinning your own server never weakens the check on a hosted one.
+
+If the app cannot read the certificate you stored, it stops using it rather than guessing, and
+says so in the activity log.
+
 ## Reporting a vulnerability
 
 Open a GitHub issue at https://github.com/SysAdminDoc/WeightTrack/issues for anything that isn't

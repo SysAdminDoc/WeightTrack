@@ -98,12 +98,29 @@ enum class LogEvent {
      */
     PHOTO_FAILED,
 
+    /**
+     * A stored server certificate could not be read, so nothing is pinned.
+     *
+     * The settings screen goes on saying a certificate is trusted, because that is what the
+     * stored value says. Without a line here, a sync that has quietly stopped being pinned looks
+     * exactly like a server that is switched off.
+     */
+    SYNC_CERTIFICATE_UNREADABLE,
+
+    /** An address that was stored before it could be refused, and cannot be used. */
+    SYNC_ADDRESS_REFUSED,
+
     /** A background job began. Exactly one terminal line follows it. */
     WORK_STARTED,
 
     WORK_SUCCEEDED,
 
-    /** It asked to be run again. The cause is there when something threw. */
+    /**
+     * It asked to be run again.
+     *
+     * No cause: by the time a run says this it has already decided that whatever happened is
+     * worth another go, and the thing that went wrong was recorded where it happened.
+     */
     WORK_RETRY,
 
     WORK_FAILED,

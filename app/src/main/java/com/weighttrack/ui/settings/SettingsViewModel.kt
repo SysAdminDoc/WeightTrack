@@ -680,6 +680,8 @@ class SettingsViewModel @Inject constructor(
                             R.string.sync_address_not_encrypted
                         com.weighttrack.core.sync.AddressProblem.NOT_WEB ->
                             R.string.sync_address_not_web
+                        com.weighttrack.core.sync.AddressProblem.CREDENTIALS_IN_ADDRESS ->
+                            R.string.sync_address_credentials
                     },
                 ]
                 return@launch
@@ -714,6 +716,21 @@ class SettingsViewModel @Inject constructor(
             }
             if (bytes == null || certificate == null) {
                 _message.value = strings[R.string.sync_certificate_unreadable]
+                return@launch
+            }
+            // Checked now rather than an hour later. A pin whose certificate has expired is
+            // refused at the socket, and being told that here is the difference between renewing
+            // it and wondering why sync stopped.
+            val expiry = runCatching { certificate.checkValidity() }
+            if (expiry.isFailure) {
+                _message.value = strings[
+                    R.string.sync_certificate_expired,
+                    com.weighttrack.ui.format.DateFormatters.fullDate(
+                        certificate.notAfter.toInstant()
+                            .atZone(java.time.ZoneId.systemDefault())
+                            .toLocalDate(),
+                    ),
+                ]
                 return@launch
             }
             syncPreferences.setWebDavCertificate(

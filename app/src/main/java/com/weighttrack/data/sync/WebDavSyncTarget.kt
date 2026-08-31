@@ -55,6 +55,18 @@ class WebDavSyncTarget(
                 pinnedCertificate?.let { certificate ->
                     val trust = PinnedTrust.trustManagerFor(certificate)
                     sslSocketFactory(PinnedTrust.socketFactoryFor(trust), trust)
+                    // Only for the host the certificate was picked for, and only when that host
+                    // presents those exact bytes. OkHttp checks subject alternative names and
+                    // nothing else, and a home server's certificate usually has none at all.
+                    com.weighttrack.core.sync.SyncAddress.hostOf(baseUrl)?.let { host ->
+                        hostnameVerifier(
+                            PinnedTrust.hostnameVerifierFor(
+                                certificate,
+                                host,
+                                javax.net.ssl.HttpsURLConnection.getDefaultHostnameVerifier(),
+                            ),
+                        )
+                    }
                 }
             }
             .build()

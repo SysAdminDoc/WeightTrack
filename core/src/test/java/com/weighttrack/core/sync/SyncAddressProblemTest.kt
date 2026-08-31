@@ -53,4 +53,44 @@ class SyncAddressProblemTest {
         assertThat(SyncAddress.isUsable("https://cloud.example.com/dav")).isTrue()
         assertThat(SyncAddress.isUsable("http://cloud.example.com/dav")).isFalse()
     }
+
+    @Test
+    fun `a password written into the address is refused`() {
+        // Legal, and every WebDAV client shows one, but the address is stored and put on the
+        // settings screen exactly as typed while the password field beside it is kept under the
+        // phone's keystore. Accepting it undoes that quietly.
+        assertThat(SyncAddress.problemWith("https://sam:hunter2@nas.local/dav"))
+            .isEqualTo(AddressProblem.CREDENTIALS_IN_ADDRESS)
+        assertThat(SyncAddress.problemWith("https://sam@nas.local/dav"))
+            .isEqualTo(AddressProblem.CREDENTIALS_IN_ADDRESS)
+    }
+
+    @Test
+    fun `an address a request cannot be built from is refused rather than stored`() {
+        // Stored, each of these fails hourly with a message saying only that the server could
+        // not be reached, which is the thing this check exists to stop.
+        listOf(
+            "https://nas .local/dav",
+            "https://nas.local:80080/dav",
+            "https://nas.local:0/dav",
+            "https://nas.local:notaport/dav",
+            "https://.nas.local/dav",
+            "https://nas..local/dav",
+            "https://na<s>.local/dav",
+        ).forEach {
+            assertThat(SyncAddress.problemWith(it)).isEqualTo(AddressProblem.UNREADABLE)
+        }
+    }
+
+    @Test
+    fun `an ordinary port and an ordinary address are still fine`() {
+        listOf(
+            "https://nas.local:8443/dav",
+            "https://nas.local:65535/dav",
+            "https://my-nas_01.home.arpa/remote.php/dav",
+            "https://[fd00::1]:8443/dav",
+            // A name may legally end in the root dot. It is the same name.
+            "https://nas.local./dav",
+        ).forEach { assertThat(SyncAddress.problemWith(it)).isNull() }
+    }
 }

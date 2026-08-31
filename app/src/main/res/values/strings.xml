@@ -364,6 +364,9 @@
     <string name="sync_address_unreadable">That does not look like a server address. It should start with https:// and name your server.</string>
     <string name="sync_address_not_encrypted">WeightTrack will not send your password and your weights over plain http. Use https:// instead. If your server signs its own certificate, pick that certificate below and WeightTrack will trust it.</string>
     <string name="sync_address_not_web">WeightTrack only speaks to https:// addresses.</string>
+    <string name="sync_address_credentials">Leave your username and password out of the address. WeightTrack keeps the password under the phone\'s keystore, and the address is stored and shown as you typed it.</string>
+    <string name="sync_certificate_expired">That certificate expired on %1$s, so WeightTrack will not trust it. Renew it on your server and pick the new one.</string>
+    <string name="sync_certificate_unreadable_stored">The certificate WeightTrack had saved could not be read, so it is not being used. Pick it again.</string>
     <string name="sync_certificate">Server certificate</string>
     <string name="sync_certificate_explained">A server on your own network usually signs its own certificate, which nothing on the phone has any reason to believe. Pick the certificate it presents and WeightTrack will trust that one, on top of the public authorities rather than instead of them.</string>
     <string name="sync_certificate_pick">Pick a certificate</string>

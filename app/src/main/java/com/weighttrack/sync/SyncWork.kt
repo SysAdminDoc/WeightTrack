@@ -59,8 +59,14 @@ class RealSyncWork @Inject constructor(
             runCatching { scheduler.reschedule() }
             return WorkOutcome.DONE
         }
-        val result = runCatching { healthConnect.sync() }.getOrElse {
-            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
+        val result = try {
+            healthConnect.sync()
+        } catch (stopped: kotlinx.coroutines.CancellationException) {
+            // Android stopping the job, not a failure of it. Swallowed here, the run reports
+            // retry with no stop reason and the log cannot tell a battery saver from a bug.
+            throw stopped
+        } catch (failure: Throwable) {
+            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = failure)
             return WorkOutcome.RETRY
         }
         return result.fold(
@@ -79,10 +85,14 @@ class RealSyncWork @Inject constructor(
     override suspend fun folder(): SyncResult? {
         val settings = preferences.current()
         if (!settings.isOn || !settings.isReady || !settings.syncInBackground) return null
-        return runCatching { engine.syncNow() }.getOrElse {
+        return try {
+            engine.syncNow()
+        } catch (stopped: kotlinx.coroutines.CancellationException) {
+            throw stopped
+        } catch (failure: Throwable) {
             // A worker that throws is a crash nobody asked for and nobody sees. Whatever went
             // wrong is worth another go later rather than taking the process with it.
-            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
+            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = failure)
             SyncResult.Unreachable("")
         }
     }
