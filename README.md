@@ -43,6 +43,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 - Health Connect sync in both directions, so a Withings, Renpho, Samsung or Fitbit scale lands in the app on its own, bringing your whole history across rather than the last month of it
 - CSV import that reads exports from Libra, Happy Scale, openScale, MyFitnessPal, Renpho, Withings and most others, while reporting unsupported weights and dates instead of saving them
 - CSV and JSON export, and a full backup that restores readings, measurements, goal and settings
+- An encrypted archive that carries your progress photos as well, for moving to a new phone. AES-256-GCM under a password you choose, checked byte for byte on the way back in, and it holds no credentials
 - A weekly copy of everything into a folder you choose, keeping the last four, since there is deliberately no cloud to fall back on
 - Adaptive expenditure: what you actually burn, measured from your own weight and intake rather than a formula, and a calorie target that follows it
 - An optional food diary: calories and macros by meal, daily targets in grams or percent with a different one for any day of the week, copy yesterday, and a quick add for the meal that has no label
@@ -88,9 +89,9 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew :app:testPlayDebugUnitTest # 1,065 Play-flavour tests
-./gradlew :app:testFossDebugUnitTest # 1,071 F-Droid-flavour tests
-./gradlew :core:testDebugUnitTest    # 362 for shared maths, import, scale, food and sync code
+./gradlew :app:testPlayDebugUnitTest # 1,098 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 1,104 F-Droid-flavour tests
+./gradlew :core:testDebugUnitTest    # 364 for shared maths, import, scale, food and sync code
 ./gradlew :wear:testDebugUnitTest    # 19 for the watch
 ./gradlew checkFormFactorVersions    # build and verify the exact phone and watch version identity
 ```
@@ -150,7 +151,7 @@ Each device writes one file, named after itself, into a folder you choose. It re
 
 Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Deletions are remembered for six months so they travel too, otherwise a phone that still holds the record hands it straight back.
 
-What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and want a different mechanism. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
+What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and travel in the encrypted archive instead. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
 
 If the server is on your own network rather than a hosted one, Android 17 and later ask your permission before the app may reach it. WeightTrack requests that only when the address really is a local one, and says so on the settings screen when it is missing.
 

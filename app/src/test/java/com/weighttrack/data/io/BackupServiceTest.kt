@@ -86,6 +86,12 @@ class BackupServiceTest {
             profileRepository = profiles,
             settingsRepository = settings,
             database = database,
+            progressPhotoRepository = com.weighttrack.data.repo.ProgressPhotoRepository(
+                ApplicationProvider.getApplicationContext(),
+                database.progressPhotoDao(),
+                profiles,
+                com.weighttrack.diagnostics.RuntimeLog(temporary.newFile()),
+            ),
         )
     }
 

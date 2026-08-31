@@ -100,14 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P1: Add an encrypted portable archive with progress photos
-  Why: JSON and CSV cannot restore progress-photo files, while a phone-to-phone archive needs confidentiality and tamper detection without exporting Keystore-bound service credentials.
-  Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
-  Note (2026-08-31 afternoon): format template verified. Use an Aegis vault header (scrypt KEK, slot system wrapping one AES-256-GCM master key, GCM tag as tamper check, https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md) with SeedVault-style chunked streaming AEAD for photo payloads (https://github.com/seedvault-app/seedvault/blob/master/doc/README.md). Slots let a password and the device keystore both open one archive.
-  Touches: versioned archive codec, backup service, photo repository, export and restore UI, malformed-archive tests
-  Acceptance: A password-protected archive restores all structured data and photo bytes with verified hashes; wrong password, modified content, path traversal, excessive expansion, or unsupported version changes nothing; non-secret settings travel, WebDAV passwords and API keys do not; JSON and CSV remain available with a clear photo-exclusion label.
-  Complexity: L
-
 ### P2
 
 

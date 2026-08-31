@@ -520,6 +520,13 @@ interface ProgressPhotoDao {
     @Query("SELECT * FROM progress_photos WHERE id = :id")
     suspend fun byId(id: Long): ProgressPhotoEntity?
 
+    /** The file name is unique, so it is what a restored row is matched on. */
+    @Query("SELECT * FROM progress_photos WHERE fileName = :fileName")
+    suspend fun byFileName(fileName: String): ProgressPhotoEntity?
+
+    @Update
+    suspend fun update(photo: ProgressPhotoEntity)
+
     @Query("SELECT COUNT(*) FROM progress_photos WHERE profileId = :profileId")
     fun observeCount(profileId: Long): Flow<Int>
 

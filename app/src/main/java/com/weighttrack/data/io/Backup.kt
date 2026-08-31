@@ -143,6 +143,24 @@ data class BackupGoal(
     val active: Boolean,
 )
 
+/**
+ * A progress photo's row, for the archive that carries the picture with it.
+ *
+ * The owner travels by the profile's own name rather than by a row number, because row numbers
+ * on the new phone are different ones. The file name is the identity: it is unique in the table
+ * and it is what the archive entry is called, so restoring the same archive twice replaces the
+ * row rather than making a second one beside the same picture.
+ */
+@Serializable
+data class BackupPhoto(
+    val profileSyncId: String,
+    val timestampUtcMillis: Long,
+    val localDate: String,
+    val fileName: String,
+    val weightGrams: Int? = null,
+    val note: String? = null,
+)
+
 @Serializable
 data class BackupSettings(
     val weightUnit: String,
@@ -189,6 +207,13 @@ data class BackupFile(
      * archive export.
      */
     val progressPhotos: String = BackupCodec.PHOTOS_NOT_INCLUDED,
+    /**
+     * The photo rows, written only into an encrypted archive.
+     *
+     * Absent from a JSON export, because the pictures those rows point at are not in it and a
+     * row with no file behind it is a permanent blank in the grid.
+     */
+    val photoRows: List<BackupPhoto>? = null,
     val entries: List<BackupEntry> = emptyList(),
     val measurements: List<BackupMeasurement> = emptyList(),
     val goals: List<BackupGoal> = emptyList(),
@@ -215,6 +240,8 @@ object BackupCodec {
 
     const val PHOTOS_NOT_INCLUDED =
         "Progress photo files are not in this file. Use the encrypted archive export for those."
+
+    const val PHOTOS_INCLUDED = "Progress photo files are in this archive."
 
     val json = Json {
         prettyPrint = true

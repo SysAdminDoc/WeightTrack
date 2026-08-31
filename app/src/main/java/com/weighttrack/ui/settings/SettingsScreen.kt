@@ -65,6 +65,7 @@ import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
+import com.weighttrack.data.io.ArchiveCodec
 import com.weighttrack.data.io.BackupCodec
 import androidx.biometric.BiometricManager
 import com.weighttrack.data.prefs.AppSettings
@@ -151,6 +152,41 @@ fun SettingsScreen(
     val restoreLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument(),
     ) { uri -> uri?.let(viewModel::previewRestore) }
+
+    // The password is asked for after the destination is chosen, so cancelling the picker costs
+    // nobody a password they typed for nothing.
+    var archiveDestination by remember { mutableStateOf<android.net.Uri?>(null) }
+    var archiveSource by remember { mutableStateOf<android.net.Uri?>(null) }
+
+    val exportArchiveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/octet-stream"),
+    ) { uri -> archiveDestination = uri }
+
+    val importArchiveLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> archiveSource = uri }
+
+    archiveDestination?.let { destination ->
+        ArchivePasswordDialog(
+            confirming = true,
+            onDismiss = { archiveDestination = null },
+            onConfirm = { password ->
+                archiveDestination = null
+                viewModel.exportArchive(destination, password)
+            },
+        )
+    }
+
+    archiveSource?.let { source ->
+        ArchivePasswordDialog(
+            confirming = false,
+            onDismiss = { archiveSource = null },
+            onConfirm = { password ->
+                archiveSource = null
+                viewModel.importArchive(source, password)
+            },
+        )
+    }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
@@ -607,6 +643,27 @@ fun SettingsScreen(
                     onClick = { restoreLauncher.launch(arrayOf("application/json", "*/*")) },
                     modifier = Modifier.fillMaxWidth(),
                 ) { Text(stringResource(R.string.settings_restore_from_a_backup)) }
+
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    text = stringResource(R.string.settings_archive_explained),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = {
+                        exportArchiveLauncher.launch(
+                            BackupCodec.suggestedFileName(ArchiveCodec.EXTENSION),
+                        )
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.settings_archive_with_photos)) }
+                Spacer(Modifier.height(6.dp))
+                OutlinedButton(
+                    onClick = { importArchiveLauncher.launch(arrayOf("*/*")) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text(stringResource(R.string.settings_restore_from_an_archive)) }
 
                 Spacer(Modifier.height(14.dp))
                 Text(

@@ -26,6 +26,11 @@ import java.time.Instant
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/** What went into an archive. */
+data class ArchiveSummary(
+    val photos: Int,
+)
+
 data class ImportSummary(
     val imported: Int,
     val skipped: Int,
@@ -69,6 +74,7 @@ class BackupService @Inject constructor(
     private val profileRepository: com.weighttrack.data.repo.ProfileRepository,
     private val settingsRepository: SettingsRepository,
     private val database: com.weighttrack.data.db.WeightTrackDatabase,
+    private val progressPhotoRepository: com.weighttrack.data.repo.ProgressPhotoRepository,
 ) {
 
     suspend fun exportCsv(uri: Uri): Result<Int> = withContext(Dispatchers.IO) {
@@ -107,7 +113,7 @@ class BackupService @Inject constructor(
     }
 
     /** The whole export and how many readings are in it. */
-    private suspend fun buildBackup(): Pair<String, Int> {
+    private suspend fun buildBackup(photoRows: List<BackupPhoto>? = null): Pair<String, Int> {
         run {
             val entries = weightRepository.observeEntries().first()
             val measurements = measurementRepository.observeAll().first()
@@ -134,6 +140,12 @@ class BackupService @Inject constructor(
             val backup = BackupFile(
                 exportedAtUtcMillis = now,
                 document = everything,
+                progressPhotos = if (photoRows == null) {
+                    BackupCodec.PHOTOS_NOT_INCLUDED
+                } else {
+                    BackupCodec.PHOTOS_INCLUDED
+                },
+                photoRows = photoRows,
                 // The lists below are the version-1 shape, kept so an older build can still
                 // restore a file this one wrote. Version 2 reads `document` and ignores them.
                 //
@@ -160,6 +172,162 @@ class BackupService @Inject constructor(
     }
 
 
+
+    // ---- the encrypted archive ----
+
+    /**
+     * Writes the whole app, pictures included, into one password-protected file.
+     *
+     * JSON and CSV stay exactly as they were and say plainly that the photographs are not in
+     * them. This is the file for moving to a new phone, and it is encrypted because it carries
+     * pictures of somebody's body along with every weight they have ever recorded.
+     *
+     * No credential goes in it. The WebDAV password and the USDA key are held under a key that
+     * lives in this phone's keystore and means nothing anywhere else, so exporting them would
+     * either export nothing usable or export a working password, and the second is worse.
+     */
+    suspend fun exportArchive(uri: Uri, password: CharArray): Result<ArchiveSummary> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val rows = progressPhotoRepository.allRows()
+                val profilesById = profileRepository.observeAll().first().associateBy { it.id }
+                val syncIds = syncStore.snapshot("archive", Instant.now().toEpochMilli())
+                    .profiles.associateBy({ it.name }, { it.syncId })
+                val included = rows.filter { progressPhotoRepository.fileOf(it.fileName).isFile }
+                val json = buildBackup(
+                    photoRows = included.map { row ->
+                        BackupPhoto(
+                            profileSyncId = profilesById[row.profileId]
+                                ?.let { syncIds[it.name] }
+                                .orEmpty(),
+                            timestampUtcMillis = row.timestampUtcMillis,
+                            localDate = row.localDate,
+                            fileName = row.fileName,
+                            weightGrams = row.weightGrams,
+                            note = row.note,
+                        )
+                    },
+                ).first.toByteArray(Charsets.UTF_8)
+
+                val entries = buildList {
+                    add(ArchiveEntry(ArchiveCodec.BACKUP_ENTRY, json.size.toLong()) {
+                        java.io.ByteArrayInputStream(json)
+                    })
+                    included.forEach { row ->
+                        val file = progressPhotoRepository.fileOf(row.fileName)
+                        add(
+                            ArchiveEntry(ArchiveCodec.PHOTO_PREFIX + row.fileName, file.length()) {
+                                file.inputStream()
+                            },
+                        )
+                    }
+                }
+                context.contentResolver.openOutputStream(uri, "wt")?.use { stream ->
+                    ArchiveCodec.write(stream, password, entries)
+                } ?: error(say(R.string.file_could_not_write))
+                ArchiveSummary(photos = included.size)
+            }
+        }
+
+    /**
+     * Reads an archive and restores everything in it, or changes nothing at all.
+     *
+     * Unpacked into a private staging folder first and only then applied. A wrong password, a
+     * changed byte, a name that tries to climb out of the photo folder or a file claiming more
+     * than this will hold all fail before a single row or picture has moved.
+     */
+    suspend fun importArchive(uri: Uri, password: CharArray): Result<ImportSummary> =
+        withContext(Dispatchers.IO) {
+            val staging = java.io.File(context.cacheDir, "archive-restore").apply {
+                deleteRecursively()
+                mkdirs()
+            }
+            try {
+                runCatching {
+                    val unpacked = mutableMapOf<String, java.io.File>()
+                    try {
+                        context.contentResolver.openInputStream(uri)?.use { stream ->
+                            ArchiveCodec.read(stream, password) { name, _ ->
+                                // Named from the entry, and the entry's name has already been
+                                // checked against the one shape this writes to. The leaf is taken
+                                // again here so a change to that check can never let a path out.
+                                val leaf = name.substringAfterLast('/')
+                                check(ArchiveCodec.isSafeName(name)) { "unsafe archive name" }
+                                val target = java.io.File(staging, leaf)
+                                unpacked[name] = target
+                                target.outputStream()
+                            }
+                        } ?: error(say(R.string.file_could_not_read))
+                    } catch (problem: ArchiveException) {
+                        error(say(archiveMessage(problem.problem)))
+                    }
+
+                    val backupFile = unpacked[ArchiveCodec.BACKUP_ENTRY]
+                        ?: error(say(R.string.archive_not_an_archive))
+                    val backup = BackupCodec.decode(backupFile.readText())
+                        ?: error(say(R.string.import_not_a_backup))
+                    if (backup.formatVersion > BackupCodec.FORMAT_VERSION) {
+                        error(say(R.string.import_newer_version))
+                    }
+
+                    val summary = restore(backup)
+                    ImportSummary(
+                        imported = summary.imported,
+                        skipped = summary.skipped,
+                        measurements = summary.measurements,
+                    ).also { restorePhotos(backup.photoRows.orEmpty(), unpacked, staging) }
+                }
+            } finally {
+                staging.deleteRecursively()
+            }
+        }
+
+    /**
+     * Moves the unpacked pictures into place and puts their rows back.
+     *
+     * Files first. A row whose image is not there yet reads as a photo that has gone, and the
+     * screen simply does not list it.
+     */
+    private suspend fun restorePhotos(
+        rows: List<BackupPhoto>,
+        unpacked: Map<String, java.io.File>,
+        staging: java.io.File,
+    ) {
+        if (rows.isEmpty()) return
+        val profiles = profileRepository.observeAll().first()
+        val bySyncId = profiles.mapNotNull { profile ->
+            profileRepository.syncIdOf(profile.id)?.let { it to profile.id }
+        }.toMap()
+        val fallback = profileRepository.activeId()
+        rows.forEach { row ->
+            val source = unpacked[ArchiveCodec.PHOTO_PREFIX + row.fileName] ?: return@forEach
+            if (!source.isFile) return@forEach
+            // Checked again against the staging folder it was written into, so a name that ever
+            // got past the codec still cannot land outside the photo directory.
+            if (source.parentFile?.canonicalFile != staging.canonicalFile) return@forEach
+            val target = progressPhotoRepository.fileOf(row.fileName)
+            source.copyTo(target, overwrite = true)
+            progressPhotoRepository.restoreRow(
+                com.weighttrack.data.db.ProgressPhotoEntity(
+                    profileId = bySyncId[row.profileSyncId] ?: fallback,
+                    timestampUtcMillis = row.timestampUtcMillis,
+                    localDate = row.localDate,
+                    fileName = row.fileName,
+                    weightGrams = row.weightGrams,
+                    note = row.note,
+                ),
+            )
+        }
+    }
+
+    private fun archiveMessage(problem: ArchiveProblem): Int = when (problem) {
+        ArchiveProblem.NOT_AN_ARCHIVE -> R.string.archive_not_an_archive
+        ArchiveProblem.UNSUPPORTED_VERSION -> R.string.archive_newer_version
+        ArchiveProblem.WRONG_PASSWORD -> R.string.archive_wrong_password
+        ArchiveProblem.DAMAGED -> R.string.archive_damaged
+        ArchiveProblem.TOO_LARGE -> R.string.archive_too_large
+        ArchiveProblem.BAD_NAME -> R.string.archive_bad_name
+    }
 
     /**
      * A message for the person, not the log.
@@ -239,9 +407,18 @@ class BackupService @Inject constructor(
     }
 
     suspend fun importJson(uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
-        runCatching {
-            val backup = readBackup(uri)
-            backup.document?.let { return@runCatching restoreDocument(it, backup.settings) }
+        runCatching { restore(readBackup(uri)) }
+    }
+
+    /**
+     * Puts a decoded backup back, whatever it arrived in.
+     *
+     * The same call for a JSON file picked by hand and for the backup inside an archive, so the
+     * two cannot restore differently.
+     */
+    private suspend fun restore(backup: BackupFile): ImportSummary {
+        run {
+            backup.document?.let { return restoreDocument(it, backup.settings) }
             val entries = backup.entries.mapNotNull(BackupCodec::backupToEntry)
             val measurements = backup.measurements.mapNotNull(BackupCodec::backupToMeasurement)
             // Resolved before the transaction opens: it comes off a flow, and a flow read inside
@@ -311,7 +488,7 @@ class BackupService @Inject constructor(
                 )
             }
             adoptDemographics(backup.settings)
-            ImportSummary(
+            return ImportSummary(
                 imported = entries.size,
                 skipped = backup.entries.size - entries.size,
                 measurements = measurements.size,

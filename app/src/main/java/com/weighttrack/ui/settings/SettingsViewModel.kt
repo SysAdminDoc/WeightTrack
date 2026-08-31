@@ -358,6 +358,41 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
+    /**
+     * Writes the archive, then forgets the password.
+     *
+     * Held as a [CharArray] and wiped as soon as the file is written. There is nowhere to keep
+     * it: a stored password would make the archive's encryption a formality on the one phone
+     * that already has everything in it anyway.
+     */
+    fun exportArchive(uri: Uri, password: CharArray) = runBackup {
+        try {
+            backupService.exportArchive(uri, password).fold(
+                onSuccess = { strings[R.string.settings_archived_with_photos, it.photos] },
+                onFailure = { strings[R.string.settings_backup_failed, it.message.orEmpty()] },
+            )
+        } finally {
+            password.fill('\u0000')
+        }
+    }
+
+    fun importArchive(uri: Uri, password: CharArray) = runBackup {
+        try {
+            backupService.importArchive(uri, password).fold(
+                onSuccess = { summary ->
+                    strings[
+                        R.string.settings_restored_readings_and_measurements,
+                        summary.imported,
+                        summary.measurements,
+                    ]
+                },
+                onFailure = { strings[R.string.settings_restore_failed, it.message.orEmpty()] },
+            )
+        } finally {
+            password.fill('\u0000')
+        }
+    }
+
     fun exportMeasurements(uri: Uri) = runBackup {
         backupService.exportMeasurementsCsv(uri).fold(
             onSuccess = { strings[R.string.settings_exported_measurements, it] },

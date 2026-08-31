@@ -299,6 +299,27 @@ class ProgressPhotoRepository @Inject constructor(
         }
     }
 
+    /** Every photo row on the phone, for the archive that carries the pictures with them. */
+    suspend fun allRows(): List<ProgressPhotoEntity> = withContext(Dispatchers.IO) { dao.all() }
+
+    /** Where an image lives, so an export can read it and an import can write it. */
+    fun fileOf(fileName: String): File = File(directory, fileName)
+
+    /**
+     * Puts a restored row in, matched on its file name.
+     *
+     * The file name is unique in the table and is what the archive entry was called, so restoring
+     * the same archive twice corrects the row rather than leaving two pointing at one picture.
+     */
+    suspend fun restoreRow(row: ProgressPhotoEntity): Unit = withContext(Dispatchers.IO) {
+        val existing = dao.byFileName(row.fileName)
+        if (existing == null) {
+            dao.insert(row.copy(id = 0))
+        } else {
+            dao.update(row.copy(id = existing.id))
+        }
+    }
+
     /** Unlinks held images once nobody can ask for them back. */
     suspend fun releaseHeld(held: List<File>) = withContext(Dispatchers.IO) {
         held.forEach { it.delete() }

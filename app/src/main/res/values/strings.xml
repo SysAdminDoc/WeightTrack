@@ -84,6 +84,7 @@
 
     <!-- common -->
     <string name="common_cancel">Cancel</string>
+    <string name="common_continue">Continue</string>
 
     <!-- diary -->
     <string name="diary_grams">Grams</string>
@@ -703,6 +704,21 @@
     <string name="secret_not_stored_password">This phone would not encrypt the password, so nothing was saved and WebDAV sync is still off. It has been recorded in the activity log.</string>
     <string name="secret_not_stored_key">This phone would not encrypt the key, so nothing was saved. It has been recorded in the activity log.</string>
     <string name="import_newer_version">That backup was written by a newer version of WeightTrack. Update the app and try again.</string>
+    <string name="archive_not_an_archive">That file is not a WeightTrack archive.</string>
+    <string name="archive_newer_version">That archive was written by a newer version of WeightTrack. Update the app and try again.</string>
+    <string name="archive_wrong_password">That password did not open the archive.</string>
+    <string name="archive_damaged">That archive has been altered or is incomplete, so nothing was restored.</string>
+    <string name="archive_too_large">That archive claims more than WeightTrack will unpack, so nothing was restored.</string>
+    <string name="archive_bad_name">That archive names a file WeightTrack will not write, so nothing was restored.</string>
+    <string name="archive_password_needed">Choose a password. You will need it to open the archive again, and there is no way to recover it.</string>
+    <string name="settings_archived_with_photos">Archived everything, including %1$d photos</string>
+    <string name="settings_archive_with_photos">Archive with photos</string>
+    <string name="settings_restore_from_an_archive">Restore from an archive</string>
+    <string name="settings_archive_explained">The backup file carries your rows. An archive carries your progress photos as well, and is encrypted with a password you choose.</string>
+    <string name="archive_password">Password</string>
+    <string name="archive_password_again">Password again</string>
+    <string name="archive_passwords_differ">Those two do not match.</string>
+    <string name="archive_password_too_short">Use at least %1$d characters.</string>
     <string name="restore_title">Restore this backup?</string>
     <string name="restore_merges">This adds to what is already on the phone. Where the same record exists in both, the newer one wins. Nothing already here is removed unless the backup records that you deleted it.</string>
     <string name="restore_photos_excluded">Progress photos are not in a JSON backup.</string>
