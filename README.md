@@ -25,7 +25,7 @@ Most weight apps hide the trend line, the goal projection, body measurements or 
 
 ## What it does
 
-**The trend, not the noise.** Your weight swings a kilogram or two a day on water alone. WeightTrack draws the raw readings faded behind a smoothed line, so what you see is the direction you are actually going. The smoothing is the Hacker's Diet exponential moving average, made gap-aware: come back after three weeks off and the line catches up properly instead of pretending nothing happened.
+**The trend, not the noise.** Your weight swings a kilogram or two a day on water alone. WeightTrack draws the raw readings faded behind a smoothed line, so what you see is the direction you are actually going. The default smoothing is the Hacker's Diet exponential moving average, made gap-aware: come back after three weeks off and the line catches up properly instead of pretending nothing happened. There is a second mode in Settings that carries the direction you are heading alongside the weight, which keeps up with a steady loss rather than reading a few hundred grams high all the way through one. Whichever you pick is what your weekly figure, your milestones and your projected date are worked out from.
 
 **A goal date you can believe.** The app fits a line to your recent trend and works out when you would reach your target at that rate, with a range around it rather than one falsely precise day. If the trend is flat, or heading the wrong way, it says so instead of inventing a date in 2071. Tap the date and it shows its working: the days it used, the rate it found and the spread, so you can judge the answer rather than take it on faith.
 

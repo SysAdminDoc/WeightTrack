@@ -87,6 +87,21 @@ class GoalChangeExpenditureTest {
         DiaryViewModel.afterAnyGoalChange(measured, snapshotWeighing(goal), goals, zone)
 
     @Test
+    fun `the active goal is read from the list, not from the snapshot beside it`() {
+        // Two flows fed by the same table pair up one emission behind each other, so the
+        // snapshot can carry the new goal while the list still holds the old one, or the
+        // reverse. Whichever way round it lands, the correction has to come out of one of them.
+        val stale = DiaryViewModel.afterAnyGoalChange(
+            measured,
+            snapshotWeighing(dieting.copy(active = true)),
+            listOf(holding, dieting),
+            zone,
+        )
+
+        assertThat(stale).isEqualTo(corrected(holding, listOf(holding, dieting)))
+    }
+
+    @Test
     fun `editing a goal to maintain is a change, even though the start date did not move`() {
         // The whole point. This is the shape the app's own save path writes, and reading the
         // start date meant the correction never fired on it once.

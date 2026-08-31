@@ -389,7 +389,11 @@ class DiaryViewModel @Inject constructor(
             goals: List<Goal>,
             zone: ZoneId = ZoneId.systemDefault(),
         ): AdaptiveExpenditure.Estimate {
-            val current = snapshot.goal ?: return measured
+            // The active goal is taken from the same list as the retired one, not from the
+            // snapshot, which arrives on its own flow. Two flows fed by the same table still
+            // pair up one emission behind each other, and a new goal read beside the old list
+            // is a correction worked out from a target nobody is on.
+            val current = goals.firstOrNull { it.active } ?: return measured
             // When the target changed, which is not when the goal started. Editing a goal keeps
             // its start date so the progress bar does not reset, so reading the start date meant
             // the correction never fired on the one path that actually changes a target.
