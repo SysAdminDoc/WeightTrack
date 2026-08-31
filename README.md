@@ -1,13 +1,15 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.3.1-35D6A0?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.4.0-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
-# WeightTrack v0.3.1
+# WeightTrack v0.4.0
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. Your readings stay on your phone and leave only when you export them.
+
+Version 0.4.0 brings a quieter AMOLED interface to every main screen. The trend stays prominent, controls take less room, and the common jobs remain reachable without hunting through cards.
 
 Most weight apps hide the trend line, the goal projection, body measurements or a working export behind a monthly plan. MyFitnessPal even took the barcode scanner away from people who had used it free for a decade. WeightTrack ships the lot for nothing, and the MIT licence means it cannot be taken back later.
 
@@ -73,8 +75,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew :app:testPlayDebugUnitTest # 469 Play-flavour tests
-./gradlew :app:testFossDebugUnitTest # 475 F-Droid-flavour tests
+./gradlew :app:testPlayDebugUnitTest # 470 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 476 F-Droid-flavour tests
 ./gradlew :core:testDebugUnitTest    # 305 for the maths, scale protocols, food clients and merge
 ./gradlew :wear:testDebugUnitTest    # 19 for the watch
 ```
@@ -105,7 +107,7 @@ The chart is drawn directly on a Compose canvas rather than through a charting l
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: translations.
+See [ROADMAP.md](ROADMAP.md). Current work follows the reliability and interoperability backlog recorded there.
 
 ### How sync works
 

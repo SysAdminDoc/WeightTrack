@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.weighttrack.R
@@ -86,6 +87,7 @@ fun WeightKeypad(
     onBackspace: () -> Unit,
     onClear: () -> Unit,
     modifier: Modifier = Modifier,
+    keyHeight: Dp = 64.dp,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         listOf("123", "456", "789").forEach { row ->
@@ -97,6 +99,7 @@ fun WeightKeypad(
                     KeypadKey(
                         label = digit.toString(),
                         modifier = Modifier.weight(1f),
+                        height = keyHeight,
                         onClick = { onDigit(digit) },
                     )
                 }
@@ -106,15 +109,22 @@ fun WeightKeypad(
             KeypadKey(
                 label = stringResource(R.string.keypad_clear),
                 modifier = Modifier.weight(1f),
+                height = keyHeight,
                 onClick = onClear,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            KeypadKey(label = "0", modifier = Modifier.weight(1f), onClick = { onDigit('0') })
+            KeypadKey(
+                label = "0",
+                modifier = Modifier.weight(1f),
+                height = keyHeight,
+                onClick = { onDigit('0') },
+            )
             KeypadKey(
                 label = null,
                 icon = Icons.AutoMirrored.Filled.Backspace,
                 contentDescription = stringResource(R.string.common_backspace),
                 modifier = Modifier.weight(1f),
+                height = keyHeight,
                 onClick = onBackspace,
                 contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -129,12 +139,13 @@ private fun KeypadKey(
     icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     contentDescription: String? = null,
     contentColor: Color = MaterialTheme.colorScheme.onSurface,
+    height: Dp = 64.dp,
     onClick: () -> Unit,
 ) {
     Surface(
         onClick = onClick,
         modifier = modifier
-            .height(64.dp)
+            .height(height)
             .then(
                 if (contentDescription != null) {
                     Modifier.semantics { this.contentDescription = contentDescription }

@@ -2,6 +2,9 @@ package com.weighttrack.ui.charts
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,10 +12,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ShowChart
@@ -33,6 +38,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
@@ -50,7 +56,6 @@ import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.SectionCard
 import com.weighttrack.ui.components.SectionHeading
-import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.TrendChart
 import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.ui.format.DateFormatters
@@ -92,16 +97,58 @@ fun ChartsScreen(
     ) {
         item {
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .selectableGroup()
+                    .clip(RoundedCornerShape(6.dp))
+                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp)),
             ) {
-                ChartRange.entries.forEach { option ->
-                    SegmentButton(
-                        modifier = Modifier.weight(1f),
-                        label = stringResource(option.label),
-                        selected = option == range,
-                        onClick = { range = option },
-                    )
+                ChartRange.entries.forEachIndexed { index, option ->
+                    val selected = option == range
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .background(
+                                if (selected) {
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.11f)
+                                } else {
+                                    Color.Transparent
+                                },
+                            )
+                            .then(
+                                if (selected) {
+                                    Modifier.border(1.dp, MaterialTheme.colorScheme.primary)
+                                } else {
+                                    Modifier
+                                },
+                            )
+                            .selectable(
+                                selected = selected,
+                                onClick = { range = option },
+                                role = Role.RadioButton,
+                            ),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(option.label),
+                            style = MaterialTheme.typography.labelLarge,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
+                    if (index != ChartRange.entries.lastIndex) {
+                        Box(
+                            Modifier
+                                .width(1.dp)
+                                .fillMaxHeight()
+                                .background(MaterialTheme.colorScheme.outlineVariant),
+                        )
+                    }
                 }
             }
         }
@@ -138,7 +185,7 @@ fun ChartsScreen(
                     goalGrams = snapshot.goal?.targetGrams,
                     milestoneGrams = snapshot.milestones.map { it.grams },
                     today = today,
-                    height = 220.dp,
+                    height = 250.dp,
                 )
                 Text(
                     text = stringResource(R.string.charts_drag_to_pan_pinch_to_zoom),

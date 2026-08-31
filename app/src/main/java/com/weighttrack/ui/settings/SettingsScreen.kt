@@ -27,6 +27,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Slider
+import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -41,6 +42,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -214,6 +216,162 @@ fun SettingsScreen(
 
         item {
             SettingsSection {
+                SectionHeading(stringResource(R.string.settings_units))
+                Spacer(Modifier.height(8.dp))
+                Text(stringResource(R.string.onboarding_weight), style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(6.dp))
+                ChipRow(
+                    options = WeightUnit.entries.map { it to weightUnitLabel(it) },
+                    selected = settings.weightUnit,
+                    onSelect = viewModel::setWeightUnit,
+                )
+                Spacer(Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.64f))
+                Spacer(Modifier.height(12.dp))
+                Text(stringResource(R.string.home_measurements), style = MaterialTheme.typography.bodyLarge)
+                Spacer(Modifier.height(6.dp))
+                ChipRow(
+                    options = LengthUnit.entries.map { it to lengthUnitLabel(it) },
+                    selected = settings.lengthUnit,
+                    onSelect = viewModel::setLengthUnit,
+                )
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.settings_weights_are_stored_in_grams_so),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+
+        item {
+            SettingsSection {
+                SectionHeading(stringResource(R.string.settings_appearance))
+                Spacer(Modifier.height(8.dp))
+                ChipRow(
+                    options = ThemeMode.entries.map { it to themeLabel(it) },
+                    selected = settings.themeMode,
+                    onSelect = viewModel::setThemeMode,
+                )
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    Spacer(Modifier.height(4.dp))
+                    ToggleRow(
+                        label = stringResource(R.string.settings_use_wallpaper_colours),
+                        checked = settings.dynamicColor,
+                        onCheckedChange = viewModel::setDynamicColor,
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsSection {
+                SectionHeading(stringResource(R.string.settings_trend_smoothing))
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_a_shorter_window_follows_the_scale),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.settings_smoothing_window),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(stringResource(R.string.settings_days, settings.trendWindowDays), style = MaterialTheme.typography.titleMedium)
+                val sliderColors = SliderDefaults.colors(
+                    thumbColor = MaterialTheme.colorScheme.primary,
+                    activeTrackColor = MaterialTheme.colorScheme.primary,
+                    inactiveTrackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    activeTickColor = Color.Transparent,
+                    inactiveTickColor = Color.Transparent,
+                )
+                Slider(
+                    value = settings.trendWindowDays.toFloat(),
+                    onValueChange = { viewModel.setTrendWindow(it.toInt()) },
+                    valueRange = TrendEngine.MIN_WINDOW_DAYS.toFloat()..TrendEngine.MAX_WINDOW_DAYS.toFloat(),
+                    steps = TrendEngine.MAX_WINDOW_DAYS - TrendEngine.MIN_WINDOW_DAYS - 1,
+                    colors = sliderColors,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Text(
+                        text = TrendEngine.MIN_WINDOW_DAYS.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = TrendEngine.MAX_WINDOW_DAYS.toString(),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
+
+        item {
+            SettingsSection {
+                SectionHeading(stringResource(R.string.settings_profile))
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.settings_only_used_to_work_out_bmi),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = heightText,
+                    onValueChange = { text ->
+                        heightText = text
+                        text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }?.let {
+                            viewModel.setHeightMm(UnitConverter.displayToMm(it, settings.lengthUnit))
+                        }
+                    },
+                    label = { Text(stringResource(R.string.onboarding_height, LengthFormatter.unitLabel(settings.lengthUnit))) },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = birthYearText,
+                    onValueChange = { text ->
+                        birthYearText = text.filter { it.isDigit() }.take(4)
+                        birthYearText.toIntOrNull()
+                            ?.takeIf { it in 1900..LocalDate.now().year }
+                            ?.let(viewModel::setBirthYear)
+                    },
+                    label = { Text(stringResource(R.string.onboarding_year_of_birth)) },
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        keyboardType = KeyboardType.Number,
+                    ),
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(stringResource(R.string.onboarding_sex), style = MaterialTheme.typography.bodySmall)
+                ChipRow(
+                    options = Sex.entries.map { it to sexLabel(it) },
+                    selected = settings.profile.sex,
+                    onSelect = viewModel::setSex,
+                )
+                Spacer(Modifier.height(10.dp))
+                Text(stringResource(R.string.settings_activity_level), style = MaterialTheme.typography.bodySmall)
+                ChipRow(
+                    options = ActivityLevel.entries.map { it to activityLabel(it) },
+                    selected = settings.profile.activityLevel,
+                    onSelect = viewModel::setActivityLevel,
+                )
+            }
+        }
+
+        item {
+            SettingsSection {
                 SectionHeading(stringResource(R.string.settings_who_this_is_for))
                 Spacer(Modifier.height(4.dp))
                 Text(
@@ -289,134 +447,6 @@ fun SettingsScreen(
                     text = stringResource(R.string.settings_off_by_default_turn_it_on),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        item {
-            SettingsSection {
-                SectionHeading(stringResource(R.string.settings_units))
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.onboarding_weight), style = MaterialTheme.typography.bodyLarge)
-                Spacer(Modifier.height(6.dp))
-                ChipRow(
-                    options = WeightUnit.entries.map { it to weightUnitLabel(it) },
-                    selected = settings.weightUnit,
-                    onSelect = viewModel::setWeightUnit,
-                )
-                Spacer(Modifier.height(12.dp))
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.64f))
-                Spacer(Modifier.height(12.dp))
-                Text(stringResource(R.string.home_measurements), style = MaterialTheme.typography.bodyLarge)
-                Spacer(Modifier.height(6.dp))
-                ChipRow(
-                    options = LengthUnit.entries.map { it to lengthUnitLabel(it) },
-                    selected = settings.lengthUnit,
-                    onSelect = viewModel::setLengthUnit,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = stringResource(R.string.settings_weights_are_stored_in_grams_so),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-
-        item {
-            SettingsSection {
-                SectionHeading(stringResource(R.string.settings_appearance))
-                Spacer(Modifier.height(8.dp))
-                ChipRow(
-                    options = ThemeMode.entries.map { it to themeLabel(it) },
-                    selected = settings.themeMode,
-                    onSelect = viewModel::setThemeMode,
-                )
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    Spacer(Modifier.height(4.dp))
-                    ToggleRow(
-                        label = stringResource(R.string.settings_use_wallpaper_colours),
-                        checked = settings.dynamicColor,
-                        onCheckedChange = viewModel::setDynamicColor,
-                    )
-                }
-            }
-        }
-
-        item {
-            SettingsSection {
-                SectionHeading(stringResource(R.string.settings_trend_smoothing))
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.settings_a_shorter_window_follows_the_scale),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(stringResource(R.string.settings_days, settings.trendWindowDays), style = MaterialTheme.typography.titleMedium)
-                Slider(
-                    value = settings.trendWindowDays.toFloat(),
-                    onValueChange = { viewModel.setTrendWindow(it.toInt()) },
-                    valueRange = TrendEngine.MIN_WINDOW_DAYS.toFloat()..TrendEngine.MAX_WINDOW_DAYS.toFloat(),
-                    steps = TrendEngine.MAX_WINDOW_DAYS - TrendEngine.MIN_WINDOW_DAYS - 1,
-                )
-            }
-        }
-
-        item {
-            SettingsSection {
-                SectionHeading(stringResource(R.string.settings_profile))
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = stringResource(R.string.settings_only_used_to_work_out_bmi),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(10.dp))
-                OutlinedTextField(
-                    value = heightText,
-                    onValueChange = { text ->
-                        heightText = text
-                        text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }?.let {
-                            viewModel.setHeightMm(UnitConverter.displayToMm(it, settings.lengthUnit))
-                        }
-                    },
-                    label = { Text(stringResource(R.string.onboarding_height, LengthFormatter.unitLabel(settings.lengthUnit))) },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.Decimal,
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = birthYearText,
-                    onValueChange = { text ->
-                        birthYearText = text.filter { it.isDigit() }.take(4)
-                        birthYearText.toIntOrNull()
-                            ?.takeIf { it in 1900..LocalDate.now().year }
-                            ?.let(viewModel::setBirthYear)
-                    },
-                    label = { Text(stringResource(R.string.onboarding_year_of_birth)) },
-                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
-                        keyboardType = KeyboardType.Number,
-                    ),
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(stringResource(R.string.onboarding_sex), style = MaterialTheme.typography.bodySmall)
-                ChipRow(
-                    options = Sex.entries.map { it to sexLabel(it) },
-                    selected = settings.profile.sex,
-                    onSelect = viewModel::setSex,
-                )
-                Spacer(Modifier.height(10.dp))
-                Text(stringResource(R.string.settings_activity_level), style = MaterialTheme.typography.bodySmall)
-                ChipRow(
-                    options = ActivityLevel.entries.map { it to activityLabel(it) },
-                    selected = settings.profile.activityLevel,
-                    onSelect = viewModel::setActivityLevel,
                 )
             }
         }

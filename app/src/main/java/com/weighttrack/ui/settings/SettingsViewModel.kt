@@ -99,6 +99,9 @@ class SettingsViewModel @Inject constructor(
     private val _crashReportCount = MutableStateFlow(0)
     val crashReportCount: StateFlow<Int> = _crashReportCount.asStateFlow()
 
+    private val _autoBackup = MutableStateFlow(AutoBackupState())
+    val autoBackup: StateFlow<AutoBackupState> = _autoBackup.asStateFlow()
+
     init {
         refreshHealthConnect()
         refreshAutoBackup()
@@ -442,9 +445,6 @@ class SettingsViewModel @Inject constructor(
         /** The folder has gone, so the weekly copy is not happening. */
         val problem: Boolean = false,
     )
-
-    private val _autoBackup = MutableStateFlow(AutoBackupState())
-    val autoBackup: StateFlow<AutoBackupState> = _autoBackup.asStateFlow()
 
     fun refreshAutoBackup() {
         viewModelScope.launch {

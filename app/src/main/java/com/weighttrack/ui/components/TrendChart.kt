@@ -91,6 +91,8 @@ fun TrendChart(
     goalGrams: Int? = null,
     milestoneGrams: List<Int> = emptyList(),
     showRawReadings: Boolean = true,
+    alwaysIncludeGoalInBounds: Boolean = false,
+    dateAxisTicks: Int = 3,
     height: Dp = 240.dp,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -126,7 +128,9 @@ fun TrendChart(
         return
     }
 
-    val bounds = remember(visible, goalGrams) { valueBounds(visible, goalGrams) }
+    val bounds = remember(visible, goalGrams, alwaysIncludeGoalInBounds) {
+        valueBounds(visible, goalGrams, alwaysIncludeGoalInBounds)
+    }
     val leftGutter = with(density) { 44.dp.toPx() }
     val bottomGutter = with(density) { 22.dp.toPx() }
     val topPadding = with(density) { 12.dp.toPx() }
@@ -257,7 +261,7 @@ fun TrendChart(
             drawCircle(colors.trendLine, radius = 3.5.dp.toPx(), center = center)
         }
 
-        drawDateAxis(visible, plot, colors, textMeasurer, today, ::xFor)
+        drawDateAxis(visible, plot, colors, textMeasurer, today, dateAxisTicks, ::xFor)
 
         selected?.let { index ->
             visible.getOrNull(index)?.let { point ->
@@ -270,7 +274,11 @@ fun TrendChart(
 /** How far the goal line may stretch the visible range before it is left off the chart. */
 internal const val MAX_GOAL_RANGE_GROWTH = 1.6
 
-internal fun valueBounds(points: List<TrendPoint>, goalGrams: Int?): ClosedFloatingPointRange<Double> {
+internal fun valueBounds(
+    points: List<TrendPoint>,
+    goalGrams: Int?,
+    alwaysIncludeGoal: Boolean = false,
+): ClosedFloatingPointRange<Double> {
     var minimum = Double.MAX_VALUE
     var maximum = -Double.MAX_VALUE
     points.forEach { point ->
@@ -289,7 +297,7 @@ internal fun valueBounds(points: List<TrendPoint>, goalGrams: Int?): ClosedFloat
     goalGrams?.let { goal ->
         val dataSpan = (maximum - minimum).coerceAtLeast(1000.0)
         val withGoal = max(maximum, goal.toDouble()) - min(minimum, goal.toDouble())
-        if (withGoal <= dataSpan * MAX_GOAL_RANGE_GROWTH) {
+        if (alwaysIncludeGoal || withGoal <= dataSpan * MAX_GOAL_RANGE_GROWTH) {
             minimum = min(minimum, goal.toDouble())
             maximum = max(maximum, goal.toDouble())
         }
@@ -365,14 +373,19 @@ private fun DrawScope.drawDateAxis(
     colors: TrendChartColors,
     textMeasurer: TextMeasurer,
     today: LocalDate,
+    tickCount: Int,
     xFor: (LocalDate) -> Float,
 ) {
     val labelStyle = TextStyle(color = colors.axisText, fontSize = 10.sp)
-    val candidates = listOfNotNull(
-        visible.firstOrNull()?.date,
-        visible.getOrNull(visible.size / 2)?.date,
-        visible.lastOrNull()?.date,
-    ).distinct()
+    val candidateCount = tickCount.coerceIn(2, 7)
+    val candidates = (0 until candidateCount).mapNotNull { tick ->
+        if (visible.isEmpty()) {
+            null
+        } else {
+            val index = (tick.toFloat() / (candidateCount - 1) * visible.lastIndex).roundToInt()
+            visible.getOrNull(index)?.date
+        }
+    }.distinct()
 
     candidates.forEachIndexed { index, date ->
         val label = DateFormatters.shortDate(date, today)

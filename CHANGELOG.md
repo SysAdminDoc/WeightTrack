@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+## 0.4.0 (2026-08-31)
+
+- Reworked the eight main screens around the new Quiet Ledger interface. It uses true black, flatter sections, compact rectangular controls and one mint accent throughout.
+- Home now keeps the goal in the thirty-day chart, shows five readable date marks and leaves the Log weight action visible without scrolling.
+- Charts has a connected range selector and a larger plotting area. History uses denser rows, while Measurements and Log weight now read as direct working sheets instead of stacks of cards.
+- Settings opens with units, appearance, trend smoothing and profile controls in the same order as the screen reference. Its smoothing control now labels the real 7 to 30 day range.
+- The Goal editor fits the target, keypad, milestone track, target date and save action into the first screen. Log and onboarding keep their larger keypad targets.
+- Fixed a Settings startup crash caused by reading automatic-backup state before that state had been created. A regression test now guards the initialization order.
+- Added generated screen references and paired emulator evidence for Home, Charts, Log, History, Settings, Goal, Measurements and Onboarding.
+
 ## 0.3.1
 
 - New app icon: adaptive, themed (monochrome) and legacy variants regenerated from the 2026-08 icon set.

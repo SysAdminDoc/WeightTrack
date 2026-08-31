@@ -194,6 +194,7 @@
     <string name="home_trend_weight">Trend weight</string>
     <string name="home_this_week">%1$s this week</string>
     <string name="home_days">30 days</string>
+    <string name="home_30_day_trend">30-day trend</string>
     <string name="home_rate_of_change">Rate of change</string>
     <string name="home_keep_logging_a_week_of_readings">Keep logging. A week of readings is enough to work out which way the trend is going.</string>
     <string name="home_rate">Rate</string>
@@ -297,6 +298,7 @@
     <string name="settings_use_wallpaper_colours">Use wallpaper colours</string>
     <string name="settings_trend_smoothing">Trend smoothing</string>
     <string name="settings_a_shorter_window_follows_the_scale">A shorter window follows the scale more closely.</string>
+    <string name="settings_smoothing_window">Smoothing window</string>
     <string name="settings_days">%1$s days</string>
     <string name="settings_profile">Profile</string>
     <string name="settings_only_used_to_work_out_bmi">Only used to work out BMI, body fat and how many calories you burn. It never leaves the phone.</string>

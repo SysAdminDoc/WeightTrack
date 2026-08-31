@@ -15,7 +15,7 @@ class OpenFoodFactsClientTest {
         searchLimiter: RateLimiter = RateLimiter(RateLimiter.SEARCHES_PER_MINUTE),
     ) = OpenFoodFactsClient(
         fetch = { url, agent -> requested += url to agent; response },
-        userAgent = OpenFoodFactsClient.userAgent("0.3.1"),
+        userAgent = OpenFoodFactsClient.userAgent("0.4.0"),
         now = { clock },
         productLimiter = productLimiter,
         searchLimiter = searchLimiter,
@@ -55,7 +55,7 @@ class OpenFoodFactsClientTest {
         // a service that counts requests.
         assertThat(url).contains("fields=product_name,brands,code,serving_quantity,serving_size,nutriments")
         // The service asks every caller to identify itself, and blocks the ones that do not.
-        assertThat(agent).startsWith("WeightTrack/0.3.1 (")
+        assertThat(agent).startsWith("WeightTrack/0.4.0 (")
 
         val food = (result as OpenFoodFactsClient.Result.Found).value
         assertThat(food.name).isEqualTo("Nutella")

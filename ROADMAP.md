@@ -6,6 +6,8 @@ Single task tracker for the project. Research was done 2026-08-29; prices and ap
 
 Happy Scale quality, on Android, free forever. No account, no ads, no subscription, no cloud you don't control. Your data lives on your phone and leaves only when you export it.
 
+Current release: v0.4.0. The Quiet Ledger redesign is complete across the eight main screens, with paired emulator evidence under `docs/design/qa/`.
+
 Every feature the paid apps lock up is either client-side math or a free API call. WeightTrack ships all of it in the open.
 
 ## What the market looks like
@@ -46,7 +48,7 @@ The gap: nobody ships a modern Compose app with a trend-first weight experience 
 
 - No trials, no auto-renew, no cancellation flow. There is nothing to cancel.
 - Zero ads, ever.
-- No login wall. First launch opens straight onto "enter your weight".
+- No login wall. First launch uses a short private setup and asks for your first weight.
 - Nothing gets moved behind a paywall later. The license makes that a structural promise.
 - Crashes and lost data are the top cause of 1-star reviews. Room with WAL, automatic local backups, export always available.
 - Sync must be idempotent (dedupe on timestamp plus source), with a visible "last synced" and a manual sync button.
@@ -60,7 +62,7 @@ The gap: nobody ships a modern Compose app with a trend-first weight experience 
 
 ## Stack
 
-Kotlin 2.x, Jetpack Compose, Material 3 with dynamic color, dark theme default with a light option. Single activity, Compose navigation. Room (WAL, schema export, auto-migrations), DataStore, Hilt, WorkManager, Glance for widgets, Wear Compose + Tiles + Data Layer for the watch, kotlinx-serialization for import/export. Charts drawn directly on a Compose canvas: a library was tried and dropped, because the raw readings, the trend, the goal line and the milestone marks all need to share one coordinate space exactly. minSdk 26, compileSdk 37. R8 on, signed release builds only.
+Kotlin 2.x, Jetpack Compose, Material 3 with dynamic color, AMOLED black by default and a light option. Single activity, Compose navigation. Room (WAL, schema export, auto-migrations), DataStore, Hilt, WorkManager, Glance for widgets, Wear Compose + Tiles + Data Layer for the watch, kotlinx-serialization for import/export. Charts drawn directly on a Compose canvas: a library was tried and dropped, because the raw readings, the trend, the goal line and the milestone marks all need to share one coordinate space exactly. minSdk 26, compileSdk 37. R8 on, signed release builds only.
 
 Two product flavors from day one: `play` (ML Kit barcode allowed) and `foss` (ZXing, no Google Play services) so F-Droid can build it.
 
@@ -98,63 +100,63 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0 — Fix barcode lookup result ownership across navigation
+- [ ] P0: Fix barcode lookup result ownership across navigation
   Why: Scan creates a separate `FoodViewModel`, starts an asynchronous lookup, and pops the route, so the result can be cancelled or discarded instead of reaching Foods.
   Evidence: `app/src/main/java/com/weighttrack/ui/WeightTrackApp.kt:401-427`; `app/src/main/java/com/weighttrack/ui/food/FoodViewModel.kt:149`
   Touches: `ui/WeightTrackApp.kt`, `ui/food/FoodViewModel.kt`, navigation tests for both flavors
   Acceptance: A delayed successful scan from either flavor returns to Foods and opens or updates that product exactly once; not-found and network-failure results remain visible after the scanner route closes; a navigation test fails if Scan and Foods use disconnected result owners.
   Complexity: S
 
-- [ ] P0 — Make structured backup complete and profile-safe
+- [ ] P0: Make structured backup complete and profile-safe
   Why: The current JSON exports only active-profile readings and omits profiles, water, fasts, macro targets, tombstones, and other stored state; food-log rows can be dropped when restored profile IDs do not match the source installation.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt:140`; `app/src/main/java/com/weighttrack/data/io/BackupService.kt:82-212`; `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:628-650`
   Touches: `data/io/Backup.kt`, `data/io/BackupService.kt`, `data/sync/SyncStore.kt`, Room backup fixtures
   Acceptance: A seeded two-profile database with at least one row in every structured domain round-trips into a fresh database with the same counts, sync IDs, relationships, settings, and profile ownership; a version-1 backup fixture still restores; JSON export states that progress-photo files require the portable archive item below.
   Complexity: L
 
-- [ ] P0 — Make restore and automatic backup bounded and atomic
+- [ ] P0: Make restore and automatic backup bounded and atomic
   Why: Restore mutates repositories sequentially after an unbounded read, while a same-day automatic backup can replace the only good copy directly.
   Evidence: `app/src/main/java/com/weighttrack/data/io/BackupService.kt:155-243`; `app/src/main/java/com/weighttrack/data/io/AutoBackup.kt`; https://developer.android.com/privacy-and-security/risks/content-resolver
   Touches: `data/io/BackupService.kt`, `data/io/AutoBackup.kt`, `data/db/WeightTrackDatabase.kt`, restore preview UI and tests
   Acceptance: Wrong-format, unsupported-version, oversized, truncated, and injected mid-restore failures change zero database rows; the preview reports record counts and merge or replace behavior before its explicit restore action; automatic backup writes a temporary file and replaces the target only after validation, leaving the previous valid copy recoverable on failure.
   Complexity: M
 
-- [ ] P0 — Align Health Connect background access, rationale, and release declarations
+- [ ] P0: Align Health Connect background access, rationale, and release declarations
   Why: Hourly sync is scheduled without `READ_HEALTH_DATA_IN_BACKGROUND`, record permissions do not match implemented reads and writes, and the repository has no dedicated rationale page or public policy URL.
   Evidence: `app/src/main/AndroidManifest.xml`; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:667-720`; https://developer.android.com/health-and-fitness/health-connect/publish
   Touches: manifest permissions, `health/HealthConnectSync.kt`, settings permission flow, dedicated privacy activity, public privacy policy, release checklist
   Acceptance: Background sync cannot be enabled until background access is granted and is unscheduled after revocation; manifest and runtime requests contain only record types exercised by the selected features; the rationale activity explains each use; the published policy URL and Play declarations match an automated manifest-permission snapshot.
   Complexity: M
 
-- [ ] P0 — Make Health Connect exports idempotent and propagate app-owned deletions
+- [ ] P0: Make Health Connect exports idempotent and propagate app-owned deletions
   Why: Every sync republishes all local weights, creates a new current-time height record, and never removes an app-owned Health Connect record after local deletion.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:554-665`; https://developer.android.com/health-and-fitness/health-connect/write-data; https://developer.android.com/health-and-fitness/health-connect/sync-data
   Touches: `health/HealthConnectSync.kt`, weight persistence metadata, outbound ledger and deletion queue, `FakeHealthConnectClient` tests
   Acceptance: A second unchanged sync issues zero inserts; an edit upserts the same stable client record; local deletion removes only the app-owned Health Connect record; partial batch failure leaves affected operations pending and visible in the runtime log; no height record is emitted until height export is an enabled, permitted feature.
   Complexity: L
 
-- [ ] P0 — Pin and serialize each Health Connect sync session
+- [ ] P0: Pin and serialize each Health Connect sync session
   Why: One run resolves the active or claimed profile more than once, and manual plus worker sync can overlap, allowing tokens, imports, and exports to cross profile boundaries.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:137`; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:371-641`; `app/src/main/java/com/weighttrack/data/sync/SyncEngine.kt:58`
   Touches: `health/HealthConnectSync.kt`, `sync/SyncWorker.kt`, settings manual-sync path, concurrency tests
   Acceptance: The profile ID, permission snapshot, time window, and token are immutable for one run; switching profiles during a blocked fake-client call does not redirect any row; simultaneous worker and manual requests execute one at a time and produce one cursor advance.
   Complexity: M
 
-- [ ] P0 — Commit local deletion and its sync tombstone in one transaction
+- [ ] P0: Commit local deletion and its sync tombstone in one transaction
   Why: Several repositories delete the live row before recording its tombstone, so process death between those writes can let a peer resurrect deleted data.
   Evidence: `app/src/main/java/com/weighttrack/data/repo/DeletionRecorder.kt`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt:121-130`; `app/src/main/java/com/weighttrack/data/repo/FastRepository.kt`
   Touches: `data/db/WeightTrackDatabase.kt`, `data/repo/DeletionRecorder.kt`, every repository delete path, `DeletionCoverageTest`
   Acceptance: An injected failure between row removal and tombstone insertion rolls back both; every `SyncKind` delete path passes the same transaction contract; profile cascade deletion commits all child tombstones before photo files are removed after commit.
   Complexity: L
 
-- [ ] P0 — Fail closed when secret protection is unavailable
+- [ ] P0: Fail closed when secret protection is unavailable
   Why: WebDAV passwords and USDA API keys currently fall back to plaintext when Android Keystore protection fails.
   Evidence: `app/src/main/java/com/weighttrack/data/sync/SyncPreferences.kt:106-113`; `app/src/main/java/com/weighttrack/data/prefs/SettingsRepository.kt`; https://mas.owasp.org/MASWE/MASVS-STORAGE/MASWE-0002/
   Touches: `security/SecretStore.kt`, `data/sync/SyncPreferences.kt`, `data/prefs/SettingsRepository.kt`, settings error state and tests
   Acceptance: A forced Keystore failure persists no secret, keeps the affected integration disabled, and produces a user-visible error plus diagnostic entry; legacy plaintext is removed only after a protected rewrite succeeds; tests assert DataStore never receives the original secret.
   Complexity: S
 
-- [ ] P0 — Complete Android developer verification before 2026-09-30
+- [ ] P0: Complete Android developer verification before 2026-09-30
   Why: Android begins enforcing verified developer and package identity in Brazil, Indonesia, Singapore, and Thailand on 2026-09-30, including apps distributed outside Play.
   Evidence: https://developer.android.com/developer-verification; https://developer.android.com/developer-verification/guides; `app/build.gradle.kts`
   Touches: Android Developer Console, Play Console, `com.weighttrack`, release signing certificate inventory for both variants, release checklist
@@ -163,70 +165,70 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P1
 
-- [ ] P1 — Distinguish Health Connect token expiry from transient failure
+- [ ] P1: Distinguish Health Connect token expiry from transient failure
   Why: Any `getChanges` exception currently clears the token and triggers a five-year reread, turning outages and rate limits into expensive full imports.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:401-456`; https://developer.android.com/health-and-fitness/health-connect/sync-data; https://developer.android.com/health-and-fitness/health-connect/rate-limiting
   Touches: `health/HealthConnectSync.kt`, per-profile cursor metadata, worker retry policy, fake-client tests
   Acceptance: Transient, permission, rate-limit, and expired-token failures follow separate paths; only confirmed expiry replaces the cursor; recovery reads a bounded overlap from the last successful timestamp; fixtures prove retry does not duplicate rows or issue a five-year query.
   Complexity: M
 
-- [ ] P1 — Store Health Connect origin and add independent read and write controls
+- [ ] P1: Store Health Connect origin and add independent read and write controls
   Why: Imported rows do not expose their data origin, while the permission set requests directions and record types that users cannot configure independently, making duplicate and source conflicts hard to diagnose.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt`; https://support.google.com/android/answer/12990553?hl=en; https://help.macrofactorapp.com/en/articles/102-integrations; https://github.com/Monkopedia/health-disconnect/issues/93
   Touches: weight source metadata and migration, Health Connect settings, permission contract, history row details, dedupe tests
   Acceptance: Read-only, write-only, and two-way modes request exactly their needed permissions; every imported row displays application and device origin when available; a user can exclude an origin or choose precedence; repeated records from the same origin and client ID remain one row.
   Complexity: L
 
-- [ ] P1 — Add an encrypted portable archive with progress photos
+- [ ] P1: Add an encrypted portable archive with progress photos
   Why: JSON and CSV cannot restore progress-photo files, while a phone-to-phone archive needs confidentiality and tamper detection without exporting Keystore-bound service credentials.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
   Touches: versioned archive codec, backup service, photo repository, export and restore UI, malformed-archive tests
   Acceptance: A password-protected archive restores all structured data and photo bytes with verified hashes; wrong password, modified content, path traversal, excessive expansion, or unsupported version changes nothing; non-secret settings travel, WebDAV passwords and API keys do not; JSON and CSV remain available with a clear photo-exclusion label.
   Complexity: L
 
-- [ ] P1 — Add undo for destructive profile and journal actions
+- [ ] P1: Add undo for destructive profile and journal actions
   Why: The product promises snackbar undo for records, but profile, photo, fast, water, food, recipe, diary, and goal deletion is immediate while only weight deletion has a complete undo path.
   Evidence: `ROADMAP.md` section `Complaints we will not repeat`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`
   Touches: repositories for destructive entities, deletion staging, ViewModels and snackbars, file recovery cache, tests
   Acceptance: Each destructive action removes the item immediately and offers one timed undo without a confirmation dialog; undo restores relationships and files with their original sync IDs; expiry writes one tombstone; process recreation during the undo window resolves deterministically and is covered by tests.
   Complexity: L
 
-- [ ] P1 — Finish locale-safe text, weekdays, and numeric input
+- [ ] P1: Finish locale-safe text, weekdays, and numeric input
   Why: Biometric, food, and settings literals bypass resources; enum weekdays render in English; several decimal fields use `toDoubleOrNull`, which rejects valid locale separators and digits.
   Evidence: `app/src/main/java/com/weighttrack/security/AppLockSupport.kt:113`; `app/src/main/java/com/weighttrack/ui/food/FoodScreen.kt`; `app/src/main/java/com/weighttrack/ui/diary/DiaryScreen.kt:396-513`; https://developer.android.com/reference/java/text/NumberFormat
   Touches: string resources, biometric prompt builder, weekday presentation, shared locale number parser, `NoHardcodedTextTest`
   Acceptance: German comma decimals, French grouped values, and Arabic digits parse and round-trip in every weight, measurement, serving, and macro field; weekdays and default profile text use the active locale; the hardcoded-text test catches builder arguments, fragments, wrappers, and enum-derived labels.
   Complexity: M
 
-- [ ] P1 — Require explicit routing for ambiguous BLE profile matches
+- [ ] P1: Require explicit routing for ambiguous BLE profile matches
   Why: Nearest-last-weight routing accepts any winner inside 8 kg, even when two household profiles are nearly tied and automatic ownership is unreliable.
   Evidence: `app/src/main/java/com/weighttrack/ble/ScaleReadingRouter.kt`; https://support.withings.com/hc/en-us/articles/32171073185937-Scales-Setting-up-your-scale-for-multiple-users
   Touches: `ble/ScaleReadingRouter.kt`, `ui/scale/ScaleScreen.kt`, profile routing preferences, router tests
   Acceptance: A clear nearest match still files automatically; a tie or small margin creates one pending reading and an inline profile picker; choosing a profile files exactly once and records enough context to make the next unambiguous session easier without changing another profile.
   Complexity: M
 
-- [ ] P1 — Surface and recover progress-photo failures
+- [ ] P1: Surface and recover progress-photo failures
   Why: Capture, copy, decode, and database failures collapse to null and can leave the person without an explanation or retry path.
   Evidence: `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; `app/src/test/java/com/weighttrack/data/repo/ProgressPhotoRepositoryTest.kt`
   Touches: progress-photo result type, ViewModel, photo UI, diagnostics, orphan cleanup tests
   Acceptance: Invalid format, unreadable URI, insufficient storage, database failure, and missing file each produce a specific toast or inline status and diagnostic event; no failed operation leaves a database row or orphan file; retry succeeds without duplicating the photo.
   Complexity: S
 
-- [ ] P1 — Enforce payload budgets for folder and WebDAV sync
+- [ ] P1: Enforce payload budgets for folder and WebDAV sync
   Why: Both targets materialize an entire remote response with no byte, document, row, or string limits, so a malformed peer can exhaust memory before decode.
   Evidence: `app/src/main/java/com/weighttrack/data/sync/FolderSyncTarget.kt:58`; `app/src/main/java/com/weighttrack/data/sync/WebDavSyncTarget.kt:119`; https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html
   Touches: sync target streaming reads, `SyncDocument` validation, engine diagnostics, adversarial fixtures
   Acceptance: Configured hard limits are checked while streaming and before decode; oversized documents, excessive collections, and oversized strings are rejected with the source filename or URL; the last valid local and remote documents remain unchanged; boundary-size tests pass for folder and WebDAV targets.
   Complexity: M
 
-- [ ] P1 — Repair corrupt goal dates deterministically
+- [ ] P1: Repair corrupt goal dates deterministically
   Why: An invalid stored goal date maps to the current date, so the same damaged row changes meaning every day without a diagnostic.
   Evidence: `app/src/main/java/com/weighttrack/data/db/Mappers.kt`; `app/src/main/java/com/weighttrack/data/db/Entities.kt`
   Touches: goal mapper, migration or repair routine, diagnostics, mapper tests
   Acceptance: A corrupt date maps to one stable fallback derived from stored creation time or is quarantined for repair; the app records the affected sync ID; repeated loads on different dates return the same result; valid rows are unchanged.
   Complexity: S
 
-- [ ] P1 — Gate releases on accessibility and UI state coverage
+- [ ] P1: Gate releases on accessibility and UI state coverage
   Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
   Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/
   Touches: Compose UI tests, screenshot fixtures, semantics assertions, `design-qa.md`
@@ -299,21 +301,21 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: an http:// URL is refused at entry with the reason; a self-signed HTTPS server passes after the certificate is picked and fails before; cleartext stays blocked.
   Complexity: M
 
-- [ ] P2 — Replace wall-clock tombstone expiry with peer acknowledgements
+- [ ] P2: Replace wall-clock tombstone expiry with peer acknowledgements
   Why: Last-write-wins timestamps come from device clocks and tombstones expire after six months, so a skewed or long-offline peer can republish an older live row after its deletion marker disappears.
   Evidence: `core/src/main/java/com/weighttrack/core/sync/SyncMerge.kt:143-158`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://cse.buffalo.edu/~demirbas/publications/hlc.pdf
   Touches: sync stamp model, `SyncDocument` format, `SyncMerge`, peer retirement UI, migration and convergence tests
   Acceptance: Mutations use a hybrid logical clock with device ID tie-breaking; a tombstone is pruned only after the retention floor and acknowledgement from every non-retired known peer; a fixture returning after nine months cannot resurrect its deleted row; clock rollback and equal-millisecond edits converge identically on every merge order.
   Complexity: XL
 
-- [ ] P2 — Record startup and worker failures in runtime diagnostics
+- [ ] P2: Record startup and worker failures in runtime diagnostics
   Why: Crash reports and the runtime log exist, but initialization exceptions, progress-worker stop reasons, and scheduler decisions can disappear before the user can diagnose missed background work.
   Evidence: `app/src/main/java/com/weighttrack/diagnostics`; `app/src/main/java/com/weighttrack/sync/SyncWorker.kt`; `app/src/main/java/com/weighttrack/data/io/AutoBackupWorker.kt`
   Touches: application initializer, WorkManager workers and observers, runtime log event model, diagnostics UI and tests
   Acceptance: Each worker records start, completion, retry cause, cancellation, and platform stop reason with profile-safe context; startup component failures appear on the next diagnostics screen; a support export redacts secrets; tests verify one terminal event per work run.
   Complexity: M
 
-- [ ] P2 — Add a long-history performance regression fixture
+- [ ] P2: Add a long-history performance regression fixture
   Why: Weight trackers commonly accumulate years of daily data, and trale issue 279 reports navigation degradation on large histories; WeightTrack has no pinned dataset or frame-time budget for this case.
   Evidence: https://github.com/QuantumPhysique/trale/issues/279; `app/src/main/java/com/weighttrack/ui/charts`; `app/src/main/java/com/weighttrack/data/db/Daos.kt`
   Touches: benchmark fixtures, DAO paging and aggregation queries, chart downsampling, Baseline Profile or Macrobenchmark checks

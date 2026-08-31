@@ -13,7 +13,7 @@ class UsdaFoodDataClientTest {
 
     private fun client() = UsdaFoodDataClient(
         fetch = { url, _ -> requested += url; response },
-        userAgent = "WeightTrack/0.3.1",
+        userAgent = "WeightTrack/0.4.0",
         apiKey = { key },
         now = { clock },
     )

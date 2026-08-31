@@ -41,6 +41,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -119,7 +120,7 @@ fun HomeScreen(
         item { HomeDivider() }
         item { RateCard(snapshot) }
         item { HomeDivider() }
-        snapshot.goal?.let { item { GoalCard(snapshot, onOpenGoal, today, onShareProgress) } }
+        snapshot.goal?.let { item { GoalCard(snapshot, onOpenGoal, today) } }
         item { HomeDivider() }
         item {
             HomeActionRow(
@@ -183,6 +184,13 @@ fun HomeScreen(
             )
         }
         item { BodyStatsCard(snapshot, onOpenMeasurements) }
+        if (canShareProgress(snapshot)) {
+            item {
+                androidx.compose.material3.TextButton(onClick = onShareProgress) {
+                    Text(stringResource(R.string.home_share_your_progress))
+                }
+            }
+        }
     }
 }
 
@@ -248,8 +256,10 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
             Spacer(Modifier.height(14.dp))
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
+                SectionHeading(stringResource(R.string.home_30_day_trend))
                 Text(
                     text = stringResource(R.string.home_days),
                     style = MaterialTheme.typography.labelMedium,
@@ -265,6 +275,8 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
                 goalGrams = snapshot.goal?.targetGrams,
                 milestoneGrams = snapshot.milestones.map { it.grams },
                 showRawReadings = false,
+                alwaysIncludeGoalInBounds = true,
+                dateAxisTicks = 5,
                 today = today,
                 height = 176.dp,
                 modifier = Modifier.fillMaxWidth(),
@@ -278,8 +290,6 @@ private fun RateCard(snapshot: ProgressSnapshot) {
     val unit = snapshot.settings.weightUnit
     val rate = snapshot.rate
     Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 14.dp)) {
-        SectionHeading(stringResource(R.string.home_rate_of_change))
-        Spacer(Modifier.height(8.dp))
         if (!rate.hasEnoughData) {
             Text(
                 text = stringResource(R.string.home_keep_logging_a_week_of_readings),
@@ -335,7 +345,6 @@ private fun GoalCard(
     snapshot: ProgressSnapshot,
     onOpenGoal: () -> Unit,
     today: LocalDate,
-    onShareProgress: () -> Unit,
 ) {
     val goal = snapshot.goal ?: return
     val projection = snapshot.projection
@@ -464,14 +473,6 @@ private fun GoalCard(
             }
         }
 
-        // Offered rather than pushed. There is no prompt, no badge and no reminder to share:
-        // somebody who wants to will look for this, and somebody who does not should never be
-        // asked.
-        if (canShareProgress(snapshot)) {
-            androidx.compose.material3.TextButton(onClick = onShareProgress) {
-                Text(stringResource(R.string.home_share_your_progress))
-            }
-        }
     }
 }
 
@@ -499,8 +500,8 @@ private fun HomeActionRow(
         Surface(
             modifier = Modifier.size(44.dp),
             shape = MaterialTheme.shapes.small,
-            color = accent.copy(alpha = if (emphasized) 0.10f else 0.05f),
-            border = BorderStroke(1.dp, accent.copy(alpha = 0.82f)),
+            color = if (emphasized) accent.copy(alpha = 0.10f) else Color.Transparent,
+            border = if (emphasized) BorderStroke(1.dp, accent.copy(alpha = 0.82f)) else null,
         ) {
             Box(contentAlignment = Alignment.Center) {
                 Icon(

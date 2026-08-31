@@ -84,7 +84,7 @@ fun MeasurementsScreen(
                         Icon(
                             imageVector = Icons.Outlined.Info,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            tint = MaterialTheme.colorScheme.secondary,
                             modifier = Modifier.size(32.dp),
                         )
                         Column {

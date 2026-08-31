@@ -99,7 +99,7 @@ fun GoalScreen(
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (state.currentGrams == null) {
                 Text(
@@ -147,9 +147,14 @@ fun GoalScreen(
                 )
             }
 
-            WeightKeypad(onDigit = onDigit, onBackspace = onBackspace, onClear = onClear)
+            WeightKeypad(
+                onDigit = onDigit,
+                onBackspace = onBackspace,
+                onClear = onClear,
+                keyHeight = 48.dp,
+            )
 
-            LedgerSection(contentPadding = PaddingValues(vertical = 14.dp)) {
+            LedgerSection(contentPadding = PaddingValues(vertical = 12.dp)) {
                 SectionHeading(stringResource(R.string.goal_milestones))
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -196,7 +201,7 @@ fun GoalScreen(
                 }
             }
 
-            LedgerSection(contentPadding = PaddingValues(vertical = 14.dp)) {
+            LedgerSection(contentPadding = PaddingValues(vertical = 12.dp)) {
                 SectionHeading(stringResource(R.string.goal_target_date))
                 Spacer(Modifier.height(6.dp))
                 Row(

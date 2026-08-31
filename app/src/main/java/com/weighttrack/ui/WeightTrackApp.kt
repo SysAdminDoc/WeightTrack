@@ -3,6 +3,7 @@ package com.weighttrack.ui
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -193,6 +194,7 @@ fun WeightTrackApp(
             if (currentRoute == Routes.HISTORY) {
                 FloatingActionButton(
                     onClick = { navController.navigate(Routes.log()) },
+                    modifier = Modifier.size(48.dp),
                     shape = RoundedCornerShape(8.dp),
                     elevation = FloatingActionButtonDefaults.elevation(
                         defaultElevation = 0.dp,

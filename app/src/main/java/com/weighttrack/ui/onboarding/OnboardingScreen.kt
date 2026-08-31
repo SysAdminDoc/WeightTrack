@@ -54,13 +54,13 @@ fun OnboardingScreen(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp),
     ) {
-        Spacer(Modifier.height(18.dp))
+        Spacer(Modifier.height(26.dp))
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.onboarding_weighttrack), style = MaterialTheme.typography.headlineMedium)
+            Text(stringResource(R.string.onboarding_weighttrack), style = MaterialTheme.typography.titleLarge)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically,
@@ -77,7 +77,7 @@ fun OnboardingScreen(
                 )
             }
         }
-        Spacer(Modifier.height(26.dp))
+        Spacer(Modifier.height(30.dp))
         StepProgress(
             total = OnboardingStep.entries.size,
             current = OnboardingStep.entries.indexOf(state.step),
@@ -88,7 +88,7 @@ fun OnboardingScreen(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Spacer(Modifier.height(28.dp))
+        Spacer(Modifier.height(32.dp))
 
         when (state.step) {
             OnboardingStep.UNITS -> UnitsStep(state, viewModel)
@@ -164,6 +164,7 @@ private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) 
     Text(
         stringResource(R.string.onboarding_your_weight_your_data),
         style = MaterialTheme.typography.displaySmall,
+        modifier = Modifier.fillMaxWidth(0.70f),
     )
     Spacer(Modifier.height(12.dp))
     Text(
@@ -172,9 +173,12 @@ private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) 
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     Spacer(Modifier.height(32.dp))
-    Text(stringResource(R.string.onboarding_weight), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.onboarding_weight), style = MaterialTheme.typography.bodyLarge)
     Spacer(Modifier.height(10.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         WeightUnit.entries.forEach { unit ->
             SegmentButton(
                 label = when (unit) {
@@ -184,13 +188,17 @@ private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) 
                 },
                 selected = state.weightUnit == unit,
                 onClick = { viewModel.setWeightUnit(unit) },
+                modifier = Modifier.weight(1f),
             )
         }
     }
     Spacer(Modifier.height(24.dp))
-    Text(stringResource(R.string.home_measurements), style = MaterialTheme.typography.titleMedium)
+    Text(stringResource(R.string.home_measurements), style = MaterialTheme.typography.bodyLarge)
     Spacer(Modifier.height(10.dp))
-    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(
+        modifier = Modifier.fillMaxWidth(0.68f),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         LengthUnit.entries.forEach { unit ->
             SegmentButton(
                 label = if (unit == LengthUnit.CM) {
@@ -200,6 +208,7 @@ private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) 
                 },
                 selected = state.lengthUnit == unit,
                 onClick = { viewModel.setLengthUnit(unit) },
+                modifier = Modifier.weight(1f),
             )
         }
     }
