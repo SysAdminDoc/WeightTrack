@@ -122,13 +122,19 @@ class FoodRepository @Inject constructor(
         )
     }
 
-    suspend fun delete(food: Food) {
-        val existing = dao.byId(food.id) ?: return
+    suspend fun delete(food: Food): UndoableDelete? {
+        val existing = dao.byId(food.id) ?: return null
         // A food belongs to the household rather than to one person, so its deletion names no
         // profile.
         deletions.asOne {
             dao.delete(existing)
             deletions.record(SyncKind.FOOD, existing.syncId)
+        }
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insert(existing)
+                deletions.forget(SyncKind.FOOD, listOf(existing.syncId))
+            }
         }
     }
 
@@ -188,14 +194,29 @@ class FoodRepository @Inject constructor(
         }
     }
 
-    suspend fun deleteRecipe(recipe: Recipe) {
-        val existing = dao.recipeById(recipe.id) ?: return
+    suspend fun deleteRecipe(recipe: Recipe): UndoableDelete? {
+        val existing = dao.recipeById(recipe.id) ?: return null
         // The ingredients go with it, and each of them has to be remembered separately: the
         // other device holds them as rows of their own and would hand them back.
         deletions.asOne {
             deletions.record(SyncKind.RECIPE_ITEM, existing.items.map { it.syncId })
+            // The ingredient rows go too. Deleting the recipe alone left them in the table: no
+            // screen could see them, because everything reads them through the recipe, but sync
+            // publishes them as live rows at the same time as their own tombstones, and the
+            // restore had nowhere to put the rows it was holding.
+            dao.deleteRecipeItems(existing.recipe.id)
             dao.deleteRecipe(existing.recipe)
             deletions.record(SyncKind.RECIPE, existing.recipe.syncId)
+        }
+        return UndoableDelete {
+            deletions.asOne {
+                // The recipe first. Its ingredients point at it, so putting them back before it
+                // exists breaks the foreign key and the whole restore is lost.
+                dao.insertRecipe(existing.recipe)
+                dao.insertRecipeItems(existing.items)
+                deletions.forget(SyncKind.RECIPE, listOf(existing.recipe.syncId))
+                deletions.forget(SyncKind.RECIPE_ITEM, existing.items.map { it.syncId })
+            }
         }
     }
 

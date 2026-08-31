@@ -92,6 +92,7 @@ class DiaryViewModel @Inject constructor(
     private val macroTargetRepository: MacroTargetRepository,
     private val progressCalculator: ProgressCalculator,
     private val healthConnect: HealthConnectSync,
+    private val undoOffers: com.weighttrack.ui.UndoCoordinator,
 ) : ViewModel() {
 
     private val date = MutableStateFlow(LocalDate.now())
@@ -230,9 +231,14 @@ class DiaryViewModel @Inject constructor(
 
     fun delete(entry: FoodLogEntry) {
         viewModelScope.launch {
-            foodLogRepository.delete(entry)
+            val removed = foodLogRepository.delete(entry)
             // Removed there too, or the two drift apart and the day reads differently in each.
             healthConnect.deleteNutrition(HealthConnectSync.nutritionRecordId(entry.id))
+            // The row comes back under the id it had, so the same call that published it the
+            // first time publishes it again rather than filing a second meal.
+            undoOffers.offer(removed, strings[R.string.diary_entry_deleted]) {
+                shareWithHealthConnect(entry.id)
+            }
         }
     }
 

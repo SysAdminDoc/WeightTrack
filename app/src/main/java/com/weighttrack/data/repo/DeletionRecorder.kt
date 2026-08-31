@@ -152,12 +152,27 @@ class DeletionRecorder @Inject constructor(
     /**
      * Forgets that a row was ever deleted.
      *
-     * Used when a record arrives from another device having been edited since the deletion, so
-     * the tombstone no longer describes anything true. Leaving it would delete the row again on
-     * the next pass and the two devices would take turns undoing each other.
+     * Used when an undo puts a row back, and when a record arrives from another device having
+     * been edited since the deletion, so the tombstone no longer describes anything true.
+     * Leaving it would delete the row again on the next pass and the two devices would take
+     * turns undoing each other.
+     *
+     * [profileId] is whose it was, and it has to match the one the tombstone was written under.
+     * A name is only unique within a profile.
      */
-    suspend fun forget(kind: SyncKind, syncIds: List<String>) {
-        if (syncIds.isEmpty()) return
-        dao.forget(kind.name, syncIds)
+    suspend fun forget(kind: SyncKind, syncIds: List<String>, profileId: Long? = null) {
+        forgetOwned(kind, syncIds, profileNameOf(profileId))
+    }
+
+    /**
+     * Forgets tombstones whose owner is named directly.
+     *
+     * For undoing a deleted profile: its rows were remembered under a name read before the
+     * profile went, and by then there was nothing left to look it up from.
+     */
+    suspend fun forgetOwned(kind: SyncKind, syncIds: List<String>, profileSyncId: String) {
+        val usable = syncIds.filter { it.isNotBlank() }
+        if (usable.isEmpty()) return
+        dao.forget(kind.name, profileSyncId, usable)
     }
 }

@@ -66,6 +66,7 @@ data class FastingUiState(
 class FastingViewModel @Inject constructor(
     private val strings: AppStrings,
     private val fastRepository: FastRepository,
+    private val undoOffers: com.weighttrack.ui.UndoCoordinator,
 ) : ViewModel() {
 
     private val selectedPreset = MutableStateFlow(FastingPreset.DEFAULT)
@@ -167,7 +168,8 @@ class FastingViewModel @Inject constructor(
 
     fun delete(fast: Fast) {
         viewModelScope.launch {
-            fastRepository.delete(fast)
+            val removed = fastRepository.delete(fast)
+            undoOffers.offer(removed, strings[R.string.fasting_fast_deleted])
             _editing.value = null
         }
     }

@@ -278,7 +278,7 @@ class ProfileRepositoryTest {
         val photos = profiles.deleteReturningPhotos(sam)
 
         // The rows go in a transaction, but only the caller knows where the images live.
-        assertThat(photos).containsExactly("sam.jpg")
+        assertThat(photos?.photoFileNames).containsExactly("sam.jpg")
         assertThat(profiles.deleteReturningPhotos(profiles.activeId())).isNull()
     }
 }

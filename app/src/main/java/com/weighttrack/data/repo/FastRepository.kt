@@ -86,8 +86,8 @@ class FastRepository @Inject constructor(
         return FastUpdateResult.SAVED
     }
 
-    suspend fun delete(fast: Fast) {
-        val existing = dao.byId(fast.id) ?: return
+    suspend fun delete(fast: Fast): UndoableDelete? {
+        val existing = dao.byId(fast.id) ?: return null
         deletions.asOne {
             dao.delete(existing)
             deletions.record(
@@ -95,6 +95,16 @@ class FastRepository @Inject constructor(
                 existing.syncId,
                 profileId = existing.profileId,
             )
+        }
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insert(existing)
+                deletions.forget(
+                    com.weighttrack.core.sync.SyncKind.FAST,
+                    listOf(existing.syncId),
+                    profileId = existing.profileId,
+                )
+            }
         }
     }
 

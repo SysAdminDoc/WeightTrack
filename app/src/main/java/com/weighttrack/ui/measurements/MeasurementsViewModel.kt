@@ -9,6 +9,9 @@ import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.MeasurementRepository
+import com.weighttrack.R
+import com.weighttrack.ui.AppStrings
+import com.weighttrack.ui.UndoCoordinator
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -35,6 +38,8 @@ data class MeasurementEditor(
 class MeasurementsViewModel @Inject constructor(
     private val measurementRepository: MeasurementRepository,
     private val settingsRepository: SettingsRepository,
+    private val strings: AppStrings,
+    private val undoOffers: UndoCoordinator,
 ) : ViewModel() {
 
     val state: StateFlow<MeasurementsUiState> = combine(
@@ -82,6 +87,11 @@ class MeasurementsViewModel @Inject constructor(
     }
 
     fun delete(measurement: BodyMeasurement) {
-        viewModelScope.launch { measurementRepository.delete(measurement) }
+        viewModelScope.launch {
+            undoOffers.offer(
+                measurementRepository.delete(measurement),
+                strings[R.string.measurements_measurement_deleted],
+            )
+        }
     }
 }

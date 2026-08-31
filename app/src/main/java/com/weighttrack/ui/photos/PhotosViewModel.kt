@@ -49,6 +49,7 @@ class PhotosViewModel @Inject constructor(
     private val photoRepository: ProgressPhotoRepository,
     private val weightRepository: WeightRepository,
     private val strings: com.weighttrack.ui.AppStrings,
+    private val undoOffers: com.weighttrack.ui.UndoCoordinator,
     progressCalculator: ProgressCalculator,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -157,8 +158,9 @@ class PhotosViewModel @Inject constructor(
 
     fun delete(photo: ProgressPhoto) {
         viewModelScope.launch {
-            photoRepository.delete(photo)
+            val removed = photoRepository.delete(photo)
             selectedIds.update { it - photo.id }
+            undoOffers.offer(removed, strings[com.weighttrack.R.string.photos_photo_deleted])
         }
     }
 

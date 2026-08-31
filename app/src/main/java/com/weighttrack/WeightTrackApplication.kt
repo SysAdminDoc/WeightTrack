@@ -28,6 +28,8 @@ class WeightTrackApplication : Application(), Configuration.Provider {
 
     @Inject lateinit var settingsRepository: com.weighttrack.data.prefs.SettingsRepository
 
+    @Inject lateinit var progressPhotos: com.weighttrack.data.repo.ProgressPhotoRepository
+
     override val workManagerConfiguration: Configuration
         get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
 
@@ -46,6 +48,10 @@ class WeightTrackApplication : Application(), Configuration.Provider {
             // file until somebody happened to edit it, which for most people is never.
             runCatching { syncPreferences.protectStoredSecrets() }
             runCatching { settingsRepository.protectStoredSecrets() }
+            // A picture deleted with its undo still on screen is moved aside rather than
+            // unlinked, and a process killed in that moment leaves it there with nothing that
+            // knows about it. Collected on the next launch.
+            runCatching { progressPhotos.purgeAbandonedRecovery() }
         }
     }
 }

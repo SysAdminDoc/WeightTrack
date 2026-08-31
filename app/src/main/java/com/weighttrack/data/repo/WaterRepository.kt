@@ -84,21 +84,42 @@ class WaterRepository @Inject constructor(
         dao.setHealthConnectId(id, clientRecordId)
     }
 
-    suspend fun delete(entry: WaterEntry) {
-        val existing = dao.byId(entry.id) ?: return
+    suspend fun delete(entry: WaterEntry): UndoableDelete? {
+        val existing = dao.byId(entry.id) ?: return null
         deletions.asOne {
             dao.delete(existing)
             deletions.record(SyncKind.WATER, existing.syncId, profileId = existing.profileId)
         }
+        return restoring(listOf(existing))
     }
 
     /** Undoes a whole day, for the "I tapped that four times by accident" case. */
-    suspend fun clearDate(date: LocalDate) {
+    suspend fun clearDate(date: LocalDate): UndoableDelete? {
         val profileId = profiles.activeId()
-        deletions.asOne {
-            val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
+        // Read outside the transaction only to hand back; the transaction reads them again so
+        // the rows written to the tombstones are the ones actually removed.
+        val removed = deletions.asOne {
+            val rows = dao.forDate(profileId, date.toString())
             dao.deleteForDate(profileId, date.toString())
-            deletions.record(SyncKind.WATER, gone, profileId = profileId)
+            deletions.record(SyncKind.WATER, rows.map { it.syncId }, profileId = profileId)
+            rows
+        }
+        return restoring(removed)
+    }
+
+    private fun restoring(rows: List<WaterEntryEntity>): UndoableDelete? {
+        if (rows.isEmpty()) return null
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insertAll(rows)
+                rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
+                    deletions.forget(
+                        SyncKind.WATER,
+                        owned.map { it.syncId },
+                        profileId = profileId,
+                    )
+                }
+            }
         }
     }
 

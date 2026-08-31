@@ -87,6 +87,16 @@ class ProgressPhotoRepository @Inject constructor(
     private val directory: File
         get() = File(context.filesDir, DIRECTORY_NAME).apply { mkdirs() }
 
+    /**
+     * Where a deleted image waits while its undo is on screen.
+     *
+     * A picture cannot be put back from a row alone, so the file is moved aside rather than
+     * unlinked. It is a sibling of the photo directory, not a child of it, because everything
+     * that walks the photos does so by listing that folder and would count these as live.
+     */
+    private val recoveryDirectory: File
+        get() = File(context.filesDir, RECOVERY_DIRECTORY_NAME).apply { mkdirs() }
+
     fun observeAll(): Flow<List<ProgressPhoto>> =
         profiles.activeProfileId.flatMapLatest { dao.observeAll(it) }
             .map { rows -> rows.mapNotNull { it.toDomain() } }
@@ -243,22 +253,85 @@ class ProgressPhotoRepository @Inject constructor(
         PhotoOutcome.Saved(saved)
     }
 
-    /** Deletes the row and the image together, so no orphan file is left behind. */
-    suspend fun delete(photo: ProgressPhoto) = withContext(Dispatchers.IO) {
-        dao.byId(photo.id)?.let { row ->
-            dao.delete(row)
-            File(directory, row.fileName).delete()
+    /**
+     * Deletes the row and moves the image aside, so no orphan file is left behind and the undo
+     * still has something to put back.
+     *
+     * The row goes first. A file moved with the row still pointing at it renders as a blank tile,
+     * and this way round the worst case is a picture nothing refers to, which the sweep collects.
+     */
+    suspend fun delete(photo: ProgressPhoto): UndoableDelete? = withContext(Dispatchers.IO) {
+        val row = dao.byId(photo.id) ?: return@withContext null
+        dao.delete(row)
+        val held = holdForUndo(listOf(row.fileName))
+        UndoableDelete(release = { releaseHeld(held) }) {
+            withContext(Dispatchers.IO) {
+                // The file first. A row whose image is not back yet reads as a photo that has
+                // gone, and the screen simply does not list it.
+                returnFromUndo(held)
+                dao.insert(row)
+            }
         }
-        Unit
     }
 
-    /** Unlinks images whose rows have already gone, which is what deleting a profile leaves. */
-    suspend fun deleteFiles(fileNames: List<String>) = withContext(Dispatchers.IO) {
-        fileNames.forEach { File(directory, it).delete() }
+    /**
+     * Moves images out of the photo directory and hands back where they went.
+     *
+     * A rename within the same filesystem, so a phone with no room left can still delete. A file
+     * that would not move is deleted instead: leaving it would show a picture the person has
+     * been told is gone.
+     */
+    suspend fun holdForUndo(fileNames: List<String>): List<File> = withContext(Dispatchers.IO) {
+        sweepAbandonedRecovery()
+        fileNames.mapNotNull { name ->
+            val source = File(directory, name)
+            if (!source.isFile) return@mapNotNull null
+            val target = File(recoveryDirectory, name)
+            target.delete()
+            if (!source.renameTo(target)) {
+                source.delete()
+                return@mapNotNull null
+            }
+            // Stamped now, because a rename carries the file's own age across and the sweep
+            // would collect a picture taken last month before its snackbar had faded.
+            target.setLastModified(System.currentTimeMillis())
+            target
+        }
+    }
+
+    /** Unlinks held images once nobody can ask for them back. */
+    suspend fun releaseHeld(held: List<File>) = withContext(Dispatchers.IO) {
+        held.forEach { it.delete() }
+    }
+
+    /** Puts held images back where the rows expect to find them. */
+    suspend fun returnFromUndo(held: List<File>) = withContext(Dispatchers.IO) {
+        held.forEach { file ->
+            if (file.isFile) file.renameTo(File(directory, file.name))
+        }
+    }
+
+    /**
+     * Unlinks images nobody can ask for back any more.
+     *
+     * An undo lives in memory only, so a process killed while the snackbar was up leaves a file
+     * here with nothing left that knows about it. Run at startup and before each delete: an hour
+     * is far longer than any snackbar and far shorter than a file worth keeping.
+     */
+    suspend fun purgeAbandonedRecovery() = withContext(Dispatchers.IO) { sweepAbandonedRecovery() }
+
+    private fun sweepAbandonedRecovery() {
+        val cutoff = System.currentTimeMillis() - RECOVERY_LIFETIME_MILLIS
+        recoveryDirectory.listFiles()?.forEach { file ->
+            if (file.lastModified() < cutoff) file.delete()
+        }
     }
 
     suspend fun deleteAll() = withContext(Dispatchers.IO) {
         dao.all().forEach { File(directory, it.fileName).delete() }
+        // Erasing everything has to mean everything. A picture waiting on an undo is still on the
+        // phone, and leaving it would be the one image that survived "delete all my data".
+        recoveryDirectory.listFiles()?.forEach { it.delete() }
         dao.deleteAll()
     }
 
@@ -279,6 +352,10 @@ class ProgressPhotoRepository @Inject constructor(
 
     companion object {
         const val DIRECTORY_NAME = "progress-photos"
+        const val RECOVERY_DIRECTORY_NAME = "progress-photos-undo"
+
+        /** How long a moved-aside image is kept. Far longer than a snackbar, far shorter than a day. */
+        const val RECOVERY_LIFETIME_MILLIS = 60L * 60L * 1000L
     }
 }
 

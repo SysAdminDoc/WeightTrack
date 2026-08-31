@@ -108,13 +108,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: A password-protected archive restores all structured data and photo bytes with verified hashes; wrong password, modified content, path traversal, excessive expansion, or unsupported version changes nothing; non-secret settings travel, WebDAV passwords and API keys do not; JSON and CSV remain available with a clear photo-exclusion label.
   Complexity: L
 
-- [ ] P1: Add undo for destructive profile and journal actions
-  Why: The product promises snackbar undo for records, but profile, photo, fast, water, food, recipe, diary, and goal deletion is immediate while only weight deletion has a complete undo path. No inspected OSS tracker shipped snackbar undo as of 2026-08-31, so this stays a differentiator.
-  Evidence: `ROADMAP.md` section `Complaints we will not repeat`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`
-  Touches: repositories for destructive entities, deletion staging, ViewModels and snackbars, file recovery cache, tests
-  Acceptance: Each destructive action removes the item immediately and offers one timed undo without a confirmation dialog; undo restores relationships and files with their original sync IDs; expiry writes one tombstone; process recreation during the undo window resolves deterministically and is covered by tests.
-  Complexity: L
-
 ### P2
 
 

@@ -10,6 +10,9 @@ import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.GoalRepository
 import com.weighttrack.data.repo.WeightRepository
+import com.weighttrack.R
+import com.weighttrack.ui.AppStrings
+import com.weighttrack.ui.UndoCoordinator
 import com.weighttrack.ui.components.KeypadValue
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,6 +55,8 @@ class GoalViewModel @Inject constructor(
     private val goalRepository: GoalRepository,
     private val weightRepository: WeightRepository,
     private val settingsRepository: SettingsRepository,
+    private val strings: AppStrings,
+    private val undoOffers: UndoCoordinator,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(GoalUiState())
@@ -125,7 +130,8 @@ class GoalViewModel @Inject constructor(
 
     fun clearGoal() {
         viewModelScope.launch {
-            goalRepository.clearActive()
+            val cleared = goalRepository.clearActive()
+            undoOffers.offer(cleared, strings[R.string.goal_goal_cleared])
             _state.update { it.copy(saved = true) }
         }
     }

@@ -32,6 +32,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.weighttrack.R
+import com.weighttrack.ui.components.UndoSnackbar
 import kotlinx.coroutines.launch
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.Alignment
@@ -118,6 +119,18 @@ fun WeightTrackApp(
         currentRoute == Routes.FOODS ||
         currentRoute == Routes.SCAN ||
         currentRoute == Routes.DIARY
+
+    // One undo snackbar for the whole app, above the navigation graph. Deletion is immediate
+    // with an undo, never a confirmation dialog, and clearing a goal closes the screen it was
+    // started from, so an offer that lived on a screen would be gone before it was drawn.
+    val undoViewModel: UndoViewModel = hiltViewModel()
+    val undoOffer by undoViewModel.offer.collectAsStateWithLifecycle()
+    UndoSnackbar(
+        offer = undoOffer,
+        snackbarHostState = snackbarHostState,
+        onUndo = undoViewModel::undo,
+        onDismiss = undoViewModel::dismiss,
+    )
 
     Scaffold(
         modifier = modifier,
@@ -293,29 +306,6 @@ fun WeightTrackApp(
             composable(Routes.HISTORY) {
                 val viewModel: HistoryViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
-                val undoCount by viewModel.undoAvailable.collectAsStateWithLifecycle()
-                // Read here rather than inside the effect: stringResource is composition, and the
-                // effect runs outside it.
-                val deletedOne = stringResource(R.string.history_reading_deleted)
-                val deletedMany = stringResource(R.string.history_readings_deleted, undoCount)
-                val undoLabel = stringResource(R.string.common_undo)
-
-                // Deletion is immediate with an undo, never a confirmation dialog.
-                LaunchedEffect(undoCount) {
-                    if (undoCount > 0) {
-                        val label = if (undoCount == 1) deletedOne else deletedMany
-                        val result = snackbarHostState.showSnackbar(
-                            message = label,
-                            actionLabel = undoLabel,
-                            duration = androidx.compose.material3.SnackbarDuration.Short,
-                        )
-                        if (result == SnackbarResult.ActionPerformed) {
-                            viewModel.undoDelete()
-                        } else {
-                            viewModel.consumeUndo()
-                        }
-                    }
-                }
 
                 HistoryScreen(
                     state = state,

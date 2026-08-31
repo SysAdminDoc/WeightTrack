@@ -444,7 +444,7 @@ class BackupService @Inject constructor(
         // The variant that hands back the files, even though this only runs for a profile with
         // none: the one that discards them leaves orphaned images on the phone for ever, and the
         // day somebody widens the check above is the day that starts happening quietly.
-        val photos = profileRepository.deleteReturningPhotos(untouchedId).orEmpty()
+        val photos = profileRepository.deleteReturningPhotos(untouchedId)?.photoFileNames.orEmpty()
         check(photos.isEmpty()) { "a profile with photographs was taken for an untouched one" }
     }
 

@@ -76,14 +76,39 @@ class GoalRepository @Inject constructor(
         )
     }
 
-    suspend fun clearActive() =
-        dao.deactivateAll(profiles.activeId(), System.currentTimeMillis())
+    /**
+     * Retires the goal, and offers to put it back.
+     *
+     * The restore stamps the moment it happens rather than the stamp the goal had before. Undone
+     * work has to be the newest thing said about the row, or the other device replays its copy of
+     * the retirement and takes the goal away again on the next sync.
+     */
+    suspend fun clearActive(): UndoableDelete? {
+        val profileId = profiles.activeId()
+        val retired = dao.activeAll(profileId)
+        dao.deactivateAll(profileId, System.currentTimeMillis())
+        if (retired.isEmpty()) return null
+        return UndoableDelete {
+            val now = System.currentTimeMillis()
+            retired.forEach { dao.update(it.copy(active = true, updatedAtUtcMillis = now)) }
+        }
+    }
 
-    suspend fun delete(goal: Goal) {
-        val existing = dao.byId(goal.id) ?: return
+    suspend fun delete(goal: Goal): UndoableDelete? {
+        val existing = dao.byId(goal.id) ?: return null
         deletions.asOne {
             dao.delete(existing)
             deletions.record(SyncKind.GOAL, existing.syncId, profileId = existing.profileId)
+        }
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insert(existing)
+                deletions.forget(
+                    SyncKind.GOAL,
+                    listOf(existing.syncId),
+                    profileId = existing.profileId,
+                )
+            }
         }
     }
 

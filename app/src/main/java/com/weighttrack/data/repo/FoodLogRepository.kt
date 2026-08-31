@@ -175,8 +175,8 @@ class FoodLogRepository @Inject constructor(
         )
     }
 
-    suspend fun delete(entry: FoodLogEntry) {
-        val existing = dao.byId(entry.id) ?: return
+    suspend fun delete(entry: FoodLogEntry): UndoableDelete? {
+        val existing = dao.byId(entry.id) ?: return null
         deletions.asOne {
             dao.delete(existing)
             deletions.record(
@@ -185,20 +185,39 @@ class FoodLogRepository @Inject constructor(
                 profileId = existing.profileId,
             )
         }
+        return restoring(listOf(existing))
     }
 
-    suspend fun clearDay(date: LocalDate) {
+    suspend fun clearDay(date: LocalDate): UndoableDelete? {
         // The active profile is read out here on purpose: it comes off a flow, and a flow read
         // inside a write transaction waits for a connection the transaction is holding.
         val profileId = profiles.activeId()
-        deletions.asOne {
-            val gone = dao.forDate(profileId, date.toString()).map { it.syncId }
+        val removed = deletions.asOne {
+            val rows = dao.forDate(profileId, date.toString())
             dao.deleteForDate(profileId, date.toString())
             deletions.record(
                 com.weighttrack.core.sync.SyncKind.FOOD_LOG,
-                gone,
+                rows.map { it.syncId },
                 profileId = profileId,
             )
+            rows
+        }
+        return restoring(removed)
+    }
+
+    private fun restoring(rows: List<FoodLogEntryEntity>): UndoableDelete? {
+        if (rows.isEmpty()) return null
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insertAll(rows)
+                rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
+                    deletions.forget(
+                        com.weighttrack.core.sync.SyncKind.FOOD_LOG,
+                        owned.map { it.syncId },
+                        profileId = profileId,
+                    )
+                }
+            }
         }
     }
 

@@ -756,6 +756,15 @@
     <string name="history_reading_deleted">Reading deleted</string>
     <string name="history_readings_deleted">%1$d readings deleted</string>
     <string name="common_undo">Undo</string>
+    <string name="water_drink_removed">Drink removed</string>
+    <string name="water_day_cleared">Day cleared</string>
+    <string name="fasting_fast_deleted">Fast deleted</string>
+    <string name="diary_entry_deleted">Entry deleted</string>
+    <string name="food_food_deleted">%1$s deleted</string>
+    <string name="food_recipe_deleted">Recipe deleted</string>
+    <string name="measurements_measurement_deleted">Measurement deleted</string>
+    <string name="photos_photo_deleted">Photo deleted</string>
+    <string name="goal_goal_cleared">Goal cleared</string>
     <string name="chartsscreen_steps_a_day">%1$,d a day</string>
     <string name="history_body_fat">%1$.1f%% fat</string>
     <string name="composition_reported_by_scale">Reported by %1$s</string>

@@ -5,6 +5,7 @@ import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.EntryTag
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.data.db.WeightEntryDao
+import com.weighttrack.data.db.WeightEntryEntity
 import com.weighttrack.data.db.toDomain
 import com.weighttrack.data.db.toEntity
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -226,7 +227,7 @@ class WeightRepository @Inject constructor(
         )
     }
 
-    suspend fun delete(entry: WeightEntry) {
+    suspend fun delete(entry: WeightEntry): UndoableDelete? {
         val existing = dao.byId(entry.id)
         // Resolved before the transaction, because the fallback reads the active profile off a
         // flow, and a flow read inside a write transaction waits on the connection that
@@ -242,14 +243,15 @@ class WeightRepository @Inject constructor(
             }
             dao.delete(entry.toEntity(profileId = profileId))
         }
+        return restoring(listOfNotNull(existing))
     }
 
     private suspend fun profileOf(id: Long): Long =
         dao.byId(id)?.profileId ?: profiles.activeId()
 
-    suspend fun deleteByIds(ids: List<Long>) {
-        if (ids.isEmpty()) return
-        deletions.asOne {
+    suspend fun deleteByIds(ids: List<Long>): UndoableDelete? {
+        if (ids.isEmpty()) return null
+        val removed = deletions.asOne {
             // Read before deleting. Afterwards nothing says what these rows were called on the
             // person's other devices, so the deletion would not travel: the other phone still
             // holds them, has no reason to drop them, and hands them straight back.
@@ -261,6 +263,32 @@ class WeightRepository @Inject constructor(
                     owned.map { it.clientRecordId },
                     profileId = profileId,
                 )
+            }
+            rows
+        }
+        return restoring(removed)
+    }
+
+    /**
+     * Puts deleted readings back under the ids and names they had, and forgets the tombstones.
+     *
+     * Forgetting matters as much as the row does. A restored reading with its tombstone still
+     * standing is published to the other device as both a live record and a deletion, and
+     * whichever the merge reads second wins: the reading disappears again a sync later with
+     * nothing on either phone to explain it.
+     */
+    private fun restoring(rows: List<WeightEntryEntity>): UndoableDelete? {
+        if (rows.isEmpty()) return null
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insertAll(rows)
+                rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
+                    deletions.forget(
+                        com.weighttrack.core.sync.SyncKind.WEIGHT,
+                        owned.map { it.clientRecordId },
+                        profileId = profileId,
+                    )
+                }
             }
         }
     }

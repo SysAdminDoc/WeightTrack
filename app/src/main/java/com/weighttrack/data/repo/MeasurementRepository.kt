@@ -3,6 +3,7 @@ package com.weighttrack.data.repo
 import com.weighttrack.core.model.BodyMeasurement
 import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.data.db.MeasurementDao
+import com.weighttrack.data.db.MeasurementEntity
 import com.weighttrack.data.db.toDomain
 import com.weighttrack.core.sync.SyncKind
 import com.weighttrack.data.db.toEntity
@@ -66,21 +67,22 @@ class MeasurementRepository @Inject constructor(
         )
     }
 
-    suspend fun delete(measurement: BodyMeasurement) {
-        val existing = dao.byId(measurement.id) ?: return
+    suspend fun delete(measurement: BodyMeasurement): UndoableDelete? {
+        val existing = dao.byId(measurement.id) ?: return null
         deletions.asOne {
             dao.delete(existing)
             deletions.record(SyncKind.MEASUREMENT, existing.syncId, profileId = existing.profileId)
         }
+        return restoring(listOf(existing))
     }
 
     /** Read back off the stored row so an edit cannot move a measurement to another profile. */
     private suspend fun profileOf(id: Long): Long =
         dao.byId(id)?.profileId ?: profiles.activeId()
 
-    suspend fun deleteByIds(ids: List<Long>) {
-        if (ids.isEmpty()) return
-        deletions.asOne {
+    suspend fun deleteByIds(ids: List<Long>): UndoableDelete? {
+        if (ids.isEmpty()) return null
+        val removed = deletions.asOne {
             // Read before deleting. Afterwards there is nothing left to say what these rows were
             // called on the person's other devices, and the deletion would not travel.
             val rows = ids.mapNotNull { dao.byId(it) }
@@ -91,6 +93,24 @@ class MeasurementRepository @Inject constructor(
                     owned.map { it.syncId },
                     profileId = profileId,
                 )
+            }
+            rows
+        }
+        return restoring(removed)
+    }
+
+    private fun restoring(rows: List<MeasurementEntity>): UndoableDelete? {
+        if (rows.isEmpty()) return null
+        return UndoableDelete {
+            deletions.asOne {
+                dao.insertAll(rows)
+                rows.groupBy { it.profileId }.forEach { (profileId, owned) ->
+                    deletions.forget(
+                        SyncKind.MEASUREMENT,
+                        owned.map { it.syncId },
+                        profileId = profileId,
+                    )
+                }
             }
         }
     }

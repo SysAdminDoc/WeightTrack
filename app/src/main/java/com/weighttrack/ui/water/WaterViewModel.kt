@@ -8,6 +8,9 @@ import com.weighttrack.data.repo.DailyWater
 import com.weighttrack.data.repo.WaterEntry
 import com.weighttrack.data.repo.WaterRepository
 import com.weighttrack.health.HealthConnectSync
+import com.weighttrack.R
+import com.weighttrack.ui.AppStrings
+import com.weighttrack.ui.UndoCoordinator
 import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -47,6 +50,8 @@ class WaterViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     private val healthConnect: HealthConnectSync,
     private val SurfaceUpdater: SurfaceUpdater,
+    private val strings: AppStrings,
+    private val undoOffers: UndoCoordinator,
 ) : ViewModel() {
 
     /**
@@ -95,17 +100,24 @@ class WaterViewModel @Inject constructor(
 
     fun remove(entry: WaterEntry) {
         viewModelScope.launch {
-            waterRepository.delete(entry)
+            val removed = waterRepository.delete(entry)
             SurfaceUpdater.refresh()
+            undoOffers.offer(removed, strings[R.string.water_drink_removed]) {
+                SurfaceUpdater.refresh()
+            }
         }
     }
 
     fun clearDay() {
         viewModelScope.launch {
-            waterRepository.clearDate(state.value.date)
+            val removed = waterRepository.clearDate(state.value.date)
             SurfaceUpdater.refresh()
+            undoOffers.offer(removed, strings[R.string.water_day_cleared]) {
+                SurfaceUpdater.refresh()
+            }
         }
     }
+
 
     fun showPreviousDay() {
         selectedDate.value = selectedDate.value.minusDays(1)

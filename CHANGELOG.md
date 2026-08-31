@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Everything you can delete can now be taken back. A profile, a photo, a fast, a drink, a meal, a food, a recipe, a whole day of either, and a goal all used to go the moment you tapped, with nothing on screen afterwards but the gap. Each one now offers an undo for a few seconds, the way deleting a reading always has. Undoing a profile brings the person back with every weigh-in, measurement, drink, fast, goal and picture recorded for them, and their reminder goes back in the diary. Undoing a photo puts the file back, not just the row.
+
+Under that, two sync faults are fixed. A restored record now clears its own deletion marker: put back without that, it was published to your other phone as a live record and as a deletion at the same time, and whichever the merge read second won, so a reading you had rescued could vanish again a sync later with nothing anywhere to explain it. And forgetting a deletion is now scoped to whose it was. A weigh-in's travelling name is only unique within a profile, so two people who imported the same file hold rows with identical names, and one person's undo used to clear the other person's deletion.
+
 - Releases now ship a checksum list and a published signing identity. `SHA256SUMS.txt` names every APK, and SECURITY.md records the SHA-256 fingerprint of the certificate that signs them, the retired one that signed v0.1.0 and v0.2.0, the exact `apksigner` command to check a download, and what a key rotation means for an existing install. A local gate builds the three APKs from clean and refuses to pass one carrying the wrong package, version, version code, signer, checksum or page alignment, and a second command proves that gate rejects each of those rather than passing everything.
 
 - Gradle now locks every resolvable configuration in strict mode and verifies downloaded plugins and libraries against reviewed SHA-256 metadata. The update command starts with an empty cache and covers tests plus release builds. A separate regression command proves that an unreviewed transitive-version change and a modified cached JAR are both refused.

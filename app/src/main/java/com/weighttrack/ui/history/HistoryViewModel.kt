@@ -5,7 +5,10 @@ import androidx.lifecycle.viewModelScope
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
+import com.weighttrack.R
 import com.weighttrack.data.repo.WeightRepository
+import com.weighttrack.ui.AppStrings
+import com.weighttrack.ui.UndoCoordinator
 import com.weighttrack.widget.SurfaceUpdater
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -36,16 +39,13 @@ data class HistoryUiState(
 class HistoryViewModel @Inject constructor(
     private val weightRepository: WeightRepository,
     private val SurfaceUpdater: SurfaceUpdater,
+    private val strings: AppStrings,
+    private val undoOffers: UndoCoordinator,
     settingsRepository: SettingsRepository,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
     private val selectedIds = MutableStateFlow<Set<Long>>(emptySet())
-
-    /** Entries removed but still undoable, so the snackbar can put them back. */
-    private val pendingUndo = MutableStateFlow<List<WeightEntry>>(emptyList())
-    val undoAvailable: StateFlow<Int> = pendingUndo.map { it.size }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val entries = query
         .debounce { if (it.isEmpty()) 0L else 200L }
@@ -82,40 +82,30 @@ class HistoryViewModel @Inject constructor(
     fun deleteSelected() {
         val ids = selectedIds.value
         if (ids.isEmpty()) return
-        val removed = state.value.entries.filter { it.id in ids }
         viewModelScope.launch {
-            weightRepository.deleteByIds(ids.toList())
+            val removed = weightRepository.deleteByIds(ids.toList())
             SurfaceUpdater.refresh()
-            pendingUndo.value = removed
+            undoOffers.offer(
+                removed,
+                if (ids.size == 1) {
+                    strings[R.string.history_reading_deleted]
+                } else {
+                    strings[R.string.history_readings_deleted, ids.size]
+                },
+            ) { SurfaceUpdater.refresh() }
             selectedIds.value = emptySet()
         }
     }
 
     fun delete(entry: WeightEntry) {
         viewModelScope.launch {
-            weightRepository.delete(entry)
+            val removed = weightRepository.delete(entry)
             SurfaceUpdater.refresh()
-            pendingUndo.value = listOf(entry)
+            undoOffers.offer(removed, strings[R.string.history_reading_deleted]) {
+                SurfaceUpdater.refresh()
+            }
         }
     }
 
-    /**
-     * Puts deleted readings back.
-     *
-     * The rows are reinserted with their original client record ids, so a restored reading is
-     * still the same record as far as Health Connect is concerned rather than a fresh one.
-     */
-    fun undoDelete() {
-        val restore = pendingUndo.value
-        if (restore.isEmpty()) return
-        viewModelScope.launch {
-            weightRepository.upsertAll(restore.map { it.copy(id = 0) })
-            SurfaceUpdater.refresh()
-            pendingUndo.value = emptyList()
-        }
-    }
-
-    fun consumeUndo() {
-        pendingUndo.value = emptyList()
-    }
 }
+

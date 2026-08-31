@@ -75,6 +75,9 @@ class ProfileRepository @Inject constructor(
 
     suspend fun activeId(): Long = activeProfileId.first()
 
+    /** One person, read straight off the row. Used after an undo puts them back. */
+    suspend fun byId(id: Long): Profile? = dao.byId(id)?.toDomain()
+
     suspend fun setActive(id: Long) {
         if (dao.byId(id) == null) return
         settingsRepository.setActiveProfile(id)
@@ -112,38 +115,65 @@ class ProfileRepository @Inject constructor(
     suspend fun delete(id: Long): Boolean = deleteReturningPhotos(id) != null
 
     /**
-     * Removes a profile and hands back the photo files it owned.
+     * A deleted profile: which images went with it, and how to bring the whole person back.
+     *
+     * The rows and the files are separated because only the photo repository knows where an
+     * image lives, and only the database knows what pointed at it.
+     */
+    class ProfileDeletion internal constructor(
+        val photoFileNames: List<String>,
+        val restore: suspend () -> Unit,
+    )
+
+    /**
+     * Removes a profile and hands back the photo files it owned, with a way to put it all back.
      *
      * The rows go in one transaction, but the images live on disk and only the photo repository
-     * knows where. Returning the names is what lets the caller unlink them, rather than leaving
-     * a deleted person's pictures on the phone while the app says they are gone.
+     * knows where. Returning the names is what lets the caller move them aside, rather than
+     * leaving a deleted person's pictures on the phone while the app says they are gone.
      */
-    suspend fun deleteReturningPhotos(id: Long): List<String>? {
+    suspend fun deleteReturningPhotos(id: Long): ProfileDeletion? {
         if (dao.count() <= 1) return null
         val existing = dao.byId(id) ?: return null
         val photos = dao.photoFileNames(id)
         // Read before the transaction: whether this person is the one on screen comes out of a
         // preferences flow, and the answer cannot change while the rows are going.
         val wasActive = settingsRepository.settings.first().activeProfileId == id
-        deletions.asOne {
+        val (owned, data) = deletions.asOne {
             // Everything this person owned, named before it is gone. One tombstone for the
             // profile is not enough: the other device holds their weigh-ins too, and with nothing
             // to say those are deleted it hands the whole history back and the deleted person
             // reappears.
-            val owned = deletions.namesOwnedBy(id)
+            val names = deletions.namesOwnedBy(id)
+            // The rows themselves, for the undo. Read here rather than by the caller afterwards,
+            // because afterwards there is nothing left to read.
+            val rows = dao.dataOf(id)
             dao.deleteWithData(existing)
             deletions.record(SyncKind.PROFILE, existing.syncId)
             // Named from the row read a moment ago. By now the profile is gone, so there is
             // nothing left to look its name up from.
-            owned.forEach { (kind, names) -> deletions.recordOwned(kind, names, existing.syncId) }
+            names.forEach { (kind, owned) -> deletions.recordOwned(kind, owned, existing.syncId) }
+            names to rows
         }
         if (wasActive) {
             dao.all().firstOrNull()?.let { settingsRepository.setActiveProfile(it.id) }
         }
-        // The names are handed back only now, after the rows are committed. Unlinking the files
+        // The names are handed back only now, after the rows are committed. Moving the files
         // first and then failing would leave a person's history pointing at pictures that are
-        // gone, and there is no undoing a deleted file.
-        return photos
+        // not where the rows say they are.
+        return ProfileDeletion(
+            photoFileNames = photos,
+            restore = {
+                deletions.asOne {
+                    dao.restoreWithData(existing, data)
+                    deletions.forgetOwned(SyncKind.PROFILE, listOf(existing.syncId), "")
+                    owned.forEach { (kind, names) ->
+                        deletions.forgetOwned(kind, names, existing.syncId)
+                    }
+                }
+                if (wasActive) settingsRepository.setActiveProfile(existing.id)
+            },
+        )
     }
 
     /**

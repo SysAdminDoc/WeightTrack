@@ -16,6 +16,7 @@ import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.Profile
 import com.weighttrack.data.repo.ProfileRepository
+import com.weighttrack.data.repo.UndoableDelete
 import com.weighttrack.data.repo.WeightRepository
 import com.weighttrack.diagnostics.CrashLogStore
 import com.weighttrack.health.HealthConnectAvailability
@@ -97,6 +98,7 @@ class SettingsViewModel @Inject constructor(
     private val weeklySummaryScheduler: WeeklySummaryScheduler,
     private val crashLogStore: CrashLogStore,
     private val SurfaceUpdater: SurfaceUpdater,
+    private val undoOffers: com.weighttrack.ui.UndoCoordinator,
     val healthConnect: HealthConnectSync,
 ) : ViewModel() {
 
@@ -521,14 +523,28 @@ class SettingsViewModel @Inject constructor(
     fun deleteProfile(id: Long) {
         viewModelScope.launch {
             val name = profiles.value.firstOrNull { it.id == id }?.name
-            val photos = profileRepository.deleteReturningPhotos(id)
-            if (photos != null) {
+            val deletion = profileRepository.deleteReturningPhotos(id)
+            if (deletion != null) {
                 // The alarm outlives the row it belonged to, and would go off once more under
-                // somebody else's name. The pictures outlive it on disk.
+                // somebody else's name. The pictures outlive it on disk, so they are moved aside
+                // rather than unlinked while the undo is still on offer.
                 reminderScheduler.cancel(id)
-                progressPhotoRepository.deleteFiles(photos)
+                val held = progressPhotoRepository.holdForUndo(deletion.photoFileNames)
                 SurfaceUpdater.refresh()
-                _message.value = name?.let { strings[R.string.settings_deleted_and_everything_recorded_for_them, it] }
+                undoOffers.offer(
+                    UndoableDelete(release = { progressPhotoRepository.releaseHeld(held) }) {
+                        // The files first. A row whose image is not yet back reads as a photo
+                        // that has gone, and the screen simply does not list it.
+                        progressPhotoRepository.returnFromUndo(held)
+                        deletion.restore()
+                    },
+                    strings[R.string.settings_deleted_and_everything_recorded_for_them, name.orEmpty()],
+                ) {
+                    // The reminder lives on the profile row, so it comes back with the person and
+                    // has to be booked again.
+                    profileRepository.byId(id)?.let { reminderScheduler.reschedule(it) }
+                    SurfaceUpdater.refresh()
+                }
             } else {
                 // Refusing to delete the last one is deliberate: the app would have nowhere to
                 // put the next reading and no way to make a profile to fix it.

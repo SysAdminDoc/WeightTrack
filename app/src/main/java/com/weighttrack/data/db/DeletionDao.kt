@@ -31,8 +31,19 @@ interface DeletionDao {
     @Query("DELETE FROM deletions WHERE deletedAtUtcMillis < :before")
     suspend fun forgetBefore(before: Long)
 
-    @Query("DELETE FROM deletions WHERE kind = :kind AND syncId IN (:syncIds)")
-    suspend fun forget(kind: String, syncIds: List<String>)
+    /**
+     * Forgets tombstones, within one owner.
+     *
+     * Scoped, because a row's travelling name is only unique within a profile. Two people who
+     * imported the same file both hold rows called the same thing, and an unscoped forget would
+     * clear one person's tombstone while putting the other person's row back: their deletion
+     * stops travelling and the row they deleted comes home from their other phone.
+     */
+    @Query(
+        "DELETE FROM deletions WHERE kind = :kind AND profileSyncId = :profileSyncId " +
+            "AND syncId IN (:syncIds)",
+    )
+    suspend fun forget(kind: String, profileSyncId: String, syncIds: List<String>)
 
     @Query("DELETE FROM deletions")
     suspend fun deleteAll()

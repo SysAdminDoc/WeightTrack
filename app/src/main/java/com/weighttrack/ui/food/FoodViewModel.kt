@@ -64,6 +64,7 @@ class FoodViewModel @Inject constructor(
     private val settingsRepository: SettingsRepository,
     /** Whichever reader this build has: ML Kit in the Play flavour, ZXing in the F-Droid one. */
     val barcodeReader: com.weighttrack.barcode.BarcodeReader,
+    private val undoOffers: com.weighttrack.ui.UndoCoordinator,
 ) : ViewModel() {
 
     private val query = MutableStateFlow("")
@@ -222,7 +223,12 @@ class FoodViewModel @Inject constructor(
     }
 
     fun delete(food: Food) {
-        viewModelScope.launch { foodRepository.delete(food) }
+        viewModelScope.launch {
+            undoOffers.offer(
+                foodRepository.delete(food),
+                strings[R.string.food_food_deleted, food.name],
+            )
+        }
     }
 
     fun saveRecipe(name: String, servings: Int, items: List<RecipeItem>, id: Long = 0) {
@@ -233,7 +239,12 @@ class FoodViewModel @Inject constructor(
     }
 
     fun deleteRecipe(recipe: Recipe) {
-        viewModelScope.launch { foodRepository.deleteRecipe(recipe) }
+        viewModelScope.launch {
+            undoOffers.offer(
+                foodRepository.deleteRecipe(recipe),
+                strings[R.string.food_recipe_deleted],
+            )
+        }
     }
 
     fun dismissMessage() {

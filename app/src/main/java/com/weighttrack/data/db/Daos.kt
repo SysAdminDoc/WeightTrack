@@ -327,6 +327,10 @@ interface GoalDao {
     )
     suspend fun active(profileId: Long): GoalEntity?
 
+    /** Every goal [deactivateAll] is about to retire, so putting them back is exact. */
+    @Query("SELECT * FROM goals WHERE profileId = :profileId AND active = 1")
+    suspend fun activeAll(profileId: Long): List<GoalEntity>
+
     @Query("SELECT * FROM goals WHERE profileId = :profileId ORDER BY createdAtUtcMillis DESC")
     fun observeAll(profileId: Long): Flow<List<GoalEntity>>
 
@@ -419,6 +423,10 @@ interface WaterDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(entry: WaterEntryEntity): Long
+
+    /** Puts a cleared day back, each row under the id and name it had. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertAll(entries: List<WaterEntryEntity>)
 
     @Delete
     suspend fun delete(entry: WaterEntryEntity)
@@ -597,7 +605,101 @@ interface ProfileDao {
 
     @Query("DELETE FROM macro_targets WHERE profileId = :profileId")
     suspend fun deleteMacroTargets(profileId: Long)
+
+    /**
+     * Everything a profile owns, read before it is deleted.
+     *
+     * Deleting a person is the largest destructive act in the app, so it is the one that most
+     * needs an undo, and an undo that gives back an empty person is not one.
+     */
+    @Transaction
+    suspend fun dataOf(profileId: Long): ProfileData = ProfileData(
+        weightEntries = weightEntriesOf(profileId),
+        measurements = measurementsOf(profileId),
+        goals = goalsOf(profileId),
+        waterEntries = waterEntriesOf(profileId),
+        fasts = fastsOf(profileId),
+        progressPhotos = progressPhotosOf(profileId),
+        foodLog = foodLogOf(profileId),
+        macroTargets = macroTargetsOf(profileId),
+    )
+
+    /** Puts a profile and everything it owned back, in one transaction. */
+    @Transaction
+    suspend fun restoreWithData(profile: ProfileEntity, data: ProfileData) {
+        // The profile first. Every other row points at it, so inserting them before it exists
+        // breaks the foreign key and the whole restore is lost.
+        insert(profile)
+        insertWeightEntries(data.weightEntries)
+        insertMeasurements(data.measurements)
+        insertGoals(data.goals)
+        insertWaterEntries(data.waterEntries)
+        insertFasts(data.fasts)
+        insertProgressPhotos(data.progressPhotos)
+        insertFoodLog(data.foodLog)
+        insertMacroTargets(data.macroTargets)
+    }
+
+    @Query("SELECT * FROM weight_entries WHERE profileId = :profileId")
+    suspend fun weightEntriesOf(profileId: Long): List<WeightEntryEntity>
+
+    @Query("SELECT * FROM measurements WHERE profileId = :profileId")
+    suspend fun measurementsOf(profileId: Long): List<MeasurementEntity>
+
+    @Query("SELECT * FROM goals WHERE profileId = :profileId")
+    suspend fun goalsOf(profileId: Long): List<GoalEntity>
+
+    @Query("SELECT * FROM water_entries WHERE profileId = :profileId")
+    suspend fun waterEntriesOf(profileId: Long): List<WaterEntryEntity>
+
+    @Query("SELECT * FROM fasts WHERE profileId = :profileId")
+    suspend fun fastsOf(profileId: Long): List<FastEntity>
+
+    @Query("SELECT * FROM progress_photos WHERE profileId = :profileId")
+    suspend fun progressPhotosOf(profileId: Long): List<ProgressPhotoEntity>
+
+    @Query("SELECT * FROM food_log_entries WHERE profileId = :profileId")
+    suspend fun foodLogOf(profileId: Long): List<FoodLogEntryEntity>
+
+    @Query("SELECT * FROM macro_targets WHERE profileId = :profileId")
+    suspend fun macroTargetsOf(profileId: Long): List<MacroTargetEntity>
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertWeightEntries(rows: List<WeightEntryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMeasurements(rows: List<MeasurementEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertGoals(rows: List<GoalEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertWaterEntries(rows: List<WaterEntryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertFasts(rows: List<FastEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertProgressPhotos(rows: List<ProgressPhotoEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertFoodLog(rows: List<FoodLogEntryEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMacroTargets(rows: List<MacroTargetEntity>)
 }
+
+/** Everything one profile owns, held for as long as its undo is on offer. */
+data class ProfileData(
+    val weightEntries: List<WeightEntryEntity>,
+    val measurements: List<MeasurementEntity>,
+    val goals: List<GoalEntity>,
+    val waterEntries: List<WaterEntryEntity>,
+    val fasts: List<FastEntity>,
+    val progressPhotos: List<ProgressPhotoEntity>,
+    val foodLog: List<FoodLogEntryEntity>,
+    val macroTargets: List<MacroTargetEntity>,
+)
 
 /** A recipe with everything in it, which is the only useful way to read one. */
 data class RecipeWithItems(
