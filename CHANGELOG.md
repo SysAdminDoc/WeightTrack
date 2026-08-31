@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Releases now ship a checksum list and a published signing identity. `SHA256SUMS.txt` names every APK, and SECURITY.md records the SHA-256 fingerprint of the certificate that signs them, the retired one that signed v0.1.0 and v0.2.0, the exact `apksigner` command to check a download, and what a key rotation means for an existing install. A local gate builds the three APKs from clean and refuses to pass one carrying the wrong package, version, version code, signer, checksum or page alignment, and a second command proves that gate rejects each of those rather than passing everything.
+
 - Gradle now locks every resolvable configuration in strict mode and verifies downloaded plugins and libraries against reviewed SHA-256 metadata. The update command starts with an empty cache and covers tests plus release builds. A separate regression command proves that an unreviewed transitive-version change and a modified cached JAR are both refused.
 
 - CSV imports now reject a non-empty time they cannot read instead of quietly replacing it with noon. Every rejected row is included in the import report, even when a file has more than five errors.

@@ -255,15 +255,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: root holds only README, CHANGELOG, ROADMAP, LICENSE and build files; README roadmap line names the current next item.
   Complexity: S
 
-### P0 additions from 2026-08-31
-
-- [ ] P1: Publish release checksums and the stable APK signing identity
-  Why: Direct-download users can verify neither asset integrity nor signing continuity from the current release materials, while comparable OSS users have explicitly requested the certificate fingerprint.
-  Evidence: https://github.com/davidhealey/waistline/issues/950; https://github.com/guiloklex-hub/ControlaPeso/releases/tag/v1.1.0; https://github.com/SysAdminDoc/WeightTrack/releases/tag/v0.4.0; existing Android developer verification item
-  Touches: local release script, `SECURITY.md` or equivalent permanent verification guide, GitHub release assets, artifact-verification test
-  Acceptance: Every release includes `SHA256SUMS.txt`; the permanent guide publishes the SHA-256 signing-certificate fingerprint for each channel and exact `apksigner` commands; the local release gate fails if an APK has the wrong package, signer, version, or checksum; key rotation documents the old and new fingerprints before an update ships.
-  Complexity: S
-
 ### P2 additions from 2026-08-31
 
 - [ ] P2: Use one configurable calendar-week rule everywhere

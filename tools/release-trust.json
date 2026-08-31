@@ -1,0 +1,15 @@
+{
+  "packageName": "com.weighttrack",
+  "channels": {
+    "github": {
+      "certificateSha256": "dba1aa88e37b90155fca3135ca3b781de92c225107e47c9806e75bf88055fdd8",
+      "sinceVersion": "0.3.1"
+    }
+  },
+  "retiredCertificates": [
+    {
+      "certificateSha256": "12c8e4a91664fa0cab3f025b5fb8b2311e218f9e9e4eb1ca3c0925c3a6c9add3",
+      "versions": ["0.1.0", "0.2.0"]
+    }
+  ]
+}

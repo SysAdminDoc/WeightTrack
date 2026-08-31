@@ -65,7 +65,20 @@ No ads. No subscription. No account. No analytics. No proprietary cloud. No auto
 
 ## Installing
 
-Grab the APK from [Releases](https://github.com/SysAdminDoc/WeightTrack/releases). An F-Droid build is planned.
+Grab the APK from [Releases](https://github.com/SysAdminDoc/WeightTrack/releases). Each release
+carries a `play` build, a `foss` build with no Google dependencies, and the watch app.
+
+Every release also carries `SHA256SUMS.txt`. Check what you downloaded against it, and check the
+signing certificate before you install:
+
+```sh
+sha256sum -c SHA256SUMS.txt
+apksigner verify --verbose --print-certs WeightTrack-v0.4.0-play-release.apk
+```
+
+The fingerprint that comes back has to match the one published in
+[SECURITY.md](SECURITY.md), which also records the retired key from v0.1.0 and v0.2.0 and what to
+do if you're still on one of those.
 
 ## Building
 
@@ -96,6 +109,14 @@ all lockfile and `gradle/verification-metadata.xml` changes before committing th
 must report that Gradle refused both a forced transitive-version change and an altered cached JAR.
 
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
+To cut a release, run the two commands below rather than assembling by hand. The first builds all
+three APKs from clean, names them, writes `SHA256SUMS.txt` and then checks the whole directory
+against `tools/release-trust.json`. The second proves that gate can still fail.
+
+```
+pwsh -NoProfile -File tools/prepare-release.ps1
+pwsh -NoProfile -File tools/test-release-artifact-gate.ps1
+```
 
 The bundled offline food list is committed, so a normal build needs no network. To rebuild it from a fresh Open Food Facts export, run `py -3.13 tools/build_offline_foods.py`. That reads about 1.2 GB straight off the wire, keeps the most-scanned products per market and writes `app/src/main/assets/offline_foods.db` with a digest beside it.
 

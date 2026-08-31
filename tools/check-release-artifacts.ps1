@@ -1,92 +1,256 @@
 <#
 .SYNOPSIS
-    Checks the built release APKs against the two deadlines Play has set.
+Checks prepared release APKs, their signing identity, and SHA-256 checksums.
 
 .DESCRIPTION
-    Two things will stop a release being accepted and neither shows up in a build log.
-
-    Wear OS apps have to ship 64-bit code from 2026-09-15. WeightTrack has no native code of its
-    own, but a dependency can bring some in without anybody noticing, so this looks at what is
-    actually in the archive rather than at what the build files ask for.
-
-    From 2027-02-01 every app has to support 16 KB memory pages, which for an APK means its
-    shared libraries are aligned to 16 KB and the archive is zipaligned with -P 16. An APK with
-    no shared libraries in it passes on both counts, and saying so out loud is the point: it is
-    the difference between having checked and having assumed.
-
-    Run it after `gradlew :app:assemblePlayRelease :app:assembleFossRelease :wear:assembleRelease`.
+Requires the exact Play, FOSS, and Wear release set for the project version. Each APK must carry
+the expected package, version, version-code band, signing certificate, supported native ABIs, and
+16 KB zip alignment. SHA256SUMS.txt must name every APK exactly once and contain no extra entry.
 #>
 [CmdletBinding()]
 param(
-    [string] $Root = (Split-Path -Parent $PSScriptRoot)
+    [string] $Root = (Split-Path -Parent $PSScriptRoot),
+    [string] $ArtifactsPath,
+    [string] $ChecksumFile,
+    [string] $ExpectedPackageName,
+    [string] $ExpectedVersionName,
+    [int] $ExpectedPhoneVersionCode = -1,
+    [int] $ExpectedWearVersionCode = -1,
+    [string] $ExpectedCertificateSha256
 )
 
 $ErrorActionPreference = 'Stop'
+Set-StrictMode -Version Latest
 
-function Find-Zipalign {
+function Read-ProjectProperties {
+    param([Parameter(Mandatory)][string] $Path)
+
+    $values = @{}
+    foreach ($line in Get-Content -LiteralPath $Path) {
+        if ($line -match '^\s*([^#!][^=]*?)\s*=\s*(.*?)\s*$') {
+            $values[$Matches[1].Trim()] = $Matches[2].Trim()
+        }
+    }
+    return $values
+}
+
+function Find-AndroidTool {
+    param([Parameter(Mandatory)][string] $Name)
+
     $sdk = $env:ANDROID_HOME
     if (-not $sdk) { $sdk = $env:ANDROID_SDK_ROOT }
     if (-not $sdk) { $sdk = Join-Path $env:LOCALAPPDATA 'Android\Sdk' }
-    if (-not (Test-Path $sdk)) { return $null }
-    Get-ChildItem -Path (Join-Path $sdk 'build-tools') -Filter 'zipalign.exe' -Recurse -ErrorAction SilentlyContinue |
+    if (-not (Test-Path -LiteralPath $sdk)) {
+        throw "Android SDK not found: $sdk"
+    }
+
+    $tool = Get-ChildItem -LiteralPath (Join-Path $sdk 'build-tools') -Filter $Name -File -Recurse |
         Sort-Object FullName -Descending |
         Select-Object -First 1 -ExpandProperty FullName
+    if (-not $tool) {
+        throw "$Name was not found in the Android SDK."
+    }
+    return $tool
 }
 
-$apks = @(
-    Get-ChildItem -Path $Root -Recurse -Filter '*.apk' -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -match '\\build\\outputs\\apk\\.*release.*\.apk$' }
+function Normalize-Fingerprint {
+    param([Parameter(Mandatory)][string] $Value)
+    return ($Value -replace '[^0-9a-fA-F]', '').ToLowerInvariant()
+}
+
+$rootPath = [IO.Path]::GetFullPath($Root)
+$properties = Read-ProjectProperties -Path (Join-Path $rootPath 'gradle.properties')
+$trust = Get-Content -LiteralPath (Join-Path $rootPath 'tools/release-trust.json') -Raw |
+    ConvertFrom-Json
+
+if ([string]::IsNullOrWhiteSpace($ExpectedPackageName)) {
+    $ExpectedPackageName = [string]$trust.packageName
+}
+if ([string]::IsNullOrWhiteSpace($ExpectedVersionName)) {
+    $ExpectedVersionName = [string]$properties.weighttrackVersionName
+}
+if ($ExpectedPhoneVersionCode -lt 0) {
+    $ExpectedPhoneVersionCode = [int]$properties.weighttrackVersionCode
+}
+if ($ExpectedWearVersionCode -lt 0) {
+    $ExpectedWearVersionCode =
+        [int]$properties.weighttrackWearVersionBand + $ExpectedPhoneVersionCode
+}
+if ([string]::IsNullOrWhiteSpace($ExpectedCertificateSha256)) {
+    $ExpectedCertificateSha256 = [string]$trust.channels.github.certificateSha256
+}
+$ExpectedCertificateSha256 = Normalize-Fingerprint -Value $ExpectedCertificateSha256
+if ($ExpectedCertificateSha256.Length -ne 64) {
+    throw 'The expected signing-certificate SHA-256 must contain 64 hexadecimal characters.'
+}
+
+if ([string]::IsNullOrWhiteSpace($ArtifactsPath)) {
+    $ArtifactsPath = Join-Path $rootPath "dist/release-v$ExpectedVersionName"
+}
+$artifactsRoot = [IO.Path]::GetFullPath($ArtifactsPath)
+if (-not (Test-Path -LiteralPath $artifactsRoot -PathType Container)) {
+    throw "Prepared release directory not found: $artifactsRoot"
+}
+if ([string]::IsNullOrWhiteSpace($ChecksumFile)) {
+    $ChecksumFile = Join-Path $artifactsRoot 'SHA256SUMS.txt'
+}
+$checksumPath = [IO.Path]::GetFullPath($ChecksumFile)
+
+$specs = @(
+    [pscustomobject]@{
+        Name = "WeightTrack-v$ExpectedVersionName-play-release.apk"
+        VersionCode = $ExpectedPhoneVersionCode
+    },
+    [pscustomobject]@{
+        Name = "WeightTrack-v$ExpectedVersionName-foss-release.apk"
+        VersionCode = $ExpectedPhoneVersionCode
+    },
+    [pscustomobject]@{
+        Name = "WeightTrack-v$ExpectedVersionName-wear-release.apk"
+        VersionCode = $ExpectedWearVersionCode
+    }
 )
+$expectedNames = @($specs.Name)
+$problems = [Collections.Generic.List[string]]::new()
 
-if ($apks.Count -eq 0) {
-    Write-Error 'No release APKs found. Build them first.'
+$apks = @(Get-ChildItem -LiteralPath $artifactsRoot -Filter '*.apk' -File)
+foreach ($extra in $apks | Where-Object { $_.Name -notin $expectedNames }) {
+    $problems.Add("unexpected release APK: $($extra.Name)")
+}
+foreach ($spec in $specs) {
+    if (-not (Test-Path -LiteralPath (Join-Path $artifactsRoot $spec.Name) -PathType Leaf)) {
+        $problems.Add("missing release APK: $($spec.Name)")
+    }
 }
 
-$zipalign = Find-Zipalign
-if (-not $zipalign) {
-    Write-Warning 'zipalign was not found in the Android SDK; the 16 KB check was skipped.'
+$checksumEntries = @{}
+if (-not (Test-Path -LiteralPath $checksumPath -PathType Leaf)) {
+    $problems.Add("missing checksum file: $checksumPath")
+} else {
+    foreach ($line in Get-Content -LiteralPath $checksumPath) {
+        if ([string]::IsNullOrWhiteSpace($line)) { continue }
+        if ($line -notmatch '^([0-9a-fA-F]{64})  (.+)$') {
+            $problems.Add("invalid SHA256SUMS.txt line: $line")
+            continue
+        }
+        $name = $Matches[2]
+        if ([IO.Path]::GetFileName($name) -ne $name) {
+            $problems.Add("checksum entry must contain a file name only: $name")
+            continue
+        }
+        if ($checksumEntries.ContainsKey($name)) {
+            $problems.Add("duplicate checksum entry: $name")
+            continue
+        }
+        $checksumEntries[$name] = $Matches[1].ToLowerInvariant()
+    }
+    foreach ($extra in $checksumEntries.Keys | Where-Object { $_ -notin $expectedNames }) {
+        $problems.Add("unexpected checksum entry: $extra")
+    }
+    foreach ($name in $expectedNames) {
+        if (-not $checksumEntries.ContainsKey($name)) {
+            $problems.Add("missing checksum entry: $name")
+        }
+    }
 }
 
-$problems = @()
+$aapt2 = Find-AndroidTool -Name 'aapt2.exe'
+$apksigner = Find-AndroidTool -Name 'apksigner.bat'
+$zipalign = Find-AndroidTool -Name 'zipalign.exe'
 Add-Type -AssemblyName System.IO.Compression.FileSystem
 
-foreach ($apk in $apks) {
-    Write-Host "== $($apk.Name)"
+foreach ($spec in $specs) {
+    $apkPath = Join-Path $artifactsRoot $spec.Name
+    if (-not (Test-Path -LiteralPath $apkPath -PathType Leaf)) { continue }
+    Write-Host "== $($spec.Name)"
 
-    $archive = [System.IO.Compression.ZipFile]::OpenRead($apk.FullName)
+    if ($checksumEntries.ContainsKey($spec.Name)) {
+        $actualHash = (Get-FileHash -LiteralPath $apkPath -Algorithm SHA256).Hash.ToLowerInvariant()
+        if ($actualHash -ne $checksumEntries[$spec.Name]) {
+            $problems.Add("checksum mismatch for $($spec.Name)")
+        } else {
+            Write-Host '   SHA-256 matches SHA256SUMS.txt'
+        }
+    }
+
+    $badging = @(& $aapt2 dump badging $apkPath 2>&1)
+    $badgingExit = $LASTEXITCODE
+    if ($badgingExit -ne 0) {
+        $problems.Add("could not read the manifest from $($spec.Name)")
+    } else {
+        $packageLine = $badging | Where-Object { "$_" -like 'package:*' } | Select-Object -First 1
+        $identityPattern = "name='([^']+)' versionCode='([^']+)' versionName='([^']+)'"
+        if ("$packageLine" -notmatch $identityPattern) {
+            $problems.Add("could not parse the package identity from $($spec.Name)")
+        } else {
+            $packageName = $Matches[1]
+            $versionCode = [int]$Matches[2]
+            $versionName = $Matches[3]
+            if ($packageName -ne $ExpectedPackageName) {
+                $problems.Add("wrong package in $($spec.Name): $packageName")
+            }
+            if ($versionCode -ne $spec.VersionCode) {
+                $problems.Add("wrong version code in $($spec.Name): $versionCode")
+            }
+            if ($versionName -ne $ExpectedVersionName) {
+                $problems.Add("wrong version name in $($spec.Name): $versionName")
+            }
+            Write-Host "   package=$packageName version=$versionName code=$versionCode"
+        }
+    }
+
+    $signatureOutput = @(& $apksigner verify --verbose --print-certs $apkPath 2>&1)
+    $signatureExit = $LASTEXITCODE
+    $signatureText = $signatureOutput -join [Environment]::NewLine
+    if ($signatureExit -ne 0) {
+        $problems.Add("APK signature verification failed for $($spec.Name)")
+    } else {
+        $fingerprints = @(
+            [regex]::Matches(
+                $signatureText,
+                '(?im)certificate SHA-256 digest:\s*([0-9a-f]{64})'
+            ) | ForEach-Object { $_.Groups[1].Value.ToLowerInvariant() }
+        )
+        if ($fingerprints.Count -ne 1) {
+            $problems.Add("expected one signing certificate in $($spec.Name), found $($fingerprints.Count)")
+        } elseif ($fingerprints[0] -ne $ExpectedCertificateSha256) {
+            $problems.Add("wrong signing certificate in $($spec.Name): $($fingerprints[0])")
+        } else {
+            Write-Host "   signer=$($fingerprints[0])"
+        }
+    }
+
+    & $zipalign -c -P 16 -v 4 $apkPath *> $null
+    if ($LASTEXITCODE -ne 0) {
+        $problems.Add("$($spec.Name) is not aligned for 16 KB pages")
+    } else {
+        Write-Host '   aligned for 16 KB pages'
+    }
+
+    $archive = [IO.Compression.ZipFile]::OpenRead($apkPath)
     try {
-        $abis = $archive.Entries |
-            Where-Object { $_.FullName -like 'lib/*/*' } |
-            ForEach-Object { ($_.FullName -split '/')[1] } |
-            Sort-Object -Unique
+        $abis = @(
+            $archive.Entries |
+                Where-Object { $_.FullName -like 'lib/*/*' } |
+                ForEach-Object { ($_.FullName -split '/')[1] } |
+                Sort-Object -Unique
+        )
     } finally {
         $archive.Dispose()
     }
-
     if ($abis.Count -eq 0) {
-        Write-Host '   no shared libraries, so 64-bit and 16 KB alignment are not in question'
+        Write-Host '   no shared libraries'
+    } elseif (@($abis | Where-Object { $_ -in @('arm64-v8a', 'x86_64') }).Count -eq 0) {
+        $problems.Add("$($spec.Name) ships no 64-bit native code")
     } else {
-        Write-Host "   architectures: $($abis -join ', ')"
-        $sixtyFour = $abis | Where-Object { $_ -in @('arm64-v8a', 'x86_64') }
-        if ($sixtyFour.Count -eq 0) {
-            $problems += "$($apk.Name) ships only 32-bit code ($($abis -join ', '))"
-        }
-    }
-
-    if ($zipalign) {
-        & $zipalign -c -P 16 -v 4 $apk.FullName | Out-Null
-        if ($LASTEXITCODE -ne 0) {
-            $problems += "$($apk.Name) is not aligned for 16 KB pages"
-        } else {
-            Write-Host '   aligned for 16 KB pages'
-        }
+        Write-Host "   native ABIs=$($abis -join ', ')"
     }
 }
 
 if ($problems.Count -gt 0) {
     $problems | ForEach-Object { Write-Host "PROBLEM: $_" }
-    exit 1
+    throw "$($problems.Count) release artifact check(s) failed."
 }
 
 Write-Host ''
-Write-Host "All $($apks.Count) release APKs pass."
+Write-Host "All $($specs.Count) release APKs and SHA256SUMS.txt pass."
