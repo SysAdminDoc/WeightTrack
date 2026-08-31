@@ -98,6 +98,57 @@ class WeightCsvImporterTest {
     }
 
     @Test
+    fun `a Google takeout daily-metrics export imports the average, not the extremes`() {
+        // The real header row, abridged. Google Fit shut down and this is the file its users
+        // are left holding, so it is the one migration path that matters for them.
+        val takeout = """
+            Date,Move Minutes count,Calories (kcal),Distance (m),Average weight (kg),Max weight (kg),Min weight (kg),Step count
+            2026-01-01,42,1980.5,3200.0,80.5,81.2,79.9,5321
+            2026-01-02,,1900.0,,80.2,80.9,79.6,
+            2026-01-03,31,2010.0,2800.0,,,,4210
+        """.trimIndent()
+
+        val result = importAll(takeout)
+
+        // The third day has no weight in it at all, which is most days in one of these files.
+        assertThat(result.entries).hasSize(2)
+        assertThat(result.entries.map { it.grams }).containsExactly(80_500, 80_200).inOrder()
+        assertThat(result.entries.first().localDate).isEqualTo(LocalDate.of(2026, 1, 1))
+        assertThat(result.entries.first().grams).isNotEqualTo(81_200)
+    }
+
+    @Test
+    fun `the average wins even when a heavier column is named first`() {
+        // Google's own file happens to put the average first, so the generic column matching
+        // gets it right by luck rather than by rule. A file that does not, and Fit's exports
+        // have been reordered before, would silently import a year of history several hundred
+        // grams heavy with nothing anywhere saying so.
+        val reordered = "Date,Max weight (kg),Min weight (kg),Average weight (kg)\n" +
+            "2026-01-01,81.2,79.9,80.5"
+
+        val result = importAll(reordered)
+
+        assertThat(result.entries.single().grams).isEqualTo(80_500)
+    }
+
+    @Test
+    fun `importing a takeout file twice lands on the same rows`() {
+        val takeout = "Date,Average weight (kg)\n2026-01-01,80.5\n2026-01-02,80.2"
+
+        val first = importAll(takeout)
+        val again = importAll(takeout, at = now.plusSeconds(86_400))
+
+        assertThat(again.entries.map { it.clientRecordId })
+            .containsExactlyElementsIn(first.entries.map { it.clientRecordId })
+    }
+
+    @Test
+    fun `a file with a plain weight column still uses it`() {
+        // The preference for the average must not reach into a file that has no average.
+        val result = importAll("Date,Weight (kg),Note\n2026-01-01,80.5,morning")
+        assertThat(result.entries.single().grams).isEqualTo(80_500)
+    }
+    @Test
     fun `the unit is read from the weight column header`() {
         val pounds = importAll("Date,Weight (lb)\n2026-01-01,180.0")
         assertThat(pounds.entries.single().grams).isEqualTo(UnitConverter.lbToGrams(180.0))

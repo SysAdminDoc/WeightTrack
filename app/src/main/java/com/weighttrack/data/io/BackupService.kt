@@ -112,6 +112,18 @@ class BackupService @Inject constructor(
         runCatching { buildBackup().first }
     }
 
+    /**
+     * The readings as a spreadsheet, for the same caller.
+     *
+     * A backup restores the app and cannot be read by a person or by anything else. The rows can
+     * be, which is a different job and the reason the weekly run writes both.
+     */
+    suspend fun exportedCsv(): Result<String> = withContext(Dispatchers.IO) {
+        runCatching {
+            WeightCsvExporter.toCsv(weightRepository.observeEntries().first())
+        }
+    }
+
     /** The whole export and how many readings are in it. */
     private suspend fun buildBackup(photoRows: List<BackupPhoto>? = null): Pair<String, Int> {
         run {

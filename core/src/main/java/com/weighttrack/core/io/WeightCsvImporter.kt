@@ -62,7 +62,24 @@ object WeightCsvImporter {
 
     private val DATE_HEADERS = listOf("date", "datum", "day", "timestamp", "date/time", "datetime", "recorded")
     private val TIME_HEADERS = listOf("time", "zeit", "hour")
-    private val WEIGHT_HEADERS = listOf("weight", "gewicht", "mass", "peso", "poids", "value")
+    /**
+     * In order of preference, because a file can carry several.
+     *
+     * Google's takeout writes a day per row with an average, a minimum and a maximum. The
+     * average is the one that means what a weigh-in means; either of the others would read a
+     * year of somebody's history several hundred grams out and nothing would say so. It is
+     * listed first so the partial match reaches it before the bare "weight" that all three
+     * contain.
+     */
+    private val WEIGHT_HEADERS = listOf(
+        "average weight",
+        "weight",
+        "gewicht",
+        "mass",
+        "peso",
+        "poids",
+        "value",
+    )
     private val BODY_FAT_HEADERS = listOf("body fat", "bodyfat", "fat", "fat %", "fat percent", "bf")
     private val NOTE_HEADERS = listOf("note", "notes", "comment", "comments", "remark", "description")
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- The weekly copy now writes a spreadsheet beside the backup. A backup restores the app and cannot be read by a person or handed to anything else; the readings can be. Four of each are kept, counted apart, so a month of backups no longer throws out every spreadsheet next to them.
+
+- Google Fit is gone and a takeout file is what its users are left holding. One imports now, and the column it reads is the day's average rather than the maximum sitting beside it, which would have brought a year of somebody's history in several hundred grams heavy with nothing saying so. Importing the same file twice lands on the same rows, as every other import already did.
+
 - Fourteen faults found reviewing the last few changes. A restore from an archive is now all or nothing: it used to commit every row and setting and then copy the pictures, so a phone that ran out of room halfway kept the whole history and half the album while reporting a failure. Every picture goes into place first, and any of them failing puts back exactly what was there. A photograph called `backup.json` no longer overwrites the export it travels beside. Two people in a household with the same name keep their own photographs, which a lookup through the display name had been collapsing onto whichever of them came last. A picture whose owner the archive does not name goes to whoever is using the phone rather than to whichever profile happens never to have synced. An archive is built in full before the chosen file is touched, so a failed export no longer leaves something that looks like a backup and is not, and each picture is hashed as it is written rather than read twice, which is one fewer way for the digest to describe bytes nobody stored.
 
 - An undo that cannot happen no longer takes the app down with it, and an undo offer no longer outlives the screen it was made on. Rotating the phone while the snackbar was up left the offer standing, to reappear an hour later pointing at a picture the recovery sweep had already collected: it said the photo was back, and it was gone.

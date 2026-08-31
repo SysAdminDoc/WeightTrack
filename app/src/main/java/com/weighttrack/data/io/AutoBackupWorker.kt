@@ -62,6 +62,10 @@ class AutoBackupWorker @AssistedInject constructor(
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKUP_FAILED, cause = it)
             return@withContext Result.retry()
         }
+        val csv = backupService.exportedCsv().getOrElse {
+            runtimeLog.write(LogArea.SYNC, LogEvent.BACKUP_FAILED, cause = it)
+            return@withContext Result.retry()
+        }
 
         val today = LocalDate.now()
         val name = AutoBackup.nameFor(today)
@@ -92,6 +96,29 @@ class AutoBackupWorker @AssistedInject constructor(
                 throw failure
             }
             partial.delete()
+        }
+        if (written.isSuccess) {
+            // The spreadsheet after the backup, and never instead of it. A failure here is worth
+            // recording and is not worth retrying the whole run for: the file that restores the
+            // app is already safely in place, and the readings are in it.
+            runCatching {
+                val partialCsv = folder.findFile(AutoBackup.partialCsvNameFor(today))
+                    ?.takeIf { it.isFile }
+                    ?: folder.createFile(CSV_MIME, AutoBackup.partialCsvNameFor(today))
+                    ?: error("could not create")
+                writeAndCheck(partialCsv, csv, validate = { it.isNotBlank() })
+                val targetCsv = folder.findFile(AutoBackup.csvNameFor(today))?.takeIf { it.isFile }
+                    ?: folder.createFile(CSV_MIME, AutoBackup.csvNameFor(today))
+                    ?: error("could not create")
+                runCatching { writeAndCheck(targetCsv, csv, validate = { it.isNotBlank() }) }
+                    .onFailure { failure ->
+                        runCatching { targetCsv.delete() }
+                        throw failure
+                    }
+                partialCsv.delete()
+            }.onFailure {
+                runtimeLog.write(LogArea.SYNC, LogEvent.BACKUP_FAILED, cause = it)
+            }
         }
         if (written.isFailure) {
             runtimeLog.write(
@@ -126,20 +153,25 @@ class AutoBackupWorker @AssistedInject constructor(
      * A short write and a provider that reported success are indistinguishable until something
      * reads the file back, and a truncated backup is worse than none: it looks like one.
      */
-    private fun writeAndCheck(file: DocumentFile, text: String) {
+    private fun writeAndCheck(
+        file: DocumentFile,
+        text: String,
+        validate: (String) -> Boolean = { BackupCodec.decode(it) != null },
+    ) {
         applicationContext.contentResolver.openOutputStream(file.uri, "wt")?.use {
             it.write(text.toByteArray(Charsets.UTF_8))
         } ?: error("could not write")
         val readBack = applicationContext.contentResolver.openInputStream(file.uri)?.use {
             it.readBytes().toString(Charsets.UTF_8)
         } ?: error("could not read back")
-        if (readBack != text || BackupCodec.decode(readBack) == null) {
+        if (readBack != text || !validate(readBack)) {
             error("the written backup did not read back")
         }
     }
 
     private companion object {
         const val MIME = "application/json"
+        const val CSV_MIME = "text/csv"
     }
 }
 

@@ -140,13 +140,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: refreshing a cached product updates its numbers without changing logged diary rows; a product with kcal 900 and 0 g of every macro is rejected by a unit test; the limiter is respected across a refresh of ten foods.
   Complexity: M
 
-- [ ] P2: Scheduled CSV export beside the backup, and a Google Fit takeout importer
-  Why: openScale #338 wants scheduled export distinct from backup; Google Fit ends in 2026 and Google Health's export deadline for discontinued data was 2026-07-15, so takeout CSVs are what migrants hold.
-  Evidence: https://github.com/oliexdev/openScale/issues/338 ; https://developer.android.com/health-and-fitness/health-connect/migration/fit ; https://blog.google/products-and-platforms/products/google-health/google-health-app/ ; data/io/WeightCsvImporter.kt (no Fit or Takeout column set)
-  Touches: data/io/WeightCsvImporter.kt (Takeout "Daily activity metrics" and Fit weight CSV layouts), data/io/AutoBackup.kt (CSV variant), tests with real header rows
-  Acceptance: a Takeout daily-metrics CSV with the "Average weight (kg)" column imports with correct dates; re-import updates rather than duplicates; the scheduled export writes a CSV next to the JSON.
-  Complexity: S
-
 - [ ] P2: Split SettingsScreen and add view model tests for the untested screens
   Why: SettingsScreen.kt is 941 lines and the app has no tests for SettingsRepository, SyncWorker, or the goal, history (undo), log, onboarding and settings view models; Compose UI test dependencies are declared and never used.
   Evidence: app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt ; app/build.gradle.kts:199,202 ; repo test inventory 2026-08-29

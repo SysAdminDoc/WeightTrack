@@ -199,4 +199,57 @@ class AutoBackupTest {
 
         assertThat(AutoBackup.toRemove(folder)).containsExactly("weighttrack-2026-07-18.json")
     }
+
+    @Test
+    fun `the spreadsheet is named after the same day as the backup beside it`() {
+        val day = LocalDate.of(2026, 8, 29)
+        assertThat(AutoBackup.csvNameFor(day)).isEqualTo("weighttrack-2026-08-29.csv")
+        assertThat(AutoBackup.partialCsvNameFor(day)).isEqualTo("weighttrack-2026-08-29-part.csv")
+    }
+
+    @Test
+    fun `the two kinds are counted apart from each other`() {
+        // Counted together, four weeks of backups throw out every spreadsheet beside them: the
+        // newest four names in the folder are all backups.
+        val folder = listOf(
+            "weighttrack-2026-08-29.json", "weighttrack-2026-08-29.csv",
+            "weighttrack-2026-08-22.json", "weighttrack-2026-08-22.csv",
+            "weighttrack-2026-08-15.json", "weighttrack-2026-08-15.csv",
+            "weighttrack-2026-08-08.json", "weighttrack-2026-08-08.csv",
+        )
+
+        assertThat(AutoBackup.toRemove(folder)).isEmpty()
+    }
+
+    @Test
+    fun `the oldest of each kind goes once there is a fifth of it`() {
+        val folder = listOf(
+            "weighttrack-2026-08-29.json", "weighttrack-2026-08-29.csv",
+            "weighttrack-2026-08-22.json", "weighttrack-2026-08-22.csv",
+            "weighttrack-2026-08-15.json", "weighttrack-2026-08-15.csv",
+            "weighttrack-2026-08-08.json", "weighttrack-2026-08-08.csv",
+            "weighttrack-2026-08-01.json", "weighttrack-2026-08-01.csv",
+        )
+
+        assertThat(AutoBackup.toRemove(folder))
+            .containsExactly("weighttrack-2026-08-01.json", "weighttrack-2026-08-01.csv")
+    }
+
+    @Test
+    fun `a half-written spreadsheet is collected like a half-written backup`() {
+        val folder = listOf(
+            "weighttrack-2026-08-29-part.json",
+            "weighttrack-2026-08-29-part.csv",
+            "weighttrack-2026-08-29.json",
+            "notes.txt",
+        )
+
+        assertThat(AutoBackup.partialsIn(folder)).containsExactly(
+            "weighttrack-2026-08-29-part.json",
+            "weighttrack-2026-08-29-part.csv",
+        )
+        // And never counted as a backup, or the pruning throws out a real one to make room.
+        assertThat(AutoBackup.toRemove(folder, keep = 0))
+            .containsExactly("weighttrack-2026-08-29.json")
+    }
 }
