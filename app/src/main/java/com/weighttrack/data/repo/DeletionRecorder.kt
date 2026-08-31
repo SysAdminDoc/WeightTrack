@@ -139,6 +139,17 @@ class DeletionRecorder @Inject constructor(
     }
 
     /**
+     * What was deleted for one person since a moment, of one kind.
+     *
+     * For the Health Connect export: a reading deleted here has to be deleted there too, and
+     * the tombstone is the only record of it once the row is gone.
+     */
+    suspend fun since(kind: SyncKind, profileSyncId: String, since: Long): List<String> =
+        dao.since(since)
+            .filter { it.kind == kind.name && it.profileSyncId == profileSyncId }
+            .map { it.syncId }
+
+    /**
      * Forgets that a row was ever deleted.
      *
      * Used when a record arrives from another device having been edited since the deletion, so

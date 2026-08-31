@@ -124,6 +124,19 @@ class SettingsRepository @Inject constructor(
         if (token == null) it.remove(key) else it[key] = token
     }
 
+    /**
+     * How far the Health Connect export has got for one person.
+     *
+     * Nothing older than this needs writing again. Without it the export pushed every reading
+     * ever recorded on every run, an hour apart, for ever.
+     */
+    suspend fun healthExportedAt(profileId: Long): Long =
+        dataStore.data.first()[Keys.healthExportedAt(profileId)] ?: 0
+
+    suspend fun setHealthExportedAt(profileId: Long, at: Long) = edit {
+        it[Keys.healthExportedAt(profileId)] = at
+    }
+
     suspend fun setOnboardingComplete(complete: Boolean) = edit { it[Keys.ONBOARDING_COMPLETE] = complete }
 
     suspend fun setReminder(enabled: Boolean, hour: Int, minute: Int, days: Set<DayOfWeek>) = edit {
@@ -312,6 +325,9 @@ class SettingsRepository @Inject constructor(
          */
         fun healthChangesToken(profileId: Long) =
             stringPreferencesKey("health_changes_token_$profileId")
+
+        fun healthExportedAt(profileId: Long) =
+            longPreferencesKey("health_exported_at_$profileId")
 
         val AUTO_BACKUP_FOLDER = stringPreferencesKey("auto_backup_folder")
         val LAST_AUTO_BACKUP = longPreferencesKey("last_auto_backup")

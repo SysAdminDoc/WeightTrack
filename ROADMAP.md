@@ -107,13 +107,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Background sync cannot be enabled until background access is granted and is unscheduled after revocation; manifest and runtime requests contain only record types exercised by the selected features; the rationale activity explains each use; the published policy URL and Play declarations match an automated manifest-permission snapshot.
   Complexity: M
 
-- [ ] P0: Make Health Connect exports idempotent and propagate app-owned deletions
-  Why: Every sync republishes all local weights, creates a new current-time height record, and never removes an app-owned Health Connect record after local deletion.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:554-665`; https://developer.android.com/health-and-fitness/health-connect/write-data; https://developer.android.com/health-and-fitness/health-connect/sync-data
-  Touches: `health/HealthConnectSync.kt`, weight persistence metadata, outbound ledger and deletion queue, `FakeHealthConnectClient` tests
-  Acceptance: A second unchanged sync issues zero inserts; an edit upserts the same stable client record; local deletion removes only the app-owned Health Connect record; partial batch failure leaves affected operations pending and visible in the runtime log; no height record is emitted until height export is an enabled, permitted feature.
-  Complexity: L
-
 - [ ] P1: Distinguish Health Connect token expiry from transient failure
   Why: Any `getChanges` exception currently clears the token and triggers a five-year reread, turning outages and rate limits into expensive full imports.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:401-456`; https://developer.android.com/health-and-fitness/health-connect/sync-data; https://developer.android.com/health-and-fitness/health-connect/rate-limiting

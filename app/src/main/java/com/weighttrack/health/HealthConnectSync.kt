@@ -125,6 +125,7 @@ class HealthConnectSync @Inject constructor(
     private val weightRepository: WeightRepository,
     private val settingsRepository: SettingsRepository,
     private val profileRepository: ProfileRepository,
+    private val deletions: com.weighttrack.data.repo.DeletionRecorder,
     private val runtimeLog: RuntimeLog,
     private val clientSource: HealthConnectClientSource,
 ) {
@@ -178,7 +179,6 @@ class HealthConnectSync @Inject constructor(
         val start: Instant,
         val now: Instant,
         val lowestOfDayOnly: Boolean,
-        val heightMm: Int,
     )
 
     /**
@@ -441,7 +441,6 @@ class HealthConnectSync @Inject constructor(
                     start = at.minus(sinceDays, ChronoUnit.DAYS),
                     now = at,
                     lowestOfDayOnly = stored.importLowestOfDay,
-                    heightMm = stored.profile.heightMm,
                 )
                 val token = settingsRepository.healthChangesToken(session.profileId)
                 // With a token in hand, only what has actually changed since last time. Without
@@ -610,36 +609,59 @@ class HealthConnectSync @Inject constructor(
         return true
     }
 
+    /**
+     * Sends what has changed here since last time, and takes back what has been deleted.
+     *
+     * It used to send everything, every run. An hour apart, for ever, a person with five years
+     * of weigh-ins had fifteen hundred records rewritten into their health record to say nothing
+     * new, and a reading they deleted here stayed there for good because the export only ever
+     * added. Both are invisible from inside the app and both are somebody else's data being
+     * churned.
+     *
+     * How far it has got is remembered per person, and only moves when the whole run landed. An
+     * insert is an upsert on the client record id, so repeating one is harmless and repeating
+     * everything after a failure is the safe thing to do.
+     */
     private suspend fun exportWeights(session: Session): Int {
         val client = session.client
-        val zone = session.zone
-        val entries = weightRepository.entriesFor(session.profileId)
+        val since = settingsRepository.healthExportedAt(session.profileId)
+        val entries = weightRepository
+            .changedBetween(session.profileId, since, session.now.toEpochMilli())
             .filter { it.source != EntrySource.HEALTH_CONNECT }
-        if (entries.isEmpty()) return 0
+        val gone = profileRepository.syncIdOf(session.profileId)?.let { owner ->
+            deletions.since(com.weighttrack.core.sync.SyncKind.WEIGHT, owner, since)
+        }.orEmpty()
+        if (entries.isEmpty() && gone.isEmpty()) return 0
 
-        val records = entries.map { entry -> entry.toWeightRecord(zone) }
-        // Insert is an upsert when the client record id matches, so pushing the same log twice
-        // updates rather than duplicates. Batched because a first sync can be thousands of rows.
         var written = 0
-        records.chunked(BATCH_SIZE).forEach { batch ->
+        var complete = true
+        entries.map { it.toWeightRecord(session.zone) }.chunked(BATCH_SIZE).forEach { batch ->
             runCatching { client.insertRecords(batch) }
                 .onSuccess { written += batch.size }
+                .onFailure {
+                    complete = false
+                    failed(LogEvent.HEALTH_WRITE_FAILED, it)
+                }
         }
-        // Height is written once, not per reading, so it never floods the other app's log.
-        session.heightMm.takeIf { it > 0 }?.let { heightMm ->
+        // Deleted by the name this app gave the record, which is the only kind it can name. A
+        // reading imported from somebody else's scale app was never written by this one, carries
+        // no client record id of ours, and is left exactly where it is.
+        gone.chunked(BATCH_SIZE).forEach { batch ->
             runCatching {
-                client.insertRecords(
-                    listOf(
-                        HeightRecord(
-                            time = Instant.now(),
-                            zoneOffset = zone.rules.getOffset(Instant.now()),
-                            height = androidx.health.connect.client.units.Length.meters(heightMm / 1000.0),
-                            metadata = Metadata.manualEntry(device = Device(type = Device.TYPE_PHONE)),
-                        ),
-                    ),
+                client.deleteRecords(
+                    recordType = WeightRecord::class,
+                    recordIdsList = emptyList(),
+                    clientRecordIdsList = batch,
                 )
+            }.onFailure {
+                complete = false
+                failed(LogEvent.HEALTH_WRITE_FAILED, it)
             }
         }
+        // Only a run that landed in full moves the mark. A partial one is left pending, and the
+        // next run repeats it: an upsert twice is the same as once, and a deletion of something
+        // already gone is harmless, while a mark moved over a failed write loses the row for good.
+        if (complete) settingsRepository.setHealthExportedAt(session.profileId, session.now.toEpochMilli())
         return written
     }
 

@@ -24,6 +24,19 @@ interface WeightEntryDao {
     @Query("SELECT * FROM weight_entries WHERE profileId = :profileId ORDER BY timestampUtcMillis ASC")
     fun observeAllAscending(profileId: Long): Flow<List<WeightEntryEntity>>
 
+    /**
+     * Rows changed since a moment, for the Health Connect export.
+     *
+     * The export used to push every reading on every run, which meant thousands of writes into
+     * somebody else's health record an hour, for ever, to say nothing new.
+     */
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId " +
+            "AND updatedAtUtcMillis > :since AND updatedAtUtcMillis <= :until " +
+            "ORDER BY timestampUtcMillis ASC",
+    )
+    suspend fun changedBetween(profileId: Long, since: Long, until: Long): List<WeightEntryEntity>
+
     @Query(
         """
         SELECT localDate, AVG(grams) AS grams

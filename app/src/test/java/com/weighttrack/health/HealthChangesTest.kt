@@ -73,6 +73,7 @@ class HealthChangesTest {
         weightRepository = weights,
         settingsRepository = settings,
         profileRepository = profiles,
+        deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao()),
         runtimeLog = RuntimeLog(File(temporary.root, "log.txt")),
         clientSource = { client },
     )

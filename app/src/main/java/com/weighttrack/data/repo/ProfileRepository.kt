@@ -172,6 +172,9 @@ class ProfileRepository @Inject constructor(
      */
     suspend fun photoFileNamesOf(id: Long): List<String> = dao.photoFileNames(id)
 
+    /** The name a profile travels under, which is what a tombstone names it by. */
+    suspend fun syncIdOf(id: Long): String? = dao.byId(id)?.syncId
+
     /** The profile Health Connect exchanges weights with, or null when nobody has claimed it. */
     val healthConnectProfileId: Flow<Long?> =
         dao.observeAll().map { rows -> rows.firstOrNull { it.healthConnectEnabled }?.id }

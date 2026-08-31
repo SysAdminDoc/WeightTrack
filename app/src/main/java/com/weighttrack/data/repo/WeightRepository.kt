@@ -74,6 +74,16 @@ class WeightRepository @Inject constructor(
     suspend fun entriesFor(profileId: Long): List<WeightEntry> =
         dao.observeAll(profileId).first().map { it.toDomain() }
 
+    /**
+     * What has changed for one person between two moments.
+     *
+     * The upper bound matters: a run decides the moment it is working to before it reads, so a
+     * row written while it is running belongs to the next run rather than being marked exported
+     * without having been.
+     */
+    suspend fun changedBetween(profileId: Long, since: Long, until: Long): List<WeightEntry> =
+        dao.changedBetween(profileId, since, until).map { it.toDomain() }
+
     suspend fun addFor(
         profileId: Long,
         grams: Int,
