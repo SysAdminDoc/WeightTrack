@@ -1,5 +1,6 @@
 package com.weighttrack.ui.settings
 
+import com.weighttrack.core.format.LocaleNumbers
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
@@ -331,7 +332,7 @@ fun SettingsScreen(
                     value = heightText,
                     onValueChange = { text ->
                         heightText = text
-                        text.trim().replace(',', '.').toDoubleOrNull()?.takeIf { it > 0 }?.let {
+                        LocaleNumbers.decimal(text)?.takeIf { it > 0 }?.let {
                             viewModel.setHeightMm(UnitConverter.displayToMm(it, settings.lengthUnit))
                         }
                     },
@@ -347,7 +348,7 @@ fun SettingsScreen(
                     value = birthYearText,
                     onValueChange = { text ->
                         birthYearText = text.filter { it.isDigit() }.take(4)
-                        birthYearText.toIntOrNull()
+                        LocaleNumbers.integer(birthYearText)
                             ?.takeIf { it in 1900..LocalDate.now().year }
                             ?.let(viewModel::setBirthYear)
                     },

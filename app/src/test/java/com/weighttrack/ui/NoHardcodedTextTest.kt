@@ -35,9 +35,17 @@ class NoHardcodedTextTest {
         File("../core/src/main/java/com/weighttrack/core"),
     )
 
-    /** What sits immediately before a literal when somebody is about to be shown it. */
+    /**
+     * What sits immediately before a literal when somebody is about to be shown it.
+     *
+     * Builder calls are here as well as named arguments. The biometric prompt is built rather
+     * than composed, so its title and subtitle were set through a builder method and this looked
+     * straight past them: the first screen anybody who reads another language meets was the last
+     * place in the app still speaking English.
+     */
     private val sink = Regex(
         """(?:(?<![\w.])(?:Text|SectionHeading|LabelledValue|error|showSnackbar)\(""" +
+            """|\.set(?:Title|Subtitle|Description|ContentTitle|ContentText|NegativeButtonText)\(""" +
             """|(?:text|label|actionLabel|placeholder|contentDescription|title|message|subtitle)""" +
             """\s*=|EXTRA_SUBJECT,|createChooser\([^,]+,|problems \+=)""" +
             """\s*(?:if \([^()]*\)\s*)?$""",

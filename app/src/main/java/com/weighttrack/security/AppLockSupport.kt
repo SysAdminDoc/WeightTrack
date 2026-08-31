@@ -111,8 +111,11 @@ object AppLockSupport {
         }
         val prompt = BiometricPrompt(activity, ContextCompat.getMainExecutor(activity), callback)
         val info = BiometricPrompt.PromptInfo.Builder()
-            .setTitle("Unlock WeightTrack")
-            .setSubtitle("Your weight history is locked on this device")
+            // From resources, like every other word the app shows. These two were the last
+            // English literals on a screen, and the one screen somebody who reads another
+            // language meets before anything else.
+            .setTitle(activity.getString(com.weighttrack.R.string.lock_prompt_title))
+            .setSubtitle(activity.getString(com.weighttrack.R.string.lock_prompt_subtitle))
 
         // Combining a biometric with the device credential only became supported in API 30.
         // Below that the older flag is the one that actually offers the PIN fallback.

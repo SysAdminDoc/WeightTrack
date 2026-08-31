@@ -1,5 +1,6 @@
 package com.weighttrack.ui.measurements
 
+import com.weighttrack.core.format.LocaleNumbers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.core.math.UnitConverter
@@ -68,7 +69,7 @@ class MeasurementsViewModel @Inject constructor(
 
     fun saveEditor() {
         val editing = _editor.value ?: return
-        val value = editing.text.trim().replace(',', '.').toDoubleOrNull()
+        val value = LocaleNumbers.decimal(editing.text)
         if (value == null || value <= 0) {
             _editor.value = null
             return

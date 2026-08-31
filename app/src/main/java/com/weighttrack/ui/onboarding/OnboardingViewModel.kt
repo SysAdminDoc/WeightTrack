@@ -1,5 +1,6 @@
 package com.weighttrack.ui.onboarding
 
+import com.weighttrack.core.format.LocaleNumbers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.core.math.Milestones
@@ -135,12 +136,12 @@ class OnboardingViewModel @Inject constructor(
             profileRepository.setDemographics(
                 profileRepository.activeId(),
                 UserProfile(
-                    heightMm = current.heightText.trim().replace(',', '.').toDoubleOrNull()
+                    heightMm = LocaleNumbers.decimal(current.heightText)
                         ?.takeIf { it > 0 }
                         ?.let { UnitConverter.displayToMm(it, current.lengthUnit) }
                         ?: 0,
                     sex = current.sex,
-                    birthYear = current.birthYearText.toIntOrNull()?.takeIf { it in 1900..2100 } ?: 0,
+                    birthYear = LocaleNumbers.integer(current.birthYearText)?.takeIf { it in 1900..2100 } ?: 0,
                     activityLevel = current.activityLevel,
                 ),
             )

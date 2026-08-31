@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- Every number field now reads numbers the way you write them. Most of Europe writes 82,4 for a weight, France groups with a space that is not a space, and an Arabic or Devanagari keyboard produces digits that are not 0 to 9 at all. All of those typed an ordinary weight into WeightTrack and got nothing back: a save button that stayed grey with no explanation, which reads as the app being broken rather than as the number being wrong.
+- The screen that asks for your fingerprint speaks your language too. Its two lines were the last English words in the app, on the first screen anybody meets, and the check that watches for that could not see them because they go in through a builder rather than onto a screen.
+
 - Reminders are booked again whenever the clock moves under them, not only when the phone restarts. Setting the time by hand, flying somewhere, and the clocks going forward or back all move a reminder set for half past seven to some other moment, and it stayed moved until the next reboot.
 - WeightTrack no longer asks for permission to schedule exact alarms. A daily weigh-in reminder is not an alarm clock: it now arrives within a few minutes of the time you set, it is still allowed to wake a sleeping phone, and the settings screen says so plainly instead of offering you a permission to go and grant.
 

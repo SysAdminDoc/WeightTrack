@@ -1,5 +1,6 @@
 package com.weighttrack.ui.food
 
+import com.weighttrack.core.format.LocaleNumbers
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -338,7 +339,7 @@ private fun AddFoodDialog(
     var fat by remember { mutableStateOf("") }
     var serving by remember { mutableStateOf("") }
 
-    val kcalValue = kcal.replace(',', '.').toDoubleOrNull()
+    val kcalValue = LocaleNumbers.decimal(kcal)
     val valid = name.isNotBlank() && kcalValue != null && kcalValue >= 0
 
     AlertDialog(
@@ -377,10 +378,10 @@ private fun AddFoodDialog(
                         name,
                         brand.takeIf { it.isNotBlank() },
                         kcalValue ?: 0.0,
-                        protein.replace(',', '.').toDoubleOrNull(),
-                        carbs.replace(',', '.').toDoubleOrNull(),
-                        fat.replace(',', '.').toDoubleOrNull(),
-                        serving.replace(',', '.').toDoubleOrNull(),
+                        LocaleNumbers.decimal(protein),
+                        LocaleNumbers.decimal(carbs),
+                        LocaleNumbers.decimal(fat),
+                        LocaleNumbers.decimal(serving),
                     )
                 },
             ) { Text(stringResource(R.string.common_save)) }

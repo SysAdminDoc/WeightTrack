@@ -121,13 +121,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Each destructive action removes the item immediately and offers one timed undo without a confirmation dialog; undo restores relationships and files with their original sync IDs; expiry writes one tombstone; process recreation during the undo window resolves deterministically and is covered by tests.
   Complexity: L
 
-- [ ] P1: Finish locale-safe text, weekdays, and numeric input
-  Why: Biometric, food, and settings literals bypass resources; enum weekdays render in English; several decimal fields use `toDoubleOrNull`, which rejects valid locale separators and digits.
-  Evidence: `app/src/main/java/com/weighttrack/security/AppLockSupport.kt:113`; `app/src/main/java/com/weighttrack/ui/food/FoodScreen.kt`; `app/src/main/java/com/weighttrack/ui/diary/DiaryScreen.kt:396-513`; https://developer.android.com/reference/java/text/NumberFormat
-  Touches: string resources, biometric prompt builder, weekday presentation, shared locale number parser, `NoHardcodedTextTest`
-  Acceptance: German comma decimals, French grouped values, and Arabic digits parse and round-trip in every weight, measurement, serving, and macro field; weekdays and default profile text use the active locale; the hardcoded-text test catches builder arguments, fragments, wrappers, and enum-derived labels.
-  Complexity: M
-
 - [ ] P1: Gate releases on accessibility and UI state coverage
   Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
   Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/

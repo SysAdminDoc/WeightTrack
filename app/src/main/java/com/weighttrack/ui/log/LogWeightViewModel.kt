@@ -1,5 +1,6 @@
 package com.weighttrack.ui.log
 
+import com.weighttrack.core.format.LocaleNumbers
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -128,7 +129,7 @@ class LogWeightViewModel @Inject constructor(
         viewModelScope.launch {
             val zone = ZoneId.systemDefault()
             val instant = current.date.atTime(current.time).atZone(zone).toInstant()
-            val bodyFat = current.bodyFatText.trim().toDoubleOrNull()?.takeIf { it in 1.0..75.0 }
+            val bodyFat = LocaleNumbers.decimal(current.bodyFatText)?.takeIf { it in 1.0..75.0 }
             val previous = existing
             if (previous != null) {
                 weightRepository.update(

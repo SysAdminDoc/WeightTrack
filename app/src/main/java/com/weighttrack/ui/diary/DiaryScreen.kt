@@ -1,5 +1,6 @@
 package com.weighttrack.ui.diary
 
+import com.weighttrack.core.format.LocaleNumbers
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -393,7 +394,7 @@ private fun AddFromFoodsDialog(
             dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
         )
     } else {
-        val amount = grams.toDoubleOrNull()
+        val amount = LocaleNumbers.decimal(grams)
         AlertDialog(
             onDismissRequest = onCancel,
             title = { Text(food.label) },
@@ -446,7 +447,7 @@ private fun AddFromFoodsDialog(
 private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, String) -> Unit) {
     var kcal by remember { mutableStateOf("") }
     var name by remember { mutableStateOf("") }
-    val amount = kcal.toDoubleOrNull()
+    val amount = LocaleNumbers.decimal(kcal)
 
     AlertDialog(
         onDismissRequest = onCancel,
@@ -506,11 +507,11 @@ private fun TargetDialog(
     var fat by remember { mutableStateOf(fieldFor(current?.fatG, current?.fatPercent, basis)) }
     var justThisDay by remember { mutableStateOf(false) }
 
-    val kcalValue = kcal.toDoubleOrNull()
+    val kcalValue = LocaleNumbers.decimal(kcal)
     val valid = kcalValue != null && kcalValue > 0
 
     fun grams(text: String, kcalPerGram: Double): Double? {
-        val value = text.toDoubleOrNull() ?: return null
+        val value = LocaleNumbers.decimal(text) ?: return null
         return if (basis == MacroBasis.GRAMS) {
             value
         } else {
