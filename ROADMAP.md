@@ -257,14 +257,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0 additions from 2026-08-31
 
-- [ ] P1: Lock resolved dependencies and verify every fetched artifact
-  Why: The version catalog pins direct coordinates and the wrapper has a checksum, but transitive versions and downloaded plugin or library bytes can still change without a reviewed lock or verification failure.
-  Evidence: `gradle/libs.versions.toml`; `gradle/wrapper/gradle-wrapper.properties`; absent `gradle.lockfile` and `gradle/verification-metadata.xml`; https://docs.gradle.org/current/userguide/dependency_locking.html; https://docs.gradle.org/current/userguide/dependency_verification.html
-  Touches: root and module Gradle configuration, lock state, `gradle/verification-metadata.xml`, local dependency-update and release checks
-  Note (2026-08-31 afternoon): plan around the documented generation traps. Metadata must be generated from a clean GRADLE_USER_HOME (gradle/gradle#19228), the configuration cache does not invalidate on metadata changes (#19716), settings-plugin locking breaks with version catalogs (#23727), and OkHttp 5.5.0 or newer signs with a Commonhaus key that needs trusting. JetBrains' Kotlin repository verification metadata is a working reference.
-  Acceptance: Strict lock state covers all resolvable app, Wear, test, plugin, and release configurations; changing a transitive version without refreshing locks fails; replacing a cached artifact with different bytes fails verification; the documented local update command regenerates metadata for review without disabling verification.
-  Complexity: M
-
 - [ ] P1: Publish release checksums and the stable APK signing identity
   Why: Direct-download users can verify neither asset integrity nor signing continuity from the current release materials, while comparable OSS users have explicitly requested the certificate fingerprint.
   Evidence: https://github.com/davidhealey/waistline/issues/950; https://github.com/guiloklex-hub/ControlaPeso/releases/tag/v1.1.0; https://github.com/SysAdminDoc/WeightTrack/releases/tag/v0.4.0; existing Android developer verification item

@@ -82,6 +82,19 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew checkFormFactorVersions    # build and verify the exact phone and watch version identity
 ```
 
+Every normal build uses strict dependency locks and checks the SHA-256 of each downloaded plugin
+or library. To review an intentional dependency update, regenerate the trust files from a fresh
+cache and then run the negative trust checks:
+
+```
+pwsh -NoProfile -File tools/update-dependency-trust.ps1
+pwsh -NoProfile -File tools/test-dependency-verification.ps1
+```
+
+The update command exercises unit and instrumentation paths plus every release assembly. Review
+all lockfile and `gradle/verification-metadata.xml` changes before committing them. The test command
+must report that Gradle refused both a forced transitive-version change and an altered cached JAR.
+
 Release builds are signed locally with a keystore described by `keystore.properties` in the repo root.
 
 The bundled offline food list is committed, so a normal build needs no network. To rebuild it from a fresh Open Food Facts export, run `py -3.13 tools/build_offline_foods.py`. That reads about 1.2 GB straight off the wire, keeps the most-scanned products per market and writes `app/src/main/assets/offline_foods.db` with a digest beside it.

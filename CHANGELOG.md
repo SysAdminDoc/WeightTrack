@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Gradle now locks every resolvable configuration in strict mode and verifies downloaded plugins and libraries against reviewed SHA-256 metadata. The update command starts with an empty cache and covers tests plus release builds. A separate regression command proves that an unreviewed transitive-version change and a modified cached JAR are both refused.
+
 - CSV imports now reject a non-empty time they cannot read instead of quietly replacing it with noon. Every rejected row is included in the import report, even when a file has more than five errors.
 
 - The CSV reader and weight importer now live in the shared core. Android and desktop use the

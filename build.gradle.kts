@@ -8,6 +8,17 @@ plugins {
     alias(libs.plugins.hilt) apply false
 }
 
+allprojects {
+    dependencyLocking {
+        lockAllConfigurations()
+        lockMode.set(org.gradle.api.artifacts.dsl.LockMode.STRICT)
+    }
+
+    buildscript.configurations.matching { it.name == "classpath" }.configureEach {
+        resolutionStrategy.activateDependencyLocking()
+    }
+}
+
 /**
  * Refuses a release the phone and the watch cannot both be published from.
  *
