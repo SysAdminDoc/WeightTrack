@@ -8,6 +8,7 @@ import com.weighttrack.core.io.Csv
 import com.weighttrack.core.io.ImportPreview
 import com.weighttrack.core.io.RowProblem
 import com.weighttrack.core.io.WeightCsvImporter
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -158,6 +159,7 @@ class BackupService @Inject constructor(
                     trendWindowDays = settings.trendWindowDays,
                     milestoneStepGrams = settings.milestoneStepGrams,
                     updatedAtUtcMillis = settings.updatedAtUtcMillis,
+                    smoothingMode = settings.smoothingMode.name,
                 ),
             )
             val backup = BackupFile(
@@ -188,6 +190,7 @@ class BackupService @Inject constructor(
                     activityLevel = settings.profile.activityLevel.name,
                     trendWindowDays = settings.trendWindowDays,
                     milestoneStepGrams = settings.milestoneStepGrams,
+                    smoothingMode = settings.smoothingMode.name,
                 ),
             )
             return BackupCodec.encode(backup) to entries.size
@@ -590,6 +593,7 @@ class BackupService @Inject constructor(
                     ),
                     trendWindowDays = stored.trendWindowDays,
                     milestoneStepGrams = stored.milestoneStepGrams,
+                    smoothingMode = decode(stored.smoothingMode, SmoothingMode.entries, current.smoothingMode),
                     updatedAtUtcMillis = System.currentTimeMillis(),
                 )
             }
@@ -674,6 +678,7 @@ class BackupService @Inject constructor(
                 ),
                 trendWindowDays = stored.trendWindowDays,
                 milestoneStepGrams = stored.milestoneStepGrams,
+                smoothingMode = decode(stored.smoothingMode, SmoothingMode.entries, current.smoothingMode),
                 updatedAtUtcMillis = System.currentTimeMillis(),
             )
         }

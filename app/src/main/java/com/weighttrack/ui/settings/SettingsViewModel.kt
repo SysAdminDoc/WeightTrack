@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.R
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.HealthDirection
 import com.weighttrack.core.model.LengthUnit
@@ -189,6 +190,10 @@ class SettingsViewModel @Inject constructor(
 
     fun setTrendWindow(days: Int) = viewModelScope.launch {
         settingsRepository.setTrendWindowDays(days)
+    }
+
+    fun setSmoothingMode(mode: SmoothingMode) = viewModelScope.launch {
+        settingsRepository.setSmoothingMode(mode)
     }
 
     fun setNutritionEnabled(enabled: Boolean) = viewModelScope.launch {

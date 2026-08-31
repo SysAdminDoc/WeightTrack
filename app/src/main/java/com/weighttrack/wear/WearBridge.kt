@@ -53,7 +53,7 @@ class WearSummaryBuilder @Inject constructor(
         val goal = goalRepository.active()
         return build(
             settings = settings,
-            series = if (daily.isEmpty()) null else TrendEngine.computeSeries(daily, settings.trendWindowDays),
+            series = if (daily.isEmpty()) null else TrendEngine.computeSeries(daily, settings.trendWindowDays, settings.smoothingMode),
             latest = latest,
             goalGrams = goal?.targetGrams,
             entryCount = weightRepository.count(),

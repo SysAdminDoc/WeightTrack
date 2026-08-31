@@ -78,7 +78,7 @@ class ProgressCalculator @Inject constructor(
     ): ProgressSnapshot {
         if (daily.isEmpty()) return ProgressSnapshot.empty(settings)
 
-        val series = TrendEngine.computeSeries(daily, settings.trendWindowDays)
+        val series = TrendEngine.computeSeries(daily, settings.trendWindowDays, settings.smoothingMode)
         val rate = TrendEngine.rate(series)
         val trendGrams = series.latestTrendGrams
 

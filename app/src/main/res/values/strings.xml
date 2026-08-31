@@ -905,4 +905,8 @@
     <string name="settings_health_origin_none">Nothing has arrived from another app yet.</string>
     <string name="history_from">From %1$s</string>
     <string name="settings_keep_lowest_of_day_explained">A second weigh-in after breakfast is the same morning plus a meal, not a second day. With this on, a day with several readings in Health Connect brings in the lowest one.</string>
+    <string name="settings_smoothing_average">Average</string>
+    <string name="settings_smoothing_slope">Slope</string>
+    <string name="settings_smoothing_average_explained">Averages your recent readings. Steady on a plateau, and slow to be moved by one heavy dinner, but it reads high while you are losing and low while you are gaining.</string>
+    <string name="settings_smoothing_slope_explained">Follows the direction you are heading as well as the weight, so it keeps up with a steady change instead of trailing a week behind it. Slightly quicker to react to a run of odd readings.</string>
 </resources>

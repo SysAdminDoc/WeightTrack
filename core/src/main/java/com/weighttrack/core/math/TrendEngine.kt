@@ -25,6 +25,8 @@ data class TrendPoint(
 data class TrendSeries(
     val points: List<TrendPoint>,
     val alpha: Double,
+    /** Which smoother produced these points, so a caller can say which line it is showing. */
+    val mode: SmoothingMode = SmoothingMode.EMA,
 ) {
     val isEmpty: Boolean get() = points.isEmpty()
     val latest: TrendPoint? get() = points.lastOrNull()
@@ -157,9 +159,10 @@ object TrendEngine {
     fun computeSeries(
         daily: List<DailyWeight>,
         windowDays: Int = DEFAULT_WINDOW_DAYS,
+        mode: SmoothingMode = SmoothingMode.EMA,
     ): TrendSeries {
         val alpha = alphaForWindow(windowDays)
-        if (daily.isEmpty()) return TrendSeries(emptyList(), alpha)
+        if (daily.isEmpty()) return TrendSeries(emptyList(), alpha, mode)
 
         val sorted = daily.sortedBy { it.date }
         val byDate = sorted.associateBy { it.date }
@@ -168,7 +171,15 @@ object TrendEngine {
 
         val points = ArrayList<TrendPoint>(ChronoUnit.DAYS.between(first, last).toInt() + 1)
         // Seeding the line with the first reading avoids a long artificial ramp from zero.
-        var trend = sorted.first().grams.toDouble()
+        var level = sorted.first().grams.toDouble()
+        // Grams per day, and only moved by Holt. Zero until a second reading gives it something
+        // to be measured from, so a single weigh-in projects nothing.
+        var slope = 0.0
+        // The slope is smoothed at the same rate as the level. Slowing it down reads well on
+        // paper, since a change of direction is rarer than a heavy dinner, but a slope that
+        // settles over months is still most of a kilo behind a steady loss a month in, which is
+        // the exact complaint this mode exists to answer.
+        val beta = alpha
         var lastMeasuredDate = first
 
         var date = first
@@ -180,14 +191,33 @@ object TrendEngine {
                     // Compounding alpha over the gap: one day reduces to plain `alpha`, and a
                     // long absence lets the reading dominate the stale trend as it should.
                     val factor = 1.0 - (1.0 - alpha).pow(gapDays.toDouble())
-                    trend += factor * (measured.grams - trend)
+                    if (mode == SmoothingMode.HOLT) {
+                        val before = level
+                        // Corrected from where the slope said the line would be by now, rather
+                        // than from the stale level. That is the whole of the difference: an
+                        // average is always answering the question one window late.
+                        val expected = level + slope * gapDays
+                        level = expected + factor * (measured.grams - expected)
+                        val observed = (level - before) / gapDays
+                        slope += (1.0 - (1.0 - beta).pow(gapDays.toDouble())) * (observed - slope)
+                    } else {
+                        level += factor * (measured.grams - level)
+                    }
                 }
                 lastMeasuredDate = date
             }
-            points += TrendPoint(date, trend, measured?.grams)
+            // Carried along the slope rather than held flat, so a fortnight between weigh-ins
+            // reads as the continuation it almost certainly was. Zero on a measured day, and
+            // always zero for the average, which has no slope to carry.
+            val carriedDays = if (mode == SmoothingMode.HOLT) {
+                ChronoUnit.DAYS.between(lastMeasuredDate, date).toDouble()
+            } else {
+                0.0
+            }
+            points += TrendPoint(date, level + slope * carriedDays, measured?.grams)
             date = date.plusDays(1)
         }
-        return TrendSeries(points, alpha)
+        return TrendSeries(points, alpha, mode)
     }
 
     /**

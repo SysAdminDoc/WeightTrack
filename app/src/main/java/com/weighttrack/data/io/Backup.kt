@@ -1,6 +1,7 @@
 package com.weighttrack.data.io
 
 import com.weighttrack.core.io.Csv
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.BodyMeasurement
 import com.weighttrack.core.model.EntrySource
@@ -189,6 +190,11 @@ data class BackupSettings(
     val activityLevel: String,
     val trendWindowDays: Int,
     val milestoneStepGrams: Int,
+    /**
+     * Which smoother draws the line. Defaulted, so a file written before the choice existed
+     * still reads, and an older build ignores it rather than refusing the file.
+     */
+    val smoothingMode: String = SmoothingMode.EMA.name,
 )
 
 /**

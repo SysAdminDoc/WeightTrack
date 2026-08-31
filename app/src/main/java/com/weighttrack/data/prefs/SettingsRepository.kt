@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.HealthDirection
@@ -30,6 +31,8 @@ data class AppSettings(
     val dynamicColor: Boolean = false,
     val profile: UserProfile = UserProfile(),
     val trendWindowDays: Int = TrendEngine.DEFAULT_WINDOW_DAYS,
+    /** Which smoother draws the line. The average is what every version has shown. */
+    val smoothingMode: SmoothingMode = SmoothingMode.EMA,
     /** Zero means "derive a round number from the current weight unit". */
     val milestoneStepGrams: Int = 0,
     val onboardingComplete: Boolean = false,
@@ -117,6 +120,8 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setHeightMm(heightMm: Int) = stamped { it[Keys.HEIGHT_MM] = heightMm }
+
+    suspend fun setSmoothingMode(mode: SmoothingMode) = stamped { it[Keys.SMOOTHING_MODE] = mode.name }
 
     suspend fun setTrendWindowDays(days: Int) = stamped {
         it[Keys.TREND_WINDOW_DAYS] = days.coerceIn(TrendEngine.MIN_WINDOW_DAYS, TrendEngine.MAX_WINDOW_DAYS)
@@ -274,6 +279,7 @@ class SettingsRepository @Inject constructor(
         activityLevel: ActivityLevel,
         trendWindowDays: Int,
         milestoneStepGrams: Int,
+        smoothingMode: SmoothingMode,
         updatedAtUtcMillis: Long,
     ) = edit {
         it[Keys.WEIGHT_UNIT] = weightUnit.name
@@ -285,6 +291,7 @@ class SettingsRepository @Inject constructor(
         it[Keys.ACTIVITY_LEVEL] = activityLevel.name
         it[Keys.TREND_WINDOW_DAYS] = trendWindowDays
         it[Keys.MILESTONE_STEP_GRAMS] = milestoneStepGrams
+        it[Keys.SMOOTHING_MODE] = smoothingMode.name
         // Kept as it arrived rather than set to now, or this device would look like the most
         // recent editor and hand its own copy straight back.
         it[Keys.SETTINGS_UPDATED_AT] = updatedAtUtcMillis
@@ -303,6 +310,7 @@ class SettingsRepository @Inject constructor(
             activityLevel = enumOrDefault(this[Keys.ACTIVITY_LEVEL], ActivityLevel.entries, ActivityLevel.LIGHT),
         ),
         trendWindowDays = this[Keys.TREND_WINDOW_DAYS] ?: TrendEngine.DEFAULT_WINDOW_DAYS,
+        smoothingMode = enumOrDefault(this[Keys.SMOOTHING_MODE], SmoothingMode.entries, SmoothingMode.EMA),
         milestoneStepGrams = this[Keys.MILESTONE_STEP_GRAMS] ?: 0,
         onboardingComplete = this[Keys.ONBOARDING_COMPLETE] ?: false,
         reminderEnabled = this[Keys.REMINDER_ENABLED] ?: false,
@@ -409,6 +417,7 @@ class SettingsRepository @Inject constructor(
         val BIRTH_YEAR = intPreferencesKey("birth_year")
         val ACTIVITY_LEVEL = stringPreferencesKey("activity_level")
         val TREND_WINDOW_DAYS = intPreferencesKey("trend_window_days")
+        val SMOOTHING_MODE = stringPreferencesKey("smoothing_mode")
         val MILESTONE_STEP_GRAMS = intPreferencesKey("milestone_step_grams")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")

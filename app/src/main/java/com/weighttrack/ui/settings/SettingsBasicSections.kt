@@ -18,6 +18,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import android.os.Build
 import com.weighttrack.R
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.ThemeMode
@@ -93,6 +94,23 @@ internal fun LazyListScope.trendSmoothingSection(
     SettingsSection {
         SectionHeading(stringResource(R.string.settings_trend_smoothing))
         Spacer(Modifier.height(4.dp))
+        ChipRow(
+            options = SmoothingMode.entries.map { it to smoothingModeLabel(it) },
+            selected = settings.smoothingMode,
+            onSelect = viewModel::setSmoothingMode,
+        )
+        Spacer(Modifier.height(4.dp))
+        Text(
+            text = stringResource(
+                when (settings.smoothingMode) {
+                    SmoothingMode.EMA -> R.string.settings_smoothing_average_explained
+                    SmoothingMode.HOLT -> R.string.settings_smoothing_slope_explained
+                },
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
         Text(
             text = stringResource(R.string.settings_a_shorter_window_follows_the_scale),
             style = MaterialTheme.typography.bodySmall,

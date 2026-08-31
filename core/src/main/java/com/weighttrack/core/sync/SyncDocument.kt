@@ -298,6 +298,13 @@ data class SyncSettings(
     val trendWindowDays: Int,
     val milestoneStepGrams: Int,
     val updatedAtUtcMillis: Long,
+    /**
+     * Which smoother draws the line, by name.
+     *
+     * Defaulted, so a document written by a device that has not been updated still reads and an
+     * older device ignores the field rather than refusing the whole file.
+     */
+    val smoothingMode: String = com.weighttrack.core.math.SmoothingMode.EMA.name,
 )
 
 /**

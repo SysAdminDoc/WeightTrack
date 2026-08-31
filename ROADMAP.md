@@ -118,14 +118,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: with the permission granted and periods recorded, the chart shows a band for each period and the weekday/insight cards exclude those days from "unusual" calls; a core test shows expenditure moves less than 50 kcal when a flagged 0.5 kg spike is injected versus more without the flag; refusing the permission changes nothing else.
   Complexity: L
 
-- [ ] P2: Holt double-exponential trend as a selectable smoothing mode
-  Why: an EMA lags a steady slope by design; TrendWeight 2.11.0 (2026-08-26) added Holt's linear trend for exactly this, trale #481 proposes a Kalman equivalent, and Happy Scale offers four modes.
-  Evidence: https://github.com/trendweight/trendweight/issues/396 ; https://github.com/QuantumPhysique/trale/issues/481 ; https://happyscale.com/support ; core/src/main/java/com/weighttrack/core/math/TrendEngine.kt
-  Touches: core/math/TrendEngine.kt (second smoother with the same gap-aware compounding), data/prefs/SettingsRepository.kt (mode), ui/settings smoothing section, ui/components/TrendChart.kt (no change if TrendSeries stays the shape)
-  Note (2026-08-31 afternoon): if a second smoother is added, structural/Kalman is the evidence-backed candidate after Holt. It had the best agreement on gappy real smart-scale data (https://pmc.ncbi.nlm.nih.gov/articles/PMC7519428/), and per-point uncertainty bands would be a first among consumer trackers.
-  Acceptance: on a synthetic steady 0.5 kg/week loss the Holt trend lags the true line by under 0.1 kg after 30 days where the EMA lags by more; milestones, rate and ETA all read off whichever mode is chosen; the default stays EMA alpha 0.1.
-  Complexity: M
-
 - [ ] P2: Use step counts as a confidence signal for expenditure updates and correct for a goal switch
   Why: MacroFactor's 2025 modifiers (steps never converted to kcal, expenditure shifted by 4× the weekly %-change target when the goal changes) cut median 100-day prediction error by about 20 percent; steps are already read from Health Connect.
   Evidence: https://macrofactor.com/expenditure-modifiers/ ; https://macrofactor.com/expenditure-v3/ ; core/src/main/java/com/weighttrack/core/math/AdaptiveExpenditure.kt

@@ -107,7 +107,7 @@ class WeightWidget : GlanceAppWidget() {
         )
         val settings = entryPoint.settingsRepository().settings.first()
         val daily = entryPoint.weightRepository().observeDailyWeights().first()
-        val series = if (daily.isEmpty()) null else TrendEngine.computeSeries(daily, settings.trendWindowDays)
+        val series = if (daily.isEmpty()) null else TrendEngine.computeSeries(daily, settings.trendWindowDays, settings.smoothingMode)
         return buildWidgetData(
             appLockEnabled = settings.appLockEnabled,
             unit = settings.weightUnit,

@@ -2,6 +2,7 @@ package com.weighttrack.data.sync
 
 import android.content.Context
 import android.net.Uri
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -157,6 +158,7 @@ class SyncEngine @Inject constructor(
                 activityLevel = local.profile.activityLevel.name,
                 trendWindowDays = local.trendWindowDays,
                 milestoneStepGrams = local.milestoneStepGrams,
+                smoothingMode = local.smoothingMode.name,
                 updatedAtUtcMillis = local.updatedAtUtcMillis,
             ),
         )
@@ -216,6 +218,7 @@ class SyncEngine @Inject constructor(
             activityLevel = decode(remote.activityLevel, ActivityLevel.entries, local.profile.activityLevel),
             trendWindowDays = remote.trendWindowDays,
             milestoneStepGrams = remote.milestoneStepGrams,
+            smoothingMode = decode(remote.smoothingMode, SmoothingMode.entries, local.smoothingMode),
             updatedAtUtcMillis = remote.updatedAtUtcMillis,
         )
     }

@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.weighttrack.R
+import com.weighttrack.core.math.SmoothingMode
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -93,6 +94,12 @@ internal fun weightUnitLabel(unit: WeightUnit): String = when (unit) {
 internal fun lengthUnitLabel(unit: LengthUnit): String = when (unit) {
     LengthUnit.CM -> stringResource(R.string.settings_centimetres)
     LengthUnit.IN -> stringResource(R.string.settings_inches)
+}
+
+@Composable
+internal fun smoothingModeLabel(mode: SmoothingMode): String = when (mode) {
+    SmoothingMode.EMA -> stringResource(R.string.settings_smoothing_average)
+    SmoothingMode.HOLT -> stringResource(R.string.settings_smoothing_slope)
 }
 
 @Composable
