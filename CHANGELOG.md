@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A barcode you scan now always reaches the Foods screen. The scanner closed itself the moment it read a code, which took the half-finished lookup down with it, so a slow answer, a product that is not in the database and a rate-limited request could all disappear before you saw anything.
+
 ## 0.4.0 (2026-08-31)
 
 - Reworked the eight main screens around the new Quiet Ledger interface. It uses true black, flatter sections, compact rectangular controls and one mint accent throughout.

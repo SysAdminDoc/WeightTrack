@@ -429,8 +429,13 @@ fun WeightTrackApp(
                 )
             }
 
-            composable(Routes.SCAN) {
-                val viewModel: FoodViewModel = hiltViewModel()
+            composable(Routes.SCAN) { entry ->
+                // The lookup outlives this route: the scanner pops itself the moment it reads a
+                // barcode, so a view model owned by the scan entry would be cleared, its scope
+                // cancelled, and the answer thrown away. Scan is only ever reached from Foods, so
+                // it borrows Foods' own owner and the result lands on the screen that asked.
+                val foods = remember(entry) { navController.getBackStackEntry(Routes.FOODS) }
+                val viewModel: FoodViewModel = hiltViewModel(foods)
                 ScanScreen(
                     reader = viewModel.barcodeReader,
                     onScanned = { code ->

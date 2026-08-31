@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0: Fix barcode lookup result ownership across navigation
-  Why: Scan creates a separate `FoodViewModel`, starts an asynchronous lookup, and pops the route, so the result can be cancelled or discarded instead of reaching Foods.
-  Evidence: `app/src/main/java/com/weighttrack/ui/WeightTrackApp.kt:401-427`; `app/src/main/java/com/weighttrack/ui/food/FoodViewModel.kt:149`
-  Touches: `ui/WeightTrackApp.kt`, `ui/food/FoodViewModel.kt`, navigation tests for both flavors
-  Acceptance: A delayed successful scan from either flavor returns to Foods and opens or updates that product exactly once; not-found and network-failure results remain visible after the scanner route closes; a navigation test fails if Scan and Foods use disconnected result owners.
-  Complexity: S
-
 - [ ] P0: Make structured backup complete and profile-safe
   Why: The current JSON exports only active-profile readings and omits profiles, water, fasts, macro targets, tombstones, and other stored state; food-log rows can be dropped when restored profile IDs do not match the source installation.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt:140`; `app/src/main/java/com/weighttrack/data/io/BackupService.kt:82-212`; `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:628-650`
