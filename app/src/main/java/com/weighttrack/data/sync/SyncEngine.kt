@@ -80,12 +80,30 @@ class SyncEngine @Inject constructor(
         }
 
         val documents = mutableListOf(snapshot(deviceId, now))
+        // Anything a peer sent that this phone would not hold. Reported once the run is over
+        // rather than stopping it: one bad file must not stop every other device syncing.
+        val refused = mutableListOf<String>()
         for (name in peers) {
             when (val read = target.read(name)) {
                 is SyncOutcome.Ok -> read.value?.let { text ->
                     // A file that will not parse is skipped rather than fatal. Something being
                     // written at this moment by a folder sync tool is a normal thing to meet.
-                    SyncDocument.decode(text)?.let { documents += it }
+                    SyncDocument.decode(text)?.let { document ->
+                        // And one that parses can still be absurd: a quarter of a million
+                        // readings, or a note the length of a book. Skipped the same way, with
+                        // the file said out loud, and everything already read left alone.
+                        val problem = com.weighttrack.core.sync.SyncBudget.problemWith(document)
+                        if (problem == null) {
+                            documents += document
+                        } else {
+                            runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_DOCUMENT_REFUSED)
+                            refused += strings[
+                                com.weighttrack.R.string.sync_document_refused,
+                                name,
+                                problem,
+                            ]
+                        }
+                    }
                 }
                 is SyncOutcome.Refused -> return@withLock finish(now, SyncResult.Refused(read.reason))
                 is SyncOutcome.Unreachable ->
@@ -113,7 +131,7 @@ class SyncEngine @Inject constructor(
                 return@withLock finish(now, SyncResult.Unreachable(written.reason))
         }
 
-        finish(now, SyncResult.Done(changes, devices = documents.size))
+        finish(now, SyncResult.Done(changes, devices = documents.size), refused)
     }
 
     private suspend fun snapshot(deviceId: String, now: Long): SyncDocument {
@@ -195,7 +213,12 @@ class SyncEngine @Inject constructor(
     private fun <T : Enum<T>> decode(name: String, values: List<T>, fallback: T): T =
         values.firstOrNull { it.name == name } ?: fallback
 
-    private suspend fun finish(now: Long, incoming: SyncResult): SyncResult {
+    private suspend fun finish(
+        now: Long,
+        incoming: SyncResult,
+        /** Peers whose file this phone would not hold, named so somebody can go and look. */
+        refused: List<String> = emptyList(),
+    ): SyncResult {
         val result = explainLocalNetwork(incoming)
         val message = when (result) {
             is SyncResult.Done -> when {
@@ -211,6 +234,10 @@ class SyncEngine @Inject constructor(
             is SyncResult.Refused -> result.reason
             is SyncResult.Unreachable -> result.reason
             SyncResult.NotSetUp -> null
+        }?.let { said ->
+            // Said on the settings row rather than only in the log. A device quietly left out of
+            // every sync is exactly the failure somebody needs to be told about.
+            if (refused.isEmpty()) said else said + " " + refused.first()
         }
         when (result) {
             is SyncResult.Done -> runtimeLog.write(

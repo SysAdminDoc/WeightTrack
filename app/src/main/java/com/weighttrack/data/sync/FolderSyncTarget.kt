@@ -55,12 +55,25 @@ class FolderSyncTarget(
         val file = folder.findFile(name)
         if (file == null || !file.isFile) return@withContext SyncOutcome.Ok(null)
         runCatching {
-            context.contentResolver.openInputStream(file.uri)?.use { it.readBytes().decodeToString() }
+            context.contentResolver.openInputStream(file.uri)?.use {
+                // Bounded while reading. A file in a shared folder is written by something
+                // outside this app, and a hundred megabytes of anything at all was enough to
+                // take the app down before a line of it had been parsed.
+                com.weighttrack.core.sync.SyncBudget.readBounded(it)
+                    ?: return@runCatching TOO_LARGE
+            }
         }.fold(
             {
-                // A file being written by the sync tool at this moment reads as nothing or as
-                // half a document. Neither is a reason to stop: the next run picks it up.
-                SyncOutcome.Ok(it)
+                when (it) {
+                    // Refused rather than retried: it will be the same size in an hour, and the
+                    // documents already read stay exactly as they are.
+                    TOO_LARGE -> SyncOutcome.Refused(
+                        say(com.weighttrack.R.string.sync_file_too_large, name),
+                    )
+                    // A file being written by the sync tool at this moment reads as nothing or
+                    // as half a document. Neither is a reason to stop: the next run picks it up.
+                    else -> SyncOutcome.Ok(it)
+                }
             },
             {
                 SyncOutcome.Unreachable(
@@ -100,6 +113,9 @@ class FolderSyncTarget(
         }
 
     private companion object {
+        /** Stands in for "there was more than this app will read". Never a real document. */
+        const val TOO_LARGE = "\u0000too-large"
+
         const val MIME = "application/json"
     }
 }

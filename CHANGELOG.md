@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Sync now has a limit on what another device can ask this phone to hold. A file in a shared folder is written by something outside WeightTrack and a WebDAV server is somebody else's machine, and nothing bounded what came back: not the size, not the number of records, not the length of a single note. Anything past the limit is skipped, named on the settings row so you can go and look at it, and nothing already synced is touched.
+
 - A goal with a damaged date is now repaired once instead of being read as today, every day. The same broken row used to say something different every morning: the progress bar moved, the projected date moved, and nothing said the date could not be read. It is now read as the day the goal was made, written back so the row stops being damaged, and noted in the activity log.
 
 - Health Connect having a bad minute no longer costs you a five-year reread. Any failure at all used to be treated as the app having lost its place, so a busy provider, a rate limit and a permission withdrawn months ago all triggered the most expensive query the app can make, once an hour, until whatever it was went away. Only a place Health Connect has genuinely forgotten is replaced now, and even then the app reads back a couple of days rather than five years.

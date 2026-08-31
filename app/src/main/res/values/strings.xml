@@ -714,6 +714,8 @@
     <string name="restore_count_foods">Foods</string>
     <string name="restore_count_food_log">Diary entries</string>
     <string name="sync_could_not_create">Could not create %1$s in that folder.</string>
+    <string name="sync_file_too_large">%1$s is far too large to be a WeightTrack file. It was skipped and nothing already synced was changed.</string>
+    <string name="sync_document_refused">%1$s does not look like something WeightTrack wrote (%2$s). It was skipped.</string>
     <string name="sync_apply_failed">Could not write the merged data. Nothing was changed; the next sync will try again.</string>
     <string name="sync_could_not_write">Could not write to %1$s.</string>
     <string name="health_not_available">Health Connect is not available on this device.</string>

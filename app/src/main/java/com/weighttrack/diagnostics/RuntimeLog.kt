@@ -27,6 +27,9 @@ enum class LogEvent {
 
     /** A merge could not be written to the database, so nothing of it was written. */
     SYNC_APPLY_FAILED,
+
+    /** A peer sent something this phone would not hold: too big, or absurd once decoded. */
+    SYNC_DOCUMENT_REFUSED,
     LOCAL_NETWORK_NOT_ALLOWED,
     WEBDAV_REQUEST_FAILED,
     WEBDAV_TRANSPORT_FAILED,

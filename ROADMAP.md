@@ -142,13 +142,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Invalid format, unreadable URI, insufficient storage, database failure, and missing file each produce a specific toast or inline status and diagnostic event; no failed operation leaves a database row or orphan file; retry succeeds without duplicating the photo.
   Complexity: S
 
-- [ ] P1: Enforce payload budgets for folder and WebDAV sync
-  Why: Both targets materialize an entire remote response with no byte, document, row, or string limits, so a malformed peer can exhaust memory before decode.
-  Evidence: `app/src/main/java/com/weighttrack/data/sync/FolderSyncTarget.kt:58`; `app/src/main/java/com/weighttrack/data/sync/WebDavSyncTarget.kt:119`; https://cheatsheetseries.owasp.org/cheatsheets/Input_Validation_Cheat_Sheet.html
-  Touches: sync target streaming reads, `SyncDocument` validation, engine diagnostics, adversarial fixtures
-  Acceptance: Configured hard limits are checked while streaming and before decode; oversized documents, excessive collections, and oversized strings are rejected with the source filename or URL; the last valid local and remote documents remain unchanged; boundary-size tests pass for folder and WebDAV targets.
-  Complexity: M
-
 - [ ] P1: Gate releases on accessibility and UI state coverage
   Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
   Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/

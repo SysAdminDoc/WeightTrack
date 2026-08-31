@@ -199,6 +199,36 @@ class SyncEngineCommitTest {
     }
 
     @Test
+    fun `a peer sending something absurd is skipped and everything else still syncs`() = runTest {
+        // A note the length of a book, which is cheap to build and refused for the same reason
+        // a quarter of a million readings would be: nobody wrote it.
+        val absurd = peerDocument(
+            listOf(
+                weight("w-1", 80_000)
+                    .copy(note = "x".repeat(com.weighttrack.core.sync.SyncBudget.MAX_STRING + 1)),
+            ),
+        )
+        val engine = engineWith(absurd)
+
+        val result = engine.syncNow(now)
+
+        // Skipped rather than fatal, and skipped rather than applied. One device sending
+        // something nobody could have written must not stop the phone syncing with the rest.
+        assertThat(result).isInstanceOf(SyncResult.Done::class.java)
+        assertThat(database.syncDao().weights()).isEmpty()
+        assertThat(target.published).isNotNull()
+    }
+
+    @Test
+    fun `a peer sending an ordinary document is not skipped`() = runTest {
+        val engine = engineWith(peerDocument(listOf(weight("w-1", 80_000))))
+
+        engine.syncNow(now)
+
+        assertThat(database.syncDao().weights()).hasSize(1)
+    }
+
+    @Test
     fun `a merge that lands is published and leaves no note behind`() = runTest {
         val engine = engineWith(peerDocument(listOf(weight("w-1", 80_000)), settings = theirs))
 

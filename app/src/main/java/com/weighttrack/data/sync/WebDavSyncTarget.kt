@@ -91,6 +91,12 @@ class WebDavSyncTarget(
             code = code,
         ).let {
             when {
+            // More than this app will read. Refused rather than retried: it will be the same
+            // size in an hour, and nothing already synced is touched.
+            code == TOO_LARGE ->
+                SyncOutcome.Refused(
+                    say(com.weighttrack.R.string.sync_file_too_large, arrayOf(baseUrl)),
+                )
             // Nothing the person can do about these, and they usually pass.
             code == 0 ->
                 SyncOutcome.Unreachable(say(com.weighttrack.R.string.sync_server_unreachable, emptyArray()))
@@ -116,7 +122,16 @@ class WebDavSyncTarget(
                     .apply { request.headers.forEach { (key, value) -> header(key, value) } }
                     .build()
                 http.newCall(built).execute().use { response ->
-                    WebDavClient.Response(response.code, response.body.string())
+                    // Bounded while reading rather than by the length the server reported. A
+                    // server can say one thing and send another, and by the time the difference
+                    // shows up the memory is already gone.
+                    val body = com.weighttrack.core.sync.SyncBudget
+                        .readBounded(response.body.byteStream())
+                    if (body == null) {
+                        WebDavClient.Response(TOO_LARGE, "")
+                    } else {
+                        WebDavClient.Response(response.code, body)
+                    }
                 }
             }.getOrElse {
                 // No signal, no such host, a certificate the phone will not accept. A zero means
@@ -127,6 +142,15 @@ class WebDavSyncTarget(
         }
 
     private companion object {
+        /**
+         * Stands in for "the server sent more than this app will read".
+         *
+         * A code of its own rather than an exception, so it travels the same path every other
+         * answer does and gets the same refusal treatment: skipped, said out loud, and nothing
+         * already synced touched.
+         */
+        const val TOO_LARGE = -1
+
         const val CONNECT_TIMEOUT_SECONDS = 15L
         const val READ_TIMEOUT_SECONDS = 45L
         val JSON = "application/json".toMediaType()
