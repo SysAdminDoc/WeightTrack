@@ -14,6 +14,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material3.Button
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
@@ -42,7 +44,7 @@ import com.weighttrack.core.model.GoalDirection
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.LabelledValue
 import com.weighttrack.ui.components.GoalProgressBar
-import com.weighttrack.ui.components.SectionCard
+import com.weighttrack.ui.components.LedgerSection
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.WeightKeypad
@@ -147,7 +149,7 @@ fun GoalScreen(
 
             WeightKeypad(onDigit = onDigit, onBackspace = onBackspace, onClear = onClear)
 
-            SectionCard(contentPadding = PaddingValues(12.dp)) {
+            LedgerSection(contentPadding = PaddingValues(vertical = 14.dp)) {
                 SectionHeading(stringResource(R.string.goal_milestones))
                 Spacer(Modifier.height(4.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -194,15 +196,31 @@ fun GoalScreen(
                 }
             }
 
-            SectionCard(contentPadding = PaddingValues(12.dp)) {
+            LedgerSection(contentPadding = PaddingValues(vertical = 14.dp)) {
                 SectionHeading(stringResource(R.string.goal_target_date))
-                Spacer(Modifier.height(4.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Spacer(Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.CalendarMonth,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                    )
                     TextButton(onClick = { showDatePicker = true }) {
                         Text(state.targetDate?.let { DateFormatters.fullDate(it) } ?: stringResource(R.string.goalscreen_pick_date))
                     }
+                    Spacer(Modifier.weight(1f))
                     if (state.targetDate != null) {
                         TextButton(onClick = { onTargetDateChange(null) }) { Text(stringResource(R.string.goal_clear)) }
+                    } else {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 }
                 state.requiredGramsPerDay(today)?.let { perDay ->

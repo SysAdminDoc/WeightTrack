@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.weighttrack.R
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
@@ -61,12 +60,22 @@ fun OnboardingScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(stringResource(R.string.onboarding_weighttrack), style = MaterialTheme.typography.titleLarge)
-            Icon(
-                Icons.Outlined.Lock,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            Text(stringResource(R.string.onboarding_weighttrack), style = MaterialTheme.typography.headlineMedium)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Icon(
+                    Icons.Outlined.Lock,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = stringResource(R.string.app_privacy_first),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
         }
         Spacer(Modifier.height(26.dp))
         StepProgress(
@@ -130,21 +139,20 @@ fun OnboardingScreen(
 @Composable
 private fun StepProgress(total: Int, current: Int) {
     Row(
-        modifier = Modifier.fillMaxWidth(0.58f),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         repeat(total) { index ->
             Box(
                 Modifier
                     .weight(1f)
-                    .height(4.dp)
+                    .height(3.dp)
                     .background(
                         color = if (index <= current) {
                             MaterialTheme.colorScheme.primary
                         } else {
                             MaterialTheme.colorScheme.surfaceContainerHighest
                         },
-                        shape = RoundedCornerShape(2.dp),
                     ),
             )
         }
@@ -155,7 +163,7 @@ private fun StepProgress(total: Int, current: Int) {
 private fun UnitsStep(state: OnboardingUiState, viewModel: OnboardingViewModel) {
     Text(
         stringResource(R.string.onboarding_your_weight_your_data),
-        style = MaterialTheme.typography.displaySmall.copy(fontSize = 32.sp, lineHeight = 38.sp),
+        style = MaterialTheme.typography.displaySmall,
     )
     Spacer(Modifier.height(12.dp))
     Text(

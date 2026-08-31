@@ -3,6 +3,7 @@ package com.weighttrack.ui.measurements
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
@@ -36,7 +38,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.weighttrack.R
 import com.weighttrack.core.model.MeasurementType
-import com.weighttrack.ui.components.SectionCard
+import com.weighttrack.ui.components.LedgerSection
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.core.format.LengthFormatter
@@ -74,7 +76,7 @@ fun MeasurementsScreen(
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             item {
-                SectionCard(contentPadding = PaddingValues(horizontal = 16.dp, vertical = 18.dp)) {
+                LedgerSection(contentPadding = PaddingValues(vertical = 18.dp)) {
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(14.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -98,7 +100,13 @@ fun MeasurementsScreen(
                 }
             }
 
-            item { SectionHeading(stringResource(R.string.measurements_body_fat_estimate), Modifier.padding(top = 8.dp)) }
+            item {
+                MeasurementSectionHeading(
+                    text = stringResource(R.string.measurements_body_fat_estimate),
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.padding(top = 8.dp),
+                )
+            }
             item {
                 MeasurementGroup(
                     types = MeasurementType.entries.filter { it.usedForBodyFat },
@@ -108,7 +116,13 @@ fun MeasurementsScreen(
                 )
             }
 
-            item { SectionHeading(stringResource(R.string.measurements_other_measurements), Modifier.padding(top = 12.dp)) }
+            item {
+                MeasurementSectionHeading(
+                    text = stringResource(R.string.measurements_other_measurements),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
             item {
                 MeasurementGroup(
                     types = MeasurementType.entries.filter { !it.usedForBodyFat },
@@ -157,15 +171,13 @@ private fun MeasurementGroup(
     onStartEditing: (MeasurementType) -> Unit,
 ) {
     Column(
-        Modifier
-            .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surfaceContainer),
+        Modifier.fillMaxWidth(),
     ) {
         types.forEachIndexed { index, type ->
             MeasurementRow(type, state, today, onStartEditing)
             if (index < types.lastIndex) {
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 16.dp),
+                    modifier = Modifier.padding(start = 4.dp),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f),
                 )
             }
@@ -185,7 +197,7 @@ private fun MeasurementRow(
         Modifier
             .fillMaxWidth()
             .clickable { onStartEditing(type) }
-            .padding(horizontal = 16.dp, vertical = 16.dp),
+            .padding(horizontal = 4.dp, vertical = 16.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -214,6 +226,19 @@ private fun MeasurementRow(
             tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 8.dp),
         )
+    }
+}
+
+@Composable
+private fun MeasurementSectionHeading(
+    text: String,
+    color: androidx.compose.ui.graphics.Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(modifier, verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.width(3.dp).height(18.dp).background(color))
+        Spacer(Modifier.width(10.dp))
+        SectionHeading(text)
     }
 }
 

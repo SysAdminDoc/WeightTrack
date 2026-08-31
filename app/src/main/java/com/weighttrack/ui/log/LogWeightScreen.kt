@@ -17,6 +17,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Button
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +47,7 @@ import androidx.compose.ui.unit.dp
 import com.weighttrack.R
 import com.weighttrack.core.model.EntryTag
 import com.weighttrack.core.model.WeightUnit
-import com.weighttrack.ui.components.SectionCard
+import com.weighttrack.ui.components.LedgerSection
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.WeightKeypad
@@ -162,7 +163,10 @@ fun LogWeightScreen(
                 Text(if (state.isEditing) stringResource(R.string.logweightscreen_save_changes) else stringResource(R.string.logweightscreen_save_weight))
             }
 
-            SectionCard {
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f),
+            )
+            LedgerSection(showDivider = false) {
                 SectionHeading(stringResource(R.string.log_context))
                 Spacer(Modifier.height(8.dp))
                 val preferredTags = listOf(

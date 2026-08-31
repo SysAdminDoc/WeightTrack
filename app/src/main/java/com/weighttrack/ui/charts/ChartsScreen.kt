@@ -37,6 +37,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.ui.graphics.RectangleShape
 import com.weighttrack.R
 import com.weighttrack.core.math.Analytics
 import com.weighttrack.core.math.WeeklyChange
@@ -51,6 +53,7 @@ import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.components.SegmentButton
 import com.weighttrack.ui.components.TrendChart
 import com.weighttrack.core.format.WeightFormatter
+import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.theme.LocalTrendColors
 import com.weighttrack.ui.theme.rememberTrendChartColors
 import java.time.LocalDate
@@ -146,7 +149,7 @@ fun ChartsScreen(
         }
 
         if (weekly.isNotEmpty()) {
-            item { WeeklyChangeCard(weekly, unit, snapshot.goal?.direction) }
+            item { WeeklyChangeCard(weekly, unit, snapshot.goal?.direction, today) }
         }
 
         if (weekdays.size >= 3) {
@@ -170,7 +173,7 @@ private fun ChartLegend(label: String, color: Color, dot: Boolean = false) {
         Box(
             Modifier
                 .size(width = if (dot) 6.dp else 20.dp, height = if (dot) 6.dp else 2.dp)
-                .clip(RoundedCornerShape(2.dp))
+                .clip(if (dot) CircleShape else RectangleShape)
                 .background(color),
         )
         Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -182,19 +185,21 @@ private fun WeeklyChangeCard(
     weekly: List<WeeklyChange>,
     unit: WeightUnit,
     direction: com.weighttrack.core.model.GoalDirection?,
+    today: LocalDate,
 ) {
     val trendColors = LocalTrendColors.current
     val goodColor = trendColors.losing
     val badColor = trendColors.gaining
     val gaining = direction == com.weighttrack.core.model.GoalDirection.GAIN
 
+    val displayed = weekly.takeLast(4)
     Column(Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.72f))
         Spacer(Modifier.height(14.dp))
         SectionHeading(stringResource(R.string.charts_week_by_week))
         Spacer(Modifier.height(10.dp))
-        val best = weekly.minByOrNull { it.changeGrams }
-        val average = weekly.map { it.changeGrams }.average()
+        val best = displayed.minByOrNull { it.changeGrams }
+        val average = displayed.map { it.changeGrams }.average()
         Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
             Column(Modifier.weight(1f)) {
                 Text(
@@ -224,15 +229,15 @@ private fun WeeklyChangeCard(
             }
         }
         Spacer(Modifier.height(14.dp))
-        val maxMagnitude = max(weekly.maxOf { abs(it.changeGrams) }, 1.0)
-        val weeklyDescription = stringResource(R.string.chart_weekly_description, weekly.size)
+        val maxMagnitude = max(displayed.maxOf { abs(it.changeGrams) }, 1.0)
+        val weeklyDescription = stringResource(R.string.chart_weekly_description, displayed.size)
         Canvas(
             Modifier
                 .fillMaxWidth()
                 .height(84.dp)
                 .semantics { contentDescription = weeklyDescription },
         ) {
-            val slot = size.width / weekly.size
+            val slot = size.width / displayed.size
             val barWidth = (slot * 0.6f).coerceAtMost(28f)
             val midY = size.height / 2f
             drawLine(
@@ -241,7 +246,7 @@ private fun WeeklyChangeCard(
                 end = Offset(size.width, midY),
                 strokeWidth = 1f,
             )
-            weekly.forEachIndexed { index, week ->
+            displayed.forEachIndexed { index, week ->
                 val fraction = (week.changeGrams / maxMagnitude).toFloat()
                 val barHeight = abs(fraction) * (midY - 6f)
                 val left = index * slot + (slot - barWidth) / 2f
@@ -252,6 +257,18 @@ private fun WeeklyChangeCard(
                     topLeft = Offset(left, if (losingWeight) midY else midY - barHeight),
                     size = Size(barWidth, barHeight.coerceAtLeast(2f)),
                     cornerRadius = CornerRadius(4f, 4f),
+                )
+            }
+        }
+        Spacer(Modifier.height(4.dp))
+        Row(Modifier.fillMaxWidth()) {
+            displayed.forEach { week ->
+                Text(
+                    text = DateFormatters.shortDate(week.weekEnd, today),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    modifier = Modifier.weight(1f),
                 )
             }
         }
