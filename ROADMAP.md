@@ -219,13 +219,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: with the mode on, widget and tile show an arrow and the delta from trend with no absolute weight; a widget snapshot test asserts no digit sequence resembling a weight.
   Complexity: S
 
-- [ ] P3: Move the wear module to targetSdk 36 with the Tiles 1.6 interaction API
-  Why: Wear target 35 already meets the 2026-08-31 Play requirement; this proactive bump prepares for the Tiles 1.6 removal of `onEnterEvent` and `onLeaveEvent` at target 36 by moving to `onRecentInteractionEvents` in the same change.
-  Evidence: https://developer.android.com/google/play/requirements/target-sdk ; https://developer.android.com/jetpack/androidx/releases/wear-tiles ; wear/build.gradle.kts (targetSdk 35)
-  Touches: wear/build.gradle.kts, wear/WeightTileService.kt
-  Acceptance: `:wear:assembleRelease` at targetSdk 36 with no deprecation warning from tiles; the tile still refreshes after a phone-side change on the Wear AVD.
-  Complexity: S
-
 - [ ] P3: Bump Compose BOM to 2026.08.00, Material3 1.4.0, OkHttp 5.5.0
   Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and the 5.4.0 response-header cap, and 5.5.0 rotated its signing key. (2026-08-31: everything else in the catalog verified current; Kotlin 2.4.20 with the KAPT CVE fix is due September 2026 and can ride along when stable.)
   Evidence: https://developer.android.com/jetpack/androidx/releases/compose-ui ; https://developer.android.com/jetpack/androidx/releases/compose-material3 ; https://github.com/square/okhttp/blob/master/CHANGELOG.md ; gradle/libs.versions.toml
@@ -254,13 +247,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://github.com/LuminaAppsDev/cairn; https://github.com/woop/awesome-quantified-self
   Touches: public JSON Schema or JSON Lines model, exporter and importer, versioned fixtures, compatibility documentation
   Acceptance: A published schema covers documented user data without secrets or internal acknowledgement state; v1 fixtures validate and round-trip; unknown additive fields are ignored; breaking changes require a new schema version and migration fixture; a sample consumer can stream weights and composition without importing app code.
-  Complexity: M
-
-- [ ] P2: Finish actionable F-Droid metadata and reproducibility work
-  Why: The final fdroiddata submission needs an external account and review, but upstream descriptions, graphics, version-code changelog, FOSS dependency proof, and reproducible-build evidence can be completed now and are currently absent.
-  Evidence: absent `fastlane/metadata/android/en-US`; `Roadmap_Blocked.md`; https://f-droid.org/docs/Submitting_to_F-Droid_Quick_Start_Guide/; https://f-droid.org/en/docs/Reproducible_Builds/; https://f-droid.org/en/categories/health-manager/
-  Touches: upstream Fastlane or Triple-T metadata, current icon and screenshots, local FOSS release recipe, reproducibility comparison, F-Droid notes
-  Acceptance: Upstream metadata contains short and full descriptions, icon, current phone screenshots, and a changelog for every published version code, including code 5 for v0.4.0, and passes `fdroid lint`; the FOSS release resolves no proprietary runtime dependency; two clean builds from the same tag compare byte-for-byte before signing or have every difference explained with `diffoscope`; `Roadmap_Blocked.md` is left only with account, submission, and reviewer-controlled steps.
   Complexity: M
 
 ### P3 additions from 2026-08-31
