@@ -141,6 +141,23 @@ class SyncPreferences @Inject constructor(
         it[Keys.BACKGROUND] = enabled
     }
 
+    /**
+     * Settings that arrived with a merge and have not been written down yet.
+     *
+     * The rows of a merge go into the database in one commit. The settings that come with it
+     * cannot: they live in this file rather than in the database, and no transaction spans both.
+     * So the settings are noted here first and the note is torn up only once they have actually
+     * landed. Process death in between leaves the note, and the next sync finishes the job
+     * instead of quietly keeping the old units for ever.
+     */
+    suspend fun pendingSettings(): String? = dataStore.data.first()[Keys.PENDING_SETTINGS]
+
+    suspend fun setPendingSettings(encoded: String) = dataStore.edit {
+        it[Keys.PENDING_SETTINGS] = encoded
+    }
+
+    suspend fun clearPendingSettings() = dataStore.edit { it.remove(Keys.PENDING_SETTINGS) }
+
     suspend fun recordSync(atUtcMillis: Long, message: String?) = dataStore.edit {
         it[Keys.LAST_SYNC_AT] = atUtcMillis
         if (message == null) it.remove(Keys.LAST_MESSAGE) else it[Keys.LAST_MESSAGE] = message
@@ -170,5 +187,6 @@ class SyncPreferences @Inject constructor(
         val LAST_SYNC_AT = longPreferencesKey("sync_last_at")
         val LAST_MESSAGE = stringPreferencesKey("sync_last_message")
         val BACKGROUND = booleanPreferencesKey("sync_background")
+        val PENDING_SETTINGS = stringPreferencesKey("sync_pending_settings")
     }
 }

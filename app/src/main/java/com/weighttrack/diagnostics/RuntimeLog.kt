@@ -24,6 +24,9 @@ enum class LogEvent {
     SYNC_REFUSED,
     SYNC_UNREACHABLE,
     SYNC_FINISHED,
+
+    /** A merge could not be written to the database, so nothing of it was written. */
+    SYNC_APPLY_FAILED,
     LOCAL_NETWORK_NOT_ALLOWED,
     WEBDAV_REQUEST_FAILED,
     WEBDAV_TRANSPORT_FAILED,

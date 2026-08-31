@@ -52,6 +52,7 @@ class SyncEngine @Inject constructor(
     private val store: SyncStore,
     private val settingsRepository: SettingsRepository,
     private val runtimeLog: RuntimeLog,
+    private val targets: SyncTargets,
 ) {
     // Two syncs at once, one from the button and one from the background job, would each write a
     // file the other had not read.
@@ -60,8 +61,10 @@ class SyncEngine @Inject constructor(
     suspend fun syncNow(now: Long = System.currentTimeMillis()): SyncResult = running.withLock {
         val settings = preferences.current()
         if (!settings.isOn || !settings.isReady) return@withLock SyncResult.NotSetUp
-        val target = targetFor(settings) ?: return@withLock SyncResult.NotSetUp
+        val target = targets.forSettings(settings) ?: return@withLock SyncResult.NotSetUp
         val deviceId = preferences.deviceId()
+        // Before anything else: a settings write an earlier run did not finish.
+        replayPendingSettings()
 
         val names = when (val listed = target.list()) {
             is SyncOutcome.Ok -> listed.value
@@ -91,8 +94,14 @@ class SyncEngine @Inject constructor(
         }
 
         val merged = SyncMerge.merge(documents, deviceId, now)
-        val changes = store.apply(merged, now)
-        applySettings(merged.settings)
+        // One commit for the rows, and nothing published until it has landed. A half-applied
+        // merge followed by this device republishing its own view would hand that half back to
+        // everybody else as though it were the whole answer.
+        val changes = runCatching { store.apply(merged, now) }.getOrElse { failure ->
+            runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_APPLY_FAILED, cause = failure)
+            return@withLock finish(now, SyncResult.Unreachable(strings[com.weighttrack.R.string.sync_apply_failed]))
+        }
+        applySettingsDurably(merged.settings)
 
         // Written from the database afterwards, not from the merge. Applying can refuse things,
         // and the file has to say what this device actually holds.
@@ -123,6 +132,43 @@ class SyncEngine @Inject constructor(
                 updatedAtUtcMillis = local.updatedAtUtcMillis,
             ),
         )
+    }
+
+    /**
+     * Writes the merged settings down, and keeps a note until they are actually written.
+     *
+     * The rows live in the database and the settings live in a preferences file, and no
+     * transaction covers both. The note is what closes that gap: written before the attempt,
+     * torn up only once the stored settings are at least as new as the ones that arrived. A run
+     * that dies in between leaves it, and the next sync replays it. Replaying is safe because
+     * applying the same settings twice writes the same values, and the merge itself is
+     * idempotent, so nothing needs the document a second time.
+     */
+    private suspend fun applySettingsDurably(remote: SyncedSettings?) {
+        if (remote == null) return
+        preferences.setPendingSettings(
+            SyncDocument.json.encodeToString(SyncedSettings.serializer(), remote),
+        )
+        // A failure here must not undo the rows that are already committed, and must not stop
+        // this device publishing what it now holds. The note is what makes that safe.
+        runCatching { applySettings(remote) }
+        if (settingsRepository.settings.first().updatedAtUtcMillis >= remote.updatedAtUtcMillis) {
+            preferences.clearPendingSettings()
+        }
+    }
+
+    /** Finishes a settings write that an earlier run started and did not get to the end of. */
+    private suspend fun replayPendingSettings() {
+        val note = preferences.pendingSettings() ?: return
+        val remote = runCatching {
+            SyncDocument.json.decodeFromString(SyncedSettings.serializer(), note)
+        }.getOrNull()
+        // A note nothing can read is worse than no note: it would be retried for ever.
+        if (remote == null) {
+            preferences.clearPendingSettings()
+            return
+        }
+        applySettingsDurably(remote)
     }
 
     private suspend fun applySettings(remote: SyncedSettings?) {
@@ -210,7 +256,21 @@ class SyncEngine @Inject constructor(
         return explained
     }
 
-    private fun targetFor(settings: SyncSettings): SyncTarget? = when (settings.mode) {
+}
+
+/**
+ * Builds the place a sync reads from and writes to.
+ *
+ * Its own class so that a test can hand the engine somewhere to write. A folder target needs a
+ * document tree and a WebDAV one needs a server, and neither exists in a unit test, so without a
+ * seam here nothing the engine does with what it reads could be covered at all.
+ */
+open class SyncTargets @Inject constructor(
+    @param:ApplicationContext private val context: Context,
+    private val strings: com.weighttrack.ui.AppStrings,
+    private val runtimeLog: RuntimeLog,
+) {
+    open fun forSettings(settings: SyncSettings): SyncTarget? = when (settings.mode) {
         SyncMode.OFF -> null
         SyncMode.FOLDER -> settings.folderUri?.let {
             FolderSyncTarget(context, Uri.parse(it))

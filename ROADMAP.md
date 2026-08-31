@@ -345,13 +345,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Connecting Health Connect with the sole profile durably claims that profile before the first sync; adding or activating another profile never redirects reads or writes; transfer and disable are explicit operations that stop or drain pending work before ownership changes; process-recreation and multi-profile fake-client tests prove the claim persists.
   Complexity: M
 
-- [ ] P0: Apply each remote sync document as one recoverable commit
-  Why: `SyncStore.apply()` mutates every Room domain sequentially and `SyncEngine` applies DataStore settings separately, so a DAO failure or process death can leave a partial merge before acknowledgement.
-  Evidence: `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:125-155`; `app/src/main/java/com/weighttrack/data/sync/SyncEngine.kt:94-95`; https://martin.kleppmann.com/2019/10/23/local-first-at-onward.html
-  Touches: `WeightTrackDatabase.kt`, `SyncStore.kt`, `SyncEngine.kt`, a persisted settings-replay marker, failure-injection and convergence fixtures
-  Acceptance: Failure injected before or after every domain write leaves all Room rows unchanged and advances no remote acknowledgement; a settings-write failure leaves a durable, idempotent replay marker and cannot cause the database document to apply twice; a successful document commits every domain once and clears the marker only after settings match.
-  Complexity: L
-
 - [ ] P0: Persist complete scale composition with quality and provenance
   Why: Parsers and the live scale screen carry muscle, lean mass, water, impedance, and basal metabolism, but save keeps only weight and body-fat percentage, silently discarding the rest and whether values were scale-reported, app-estimated, absent, or incomplete.
   Evidence: `core/src/main/java/com/weighttrack/core/scale/ScaleReading.kt:10-23`; `core/src/main/java/com/weighttrack/core/scale/StandardScaleParser.kt:120-142`; `app/src/main/java/com/weighttrack/ui/scale/ScaleViewModel.kt:292-337`; https://www.bluetooth.com/specifications/specs/body-composition-service-bcs/; https://github.com/oliexdev/openScale/issues/1469; https://pubmed.ncbi.nlm.nih.gov/33929337/

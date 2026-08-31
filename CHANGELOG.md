@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- A sync now writes everything it merged in one go, or none of it. A failure partway through used to leave a database no single device could have produced, and this phone then published that half to your other devices as though it were the answer. The units, theme and height that travel with a sync live outside the database and cannot join that commit, so a note is kept until they have landed and the next sync finishes the job.
+
 - Six fixes from reviewing the last four changes. The weekly backup no longer deletes the old copy before putting the new one in place, so a folder whose provider refuses renames can no longer end a day with no backup at all; the half-written file it works through is named so that no provider rewrites the name out from under it. Restoring onto a new phone now leaves you looking at your own history instead of at the empty profile the app makes on first start, and it no longer leaves that profile behind. The food diary is no longer written into the backup twice, which on a long-kept diary was enough on its own to make a file the app would then refuse to read. Restoring an older backup is now one commit like the newer kind. And a scanned barcode is handed over on the interface thread, which is the only thread that may close the scanner.
 
 - Deleting anything now removes the row and records the deletion in one go. They were two separate writes, and the app being killed between them left a row gone from this phone with nothing to say so, which is how a deleted reading, fast, drink, meal or whole profile could come back from your other device.
