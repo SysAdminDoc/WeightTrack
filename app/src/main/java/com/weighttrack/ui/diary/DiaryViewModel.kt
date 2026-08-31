@@ -3,6 +3,7 @@ package com.weighttrack.ui.diary
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.R
+import com.weighttrack.core.model.Goal
 import com.weighttrack.core.nutrition.Food
 import com.weighttrack.core.math.AdaptiveExpenditure
 import com.weighttrack.core.nutrition.MacroBasis
@@ -15,6 +16,7 @@ import com.weighttrack.data.repo.FoodLogRepository
 import com.weighttrack.data.repo.FoodRepository
 import com.weighttrack.data.repo.MacroTargetRepository
 import com.weighttrack.domain.ProgressCalculator
+import com.weighttrack.domain.ProgressSnapshot
 import com.weighttrack.ui.AppStrings
 import com.weighttrack.health.HealthConnectSync
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -91,9 +93,29 @@ class DiaryViewModel @Inject constructor(
     private val foodRepository: FoodRepository,
     private val macroTargetRepository: MacroTargetRepository,
     private val progressCalculator: ProgressCalculator,
+    private val goalRepository: com.weighttrack.data.repo.GoalRepository,
     private val healthConnect: HealthConnectSync,
     private val undoOffers: com.weighttrack.ui.UndoCoordinator,
 ) : ViewModel() {
+
+    /**
+     * Daily step counts, when Health Connect has them and has been allowed to share them.
+     *
+     * Read once when the screen opens. Never turned into calories: all it decides is whether the
+     * days in the window are evidence about what this person burns this week.
+     */
+    private val steps = MutableStateFlow<Map<LocalDate, Long>>(emptyMap())
+
+    init {
+        viewModelScope.launch {
+            val read = runCatching { healthConnect.readDailyActivity(days = STEP_HISTORY_DAYS) }
+                .getOrNull()
+            if (read is com.weighttrack.health.HealthOutcome.Ok) {
+                steps.value = read.value.mapNotNull { day -> day.steps?.let { day.date to it } }
+                    .toMap()
+            }
+        }
+    }
 
     private val date = MutableStateFlow(LocalDate.now())
     private val query = MutableStateFlow("")
@@ -111,14 +133,17 @@ class DiaryViewModel @Inject constructor(
             message,
             progressCalculator.observe(),
             foodLogRepository.observeRecentDays(),
-        ) { message, snapshot, intake ->
+            steps,
+            goalRepository.observeAll(),
+        ) { message, snapshot, intake, steps, goals ->
             // Worked out here rather than in the screen, so the one place the maths is wired
             // together stays the one place.
             val estimate = AdaptiveExpenditure.estimate(
                 series = snapshot.series,
                 intakeByDate = intake.associate { it.date to it.nutrients.kcal },
                 today = LocalDate.now(),
-            )
+                stepsByDate = steps,
+            )?.let { measured -> afterAnyGoalChange(measured, snapshot, goals) }
             val goal = snapshot.goal
             val recommendation = estimate?.let {
                 AdaptiveExpenditure.recommendedIntake(
@@ -332,5 +357,43 @@ class DiaryViewModel @Inject constructor(
          * needs talking out of.
          */
         const val DEFAULT_GOAL_WEEKS = 12.0
+
+        /** Far enough back to cover any window the estimate might measure across. */
+        const val STEP_HISTORY_DAYS = 30L
+
+        /**
+         * Moves the estimate the moment the target does, while the window still predates it.
+         *
+         * Expenditure falls in a deficit and comes back when the deficit stops, days before a
+         * scale can show either. Handing back a number measured across the old target recommends
+         * a fortnight of eating too little to somebody who has just decided to stop dieting. Once
+         * the whole window sits after the change, the measurement already reflects it and the
+         * correction goes away on its own.
+         */
+        internal fun afterAnyGoalChange(
+            measured: AdaptiveExpenditure.Estimate,
+            snapshot: ProgressSnapshot,
+            goals: List<Goal>,
+        ): AdaptiveExpenditure.Estimate {
+            val current = snapshot.goal ?: return measured
+            if (!measured.from.isBefore(current.startDate)) return measured
+            // Ordered newest first, so the first retired one is what this goal replaced.
+            val previous = goals.firstOrNull { !it.active && it.id != current.id } ?: return measured
+            val bodyKg = (snapshot.displayGrams ?: return measured) / 1_000.0
+            return AdaptiveExpenditure.afterGoalChange(
+                measured,
+                fromKgPerWeek = AdaptiveExpenditure.rateForGoal(
+                    previous.startGrams,
+                    previous.targetGrams,
+                    DEFAULT_GOAL_WEEKS,
+                ),
+                toKgPerWeek = AdaptiveExpenditure.rateForGoal(
+                    current.startGrams,
+                    current.targetGrams,
+                    DEFAULT_GOAL_WEEKS,
+                ),
+                bodyMassKg = bodyKg,
+            )
+        }
     }
 }

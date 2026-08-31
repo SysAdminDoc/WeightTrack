@@ -118,13 +118,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: with the permission granted and periods recorded, the chart shows a band for each period and the weekday/insight cards exclude those days from "unusual" calls; a core test shows expenditure moves less than 50 kcal when a flagged 0.5 kg spike is injected versus more without the flag; refusing the permission changes nothing else.
   Complexity: L
 
-- [ ] P2: Use step counts as a confidence signal for expenditure updates and correct for a goal switch
-  Why: MacroFactor's 2025 modifiers (steps never converted to kcal, expenditure shifted by 4× the weekly %-change target when the goal changes) cut median 100-day prediction error by about 20 percent; steps are already read from Health Connect.
-  Evidence: https://macrofactor.com/expenditure-modifiers/ ; https://macrofactor.com/expenditure-v3/ ; core/src/main/java/com/weighttrack/core/math/AdaptiveExpenditure.kt
-  Touches: core/math/AdaptiveExpenditure.kt (weight the window by step consistency; apply the goal-switch shift), domain/ProgressCalculator.kt, tests
-  Acceptance: a fixture where steps double in week two moves the estimate faster than the same intake and weight without steps; changing a goal from lose to maintain shifts the recommended intake immediately by the documented factor; a test proves steps never enter the kcal arithmetic directly.
-  Complexity: M
-
 
 - [ ] P2: Replace wall-clock tombstone expiry with peer acknowledgements
   Why: Last-write-wins timestamps come from device clocks and tombstones expire after six months, so a skewed or long-offline peer can republish an older live row after its deletion marker disappears.

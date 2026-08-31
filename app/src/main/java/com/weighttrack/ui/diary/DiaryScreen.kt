@@ -195,6 +195,15 @@ fun DiaryScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        if (estimate.movementChanged) {
+                            // Said out loud. A number that moves two hundred calories with
+                            // nothing on screen about why reads as the app being unreliable.
+                            Text(
+                                text = stringResource(R.string.diary_movement_changed),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         state.recommendation?.takeIf { state.expenditureConfident }?.let { recommended ->
                             Spacer(Modifier.height(8.dp))
                             Text(

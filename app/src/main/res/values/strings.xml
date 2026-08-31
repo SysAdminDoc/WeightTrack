@@ -909,4 +909,5 @@
     <string name="settings_smoothing_slope">Slope</string>
     <string name="settings_smoothing_average_explained">Averages your recent readings. Steady on a plateau, and slow to be moved by one heavy dinner, but it reads high while you are losing and low while you are gaining.</string>
     <string name="settings_smoothing_slope_explained">Follows the direction you are heading as well as the weight, so it keeps up with a steady change instead of trailing a week behind it. Slightly quicker to react to a run of odd readings.</string>
+    <string name="diary_movement_changed">You have been moving differently to earlier in the fortnight, so the recent days count for more here.</string>
 </resources>

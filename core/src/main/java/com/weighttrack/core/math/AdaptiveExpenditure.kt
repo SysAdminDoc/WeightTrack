@@ -58,6 +58,37 @@ object AdaptiveExpenditure {
      */
     const val MINIMUM_RECOMMENDED_KCAL = 1_200.0
 
+    /** How many days at the end of the window say what somebody is doing now. */
+    const val RECENT_MOVEMENT_DAYS = 7
+
+    /**
+     * How far a day's movement has to sit from the recent norm before it stops being evidence
+     * about what that person burns today.
+     *
+     * A quarter either way. Ordinary weeks vary by less than that; a fortnight where somebody
+     * started walking to work, or spent a week on the sofa with flu, does not.
+     */
+    const val MOVEMENT_SHIFT_THRESHOLD = 0.25
+
+    /**
+     * What a day from a different activity level is still worth.
+     *
+     * Not zero. The week before somebody changed what they were doing is still the best evidence
+     * there is about their body, it is just no longer evidence about their week, and throwing it
+     * away entirely would leave the estimate swinging on three days of water.
+     */
+    const val STALE_MOVEMENT_WEIGHT = 0.25
+
+    /**
+     * How far expenditure moves when the weekly target changes, as a multiple of that change.
+     *
+     * MacroFactor's figure. Somebody holding a one percent weekly deficit is burning roughly four
+     * percent less than they would at maintenance, and the moment they stop, that comes back
+     * before any weight change can show it. Waiting a fortnight for the evidence means a
+     * fortnight of recommending too little food to somebody who has just decided to stop dieting.
+     */
+    const val GOAL_SWITCH_ADAPTATION = 4.0
+
     /**
      * What somebody burns, and how much to believe it.
      *
@@ -67,12 +98,23 @@ object AdaptiveExpenditure {
      */
     data class Estimate(
         val kcalPerDay: Double,
+        /** First and last day actually measured, which is not the window that was asked for. */
+        val from: LocalDate,
+        val to: LocalDate,
         val days: Int,
         val loggedDays: Int,
         /** How many times they actually stood on the scale, which is what the rate is fitted to. */
         val weighIns: Int,
         val meanIntakeKcal: Double,
         val trendChangeKg: Double,
+        /**
+         * Somebody's movement changed part way through the window, so the older days count for
+         * less than the recent ones.
+         *
+         * Worth saying out loud. A number that moves two hundred calories because the step count
+         * doubled, with nothing on screen about it, reads as the app being unreliable.
+         */
+        val movementChanged: Boolean = false,
     ) {
         val rounded: Int get() = kcalPerDay.roundToInt()
 
@@ -91,6 +133,16 @@ object AdaptiveExpenditure {
         intakeByDate: Map<LocalDate, Double>,
         today: LocalDate,
         windowDays: Int = DEFAULT_WINDOW_DAYS,
+        /**
+         * Daily step counts, where there are any.
+         *
+         * Never converted into calories, and never added to or subtracted from the answer. Step
+         * counters disagree with each other by a third and none of them knows what anybody
+         * weighs, so a number of calories taken from one is a guess dressed up as a measurement.
+         * All they are read for is whether somebody is doing roughly what they were doing last
+         * week, which is the one thing a step counter is actually good at.
+         */
+        stepsByDate: Map<LocalDate, Long> = emptyMap(),
     ): Estimate? {
         if (windowDays < MIN_DAYS) return null
         val from = today.minusDays(windowDays.toLong() - 1)
@@ -118,17 +170,27 @@ object AdaptiveExpenditure {
         val days = (last.toEpochDay() - first.toEpochDay()).toInt() + 1
         if (days < MIN_DAYS) return null
 
-        val readings = weighed.map { it.first.toEpochDay().toDouble() to it.second.toDouble() }
+        // How much each day is worth, from whether that day's movement looks like this week's.
+        val weightOfDay = movementWeights(stepsByDate, first, last)
+        val movementChanged = weightOfDay.values.any { it < 1.0 }
+
+        val readings = weighed.map {
+            Weighted(it.first.toEpochDay().toDouble(), it.second.toDouble(), weightOfDay.of(it.first))
+        }
         val gramsPerDay = slopePerDay(readings) ?: return null
         val kgPerDay = gramsPerDay / 1_000.0
         // What the window covers, first reading to last. A span, not a count: fourteen days have
         // thirteen nights between them. Reported to the person, and never used as the rate.
         val changeKg = kgPerDay * (days - 1)
-        // Averaged over the same stretch the weight was measured across, so the two halves of
-        // the sum describe the same fortnight.
+        // Averaged over the same stretch the weight was measured across, and weighted the same
+        // way, so the two halves of the sum describe the same fortnight. Weighting one and not
+        // the other is how a window becomes an answer about two different people.
         val logged = window.filterKeys { !it.isBefore(first) && !it.isAfter(last) }
         if (logged.size < MIN_DAYS) return null
-        val meanIntake = logged.values.average()
+        val intakeWeight = logged.keys.sumOf { weightOfDay.of(it) }
+        if (intakeWeight <= 0.0) return null
+        val meanIntake = logged.entries.sumOf { (date, kcal) -> kcal * weightOfDay.of(date) } /
+            intakeWeight
 
         // Eating below what you burn shows up as weight going down, so a fall adds to the
         // estimate and a rise takes away from it.
@@ -142,12 +204,51 @@ object AdaptiveExpenditure {
 
         return Estimate(
             kcalPerDay = burned,
+            from = first,
+            to = last,
             days = days,
             loggedDays = logged.size,
             weighIns = readings.size,
             meanIntakeKcal = meanIntake,
             trendChangeKg = changeKg,
+            movementChanged = movementChanged,
         )
+    }
+
+    /** One day's number, and how much this window believes it. */
+    private data class Weighted(val x: Double, val y: Double, val weight: Double)
+
+    private fun Map<LocalDate, Double>.of(date: LocalDate): Double = this[date] ?: 1.0
+
+    /**
+     * How much each day of the window counts, from whether its movement looks like this week's.
+     *
+     * Empty when there is nothing to go on, which leaves every day worth the same. A day with no
+     * step count is worth the same too: not wearing the watch is not evidence that anything
+     * changed, and treating it as such would down-weight the whole window of anybody who charges
+     * their watch overnight.
+     */
+    private fun movementWeights(
+        stepsByDate: Map<LocalDate, Long>,
+        first: LocalDate,
+        last: LocalDate,
+    ): Map<LocalDate, Double> {
+        val inWindow = stepsByDate
+            .filterKeys { !it.isBefore(first) && !it.isAfter(last) }
+            .filterValues { it > 0 }
+        if (inWindow.size < MIN_DAYS) return emptyMap()
+
+        val recentFrom = last.minusDays(RECENT_MOVEMENT_DAYS.toLong() - 1)
+        val recent = inWindow.filterKeys { !it.isBefore(recentFrom) }.values
+        // Not enough of this week measured to say what this week looks like.
+        if (recent.size < 3) return emptyMap()
+        val now = recent.average()
+        if (now <= 0.0) return emptyMap()
+
+        return inWindow.mapValues { (_, steps) ->
+            val away = abs(steps / now - 1.0)
+            if (away > MOVEMENT_SHIFT_THRESHOLD) STALE_MOVEMENT_WEIGHT else 1.0
+        }
     }
 
     /**
@@ -156,17 +257,47 @@ object AdaptiveExpenditure {
      * Unbiased, unlike the smoothed line, and it uses every reading rather than the two that
      * happen to sit at the ends of the window.
      */
-    private fun slopePerDay(readings: List<Pair<Double, Double>>): Double? {
-        val meanX = readings.sumOf { it.first } / readings.size
-        val meanY = readings.sumOf { it.second } / readings.size
+    private fun slopePerDay(readings: List<Weighted>): Double? {
+        val total = readings.sumOf { it.weight }
+        if (total <= 0.0) return null
+        val meanX = readings.sumOf { it.x * it.weight } / total
+        val meanY = readings.sumOf { it.y * it.weight } / total
         var covariance = 0.0
         var variance = 0.0
-        readings.forEach { (x, y) ->
-            covariance += (x - meanX) * (y - meanY)
-            variance += (x - meanX) * (x - meanX)
+        readings.forEach { (x, y, weight) ->
+            covariance += weight * (x - meanX) * (y - meanY)
+            variance += weight * (x - meanX) * (x - meanX)
         }
         // Every reading on the same day gives no slope to speak of.
         return if (variance <= 0.0) null else covariance / variance
+    }
+
+    /**
+     * What somebody burns once the target changes, before any evidence of it has arrived.
+     *
+     * Expenditure is not a constant of the body. It falls while somebody is in a deficit and
+     * comes back when they stop, and it does that within days, long before a scale can show it.
+     * Handing back the same number after somebody switches from losing to maintaining recommends
+     * a fortnight of eating too little to a person who has just decided to stop dieting.
+     *
+     * [fromKgPerWeek] and [toKgPerWeek] are the old and new weekly targets, negative for losing.
+     * [bodyMassKg] turns them into the percentage of body weight the adaptation is measured
+     * against, which is what makes the same rate a bigger change for a smaller person.
+     */
+    fun afterGoalChange(
+        estimate: Estimate,
+        fromKgPerWeek: Double,
+        toKgPerWeek: Double,
+        bodyMassKg: Double,
+    ): Estimate {
+        if (bodyMassKg <= 0.0) return estimate
+        val change = (toKgPerWeek - fromKgPerWeek) / bodyMassKg
+        if (change == 0.0) return estimate
+        val shifted = estimate.kcalPerDay * (1.0 + GOAL_SWITCH_ADAPTATION * change)
+        // A change big enough to invert the answer is a target nobody could hold. Refusing to
+        // apply it beats reporting that somebody burns nothing.
+        if (shifted <= 0.0) return estimate
+        return estimate.copy(kcalPerDay = shifted)
     }
 
     /** What to eat to move at a chosen rate, given what the person burns. */
