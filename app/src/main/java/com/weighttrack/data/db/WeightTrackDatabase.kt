@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -63,6 +63,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AutoMigration(from = 15, to = 16),
         // Seventeen holds the band a goal is judged against, which was a constant.
         AutoMigration(from = 16, to = 17),
+        // Eighteen remembers when a looked-up product was last read, so a stale one can say so.
+        AutoMigration(from = 17, to = 18),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {

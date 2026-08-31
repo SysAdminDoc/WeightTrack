@@ -333,6 +333,8 @@ data class FoodEntity(
     val favourite: Boolean = false,
     /** Zero until it has been eaten, which is what puts it in the recents list. */
     val lastUsedAtUtcMillis: Long = 0,
+    /** When it was last read from the service it came from. Zero for anything typed in here. */
+    @ColumnInfo(defaultValue = "0") val fetchedAtUtcMillis: Long = 0,
     val updatedAtUtcMillis: Long,
     /**
      * What this row is called on every device. See the note on the weight entry.

@@ -63,6 +63,7 @@ fun FoodScreen(
     onKeep: (Food) -> Unit,
     onFavourite: (Food, Boolean) -> Unit,
     onDelete: (Food) -> Unit,
+    onRefresh: (Food) -> Unit = {},
     onAddCustom: (String, String?, Double, Double?, Double?, Double?, Double?) -> Unit,
     onDeleteRecipe: (Recipe) -> Unit,
     onScan: () -> Unit,
@@ -198,6 +199,13 @@ fun FoodScreen(
                                         contentDescription = stringResource(R.string.food_favourite),
                                         tint = MaterialTheme.colorScheme.primary,
                                     )
+                                }
+                                if (!food.barcode.isNullOrBlank() &&
+                                    food.origin == FoodOrigin.OPEN_FOOD_FACTS
+                                ) {
+                                    TextButton(onClick = { onRefresh(food) }) {
+                                        Text(stringResource(R.string.food_refresh))
+                                    }
                                 }
                                 if (food.origin == FoodOrigin.CUSTOM) {
                                     TextButton(onClick = { onDelete(food) }) {

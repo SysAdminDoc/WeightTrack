@@ -421,6 +421,7 @@ fun WeightTrackApp(
                     onKeep = viewModel::keep,
                     onFavourite = viewModel::setFavourite,
                     onDelete = viewModel::delete,
+                    onRefresh = viewModel::refresh,
                     onAddCustom = viewModel::addCustom,
                     onDeleteRecipe = viewModel::deleteRecipe,
                     onScan = { navController.navigate(Routes.SCAN) },

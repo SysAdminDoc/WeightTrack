@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- A cached product can be checked again. Labels change and a saved product does not, so a tin you scanned two years ago goes on reporting the recipe it had then. There is a button on each looked-up food now, and the new numbers replace the old ones without touching anything you have already logged: a diary row keeps its own calories precisely so a correction today cannot rewrite what you ate last March.
+
+- And Open Food Facts entries that contradict themselves are turned away rather than saved. It is crowdsourced, which is why it exists and why it holds things nobody meant: a per-serving figure typed into a per-hundred-grams field, a decimal point in the wrong place, nine hundred calories with every macro left at zero. A wrong number in a diary is worse than a missing one, because nothing about it looks wrong afterwards. The check is deliberately generous, and it knows what alcohol is, so your beer and your olive oil both still come through.
+
 - A plain http server address is refused when you type it, and says why. The app blocks unencrypted traffic outright now, so an http address was never going to work: it was accepted, stored, and then failed an hour later inside a background job with a message that said only that the server could not be reached.
 
 - And a server that signs its own certificate can be used properly at last. A Nextcloud on your own network is the normal case for this app, and nothing on the phone has any reason to believe a certificate it signed itself. Pick the certificate your server presents and WeightTrack trusts that one, in addition to the public authorities rather than instead of them, so pinning your own server cannot weaken the check on a hosted one. The old choices were sending your password in the clear or turning certificate checking off, and the second is worse than the first.

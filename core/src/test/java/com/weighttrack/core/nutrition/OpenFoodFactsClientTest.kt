@@ -194,4 +194,95 @@ class OpenFoodFactsClientTest {
         assertThat(OpenFoodFactsClient.ATTRIBUTION).contains("Open Food Facts")
         assertThat(OpenFoodFactsClient.ATTRIBUTION).contains("Open Database Licence")
     }
+
+    @Test
+    fun `a product whose numbers contradict themselves is not offered at all`() = runTest {
+        // Nine hundred calories with every macro at zero. Crowdsourced entries hold this, and a
+        // wrong number in somebody's diary is worse than a missing one: nothing about it looks
+        // wrong afterwards.
+        response = """
+            {
+              "code": "1111111111111",
+              "status": "success",
+              "product": {
+                "product_name": "Nonsense",
+                "code": "1111111111111",
+                "nutriments": {
+                  "energy-kcal_100g": 900,
+                  "proteins_100g": 0,
+                  "carbohydrates_100g": 0,
+                  "fat_100g": 0
+                }
+              }
+            }
+        """.trimIndent()
+
+        assertThat(client().byBarcode("1111111111111"))
+            .isEqualTo(OpenFoodFactsClient.Result.NotFound)
+    }
+
+    @Test
+    fun `a spirit is kept, because alcohol is where its calories are`() = runTest {
+        response = """
+            {
+              "code": "2222222222222",
+              "status": "success",
+              "product": {
+                "product_name": "Gin",
+                "code": "2222222222222",
+                "nutriments": {
+                  "energy-kcal_100g": 263,
+                  "proteins_100g": 0,
+                  "carbohydrates_100g": 0,
+                  "fat_100g": 0,
+                  "alcohol_100g": 37.5
+                }
+              }
+            }
+        """.trimIndent()
+
+        assertThat(client().byBarcode("2222222222222"))
+            .isInstanceOf(OpenFoodFactsClient.Result.Found::class.java)
+    }
+
+    @Test
+    fun `a product carries the moment it was read`() = runTest {
+        response = nutella
+        clock = 1_800_000_000_000
+
+        val food = (client().byBarcode("3017624010701") as OpenFoodFactsClient.Result.Found).value
+
+        // A label changes and a cached product does not, so a stale one has to be able to say
+        // how old it is.
+        assertThat(food.fetchedAtUtcMillis).isEqualTo(1_800_000_000_000)
+    }
+
+    @Test
+    fun `checking ten cached products in a row stays inside the allowance`() = runTest {
+        val client = client(productLimiter = RateLimiter(RateLimiter.PRODUCT_READS_PER_MINUTE))
+        response = nutella
+
+        val outcomes = (1..10).map { client.byBarcode("3017624010701") }
+
+        // Ten is under the fifteen a minute the service allows, so none of them is turned away
+        // and ten requests were actually made.
+        assertThat(outcomes.count { it is OpenFoodFactsClient.Result.Found<*> }).isEqualTo(10)
+        assertThat(requested).hasSize(10)
+    }
+
+    @Test
+    fun `checking more than the allowance stops asking rather than being banned`() = runTest {
+        val client = client(productLimiter = RateLimiter(RateLimiter.PRODUCT_READS_PER_MINUTE))
+        response = nutella
+
+        val outcomes = (1..20).map { client.byBarcode("3017624010701") }
+
+        assertThat(outcomes.count { it is OpenFoodFactsClient.Result.Found<*> })
+            .isEqualTo(RateLimiter.PRODUCT_READS_PER_MINUTE)
+        assertThat(outcomes.count { it is OpenFoodFactsClient.Result.RateLimited })
+            .isEqualTo(20 - RateLimiter.PRODUCT_READS_PER_MINUTE)
+        // And the ones it refused never reached the network, which is the point: trying anyway
+        // is how an address gets blocked.
+        assertThat(requested).hasSize(RateLimiter.PRODUCT_READS_PER_MINUTE)
+    }
 }

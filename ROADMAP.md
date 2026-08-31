@@ -133,13 +133,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: a fixture where steps double in week two moves the estimate faster than the same intake and weight without steps; changing a goal from lose to maintain shifts the recommended intake immediately by the documented factor; a test proves steps never enter the kcal arithmetic directly.
   Complexity: M
 
-- [ ] P2: Refresh cached online foods and dedupe Open Food Facts units
-  Why: a product kept from a lookup never updates when the label changes (Food You #241, 6 reactions), and OSS trackers' loudest food complaint is contradictory or meaningless units from crowdsourced entries.
-  Evidence: https://github.com/maksimowiczm/FoodYou/issues/241 ; https://lemmy.world/post/22208606 ; data/food and core/nutrition (no fetchedAt or refresh path, repo scan 2026-08-29)
-  Touches: core/nutrition/Food.kt (fetchedAt, source revision), data/repo/FoodRepository.kt (refresh action under the 15 req/min limiter), ui/food food detail ("last checked", refresh button), core/nutrition/OpenFoodFacts.kt (normalise per-100g vs per-serving, drop entries whose kcal disagrees with macros by more than 20 percent)
-  Acceptance: refreshing a cached product updates its numbers without changing logged diary rows; a product with kcal 900 and 0 g of every macro is rejected by a unit test; the limiter is respected across a refresh of ten foods.
-  Complexity: M
-
 - [ ] P2: Split SettingsScreen and add view model tests for the untested screens
   Why: SettingsScreen.kt is 941 lines and the app has no tests for SettingsRepository, SyncWorker, or the goal, history (undo), log, onboarding and settings view models; Compose UI test dependencies are declared and never used.
   Evidence: app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt ; app/build.gradle.kts:199,202 ; repo test inventory 2026-08-29

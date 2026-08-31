@@ -138,6 +138,12 @@
     <string name="food_look_it_up_online">Look it up online</string>
     <string name="food_found_online">Found online</string>
     <string name="food_keep">Keep</string>
+    <string name="food_refresh">Check again</string>
+    <string name="food_last_checked">Checked %1$s</string>
+    <string name="food_never_checked">Never checked since it was saved</string>
+    <string name="food_refreshed">%1$s is up to date</string>
+    <string name="food_refresh_unchanged">%1$s has not changed</string>
+    <string name="food_refresh_gone">Open Food Facts no longer has that product, so nothing was changed.</string>
     <string name="food_favourite">Favourite</string>
     <string name="food_recipes">Recipes</string>
     <string name="food_ingredients_and_calories">%1$s ingredients, %2$s kcal a portion</string>

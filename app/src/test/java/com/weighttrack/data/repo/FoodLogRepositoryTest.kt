@@ -195,4 +195,23 @@ class FoodLogRepositoryTest {
         assertThat(days.map { it.date }).containsExactly(today, yesterday).inOrder()
         assertThat(days.first().nutrients.kcal).isWithin(1e-6).of(758.0)
     }
+
+    @Test
+    fun `correcting a product today does not rewrite what was eaten last March`() = runTest {
+        profiles.ensureDefault()
+        val id = foods.add(oats)
+        val saved = foods.byId(id)!!
+        log.log(saved, grams = 100.0, meal = Meal.BREAKFAST, date = yesterday)
+        val before = log.day(yesterday).entries.single()
+
+        // The label changed and the numbers with it, which is the whole reason a cached product
+        // can be checked again.
+        foods.refresh(id, saved.copy(per100g = Nutrients(kcal = 500.0, proteinG = 20.0)))
+
+        val after = log.day(yesterday).entries.single()
+        assertThat(after.nutrients.kcal).isWithin(1e-9).of(before.nutrients.kcal)
+        assertThat(after.nutrients.kcal).isWithin(1e-9).of(379.0)
+        // And the food itself does carry the new numbers, so the next thing logged uses them.
+        assertThat(foods.byId(id)!!.per100g.kcal).isWithin(1e-9).of(500.0)
+    }
 }

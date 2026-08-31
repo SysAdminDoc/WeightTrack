@@ -725,6 +725,10 @@ interface FoodDao {
     @Query("SELECT * FROM foods WHERE barcode = :barcode ORDER BY updatedAtUtcMillis DESC LIMIT 1")
     suspend fun byBarcode(barcode: String): FoodEntity?
 
+    /** Every food kept on the phone, for the refresh that asks about them all. */
+    @Query("SELECT * FROM foods")
+    suspend fun allFoods(): List<FoodEntity>
+
     @Query(
         """
         SELECT * FROM foods

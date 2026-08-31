@@ -144,6 +144,38 @@ class FoodRepository @Inject constructor(
      */
     suspend fun cache(food: Food): Long = dao.cache(food.toEntity())
 
+    /**
+     * Writes fresh numbers over a cached product.
+     *
+     * Everything that identifies the row is carried forward: its own id, the name it travels
+     * under, whether it is a favourite, and when it was last eaten. Nothing already logged
+     * changes: a diary row keeps its own calories and macros precisely so that a product being
+     * corrected today cannot rewrite what somebody ate last March.
+     *
+     * False when there is nothing here under that id to refresh.
+     */
+    suspend fun refresh(id: Long, fresh: Food): Boolean {
+        val existing = dao.byId(id) ?: return false
+        dao.update(
+            fresh.toEntity().copy(
+                id = existing.id,
+                favourite = existing.favourite,
+                lastUsedAtUtcMillis = existing.lastUsedAtUtcMillis,
+                syncId = existing.syncId,
+                // Kept even when the product's own record has stopped carrying one, so a refresh
+                // cannot make a food unfindable by the code on its packet.
+                barcode = fresh.barcode ?: existing.barcode,
+            ),
+        )
+        return true
+    }
+
+    /** Every cached product with a barcode, which is everything a refresh could ask about. */
+    suspend fun refreshable(): List<Food> =
+        dao.allFoods().map { it.toDomain() }.filter {
+            it.origin == FoodOrigin.OPEN_FOOD_FACTS && !it.barcode.isNullOrBlank()
+        }
+
     suspend fun setFavourite(id: Long, favourite: Boolean) = dao.setFavourite(id, favourite)
 
     /** Puts a food at the top of the recents, which is where somebody looks first. */
@@ -247,6 +279,7 @@ class FoodRepository @Inject constructor(
         ),
         servingGrams = servingGrams,
         origin = runCatching { FoodOrigin.valueOf(origin) }.getOrDefault(FoodOrigin.CUSTOM),
+        fetchedAtUtcMillis = fetchedAtUtcMillis,
     )
 
     private fun Food.toEntity(): FoodEntity = FoodEntity(
@@ -263,6 +296,7 @@ class FoodRepository @Inject constructor(
         saltPer100g = per100g.saltG,
         servingGrams = servingGrams,
         origin = origin.name,
+        fetchedAtUtcMillis = fetchedAtUtcMillis,
         updatedAtUtcMillis = System.currentTimeMillis(),
     )
 

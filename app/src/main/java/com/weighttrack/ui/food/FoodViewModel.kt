@@ -190,6 +190,41 @@ class FoodViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Asks Open Food Facts about a product again and writes back what it says.
+     *
+     * A label changes and a cached product does not: a tin scanned two years ago goes on
+     * reporting the recipe it had then. Nothing already logged moves, because a diary row keeps
+     * its own calories precisely so a correction today cannot rewrite last March.
+     */
+    fun refresh(food: Food) {
+        val barcode = food.barcode?.takeIf { it.isNotBlank() } ?: return
+        viewModelScope.launch {
+            when (val result = clients.openFoodFacts().byBarcode(barcode)) {
+                is OpenFoodFactsClient.Result.Found -> {
+                    val fresh = result.value
+                    foodRepository.refresh(food.id, fresh)
+                    message.value = if (fresh.per100g == food.per100g) {
+                        strings[R.string.food_refresh_unchanged, food.name]
+                    } else {
+                        strings[R.string.food_refreshed, food.name]
+                    }
+                }
+                // Withdrawn, or the entry stopped being believable. Either way what is here is
+                // the last thing anybody knew, and throwing it away helps nobody.
+                is OpenFoodFactsClient.Result.NotFound ->
+                    message.value = strings[R.string.food_refresh_gone]
+                is OpenFoodFactsClient.Result.RateLimited ->
+                    message.value = strings[
+                        R.string.food_open_food_facts_asks_for_a_moment,
+                        (result.retryInMillis / 1000) + 1,
+                    ]
+                is OpenFoodFactsClient.Result.Unreachable ->
+                    message.value = strings[R.string.food_could_not_reach_open_food_facts]
+            }
+        }
+    }
+
     fun addCustom(
         name: String,
         brand: String?,

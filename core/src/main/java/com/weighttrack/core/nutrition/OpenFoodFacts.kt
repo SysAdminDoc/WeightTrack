@@ -79,22 +79,33 @@ class OpenFoodFactsClient(
             // Some entries carry only kilojoules, which is a unit not a different measurement.
             ?: nutriments?.number("energy-kj_100g")?.div(KJ_PER_KCAL)
             ?: return null
+        val nutrients = Nutrients(
+            kcal = kcal,
+            proteinG = nutriments?.number("proteins_100g"),
+            carbsG = nutriments?.number("carbohydrates_100g"),
+            fatG = nutriments?.number("fat_100g"),
+            fibreG = nutriments?.number("fiber_100g"),
+            sugarG = nutriments?.number("sugars_100g"),
+            saltG = nutriments?.number("salt_100g"),
+        )
+        // Crowdsourced, so it holds things nobody meant: a per-serving figure typed into a
+        // per-hundred-grams field, a decimal point in the wrong place, an energy value with every
+        // macro left at zero. A wrong number in somebody's diary is worse than a missing one,
+        // because nothing about it looks wrong.
+        if (!NutrientPlausibility.isBelievable(nutrients, nutriments?.number("alcohol_100g"))) {
+            return null
+        }
         return Food(
             name = name,
             brand = product["brands"]?.jsonPrimitive?.contentOrNullSafe()
                 ?.split(",")?.firstOrNull()?.trim()?.takeIf { it.isNotEmpty() },
             barcode = code?.takeIf { it.isNotBlank() },
-            per100g = Nutrients(
-                kcal = kcal,
-                proteinG = nutriments?.number("proteins_100g"),
-                carbsG = nutriments?.number("carbohydrates_100g"),
-                fatG = nutriments?.number("fat_100g"),
-                fibreG = nutriments?.number("fiber_100g"),
-                sugarG = nutriments?.number("sugars_100g"),
-                saltG = nutriments?.number("salt_100g"),
-            ),
+            per100g = nutrients,
             servingGrams = product.number("serving_quantity")?.takeIf { it > 0 },
             origin = FoodOrigin.OPEN_FOOD_FACTS,
+            // Stamped where the answer came from, so a cached tin can say how old its numbers
+            // are and be asked again. A label changes and a cached product does not.
+            fetchedAtUtcMillis = now(),
         )
     }
 

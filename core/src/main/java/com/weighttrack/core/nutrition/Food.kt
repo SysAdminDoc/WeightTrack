@@ -96,6 +96,14 @@ data class Food(
      */
     val servingGrams: Double? = null,
     val origin: FoodOrigin = FoodOrigin.CUSTOM,
+    /**
+     * When this was last read from the service it came from, for a product that came from one.
+     *
+     * Zero means never, which is every food somebody typed in themselves. A label changes and a
+     * cached product does not: kept once, a tin scanned two years ago goes on reporting the
+     * recipe it had then, and nothing on the screen says how old the numbers are.
+     */
+    val fetchedAtUtcMillis: Long = 0,
 ) {
     /** What the label calls it, brand and all. */
     val label: String

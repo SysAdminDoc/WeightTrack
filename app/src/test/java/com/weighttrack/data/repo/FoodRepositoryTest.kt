@@ -249,4 +249,54 @@ class FoodRepositoryTest {
         val results = foods.search("chocolate", limit = 4).first()
         assertThat(results.size).isAtMost(4)
     }
+
+    @Test
+    fun `refreshing a product updates its numbers and keeps what identifies it`() = runTest {
+        val id = foods.add(oats)
+        foods.setFavourite(id, true)
+        foods.markUsed(id, atUtcMillis = 1_800_000_000_000)
+        val before = database.foodDao().byId(id)!!
+
+        val corrected = oats.copy(
+            per100g = Nutrients(kcal = 372.0, proteinG = 12.5, carbsG = 66.0, fatG = 6.9),
+            fetchedAtUtcMillis = 1_800_100_000_000,
+        )
+        assertThat(foods.refresh(id, corrected)).isTrue()
+
+        val after = database.foodDao().byId(id)!!
+        assertThat(after.kcalPer100g).isWithin(1e-9).of(372.0)
+        assertThat(after.fetchedAtUtcMillis).isEqualTo(1_800_100_000_000)
+        // Everything that says which row this is, and what the person has done with it.
+        assertThat(after.id).isEqualTo(before.id)
+        assertThat(after.syncId).isEqualTo(before.syncId)
+        assertThat(after.favourite).isTrue()
+        assertThat(after.lastUsedAtUtcMillis).isEqualTo(1_800_000_000_000)
+    }
+
+    @Test
+    fun `a refresh that has lost the barcode does not make the food unfindable`() = runTest {
+        val id = foods.add(oats.copy(barcode = "5000108000000"))
+
+        foods.refresh(id, oats.copy(barcode = null, per100g = Nutrients(kcal = 372.0)))
+
+        assertThat(database.foodDao().byId(id)!!.barcode).isEqualTo("5000108000000")
+    }
+
+    @Test
+    fun `refreshing something that is not here changes nothing`() = runTest {
+        assertThat(foods.refresh(404, oats)).isFalse()
+    }
+
+    @Test
+    fun `only cached products with a barcode are worth asking about again`() = runTest {
+        foods.add(oats.copy(barcode = null))
+        val lookedUp = foods.add(
+            oats.copy(barcode = "5000108000000", origin = FoodOrigin.OPEN_FOOD_FACTS),
+        )
+        foods.add(oats.copy(barcode = "5000108000001", origin = FoodOrigin.CUSTOM))
+
+        // Something somebody typed in has nowhere to be checked against, and a product with no
+        // barcode cannot be asked about.
+        assertThat(foods.refreshable().map { it.id }).containsExactly(lookedUp)
+    }
 }
