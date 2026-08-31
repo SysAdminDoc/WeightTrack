@@ -257,13 +257,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0 additions from 2026-08-31
 
-- [ ] P1: Reject implausible weights and timestamps at every import boundary
-  Why: Health Connect accepts any positive weight at any timestamp, and CSV import guesses epoch seconds or milliseconds without validating the result. Upstream trackers have produced readings dated in 2094 and year 2800.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt`; `app/src/main/java/com/weighttrack/data/io/WeightCsvImporter.kt`; https://github.com/oliexdev/openScale/issues/1500; https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/6349
-  Touches: shared import validation, Health Connect import, CSV preview and import, runtime diagnostics, tests
-  Acceptance: Health Connect and CSV use one tested weight and timestamp policy with an injected clock; rejected rows change nothing and are counted in the result; the preview explains each refusal; fixtures for 2094, year 2800, zero, negative, and over-limit weights fail while valid historic data still imports.
-  Complexity: S
-
 - [ ] P1: Make the form-factor version gate build the manifests it checks
   Why: `checkFormFactorVersions` reads release manifests but does not depend on the tasks that generate them, so a clean combined release run can execute the check first and fail because no manifest exists.
   Evidence: root `build.gradle.kts`; clean task-graph verification on 2026-08-31
@@ -310,13 +303,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Complexity: M
 
 ### P3 additions from 2026-08-31
-
-- [ ] P3: Make privacy copy match optional export and sync features
-  Why: Onboarding says readings stay on this phone, and the extraction rules say body data is never uploaded, even though a person can configure folder or WebDAV sync and export files.
-  Evidence: `app/src/main/res/values/strings.xml`; `app/src/main/res/xml/data_extraction_rules.xml`; Settings sync and export flows
-  Touches: onboarding strings, backup and extraction declarations, Settings explanations, copy tests
-  Acceptance: Every privacy claim distinguishes the default local-only behavior from export and user-configured sync; Play and FOSS copy agree; no wording promises that data can never leave the phone.
-  Complexity: S
 
 - [ ] P3: Add launcher shortcuts for Log weight and Read scale
   Why: Weight entry is the dominant open-app action in a completed trale request, and WeightTrack's three-second logging goal should extend to the Android launcher.
