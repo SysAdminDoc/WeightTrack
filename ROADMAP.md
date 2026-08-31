@@ -1,6 +1,6 @@
 # WeightTrack Roadmap
 
-Single task tracker for the project. Research was done 2026-08-29; prices and app behavior drift, so re-check a store listing before quoting it publicly.
+Single task tracker for the project. Research was refreshed 2026-08-31; prices and app behavior drift, so re-check a store listing before quoting it publicly.
 
 ## Positioning
 
@@ -156,9 +156,9 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: A forced Keystore failure persists no secret, keeps the affected integration disabled, and produces a user-visible error plus diagnostic entry; legacy plaintext is removed only after a protected rewrite succeeds; tests assert DataStore never receives the original secret.
   Complexity: S
 
-- [ ] P0: Complete Android developer verification before 2026-09-30
-  Why: Android begins enforcing verified developer and package identity in Brazil, Indonesia, Singapore, and Thailand on 2026-09-30, including apps distributed outside Play.
-  Evidence: https://developer.android.com/developer-verification; https://developer.android.com/developer-verification/guides; `app/build.gradle.kts`
+- [ ] P0: Register Android developer identity and release keys ahead of the 2027 global rollout
+  Why: Enforcement on 2026-09-30 applies only to participating stores in Brazil, Indonesia, Singapore, and Thailand; direct sideloading and other stores do not change during that phase, but global rollout is announced for 2027 without a specific date as of 2026-08-31 and Play-distributed apps across form factors must be registered.
+  Evidence: https://developer.android.com/developer-verification; https://developer.android.com/developer-verification/guides/faq; `app/build.gradle.kts`
   Touches: Android Developer Console, Play Console, `com.weighttrack`, release signing certificate inventory for both variants, release checklist
   Acceptance: `com.weighttrack` and every active release signing certificate used by the Play and FOSS variants show registered and verified; signed release APKs install under that registered identity; the local release checklist records how to repeat the certificate check without storing credentials.
   Complexity: S
@@ -353,8 +353,8 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Complexity: S
 
 - [ ] P3: Move the wear module to targetSdk 36 with the Tiles 1.6 interaction API
-  Why: the watch targets 35 while the phone targets 37; Tiles 1.6 removes `onEnterEvent`/`onLeaveEvent` for SDK 36+ targets, so the bump has to land with `onRecentInteractionEvents`.
-  Evidence: https://developer.android.com/jetpack/androidx/releases/wear-tiles ; wear/build.gradle.kts (targetSdk 35)
+  Why: Wear target 35 already meets the 2026-08-31 Play requirement; this proactive bump prepares for the Tiles 1.6 removal of `onEnterEvent` and `onLeaveEvent` at target 36 by moving to `onRecentInteractionEvents` in the same change.
+  Evidence: https://developer.android.com/google/play/requirements/target-sdk ; https://developer.android.com/jetpack/androidx/releases/wear-tiles ; wear/build.gradle.kts (targetSdk 35)
   Touches: wear/build.gradle.kts, wear/WeightTileService.kt
   Acceptance: `:wear:assembleRelease` at targetSdk 36 with no deprecation warning from tiles; the tile still refreshes after a phone-side change on the Wear AVD.
   Complexity: S
@@ -372,6 +372,112 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Touches: docs/design-qa.md, CONTRIBUTING.md, SECURITY.md, README.md
   Acceptance: root holds only README, CHANGELOG, ROADMAP, LICENSE and build files; README roadmap line names the current next item.
   Complexity: S
+
+### P0 additions from 2026-08-31
+
+- [ ] P0: Make physical demographics household-profile-owned
+  Why: Height, sex, birth year, and activity level are global while readings and measurements are profile-scoped, so switching people can calculate one person's BMI, body fat, BMR, and TDEE with another person's demographics; the same global values also sync despite copy saying they never leave the phone.
+  Evidence: `app/src/main/java/com/weighttrack/data/db/Entities.kt:17-42`; `app/src/main/java/com/weighttrack/data/prefs/SettingsRepository.kt:25-30`; `app/src/main/java/com/weighttrack/domain/ProgressCalculator.kt:78-127`; `app/src/main/java/com/weighttrack/data/sync/SyncEngine.kt:110-124`; `app/src/main/res/values/strings.xml:245,304`
+  Touches: `ProfileEntity` or a one-to-one physical-profile entity, Room migration, `SettingsRepository.kt`, `ProgressCalculator.kt`, profile and onboarding UI, backup and sync models, privacy copy
+  Acceptance: A two-profile fixture with different demographics produces the correct BMI, healthy range, body-fat estimate, BMR, and TDEE for each person after switches, backup restore, and two-device sync; migration assigns the legacy demographics only to the profile that was active before migration and leaves other profiles incomplete; UI copy says exactly when enabled sync, Health Connect, or export can move each data type.
+  Complexity: L
+
+- [ ] P0: Claim the Health Connect profile on first connection
+  Why: Permission success schedules and runs sync without saving an owner when only one profile exists, so adding a second profile can redirect later Health Connect data to the newly active person.
+  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:137-138`; `app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt:415-420`; `app/src/main/java/com/weighttrack/ui/settings/SettingsViewModel.kt:355-370`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt:81-90,190-201`
+  Touches: Health Connect permission result, `SettingsViewModel.kt`, `ProfileRepository.kt`, connection and transfer UI, worker scheduling, fake-client tests
+  Acceptance: Connecting Health Connect with the sole profile durably claims that profile before the first sync; adding or activating another profile never redirects reads or writes; transfer and disable are explicit operations that stop or drain pending work before ownership changes; process-recreation and multi-profile fake-client tests prove the claim persists.
+  Complexity: M
+
+- [ ] P0: Apply each remote sync document as one recoverable commit
+  Why: `SyncStore.apply()` mutates every Room domain sequentially and `SyncEngine` applies DataStore settings separately, so a DAO failure or process death can leave a partial merge before acknowledgement.
+  Evidence: `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:125-155`; `app/src/main/java/com/weighttrack/data/sync/SyncEngine.kt:94-95`; https://martin.kleppmann.com/2019/10/23/local-first-at-onward.html
+  Touches: `WeightTrackDatabase.kt`, `SyncStore.kt`, `SyncEngine.kt`, a persisted settings-replay marker, failure-injection and convergence fixtures
+  Acceptance: Failure injected before or after every domain write leaves all Room rows unchanged and advances no remote acknowledgement; a settings-write failure leaves a durable, idempotent replay marker and cannot cause the database document to apply twice; a successful document commits every domain once and clears the marker only after settings match.
+  Complexity: L
+
+- [ ] P0: Persist complete scale composition with quality and provenance
+  Why: Parsers and the live scale screen carry muscle, lean mass, water, impedance, and basal metabolism, but save keeps only weight and body-fat percentage, silently discarding the rest and whether values were scale-reported, app-estimated, absent, or incomplete.
+  Evidence: `core/src/main/java/com/weighttrack/core/scale/ScaleReading.kt:10-23`; `core/src/main/java/com/weighttrack/core/scale/StandardScaleParser.kt:120-142`; `app/src/main/java/com/weighttrack/ui/scale/ScaleViewModel.kt:292-337`; https://www.bluetooth.com/specifications/specs/body-composition-service-bcs/; https://github.com/oliexdev/openScale/issues/1469; https://pubmed.ncbi.nlm.nih.gov/33929337/
+  Touches: Room composition entity and migration, `WeightRepository.kt`, scale save paths, history and detail UI, sync document, structured backup, CSV or public export, Health Connect mapping tests
+  Acceptance: Every non-null `ScaleReading` field round-trips through Room, backup, sync, and export without unit loss; each value retains device, adapter or protocol, and quality state; UI uses “reported by scale” when the vendor method is unknown and never presents BIA as a clinical measurement; weight-only and incomplete captures remain valid and visibly distinct.
+  Complexity: L
+
+- [ ] P0: Establish a form-factor-safe phone and Wear release gate
+  Why: Phone and Wear both use version code 5 even though Play requires watch codes to be unique across form factors, and no recorded paired test proves the non-standalone watch path or final binary compatibility.
+  Evidence: `app/build.gradle.kts:19`; `wear/build.gradle.kts:25`; https://developer.android.com/training/wearables/packaging; https://developer.android.com/docs/quality-guidelines/wear-app-quality; https://developer.android.com/guide/practices/page-sizes
+  Touches: shared version configuration, phone and Wear Gradle files and manifests, local release scripts, Data Layer test harness, Play listing checklist
+  Acceptance: Phone and Wear use independent monotonic version-code namespaces while retaining the required package and signing relationship; manifest or bundle inspection fails on a collision; a paired Play-capable phone and watch test covers watch logging, exactly-once phone receipt, tile and complication refresh, disconnect, reconnect, and reinstall; release artifacts pass the 2026-09-15 Wear 64-bit check and `zipalign -c -P 16 -v 4` before the 2027-02-01 16 KB deadline; listing copy mentions the tile and complication and includes a current 1:1 Wear screenshot.
+  Complexity: M
+
+### P1 additions from 2026-08-31
+
+- [ ] P1: Lock resolved dependencies and verify every fetched artifact
+  Why: The version catalog pins direct coordinates and the wrapper has a checksum, but transitive versions and downloaded plugin or library bytes can still change without a reviewed lock or verification failure.
+  Evidence: `gradle/libs.versions.toml`; `gradle/wrapper/gradle-wrapper.properties`; absent `gradle.lockfile` and `gradle/verification-metadata.xml`; https://docs.gradle.org/current/userguide/dependency_locking.html; https://docs.gradle.org/current/userguide/dependency_verification.html
+  Touches: root and module Gradle configuration, lock state, `gradle/verification-metadata.xml`, local dependency-update and release checks
+  Acceptance: Strict lock state covers all resolvable app, Wear, test, plugin, and release configurations; changing a transitive version without refreshing locks fails; replacing a cached artifact with different bytes fails verification; the documented local update command regenerates metadata for review without disabling verification.
+  Complexity: M
+
+- [ ] P1: Rebook reminders after civil-time changes and remove unnecessary exact-alarm access
+  Why: Reminders are one-shot RTC alarms rescheduled only after boot or package replacement, so manual time, timezone, or seasonal offset changes can move them away from the chosen local time; daily weigh-in reminders do not require privileged exact delivery.
+  Evidence: `app/src/main/java/com/weighttrack/notifications/ReminderScheduler.kt`; `app/src/main/java/com/weighttrack/notifications/ReminderReceiver.kt:153-176`; `app/src/main/AndroidManifest.xml:6-11,128-136`; https://developer.android.com/develop/background-work/services/alarms; https://developer.android.com/reference/android/content/Intent; https://developer.android.com/privacy-and-security/risks/insecure-broadcast-receiver
+  Touches: reminder and weekly-summary schedulers, reschedule receiver, manifest, exact-alarm settings UI, DST and clock-change tests
+  Acceptance: Weigh-in and weekly-summary alarms are rebuilt after `TIME_SET`, `TIMEZONE_CHANGED`, and API 37 `TIMEZONE_OFFSET_CHANGED`; tests cover spring gaps and fall overlaps in at least two zones; the receiver is not callable by third-party apps; `SCHEDULE_EXACT_ALARM` and its settings flow are removed, and inexact delivery remains visible in reminder copy.
+  Complexity: M
+
+- [ ] P1: Publish release checksums and the stable APK signing identity
+  Why: Direct-download users can verify neither asset integrity nor signing continuity from the current release materials, while comparable OSS users have explicitly requested the certificate fingerprint.
+  Evidence: https://github.com/davidhealey/waistline/issues/950; https://github.com/guiloklex-hub/ControlaPeso/releases/tag/v1.1.0; https://github.com/SysAdminDoc/WeightTrack/releases/tag/v0.4.0; existing Android developer verification item
+  Touches: local release script, `SECURITY.md` or equivalent permanent verification guide, GitHub release assets, artifact-verification test
+  Acceptance: Every release includes `SHA256SUMS.txt`; the permanent guide publishes the SHA-256 signing-certificate fingerprint for each channel and exact `apksigner` commands; the local release gate fails if an APK has the wrong package, signer, version, or checksum; key rotation documents the old and new fingerprints before an update ships.
+  Complexity: S
+
+### P2 additions from 2026-08-31
+
+- [ ] P2: Use one configurable calendar-week rule everywhere
+  Why: Weekly analytics currently count backward from the latest point while Settings has a summary day but no first-day-of-week rule, a correctness class that caused wrong-row selection in openScale and appeared again in a 2026-08-31 tracker discussion.
+  Evidence: `app/src/main/java/com/weighttrack/domain`; `app/src/main/java/com/weighttrack/ui/charts`; https://github.com/oliexdev/openScale/issues/1454; https://www.reddit.com/r/loseit/comments/1vvcm8n/what_apps_or_calorie_trackers_are_people_using/
+  Touches: shared week-boundary helper, analytics and chart grouping, weekly summary, settings and sync preference, locale tests
+  Acceptance: Locale default and an explicit Sunday-through-Saturday override produce consistent boundaries in charts, summaries, averages, comparisons, and exports; US and German locale fixtures select the expected rows across year boundaries; changing the rule never rewrites stored dates.
+  Complexity: M
+
+- [ ] P2: Publish a versioned interchange schema separate from private restore state
+  Why: CSV and JSON exist, but third-party tools have no stable machine-readable contract, compatibility policy, or extension rules; adjacent local-first tools make documented open files the integration boundary.
+  Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://github.com/LuminaAppsDev/cairn; https://github.com/woop/awesome-quantified-self
+  Touches: public JSON Schema or JSON Lines model, exporter and importer, versioned fixtures, compatibility documentation
+  Acceptance: A published schema covers documented user data without secrets or internal acknowledgement state; v1 fixtures validate and round-trip; unknown additive fields are ignored; breaking changes require a new schema version and migration fixture; a sample consumer can stream weights and composition without importing app code.
+  Complexity: M
+
+- [ ] P2: Finish actionable F-Droid metadata and reproducibility work
+  Why: The final fdroiddata submission needs an external account and review, but upstream descriptions, graphics, version-code changelog, FOSS dependency proof, and reproducible-build evidence can be completed now and are currently absent.
+  Evidence: absent `fastlane/metadata/android/en-US`; `Roadmap_Blocked.md`; https://f-droid.org/docs/Submitting_to_F-Droid_Quick_Start_Guide/; https://f-droid.org/en/docs/Reproducible_Builds/; https://f-droid.org/en/categories/health-manager/
+  Touches: upstream Fastlane or Triple-T metadata, current icon and screenshots, local FOSS release recipe, reproducibility comparison, F-Droid notes
+  Acceptance: Upstream metadata contains short and full descriptions, icon, current phone screenshots, and a changelog for every published version code, including code 5 for v0.4.0, and passes `fdroid lint`; the FOSS release resolves no proprietary runtime dependency; two clean builds from the same tag compare byte-for-byte before signing or have every difference explained with `diffoscope`; `Roadmap_Blocked.md` is left only with account, submission, and reviewer-controlled steps.
+  Complexity: M
+
+### P3 additions from 2026-08-31
+
+- [ ] P3: Add launcher shortcuts for Log weight and Read scale
+  Why: Weight entry is the dominant open-app action in a completed trale request, and WeightTrack's three-second logging goal should extend to the Android launcher.
+  Evidence: https://github.com/QuantumPhysique/trale/issues/468; no shortcut declaration or `ShortcutManager` usage in the 2026-08-31 repository scan
+  Touches: shortcut XML or manager, manifest, navigation deep links, app-lock and onboarding routing tests
+  Acceptance: Both shortcuts appear on supported launchers; Log weight and Read scale land on the intended screen after app lock or onboarding is satisfied; denial and unavailable-Bluetooth states remain visible; repeated shortcut use creates no duplicate navigation or saved row.
+  Complexity: S
+
+- [ ] P3: Open supported export files directly into a safe import preview
+  Why: Users receiving or downloading a WeightTrack CSV or JSON must currently launch the app and browse for it, while a narrow Android file handoff is a requested OSS migration path.
+  Evidence: `app/src/main/AndroidManifest.xml`; `app/src/main/java/com/weighttrack/data/io`; https://github.com/simonoppowa/OpenNutriTracker/issues/621
+  Touches: narrow `ACTION_VIEW` intent filters, URI permission handling, app-lock routing, import preview, atomic restore tests
+  Acceptance: A supported CSV or WeightTrack JSON opened from Files reaches the same preview and atomic import path as the in-app picker; an unrelated, oversized, malformed, or unsupported file changes nothing and shows a clear result; URI access is temporary and survives process recreation only as long as the preview needs it.
+  Complexity: S
+
+- [ ] P3: Replace Material Icons Extended with checked-in Material Symbols vectors
+  Why: Compose Material no longer recommends or updates the icons library, and the extended bundle increases build and preview cost while WeightTrack uses a finite icon set.
+  Evidence: `gradle/libs.versions.toml:63`; `app/build.gradle.kts:158`; `Icons.*` imports under `app/src/main`; https://developer.android.com/jetpack/androidx/releases/compose-material3
+  Touches: `app/src/main/res/drawable`, shared icon wrappers, Compose screens and navigation, version catalog
+  Acceptance: Every used icon is a reviewed vector resource with correct RTL behavior and content description at the call site; `material-icons-extended` is absent from the resolved graph; phone screenshots and accessibility semantics remain equivalent; release APK size and clean build time are recorded before and after.
+  Complexity: M
 
 ## Never
 
