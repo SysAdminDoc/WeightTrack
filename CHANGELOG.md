@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The hourly sync job is tested properly for the first time. What it did with a refused password, an unreachable server, or a Health Connect exchange that failed was only ever checked by reading the source of the job and asserting on the words in it, which is not a test: it broke on a rename that changed nothing and would have passed with the call it looked for moved somewhere unreachable. The job is now driven for real, and every branch of what it decides goes red if the decision is changed.
+
 - A cached product can be checked again. Labels change and a saved product does not, so a tin you scanned two years ago goes on reporting the recipe it had then. There is a button on each looked-up food now, and the new numbers replace the old ones without touching anything you have already logged: a diary row keeps its own calories precisely so a correction today cannot rewrite what you ate last March.
 
 - And Open Food Facts entries that contradict themselves are turned away rather than saved. It is crowdsourced, which is why it exists and why it holds things nobody meant: a per-serving figure typed into a per-hundred-grams field, a decimal point in the wrong place, nine hundred calories with every macro left at zero. A wrong number in a diary is worse than a missing one, because nothing about it looks wrong afterwards. The check is deliberately generous, and it knows what alcohol is, so your beer and your olive oil both still come through.

@@ -31,6 +31,15 @@ import dagger.hilt.components.SingletonComponent
 import java.io.File
 import javax.inject.Singleton
 
+/** The one interface in the app, so the hourly job can be driven without a phone. */
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class SyncWorkModule {
+    @dagger.Binds
+    @Singleton
+    abstract fun syncWork(real: com.weighttrack.sync.RealSyncWork): com.weighttrack.sync.SyncWork
+}
+
 @Module
 @InstallIn(SingletonComponent::class)
 object DataModule {

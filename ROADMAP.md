@@ -200,13 +200,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P2 additions from 2026-08-31
 
-- [ ] P2: Replace the SyncWorker source-text guard with a real worker test
-  Why: `BackgroundHealthSyncTest` reads `SyncWorker.kt` and asserts substrings, which the repo has twice learned is not a test: it broke on a rename that changed no behaviour, and it would pass just as happily with the call it looks for moved into a branch nothing reaches.
-  Evidence: `app/src/test/java/com/weighttrack/sync/BackgroundHealthSyncTest.kt`; `CLAUDE.md` note "A source-text guard is not a test"
-  Touches: seams for SyncEngine, SyncPreferences, HealthConnectSync and SurfaceUpdater, a TestListenableWorkerBuilder test for SyncWorker
-  Acceptance: the Health Connect exchange runs before the folder settings are read, proven by a fake that records the order; the job returns success on Refused and retry on a network failure; deleting the `healthConnect.sync()` call turns a test red; no test in the file reads a source file.
-  Complexity: M
-
 ### P3 additions from 2026-08-31
 
 - [ ] P3: Add launcher shortcuts for Log weight and Read scale

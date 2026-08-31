@@ -36,77 +36,39 @@ import javax.inject.Singleton
 class SyncWorker @AssistedInject constructor(
     @Assisted context: Context,
     @Assisted parameters: WorkerParameters,
-    private val engine: SyncEngine,
-    private val preferences: SyncPreferences,
+    private val work: SyncWork,
     private val runtimeLog: RuntimeLog,
-    private val healthConnect: com.weighttrack.health.HealthConnectSync,
-    private val surfaces: com.weighttrack.widget.SurfaceUpdater,
-    private val scheduler: SyncScheduler,
 ) : CoroutineWorker(context, parameters) {
 
-    override suspend fun doWork(): Result = recorded(runtimeLog, com.weighttrack.diagnostics.LogTask.SYNC) {
-        // Health Connect first, and whether or not folder sync is set up. Everything the changes
-        // walk is for, a reading added or deleted in the scale's own app, used to reach the app
-        // only when somebody opened Settings and pressed the button, which meant the trend, the
-        // widget and the watch all sat stale until they did.
-        val health = syncHealthConnect()
+    override suspend fun doWork(): Result =
+        recorded(runtimeLog, com.weighttrack.diagnostics.LogTask.SYNC) {
+            // Health Connect first, and whether or not folder sync is set up. Everything the
+            // changes walk is for, a reading added or deleted in the scale's own app, used to
+            // reach the app only when somebody opened Settings and pressed the button, which
+            // meant the trend, the widget and the watch all sat stale until they did.
+            val health = work.health()
+            outcomeFor(health, work.folder())
+        }
 
-        val settings = preferences.current()
-        if (!settings.isOn || !settings.isReady || !settings.syncInBackground) {
-            return@recorded health
-        }
-        val outcome = runCatching { engine.syncNow() }.getOrElse {
-            // A worker that throws is a crash nobody asked for and nobody sees. Whatever went
-            // wrong is worth another go later rather than taking the process with it.
-            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
-            return@recorded WorkOutcome.RETRY
-        }
-        when (outcome) {
+    companion object {
+        /**
+         * What the run amounts to, given what the two exchanges said.
+         *
+         * Separate and pure so the decision can be read in one place. Nothing about it depends
+         * on Android, and every branch of it matters to somebody whose sync has stopped.
+         */
+        fun outcomeFor(health: WorkOutcome, folder: SyncResult?): WorkOutcome = when (folder) {
+            // Nothing set up, or nothing to do. Whatever Health Connect said stands.
+            null, SyncResult.NotSetUp -> health
             is SyncResult.Done -> health
             // Worth another go later: no signal, a server having a bad day.
             is SyncResult.Unreachable -> WorkOutcome.RETRY
-            // A wrong password will still be wrong in an hour, and retrying would hammer somebody
-            // else's server for nothing. The reason is on the settings screen for them to read.
+            // A wrong password will still be wrong in an hour, and retrying would hammer
+            // somebody else's server for nothing. The reason is on the settings screen.
             is SyncResult.Refused -> WorkOutcome.DONE
-            SyncResult.NotSetUp -> health
         }
-    }
-
-    /**
-     * Exchanges with Health Connect, when there is anything to exchange with.
-     *
-     * Answers success when it is not connected: that is not a failure and retrying would achieve
-     * nothing. A failure is worth another go, since the usual cause is the provider being busy.
-     */
-    private suspend fun syncHealthConnect(): WorkOutcome {
-        if (healthConnect.availability() != com.weighttrack.health.HealthConnectAvailability.INSTALLED) {
-            return WorkOutcome.DONE
-        }
-        if (!healthConnect.hasPermissions()) return WorkOutcome.DONE
-        // Given up or revoked since the job was booked. Either way there is nothing to do and
-        // nothing retrying would fix, so the job stands itself down and Settings offers it back.
-        if (!healthConnect.backgroundReadIsPossible() || !healthConnect.isTiedToAProfile()) {
-            runCatching { scheduler.reschedule() }
-            return WorkOutcome.DONE
-        }
-        val result = runCatching { healthConnect.sync() }.getOrElse {
-            runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
-            return WorkOutcome.RETRY
-        }
-        return result.fold(
-            onSuccess = { summary ->
-                // Only when something changed, so a quiet hourly run does not keep rebuilding
-                // the widget and waking the watch for nothing.
-                if (summary.imported > 0 || summary.removed > 0) {
-                    runCatching { surfaces.refresh() }
-                }
-                WorkOutcome.DONE
-            },
-            onFailure = { WorkOutcome.RETRY },
-        )
     }
 }
-
 /** Turns the background job on and off to match what sync is set to. */
 @Singleton
 class SyncScheduler @Inject constructor(
