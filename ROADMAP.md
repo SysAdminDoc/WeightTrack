@@ -338,13 +338,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: A two-profile fixture with different demographics produces the correct BMI, healthy range, body-fat estimate, BMR, and TDEE for each person after switches, backup restore, and two-device sync; migration assigns the legacy demographics only to the profile that was active before migration and leaves other profiles incomplete; UI copy says exactly when enabled sync, Health Connect, or export can move each data type.
   Complexity: L
 
-- [ ] P0: Claim the Health Connect profile on first connection
-  Why: Permission success schedules and runs sync without saving an owner when only one profile exists, so adding a second profile can redirect later Health Connect data to the newly active person.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:137-138`; `app/src/main/java/com/weighttrack/ui/settings/SettingsScreen.kt:415-420`; `app/src/main/java/com/weighttrack/ui/settings/SettingsViewModel.kt:355-370`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt:81-90,190-201`
-  Touches: Health Connect permission result, `SettingsViewModel.kt`, `ProfileRepository.kt`, connection and transfer UI, worker scheduling, fake-client tests
-  Acceptance: Connecting Health Connect with the sole profile durably claims that profile before the first sync; adding or activating another profile never redirects reads or writes; transfer and disable are explicit operations that stop or drain pending work before ownership changes; process-recreation and multi-profile fake-client tests prove the claim persists.
-  Complexity: M
-
 - [ ] P0: Persist complete scale composition with quality and provenance
   Why: Parsers and the live scale screen carry muscle, lean mass, water, impedance, and basal metabolism, but save keeps only weight and body-fat percentage, silently discarding the rest and whether values were scale-reported, app-estimated, absent, or incomplete.
   Evidence: `core/src/main/java/com/weighttrack/core/scale/ScaleReading.kt:10-23`; `core/src/main/java/com/weighttrack/core/scale/StandardScaleParser.kt:120-142`; `app/src/main/java/com/weighttrack/ui/scale/ScaleViewModel.kt:292-337`; https://www.bluetooth.com/specifications/specs/body-composition-service-bcs/; https://github.com/oliexdev/openScale/issues/1469; https://pubmed.ncbi.nlm.nih.gov/33929337/

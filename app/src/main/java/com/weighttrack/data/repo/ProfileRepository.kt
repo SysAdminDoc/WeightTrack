@@ -170,6 +170,26 @@ class ProfileRepository @Inject constructor(
 
     suspend fun healthConnectId(): Long? = healthConnectProfileId.first()
 
+    /**
+     * Whose readings Health Connect exchanges, deciding it once and for all if nobody has.
+     *
+     * Following the active profile whenever nobody had claimed it looked harmless while there
+     * was only one, which is every install until the day somebody adds a second. From that day
+     * on, switching person silently pointed Health Connect at them: their scale readings landed
+     * on the other person's history, and the first person's weigh-ins were written into a Health
+     * Connect the phone's owner reads as their own. Nothing said it had happened.
+     *
+     * So the first thing that needs an answer gets one and it is written down. Whoever was
+     * active at that moment is the person Health Connect has been exchanging with all along,
+     * which makes this the answer that changes nothing for anybody already using it.
+     */
+    suspend fun claimHealthConnect(): Long {
+        healthConnectId()?.let { return it }
+        val active = activeId()
+        setHealthConnect(active, enabled = true)
+        return active
+    }
+
     suspend fun setReminder(
         id: Long,
         enabled: Boolean,

@@ -37,6 +37,8 @@ import com.weighttrack.diagnostics.RuntimeLog
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.LocalDate
@@ -130,12 +132,33 @@ class HealthConnectSync @Inject constructor(
     /**
      * Whose readings Health Connect exchanges.
      *
-     * A household that has claimed it for one person syncs that person, whoever is on screen.
-     * With nobody claiming it, which is every single-profile install, it follows the active
-     * profile exactly as it did before profiles existed.
+     * Decided once and written down. It used to follow the active profile whenever nobody had
+     * claimed it, which is every single-profile install: harmless right up until the day a
+     * second profile is added, and from then on switching person quietly redirected Health
+     * Connect at them.
      */
-    private suspend fun syncProfileId(): Long =
-        profileRepository.healthConnectId() ?: profileRepository.activeId()
+    private suspend fun syncProfileId(): Long = profileRepository.claimHealthConnect()
+
+    /**
+     * Writes down whose Health Connect this is, before anything is read from it or written to it.
+     *
+     * Called the moment access is granted, so the claim is on the profile the person was looking
+     * at when they connected rather than on whoever happens to be active when the first
+     * background sync runs an hour later.
+     */
+    suspend fun claimProfile(): Long = profileRepository.claimHealthConnect()
+
+    /**
+     * Runs [block] with no sync in flight, and holds any sync off until it is done.
+     *
+     * Handing Health Connect to another person, or taking it away, part-way through a sync would
+     * file the rest of that sync's import against the new owner and leave the export half done
+     * under the old one.
+     */
+    suspend fun <T> whileNotSyncing(block: suspend () -> T): T = running.withLock { block() }
+
+    /** One Health Connect exchange at a time, whoever asked for it. */
+    private val running = Mutex()
 
     /**
      * Notes that something went wrong, since almost everything here answers with a default.
@@ -370,6 +393,7 @@ class HealthConnectSync @Inject constructor(
      */
     suspend fun sync(sinceDays: Long = 365 * 5): Result<HealthConnectSyncResult> =
         withContext(Dispatchers.IO) {
+            running.withLock {
             runCatching {
                 val client = clientOrNull() ?: error(context.getString(com.weighttrack.R.string.health_not_available))
                 if (!hasPermissions()) error(context.getString(com.weighttrack.R.string.health_not_granted))
@@ -393,6 +417,7 @@ class HealthConnectSync @Inject constructor(
                     removed = imported.third,
                 )
             }.onFailure { failed(LogEvent.HEALTH_SYNC_FAILED, it) }
+            }
         }
 
     /** Notes where Health Connect has got to, so the next sync can ask only for what changed. */
@@ -632,6 +657,7 @@ class HealthConnectSync @Inject constructor(
 
     /** Body fat is written separately because Health Connect models it as its own record. */
     suspend fun exportBodyFat(): Result<Int> = withContext(Dispatchers.IO) {
+        running.withLock {
         runCatching {
             val client = clientOrNull() ?: return@runCatching 0
             val zone = ZoneId.systemDefault()
@@ -651,6 +677,7 @@ class HealthConnectSync @Inject constructor(
             if (records.isEmpty()) return@runCatching 0
             records.chunked(BATCH_SIZE).forEach { client.insertRecords(it) }
             records.size
+        }
         }
     }
 

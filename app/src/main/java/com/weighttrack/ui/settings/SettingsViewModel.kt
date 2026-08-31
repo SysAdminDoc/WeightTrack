@@ -234,7 +234,12 @@ class SettingsViewModel @Inject constructor(
     /** Hands Health Connect to the profile on screen, or takes it away. */
     fun setHealthConnectProfile(enabled: Boolean) {
         viewModelScope.launch {
-            profileRepository.setHealthConnect(activeProfileId.value, enabled)
+            // Never while a sync is in flight. Changing hands halfway through would file the
+            // rest of that sync's import against the new owner and leave the export half done
+            // under the old one.
+            healthConnect.whileNotSyncing {
+                profileRepository.setHealthConnect(activeProfileId.value, enabled)
+            }
             _message.value = if (enabled) {
                 strings[R.string.settings_health_connect_now_exchanges_weights_for]
             } else {
@@ -401,7 +406,13 @@ class SettingsViewModel @Inject constructor(
             grantedEverything = granted.containsAll(healthConnect.grantablePermissions()),
         )
         if (allowed) {
-            syncHealthConnect()
+            // Whose Health Connect this is, written down before a single record moves. Deciding
+            // it at the first sync instead would pin it on whoever happened to be active when a
+            // background job ran, which need not be the person who granted the access.
+            viewModelScope.launch {
+                runCatching { healthConnect.claimProfile() }
+                syncHealthConnect()
+            }
         } else {
             _message.value = strings[R.string.settings_health_connect_access_was_not_granted]
         }
