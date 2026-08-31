@@ -500,6 +500,13 @@ class HealthConnectSync @Inject constructor(
                 } else {
                     importChanges(session, token)
                 }
+                // How far this run read, for the next one that loses its place. Written after
+                // the import rather than before it, so a failure does not move the mark past
+                // records nobody has read.
+                settingsRepository.setHealthImportedThrough(
+                    session.profileId,
+                    session.now.toEpochMilli(),
+                )
                 val exported = exportWeights(session)
                 HealthConnectSyncResult(
                     imported = imported.first,
@@ -541,12 +548,22 @@ class HealthConnectSync @Inject constructor(
         var removed = 0
         var pages = 0
         while (next != null && pages < MAX_RECORD_PAGES) {
-            // A token Health Connect has forgotten can come back either way: as the flag, or as
-            // a refusal to answer at all. Both mean the same thing, and treating the second as a
-            // failure left the stale token stored, so sync stayed broken for good.
+            // A token Health Connect has forgotten comes back either as the flag below or as a
+            // refusal to answer at all, and both mean the same thing. Everything else does not:
+            // treating a provider having a bad minute, a rate limit, or a grant withdrawn months
+            // ago as a lost cursor threw the cursor away and read five years of records again,
+            // hourly, until whatever it was went away.
             val response = runCatching { client.getChanges(next) }.getOrElse { failure ->
                 failed(LogEvent.HEALTH_READ_FAILED, failure)
-                return startAgain(session, removed)
+                return when (HealthFailure.of(failure)) {
+                    HealthFailure.EXPIRED_TOKEN -> startAgain(session, removed)
+                    // The cursor is still good. Keeping it is what makes the next run cheap,
+                    // and it is still where this one got to.
+                    HealthFailure.NOT_ALLOWED,
+                    HealthFailure.RATE_LIMITED,
+                    HealthFailure.TRANSIENT,
+                    -> Triple(imported, skipped, removed)
+                }
             }
             pages++
             if (response.changesTokenExpired) return startAgain(session, removed)
@@ -582,11 +599,18 @@ class HealthConnectSync @Inject constructor(
      */
     private suspend fun startAgain(session: Session, removed: Int): Triple<Int, Int, Int> {
         settingsRepository.setHealthChangesToken(session.profileId, null)
-        // Measured from the moment this run started, not from now. A long import that has to
-        // start again would otherwise ask for a window that has quietly moved under it.
-        val full = importWeights(
-            session.copy(start = session.now.minus(FULL_WINDOW_DAYS, ChronoUnit.DAYS)),
-        )
+        // From a little before wherever the last successful import got to, not from five years
+        // ago. The overlap covers a record written just before that moment and not yet visible;
+        // the upsert means seeing one twice costs nothing. Only a first connect, which has read
+        // nothing yet, asks for the whole window.
+        val readThrough = settingsRepository.healthImportedThrough(session.profileId)
+        val oldest = session.now.minus(FULL_WINDOW_DAYS, ChronoUnit.DAYS)
+        val from = if (readThrough > 0) {
+            maxOf(Instant.ofEpochMilli(readThrough).minus(OVERLAP_DAYS, ChronoUnit.DAYS), oldest)
+        } else {
+            oldest
+        }
+        val full = importWeights(session.copy(start = from))
         rememberToken(session)
         return Triple(full.first, full.second, removed)
     }
@@ -941,8 +965,17 @@ class HealthConnectSync @Inject constructor(
 
         private const val BATCH_SIZE = 200
 
-        /** How far back a full read reaches when a token has expired. */
+        /** How far back a full read reaches for somebody who has never read anything. */
         private const val FULL_WINDOW_DAYS = 365L * 5
+
+        /**
+         * How far behind the last successful read a recovery starts.
+         *
+         * Enough to cover a record written just before that moment and not yet visible to a
+         * query, and small enough that losing the cursor is cheap. Reading a record twice costs
+         * nothing: the insert is keyed on its own name.
+         */
+        private const val OVERLAP_DAYS = 2L
 
         /** Shorter than this is a nap, and a nap is not a night's sleep. */
         private const val MINIMUM_SLEEP_HOURS = 3.0

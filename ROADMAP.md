@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P1: Distinguish Health Connect token expiry from transient failure
-  Why: Any `getChanges` exception currently clears the token and triggers a five-year reread, turning outages and rate limits into expensive full imports.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:401-456`; https://developer.android.com/health-and-fitness/health-connect/sync-data; https://developer.android.com/health-and-fitness/health-connect/rate-limiting
-  Touches: `health/HealthConnectSync.kt`, per-profile cursor metadata, worker retry policy, fake-client tests
-  Acceptance: Transient, permission, rate-limit, and expired-token failures follow separate paths; only confirmed expiry replaces the cursor; recovery reads a bounded overlap from the last successful timestamp; fixtures prove retry does not duplicate rows or issue a five-year query.
-  Complexity: M
-
 - [ ] P1: Store Health Connect origin and add independent read and write controls
   Why: Imported rows do not expose their data origin, while the permission set requests directions and record types that users cannot configure independently, making duplicate and source conflicts hard to diagnose.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt`; https://support.google.com/android/answer/12990553?hl=en; https://help.macrofactorapp.com/en/articles/102-integrations; https://github.com/Monkopedia/health-disconnect/issues/93

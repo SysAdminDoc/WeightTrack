@@ -139,6 +139,20 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setHealthConnectDecided() = edit { it[Keys.HEALTH_CONNECT_DECIDED] = true }
     /**
+     * How far the Health Connect import has read, for one person.
+     *
+     * What makes losing the cursor cheap. Without it, a token the provider had forgotten meant
+     * reading five years of records again, so a bad minute for the provider cost the most
+     * expensive query the app can make, every hour, until it stopped.
+     */
+    suspend fun healthImportedThrough(profileId: Long): Long =
+        dataStore.data.first()[Keys.healthImportedThrough(profileId)] ?: 0
+
+    suspend fun setHealthImportedThrough(profileId: Long, at: Long) = edit {
+        it[Keys.healthImportedThrough(profileId)] = at
+    }
+
+    /**
      * Whether the readings already sent to Health Connect went with their body-fat figures.
      *
      * False until a run has sent something with the body-fat grant in hand. What it guards is
@@ -363,6 +377,9 @@ class SettingsRepository @Inject constructor(
             stringPreferencesKey("health_changes_token_$profileId")
 
         val HEALTH_CONNECT_DECIDED = booleanPreferencesKey("health_connect_decided")
+
+        fun healthImportedThrough(profileId: Long) =
+            longPreferencesKey("health_imported_through_$profileId")
 
         fun healthBodyFatExported(profileId: Long) =
             booleanPreferencesKey("health_body_fat_exported_$profileId")
