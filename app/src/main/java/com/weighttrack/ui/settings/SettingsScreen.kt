@@ -461,7 +461,6 @@ fun SettingsScreen(
             ReminderCard(
                 profile = active,
                 who = active.name.takeIf { profiles.size > 1 },
-                canScheduleExact = viewModel.canScheduleExactAlarms(),
                 onToggle = { enabled ->
                     if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
                         !ReminderReceiver.hasNotificationPermission(context)
@@ -491,7 +490,6 @@ fun SettingsScreen(
                     )
                 },
                 onTest = { viewModel.notifyTestSent(ReminderReceiver.showTestNotification(context)) },
-                onOpenExactAlarmSettings = { openExactAlarmSettings(context) },
             )
         }
 
@@ -889,12 +887,10 @@ private fun ReminderCard(
     profile: Profile,
     /** Null when there is only one, so the card does not shout a name at somebody alone. */
     who: String?,
-    canScheduleExact: Boolean,
     onToggle: (Boolean) -> Unit,
     onEditTime: () -> Unit,
     onToggleDay: (DayOfWeek) -> Unit,
     onTest: () -> Unit,
-    onOpenExactAlarmSettings: () -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
     SettingsSection {
@@ -935,15 +931,15 @@ private fun ReminderCard(
             OutlinedButton(onClick = onTest, modifier = Modifier.fillMaxWidth()) {
                 Text(stringResource(R.string.settings_send_a_test_notification))
             }
-            if (!canScheduleExact) {
-                Spacer(Modifier.height(8.dp))
-                Text(
-                    text = stringResource(R.string.settings_android_is_holding_weighttrack_to_approximate),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.tertiary,
-                )
-                TextButton(onClick = onOpenExactAlarmSettings) { Text(stringResource(R.string.settings_open_alarm_settings)) }
-            }
+            Spacer(Modifier.height(8.dp))
+            // Said once, plainly, rather than offered as a thing to go and fix. A daily
+            // reminder is not an alarm clock, and the app no longer asks for the privileged
+            // permission that would make it exact.
+            Text(
+                text = stringResource(R.string.settings_reminders_are_approximate),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             Spacer(Modifier.height(4.dp))
             Text(
                 text = stringResource(R.string.settings_if_reminders_stop_arriving_check_that),
@@ -1091,17 +1087,6 @@ private fun ToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean
     ) {
         Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
-}
-
-private fun openExactAlarmSettings(context: Context) {
-    if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) return
-    runCatching {
-        context.startActivity(
-            Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-                .setData(Uri.parse("package:${context.packageName}"))
-                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-        )
     }
 }
 

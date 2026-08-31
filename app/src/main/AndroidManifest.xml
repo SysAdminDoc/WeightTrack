@@ -5,10 +5,12 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!--
-      Weigh-in reminders. Exact alarms are requested, not required: without the grant the
-      reminder still fires, the system is just free to shift it a little.
+      Exact alarms are deliberately not requested. A daily weigh-in reminder is not an alarm
+      clock: the system delivering it a few minutes either side of half past seven is fine, and
+      asking for a privileged permission for something that does not need it is how an app ends
+      up on a list of apps that ask for too much. The alarms are still allowed to fire in Doze,
+      which is the part that actually matters on a phone left on a bedside table.
     -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!--
       Bluetooth scales. The scan runs only while the weigh-in screen is open, so this is never
@@ -139,6 +141,14 @@
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <!--
+                  The clock moving under a reminder that was booked in wall-clock time. Setting
+                  the time by hand, flying somewhere, and a seasonal offset change all do it;
+                  the last of these arrives as its own broadcast from Android 16.
+                -->
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.intent.action.TIMEZONE_OFFSET_CHANGED" />
             </intent-filter>
         </receiver>
 

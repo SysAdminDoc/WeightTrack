@@ -282,13 +282,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Strict lock state covers all resolvable app, Wear, test, plugin, and release configurations; changing a transitive version without refreshing locks fails; replacing a cached artifact with different bytes fails verification; the documented local update command regenerates metadata for review without disabling verification.
   Complexity: M
 
-- [ ] P1: Rebook reminders after civil-time changes and remove unnecessary exact-alarm access
-  Why: Reminders are one-shot RTC alarms rescheduled only after boot or package replacement, so manual time, timezone, or seasonal offset changes can move them away from the chosen local time; daily weigh-in reminders do not require privileged exact delivery.
-  Evidence: `app/src/main/java/com/weighttrack/notifications/ReminderScheduler.kt`; `app/src/main/java/com/weighttrack/notifications/ReminderReceiver.kt:153-176`; `app/src/main/AndroidManifest.xml:6-11,128-136`; https://developer.android.com/develop/background-work/services/alarms; https://developer.android.com/reference/android/content/Intent; https://developer.android.com/privacy-and-security/risks/insecure-broadcast-receiver
-  Touches: reminder and weekly-summary schedulers, reschedule receiver, manifest, exact-alarm settings UI, DST and clock-change tests
-  Acceptance: Weigh-in and weekly-summary alarms are rebuilt after `TIME_SET`, `TIMEZONE_CHANGED`, and API 37 `TIMEZONE_OFFSET_CHANGED`; tests cover spring gaps and fall overlaps in at least two zones; the receiver is not callable by third-party apps; `SCHEDULE_EXACT_ALARM` and its settings flow are removed, and inexact delivery remains visible in reminder copy.
-  Complexity: M
-
 - [ ] P1: Publish release checksums and the stable APK signing identity
   Why: Direct-download users can verify neither asset integrity nor signing continuity from the current release materials, while comparable OSS users have explicitly requested the certificate fingerprint.
   Evidence: https://github.com/davidhealey/waistline/issues/950; https://github.com/guiloklex-hub/ControlaPeso/releases/tag/v1.1.0; https://github.com/SysAdminDoc/WeightTrack/releases/tag/v0.4.0; existing Android developer verification item

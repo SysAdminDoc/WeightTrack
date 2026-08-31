@@ -146,8 +146,14 @@ class ReminderReceiver : BroadcastReceiver() {
 }
 
 /**
- * Alarms do not survive a reboot, so they are booked again once the device is up. Without
- * this, reminders stop the first time the phone restarts and never come back.
+ * Books every alarm again whenever the answer to "when is 07:30 tomorrow" may have changed.
+ *
+ * A reminder is one alarm at a moment in absolute time, worked out from a wall-clock time in a
+ * zone. Everything that moves the wall clock under it therefore moves the reminder: a reboot,
+ * because alarms do not survive one; but also somebody setting the clock by hand, flying
+ * somewhere, or a government moving the seasonal offset. Only the reboot used to be listened
+ * for, so a reminder set for the morning could quietly start arriving in the middle of the
+ * night and go on doing it until the phone was next restarted.
  */
 @AndroidEntryPoint
 class BootReceiver : BroadcastReceiver() {
@@ -161,20 +167,35 @@ class BootReceiver : BroadcastReceiver() {
     @Inject lateinit var weeklyScheduler: WeeklySummaryScheduler
 
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action != Intent.ACTION_BOOT_COMPLETED &&
-            intent.action != Intent.ACTION_MY_PACKAGE_REPLACED
-        ) {
-            return
-        }
+        if (intent.action !in REBOOKING_ACTIONS) return
         val pendingResult = goAsync()
         CoroutineScope(Dispatchers.Default).launch {
             try {
-                // Alarms do not survive a restart, so everybody's is booked again here.
+                // Booked from scratch: the times on the profiles are wall-clock times, so the
+                // moment each one lands at has to be worked out again in whatever the zone and
+                // offset now are.
                 scheduler.reschedule(profileRepository.observeAll().first())
                 weeklyScheduler.reschedule(settingsRepository.settings.first())
             } finally {
                 pendingResult.finish()
             }
         }
+    }
+
+    companion object {
+        /**
+         * Everything that can move a wall-clock time to a different moment.
+         *
+         * The offset one is Android 16 and later, where a seasonal change no longer arrives as
+         * a timezone change. Naming it costs nothing on an older phone, which simply never
+         * sends it, and leaving it out costs an hour twice a year on a newer one.
+         */
+        val REBOOKING_ACTIONS = setOf(
+            Intent.ACTION_BOOT_COMPLETED,
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            Intent.ACTION_TIME_CHANGED,
+            Intent.ACTION_TIMEZONE_CHANGED,
+            "android.intent.action.TIMEZONE_OFFSET_CHANGED",
+        )
     }
 }

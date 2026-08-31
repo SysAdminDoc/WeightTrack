@@ -23,19 +23,6 @@ class ReminderScheduler @Inject constructor(
     private val alarmManager: AlarmManager? = context.getSystemService()
 
     /**
-     * True when the system will honour an exact alarm.
-     *
-     * Below Android 12 exact alarms need no permission. From 12 onward the user grants it, and
-     * without it the reminder still works, just with the system free to shift it a little.
-     */
-    fun canScheduleExact(): Boolean =
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            alarmManager?.canScheduleExactAlarms() == true
-        } else {
-            true
-        }
-
-    /**
      * Books the next reminder for everybody who wants one.
      *
      * Two people in a house weigh themselves at different times, so each profile gets its own
@@ -71,18 +58,12 @@ class ReminderScheduler @Inject constructor(
         // "AndAllowWhileIdle" is the part that matters: without it, Doze silently holds the
         // alarm until the device next wakes, which on a phone left on a bedside table can mean
         // the reminder never arrives at all.
+        //
+        // Not exact. A daily weigh-in reminder is not an alarm clock, and the privileged
+        // permission an exact one needs is not worth asking for to move half past seven a few
+        // minutes closer to half past seven.
         runCatching {
-            if (canScheduleExact()) {
-                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
-            } else {
-                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
-            }
-        }.onFailure {
-            // A SecurityException here means the exact-alarm permission was revoked between
-            // the check and the call. An approximate reminder beats no reminder.
-            runCatching {
-                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
-            }
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAtMillis, pending)
         }
     }
 
