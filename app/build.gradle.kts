@@ -186,6 +186,7 @@ dependencies {
 
     testImplementation(libs.junit4)
     testImplementation(libs.truth)
+    testImplementation(libs.mockito.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.robolectric)
     // The Health Connect fake, so the import can be driven across real page boundaries.

@@ -103,24 +103,17 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 - [ ] P1: Add an encrypted portable archive with progress photos
   Why: JSON and CSV cannot restore progress-photo files, while a phone-to-phone archive needs confidentiality and tamper detection without exporting Keystore-bound service credentials.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
-  Note (2026-08-31 afternoon): format template verified — Aegis vault (scrypt KEK, slot system wrapping one AES-256-GCM master key, GCM tag as tamper check, https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md) for the header, SeedVault-style chunked streaming AEAD for photo payloads (https://github.com/seedvault-app/seedvault/blob/master/doc/README.md); slots let a password and the device keystore both unlock one archive.
+  Note (2026-08-31 afternoon): format template verified. Use an Aegis vault header (scrypt KEK, slot system wrapping one AES-256-GCM master key, GCM tag as tamper check, https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md) with SeedVault-style chunked streaming AEAD for photo payloads (https://github.com/seedvault-app/seedvault/blob/master/doc/README.md). Slots let a password and the device keystore both open one archive.
   Touches: versioned archive codec, backup service, photo repository, export and restore UI, malformed-archive tests
   Acceptance: A password-protected archive restores all structured data and photo bytes with verified hashes; wrong password, modified content, path traversal, excessive expansion, or unsupported version changes nothing; non-secret settings travel, WebDAV passwords and API keys do not; JSON and CSV remain available with a clear photo-exclusion label.
   Complexity: L
 
 - [ ] P1: Add undo for destructive profile and journal actions
-  Why: The product promises snackbar undo for records, but profile, photo, fast, water, food, recipe, diary, and goal deletion is immediate while only weight deletion has a complete undo path. (2026-08-31: no inspected OSS tracker ships snackbar-undo — the ecosystem still uses confirm dialogs — so this stays a differentiator.)
+  Why: The product promises snackbar undo for records, but profile, photo, fast, water, food, recipe, diary, and goal deletion is immediate while only weight deletion has a complete undo path. No inspected OSS tracker shipped snackbar undo as of 2026-08-31, so this stays a differentiator.
   Evidence: `ROADMAP.md` section `Complaints we will not repeat`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`
   Touches: repositories for destructive entities, deletion staging, ViewModels and snackbars, file recovery cache, tests
   Acceptance: Each destructive action removes the item immediately and offers one timed undo without a confirmation dialog; undo restores relationships and files with their original sync IDs; expiry writes one tombstone; process recreation during the undo window resolves deterministically and is covered by tests.
   Complexity: L
-
-- [ ] P1: Gate releases on accessibility and UI state coverage
-  Why: Current screenshots cover populated AMOLED screens but not light theme, 200 percent font, RTL, pseudo-locales, empty, loading, permission, error, or destructive recovery states.
-  Evidence: `docs/screenshots`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt`; https://developer.android.com/develop/ui/compose/accessibility/scalable-content; https://www.w3.org/TR/WCAG22/
-  Touches: Compose UI tests, screenshot fixtures, semantics assertions, `design-qa.md`
-  Acceptance: The release check renders every top-level screen in light and dark themes at normal and 200 percent font, plus RTL and pseudo-locales; named fixtures cover empty, loading, denied permission, recoverable error, and undo states; tests fail on clipped required controls, missing labels, or touch targets below platform guidance.
-  Complexity: M
 
 ### P2
 
@@ -129,7 +122,7 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Why: MyFitnessPal (free, 2026-04-28), Noom (free, 2026-06-24) and MyNetDiary (paid, 2026-05-05) all shipped this in 2026; no OSS tracker has it; the science says 1.2 to 1.6 g/kg protein and a lean-mass watch during the 10 to 13 percent loss these users see.
   Evidence: https://finance.yahoo.com/sectors/healthcare/articles/myfitnesspal-launches-comprehensive-glp-1-130000875.html ; https://shotsyapp.com/glp-1-tracker/ (feature bar: site rotation, severity on the dose timeline, level between doses, PDF) ; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12673431/ ; https://www.clinicalnutritionreport.com/articles/preventing-lean-mass-loss-glp1/
   Touches: new core/medication (dose schedule, site rotation, pharmacokinetic decay per drug from published half-lives), new data/db MedicationDose + SideEffect entities (Room v12, syncable with tombstones, added to DeletionCoverageTest), new ui/medication screen behind a Settings toggle, charts overlay of dose markers on the trend, PDF via android.graphics.pdf, protein target surfaced in the diary when the toggle is on
-  Note (2026-08-31 afternoon): demand confirmed table stakes — MyFitnessPal made GLP-1 dose/site/side-effect logging free on 2026-04-28 (https://blog.myfitnesspal.com/glp-1-support-medication-tracking/), and Shotsy, Pep, and Noyoyo are dedicated Android trackers; none is local-first and none exports a clinician report, so the niche below stands.
+  Note (2026-08-31 afternoon): demand confirmed this is table stakes. MyFitnessPal made GLP-1 dose, site and side-effect logging free on 2026-04-28 (https://blog.myfitnesspal.com/glp-1-support-medication-tracking/). Shotsy, Pep and Noyoyo are dedicated Android trackers, but none is local-first or exports a clinician report, so the niche below stands.
   Acceptance: a dose logged with a site suggests the next site in rotation; a side effect appears on the same day axis as doses on the chart; the PDF lists doses, side effects and the weight trend for a chosen range with no other data; deleting a dose produces a tombstone; the feature is invisible while the toggle is off. Stays local: Health Connect Medical Records has no Play policy yet (https://developer.android.com/health-and-fitness/health-connect/medical-records).
   Complexity: XL
 
@@ -144,7 +137,7 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Why: an EMA lags a steady slope by design; TrendWeight 2.11.0 (2026-08-26) added Holt's linear trend for exactly this, trale #481 proposes a Kalman equivalent, and Happy Scale offers four modes.
   Evidence: https://github.com/trendweight/trendweight/issues/396 ; https://github.com/QuantumPhysique/trale/issues/481 ; https://happyscale.com/support ; core/src/main/java/com/weighttrack/core/math/TrendEngine.kt
   Touches: core/math/TrendEngine.kt (second smoother with the same gap-aware compounding), data/prefs/SettingsRepository.kt (mode), ui/settings smoothing section, ui/components/TrendChart.kt (no change if TrendSeries stays the shape)
-  Note (2026-08-31 afternoon): if a second smoother is added, structural/Kalman is the evidence-backed candidate beyond Holt — best agreement on gappy real smart-scale data (https://pmc.ncbi.nlm.nih.gov/articles/PMC7519428/), and per-point uncertainty bands would be a first among consumer trackers.
+  Note (2026-08-31 afternoon): if a second smoother is added, structural/Kalman is the evidence-backed candidate after Holt. It had the best agreement on gappy real smart-scale data (https://pmc.ncbi.nlm.nih.gov/articles/PMC7519428/), and per-point uncertainty bands would be a first among consumer trackers.
   Acceptance: on a synthetic steady 0.5 kg/week loss the Holt trend lags the true line by under 0.1 kg after 30 days where the EMA lags by more; milestones, rate and ETA all read off whichever mode is chosen; the default stays EMA alpha 0.1.
   Complexity: M
 
@@ -264,11 +257,25 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0 additions from 2026-08-31
 
+- [ ] P1: Reject implausible weights and timestamps at every import boundary
+  Why: Health Connect accepts any positive weight at any timestamp, and CSV import guesses epoch seconds or milliseconds without validating the result. Upstream trackers have produced readings dated in 2094 and year 2800.
+  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt`; `app/src/main/java/com/weighttrack/data/io/WeightCsvImporter.kt`; https://github.com/oliexdev/openScale/issues/1500; https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/6349
+  Touches: shared import validation, Health Connect import, CSV preview and import, runtime diagnostics, tests
+  Acceptance: Health Connect and CSV use one tested weight and timestamp policy with an injected clock; rejected rows change nothing and are counted in the result; the preview explains each refusal; fixtures for 2094, year 2800, zero, negative, and over-limit weights fail while valid historic data still imports.
+  Complexity: S
+
+- [ ] P1: Make the form-factor version gate build the manifests it checks
+  Why: `checkFormFactorVersions` reads release manifests but does not depend on the tasks that generate them, so a clean combined release run can execute the check first and fail because no manifest exists.
+  Evidence: root `build.gradle.kts`; clean task-graph verification on 2026-08-31
+  Touches: root build task wiring and release-gate tests
+  Acceptance: On a clean checkout, `./gradlew checkFormFactorVersions` generates the required phone and Wear release manifests itself, validates both phone flavors plus Wear, and still fails for colliding codes or mismatched version names.
+  Complexity: S
+
 - [ ] P1: Lock resolved dependencies and verify every fetched artifact
   Why: The version catalog pins direct coordinates and the wrapper has a checksum, but transitive versions and downloaded plugin or library bytes can still change without a reviewed lock or verification failure.
   Evidence: `gradle/libs.versions.toml`; `gradle/wrapper/gradle-wrapper.properties`; absent `gradle.lockfile` and `gradle/verification-metadata.xml`; https://docs.gradle.org/current/userguide/dependency_locking.html; https://docs.gradle.org/current/userguide/dependency_verification.html
   Touches: root and module Gradle configuration, lock state, `gradle/verification-metadata.xml`, local dependency-update and release checks
-  Note (2026-08-31 afternoon): plan around the documented generation traps — metadata must be generated from a clean GRADLE_USER_HOME (gradle/gradle#19228), the configuration cache does not invalidate on metadata changes (#19716), settings-plugin locking breaks with version catalogs (#23727), and OkHttp 5.5.0+ signs with a new Commonhaus key that needs trusting; JetBrains' kotlin repo verification-metadata.xml is a working reference.
+  Note (2026-08-31 afternoon): plan around the documented generation traps. Metadata must be generated from a clean GRADLE_USER_HOME (gradle/gradle#19228), the configuration cache does not invalidate on metadata changes (#19716), settings-plugin locking breaks with version catalogs (#23727), and OkHttp 5.5.0 or newer signs with a Commonhaus key that needs trusting. JetBrains' Kotlin repository verification metadata is a working reference.
   Acceptance: Strict lock state covers all resolvable app, Wear, test, plugin, and release configurations; changing a transitive version without refreshing locks fails; replacing a cached artifact with different bytes fails verification; the documented local update command regenerates metadata for review without disabling verification.
   Complexity: M
 
@@ -303,6 +310,13 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Complexity: M
 
 ### P3 additions from 2026-08-31
+
+- [ ] P3: Make privacy copy match optional export and sync features
+  Why: Onboarding says readings stay on this phone, and the extraction rules say body data is never uploaded, even though a person can configure folder or WebDAV sync and export files.
+  Evidence: `app/src/main/res/values/strings.xml`; `app/src/main/res/xml/data_extraction_rules.xml`; Settings sync and export flows
+  Touches: onboarding strings, backup and extraction declarations, Settings explanations, copy tests
+  Acceptance: Every privacy claim distinguishes the default local-only behavior from export and user-configured sync; Play and FOSS copy agree; no wording promises that data can never leave the phone.
+  Complexity: S
 
 - [ ] P3: Add launcher shortcuts for Log weight and Read scale
   Why: Weight entry is the dominant open-app action in a completed trale request, and WeightTrack's three-second logging goal should extend to the Android launcher.

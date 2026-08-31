@@ -42,6 +42,7 @@ androidxTestCore = "1.7.0"
 espresso = "3.7.0"
 robolectric = "4.16.1"
 truth = "1.4.4"
+mockito = "5.23.0"
 
 [libraries]
 androidx-core-ktx = { module = "androidx.core:core-ktx", version.ref = "coreKtx" }
@@ -117,6 +118,7 @@ androidx-watchface-complications-data-source-ktx = { module = "androidx.wear.wat
 
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 truth = { module = "com.google.truth:truth", version.ref = "truth" }
+mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 robolectric = { module = "org.robolectric:robolectric", version.ref = "robolectric" }
 androidx-test-core = { module = "androidx.test:core", version.ref = "androidxTestCore" }
 androidx-test-ext-junit = { module = "androidx.test.ext:junit", version.ref = "androidxTestJunit" }

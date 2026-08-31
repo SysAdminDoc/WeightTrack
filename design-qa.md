@@ -30,6 +30,14 @@ The app captures use a 1080 by 2400 Android emulator at 420 dpi, which reports a
 
 Full-screen captures were sufficient for typography, spacing, input controls, navigation, and milestone inspection. Important controls remain legible at the paired comparison size, so separate crops were not needed.
 
+## Automated release gate
+
+The ordinary unit suite now renders all 18 top-level screens from named fixtures. Every fixture runs in AMOLED and light themes, at normal and 200 percent text size, in a right-to-left layout, and under Android's accented and bidirectional pseudo-languages.
+
+The fixtures include empty and loading screens, refused permission, a recoverable error and an undo message. A source inventory fails when a new screen has no fixture. The rendered checks reject controls without a readable label, visible touch targets smaller than 48 dp and controls clipped past either side of the window.
+
+The Play and FOSS suites each run 441 rendered checks plus the fixture inventory. Both passed on 2026-08-31. The first run found five unlabeled switches in Settings, and the gate failed until each switch used its visible row label.
+
 ## Surface review
 
 - Typography: system sans typography, tabular numeric figures, and the reference hierarchy are present across every route.
