@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 15,
+    version = 16,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -59,6 +59,8 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Fifteen keeps the height a standards-compliant scale reports, which the parser has
         // always read and the save had no column for.
         AutoMigration(from = 14, to = 15),
+        // Sixteen records which app in Health Connect wrote an imported reading, and on what.
+        AutoMigration(from = 15, to = 16),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {

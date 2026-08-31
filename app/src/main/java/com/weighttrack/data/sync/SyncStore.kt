@@ -268,6 +268,8 @@ class SyncStore @Inject constructor(
                     compositionDevice = remote.compositionDevice,
                     compositionProtocol = remote.compositionProtocol,
                     compositionQuality = remote.compositionQuality,
+                    originPackage = remote.originPackage,
+                    originDevice = remote.originDevice,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
             } else {
@@ -293,6 +295,8 @@ class SyncStore @Inject constructor(
                     compositionDevice = remote.compositionDevice,
                     compositionProtocol = remote.compositionProtocol,
                     compositionQuality = remote.compositionQuality,
+                    originPackage = remote.originPackage,
+                    originDevice = remote.originDevice,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
                 // The merge has already decided which version wins, including when two carry the
@@ -898,6 +902,8 @@ class SyncStore @Inject constructor(
         compositionDevice = compositionDevice,
         compositionProtocol = compositionProtocol,
         compositionQuality = compositionQuality,
+        originPackage = originPackage,
+        originDevice = originDevice,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

@@ -68,6 +68,13 @@ data class WeightEntry(
      * reach the screen and then be dropped on save except the body-fat percentage.
      */
     val composition: BodyComposition? = null,
+    /**
+     * Which app and which device wrote this, for the ones that arrived from Health Connect.
+     *
+     * Null for anything typed in here or read off a scale over Bluetooth, where the source alone
+     * says everything there is to say.
+     */
+    val origin: RecordOrigin? = null,
 )
 
 data class BodyMeasurement(

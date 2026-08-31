@@ -15,6 +15,13 @@ data class DailyWeightRow(
     val grams: Double,
 )
 
+/** One app that has written a reading, and the last device it named. */
+data class OriginRow(
+    val packageName: String,
+    val device: String?,
+    val latest: Long,
+)
+
 @Dao
 interface WeightEntryDao {
 
@@ -23,6 +30,24 @@ interface WeightEntryDao {
 
     @Query("SELECT * FROM weight_entries WHERE profileId = :profileId ORDER BY timestampUtcMillis ASC")
     fun observeAllAscending(profileId: Long): Flow<List<WeightEntryEntity>>
+
+    /**
+     * The apps that have written readings into this profile's log.
+     *
+     * The newest device name each one reported, because a writer that filled it in once and not
+     * afterwards should still be recognisable by the scale it was talking to.
+     */
+    @Query(
+        """
+        SELECT originPackage AS packageName, MAX(timestampUtcMillis) AS latest,
+               originDevice AS device
+        FROM weight_entries
+        WHERE profileId = :profileId AND originPackage IS NOT NULL
+        GROUP BY originPackage
+        ORDER BY latest DESC
+        """,
+    )
+    suspend fun origins(profileId: Long): List<OriginRow>
 
     /**
      * Rows Health Connect has not been told the current version of.

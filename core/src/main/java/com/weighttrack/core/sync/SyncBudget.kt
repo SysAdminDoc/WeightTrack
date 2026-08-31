@@ -116,6 +116,8 @@ object SyncBudget {
             it.compositionDevice?.let(::add)
             it.compositionProtocol?.let(::add)
             it.compositionQuality?.let(::add)
+            it.originPackage?.let(::add)
+            it.originDevice?.let(::add)
         }
         document.measurements.forEach {
             add(it.syncId); add(it.type); add(it.localDate); it.note?.let(::add)

@@ -58,6 +58,7 @@ import com.weighttrack.R
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.ActivityLevel
+import com.weighttrack.core.model.HealthDirection
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
@@ -68,6 +69,7 @@ import com.weighttrack.data.prefs.AppSettings
 import com.weighttrack.data.repo.Profile
 import com.weighttrack.core.sync.SyncAddress
 import com.weighttrack.data.sync.SyncMode
+import com.weighttrack.ui.format.OriginNames
 import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.health.HealthConnectAvailability
 import com.weighttrack.health.HealthConnectSync
@@ -567,10 +569,14 @@ fun SettingsScreen(
                 state = healthConnectState,
                 lowestOfDay = settings.importLowestOfDay,
                 onLowestOfDayChange = viewModel::setImportLowestOfDay,
+                onDirectionChange = viewModel::setHealthDirection,
+                onOriginExcludedChange = viewModel::setHealthOriginExcluded,
                 onRequestPermissions = {
                     // Only what this phone can actually grant, or an older Health Connect
                     // leaves the offer on screen for ever.
-                    healthConnectLauncher.launch(viewModel.healthConnect.grantablePermissions())
+                    healthConnectLauncher.launch(
+                        viewModel.healthConnect.grantablePermissions(healthConnectState.direction),
+                    )
                 },
                 onSync = viewModel::syncHealthConnect,
                 onInstall = { openHealthConnectListing(context) },
@@ -956,6 +962,8 @@ private fun HealthConnectCard(
     state: HealthConnectState,
     lowestOfDay: Boolean,
     onLowestOfDayChange: (Boolean) -> Unit,
+    onDirectionChange: (HealthDirection) -> Unit,
+    onOriginExcludedChange: (String, Boolean) -> Unit,
     onRequestPermissions: () -> Unit,
     onSync: () -> Unit,
     onInstall: () -> Unit,
@@ -988,6 +996,27 @@ private fun HealthConnectCard(
                 )
                 Spacer(Modifier.height(10.dp))
                 if (state.granted) {
+                    Text(
+                        text = stringResource(R.string.settings_health_direction),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    ChipRow(
+                        options = listOf(
+                            HealthDirection.TWO_WAY to stringResource(R.string.settings_health_two_way),
+                            HealthDirection.READ_ONLY to stringResource(R.string.settings_health_read_only),
+                            HealthDirection.WRITE_ONLY to stringResource(R.string.settings_health_write_only),
+                        ),
+                        selected = state.direction,
+                        onSelect = onDirectionChange,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.settings_health_direction_explained),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(12.dp))
                     ToggleRow(
                         label = stringResource(R.string.settings_keep_lowest_of_day),
                         checked = lowestOfDay,
@@ -998,6 +1027,40 @@ private fun HealthConnectCard(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = stringResource(R.string.settings_health_origins),
+                        style = MaterialTheme.typography.titleSmall,
+                    )
+                    Spacer(Modifier.height(4.dp))
+                    Text(
+                        text = stringResource(R.string.settings_health_origins_explained),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (state.origins.isEmpty()) {
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            text = stringResource(R.string.settings_health_origin_none),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    state.origins.forEach { origin ->
+                        ToggleRow(
+                            label = OriginNames.describe(
+                                LocalContext.current,
+                                origin.packageName,
+                                origin.device,
+                            ),
+                            // On means "keep taking readings from this", which is the way round
+                            // somebody reads a row with an app's name against it.
+                            checked = !origin.excluded,
+                            onCheckedChange = { wanted ->
+                                onOriginExcludedChange(origin.packageName, !wanted)
+                            },
+                        )
+                    }
                     Spacer(Modifier.height(10.dp))
                     Button(
                         onClick = onSync,

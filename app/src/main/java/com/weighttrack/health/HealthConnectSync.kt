@@ -26,6 +26,8 @@ import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.units.Percentage
 import androidx.health.connect.client.units.Volume
 import com.weighttrack.core.model.EntrySource
+import com.weighttrack.core.model.HealthDirection
+import com.weighttrack.core.model.RecordOrigin
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.ProfileRepository
@@ -178,6 +180,8 @@ class HealthConnectSync @Inject constructor(
         val start: Instant,
         val now: Instant,
         val lowestOfDayOnly: Boolean,
+        val direction: HealthDirection = HealthDirection.TWO_WAY,
+        val excludedOrigins: Set<String> = emptySet(),
     )
 
     /**
@@ -290,7 +294,10 @@ class HealthConnectSync @Inject constructor(
 
     fun permissionContract() = PermissionController.createRequestPermissionResultContract()
 
-    suspend fun hasPermissions(): Boolean = hasGranted(corePermissions)
+    suspend fun hasPermissions(): Boolean = hasGranted(corePermissionsFor(direction()))
+
+    /** Which way readings are allowed to move, as it stands. */
+    suspend fun direction(): HealthDirection = settingsRepository.settings.first().healthDirection
 
     /**
      * Whether everything the app can use has been allowed.
@@ -308,8 +315,10 @@ class HealthConnectSync @Inject constructor(
      * A provider too old for the history grant would otherwise leave "Allow the rest" on the
      * screen for ever, for somebody who has already allowed everything they can.
      */
-    fun grantablePermissions(): Set<String> {
-        var asking = permissions
+    suspend fun grantablePermissions(): Set<String> = grantablePermissions(direction())
+
+    fun grantablePermissions(direction: HealthDirection): Set<String> {
+        var asking = permissionsFor(direction)
         if (!supportsHistory()) asking = asking - historyPermissions
         if (!supportsBackground()) asking = asking - backgroundPermissions
         return asking
@@ -472,13 +481,13 @@ class HealthConnectSync @Inject constructor(
             running.withLock {
             runCatching {
                 val client = clientOrNull() ?: error(context.getString(com.weighttrack.R.string.health_not_available))
-                val granted = grantedPermissions()
-                if (!granted.containsAll(corePermissions)) {
-                    error(context.getString(com.weighttrack.R.string.health_not_granted))
-                }
-
                 val at = Instant.now()
                 val stored = settingsRepository.settings.first()
+                val way = stored.healthDirection
+                val granted = grantedPermissions()
+                if (!granted.containsAll(corePermissionsFor(way))) {
+                    error(context.getString(com.weighttrack.R.string.health_not_granted))
+                }
                 // Nobody holds Health Connect and somebody said so, so there is nothing to sync
                 // and nothing to guess at.
                 val owner = syncProfileId()
@@ -491,18 +500,25 @@ class HealthConnectSync @Inject constructor(
                     start = at.minus(sinceDays, ChronoUnit.DAYS),
                     now = at,
                     lowestOfDayOnly = stored.importLowestOfDay,
+                    direction = way,
+                    excludedOrigins = stored.excludedHealthOrigins,
                 )
                 val token = settingsRepository.healthChangesToken(session.profileId)
                 // With a token in hand, only what has actually changed since last time. Without
                 // one, the whole window, which is what a first connect needs.
-                val imported = if (token == null) {
-                    // A full read reaches everything in the window by definition.
-                    importWeights(session).also {
-                        rememberToken(session)
-                        readToTheEnd = true
+                val imported = when {
+                    // Publishing only. Nothing is read, so nothing moves the mark either: the
+                    // day somebody turns reading back on, it picks up where reading left off
+                    // rather than after everything that arrived while it was off.
+                    !way.reads -> Triple(0, 0, 0)
+                    token == null -> {
+                        // A full read reaches everything in the window by definition.
+                        importWeights(session).also {
+                            rememberToken(session)
+                            readToTheEnd = true
+                        }
                     }
-                } else {
-                    importChanges(session, token)
+                    else -> importChanges(session, token)
                 }
                 // How far this run read, for the next one that loses its place. Only a run that
                 // got to the end of the queue may move it: a provider having a bad week would
@@ -514,7 +530,7 @@ class HealthConnectSync @Inject constructor(
                         session.now.toEpochMilli(),
                     )
                 }
-                val exported = exportWeights(session)
+                val exported = if (way.writes) exportWeights(session) else 0
                 HealthConnectSyncResult(
                     imported = imported.first,
                     exported = exported,
@@ -691,6 +707,10 @@ class HealthConnectSync @Inject constructor(
     private suspend fun take(session: Session, record: WeightRecord): Boolean {
         val grams = (record.weight.inKilograms * 1000).toInt()
         if (grams <= 0) return false
+        val origin = originOf(record)
+        // A phone that also syncs a watch and a fitness tracker gets the same morning three
+        // times from three writers. Saying so once is the only way to stop it.
+        if (origin != null && origin.packageName in session.excludedOrigins) return false
         // A record we wrote comes back carrying our own client id. Re-importing it would be
         // harmless thanks to the upsert, but skipping keeps the counts honest.
         val ourClientId = record.metadata.clientRecordId
@@ -708,8 +728,25 @@ class HealthConnectSync @Inject constructor(
             source = EntrySource.HEALTH_CONNECT,
             healthConnectId = record.metadata.id,
             clientRecordId = ourClientId ?: IMPORTED_PREFIX + record.metadata.id,
+            origin = origin,
         )
         return true
+    }
+
+    /**
+     * Which app wrote a record, and on what.
+     *
+     * The device is whatever the writer said, which is often nothing at all: plenty of apps fill
+     * in a manufacturer and a model and plenty leave both blank, so this is a line to show when
+     * there is one rather than a field to rely on.
+     */
+    private fun originOf(record: WeightRecord): RecordOrigin? {
+        val packageName = record.metadata.dataOrigin.packageName
+        val device = record.metadata.device
+        val described = listOfNotNull(device?.manufacturer, device?.model)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
+        return RecordOrigin.of(packageName, described)
     }
 
     /**
@@ -990,6 +1027,29 @@ class HealthConnectSync @Inject constructor(
     val permissions: Set<String> =
         corePermissions + bodyFatPermissions + backgroundPermissions + historyPermissions +
             hydrationPermissions + nutritionPermissions + activityPermissions + sleepPermissions
+
+    /**
+     * What a direction actually needs, and nothing else.
+     *
+     * Split on what each permission says about itself rather than on a list kept alongside the
+     * feature sets. A list would go stale the first time somebody adds a permission to one of
+     * those sets and forgets this, and the failure would be silent and in the wrong direction:
+     * a write access asked for by somebody who chose read-only. `StringsAreClassifiedTest`
+     * holds every permission to naming itself one or the other.
+     */
+    fun permissionsFor(direction: HealthDirection): Set<String> =
+        permissions.filterTo(mutableSetOf()) { direction.allows(it) }
+
+    /** What weight sync needs for a direction. Read-only never asks to write. */
+    fun corePermissionsFor(direction: HealthDirection): Set<String> =
+        corePermissions.filterTo(mutableSetOf()) { direction.allows(it) }
+
+    /** Whether a direction has any use for one permission. */
+    fun HealthDirection.allows(permission: String): Boolean =
+        if (permission.contains(WRITES)) writes else reads
+
+    /** What a write permission calls itself. Everything else is a read. */
+    const val WRITES = "WRITE_"
 
         private const val BATCH_SIZE = 200
 

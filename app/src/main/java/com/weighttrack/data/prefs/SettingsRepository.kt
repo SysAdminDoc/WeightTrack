@@ -10,6 +10,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import com.weighttrack.core.math.TrendEngine
 import com.weighttrack.core.model.ActivityLevel
+import com.weighttrack.core.model.HealthDirection
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
@@ -55,6 +56,20 @@ data class AppSettings(
     val usdaApiKey: String? = null,
     /** Keep only the lowest weigh-in of each day when importing from Health Connect. */
     val importLowestOfDay: Boolean = false,
+    /**
+     * Which way readings may move between this app and Health Connect.
+     *
+     * Two-way is what the one switch used to mean, so an install that already had it connected
+     * carries on exactly as before.
+     */
+    val healthDirection: HealthDirection = HealthDirection.TWO_WAY,
+    /**
+     * Apps in Health Connect whose readings are not wanted here, by package name.
+     *
+     * A shared pool has more than one writer in it, and a phone that also syncs a watch and a
+     * fitness tracker gets the same morning three times from three of them.
+     */
+    val excludedHealthOrigins: Set<String> = emptySet(),
     /** When the settings that describe the person last changed, for sync to compare. */
     val updatedAtUtcMillis: Long = 0,
     val scaleAddress: String? = null,
@@ -288,6 +303,10 @@ class SettingsRepository @Inject constructor(
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
         usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
         importLowestOfDay = this[Keys.IMPORT_LOWEST_OF_DAY] ?: false,
+        healthDirection = HealthDirection.entries
+            .firstOrNull { it.name == this[Keys.HEALTH_DIRECTION] }
+            ?: HealthDirection.TWO_WAY,
+        excludedHealthOrigins = this[Keys.EXCLUDED_HEALTH_ORIGINS].orEmpty(),
         scaleAddress = this[Keys.SCALE_ADDRESS],
         scaleName = this[Keys.SCALE_NAME],
     )
@@ -307,6 +326,23 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setImportLowestOfDay(only: Boolean) = edit {
         it[Keys.IMPORT_LOWEST_OF_DAY] = only
+    }
+
+    suspend fun setHealthDirection(direction: HealthDirection) = edit {
+        it[Keys.HEALTH_DIRECTION] = direction.name
+    }
+
+    /**
+     * Stops taking readings from one app in Health Connect, or starts again.
+     *
+     * Nothing already imported is removed. A reading in the log is a reading somebody has seen,
+     * and deleting a stretch of history because a checkbox moved is not a thing an app should do
+     * on its own.
+     */
+    suspend fun setHealthOriginExcluded(packageName: String, excluded: Boolean) = edit {
+        val current = it[Keys.EXCLUDED_HEALTH_ORIGINS].orEmpty()
+        it[Keys.EXCLUDED_HEALTH_ORIGINS] =
+            if (excluded) current + packageName else current - packageName
     }
 
     /**
@@ -367,6 +403,8 @@ class SettingsRepository @Inject constructor(
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
         val IMPORT_LOWEST_OF_DAY = booleanPreferencesKey("import_lowest_of_day")
+        val HEALTH_DIRECTION = stringPreferencesKey("health_direction")
+        val EXCLUDED_HEALTH_ORIGINS = stringSetPreferencesKey("excluded_health_origins")
         /**
          * Where Health Connect got to last time, per profile.
          *

@@ -843,5 +843,14 @@
     <string name="scale_pairing_lost_headline">The scale forgot this phone</string>
     <string name="settings_backup_folder_gone">The folder is no longer reachable, so no copy has been taken. Choose it again to start them up.</string>
     <string name="settings_keep_lowest_of_day">Keep only the lowest reading each day</string>
+    <string name="settings_health_direction">How readings move</string>
+    <string name="settings_health_two_way">Both ways</string>
+    <string name="settings_health_read_only">Read only</string>
+    <string name="settings_health_write_only">Write only</string>
+    <string name="settings_health_direction_explained">Read only takes readings in and writes nothing back. Write only publishes what you record here and imports nothing. WeightTrack asks Health Connect for exactly what the setting you pick needs, so a direction you never use is never requested.</string>
+    <string name="settings_health_origins">Apps that have written readings</string>
+    <string name="settings_health_origins_explained">Health Connect is shared, so a watch, a scale app and a fitness tracker can all write the same morning. Turn one off to stop taking new readings from it. Nothing already in your log is removed.</string>
+    <string name="settings_health_origin_none">Nothing has arrived from another app yet.</string>
+    <string name="history_from">From %1$s</string>
     <string name="settings_keep_lowest_of_day_explained">A second weigh-in after breakfast is the same morning plus a meal, not a second day. With this on, a day with several readings in Health Connect brings in the lowest one.</string>
 </resources>

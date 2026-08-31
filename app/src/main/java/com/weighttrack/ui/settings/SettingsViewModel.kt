@@ -61,6 +61,23 @@ data class HealthConnectState(
      */
     val accessWithdrawn: Boolean = false,
     val syncing: Boolean = false,
+    /** Which way readings may move, which is also what the app asks permission for. */
+    val direction: com.weighttrack.core.model.HealthDirection =
+        com.weighttrack.core.model.HealthDirection.TWO_WAY,
+    /**
+     * The apps whose readings have arrived here, each with whether they are still wanted.
+     *
+     * Read from what is actually in the log rather than from a list of known scale apps: the one
+     * writing into somebody's Health Connect is whichever app they happen to use.
+     */
+    val origins: List<HealthOrigin> = emptyList(),
+)
+
+/** One app that has written a reading into this log, and whether it still may. */
+data class HealthOrigin(
+    val packageName: String,
+    val device: String?,
+    val excluded: Boolean,
 )
 
 @HiltViewModel
@@ -150,6 +167,7 @@ class SettingsViewModel @Inject constructor(
     fun refreshHealthConnect() {
         viewModelScope.launch {
             val granted = healthConnect.hasPermissions()
+            val stored = settingsRepository.settings.first()
             _healthConnectState.value = HealthConnectState(
                 availability = healthConnect.availability(),
                 granted = granted,
@@ -157,8 +175,27 @@ class SettingsViewModel @Inject constructor(
                 // A profile holds the claim from the moment somebody connects, so a claim with
                 // no permission behind it is access that was taken away rather than never given.
                 accessWithdrawn = !granted && profileRepository.healthConnectId() != null,
+                direction = stored.healthDirection,
+                origins = weightRepository.origins().map { origin ->
+                    HealthOrigin(
+                        packageName = origin.packageName,
+                        device = origin.device,
+                        excluded = origin.packageName in stored.excludedHealthOrigins,
+                    )
+                },
             )
         }
+    }
+
+    fun setHealthDirection(direction: com.weighttrack.core.model.HealthDirection) =
+        viewModelScope.launch {
+            settingsRepository.setHealthDirection(direction)
+            refreshHealthConnect()
+        }
+
+    fun setHealthOriginExcluded(packageName: String, excluded: Boolean) = viewModelScope.launch {
+        settingsRepository.setHealthOriginExcluded(packageName, excluded)
+        refreshHealthConnect()
     }
 
     fun setImportLowestOfDay(only: Boolean) = viewModelScope.launch {
@@ -414,10 +451,11 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { runCatching { syncScheduler.reschedule() } }
         // Weight sync only needs the core set. Treating a declined optional read as a
         // refused connection would report a working sync as unauthorised.
-        val allowed = granted.containsAll(HealthConnectSync.corePermissions)
+        val way = _healthConnectState.value.direction
+        val allowed = granted.containsAll(HealthConnectSync.corePermissionsFor(way))
         _healthConnectState.value = _healthConnectState.value.copy(
             granted = allowed,
-            grantedEverything = granted.containsAll(healthConnect.grantablePermissions()),
+            grantedEverything = granted.containsAll(healthConnect.grantablePermissions(way)),
         )
         if (allowed) {
             // Whose Health Connect this is, written down before a single record moves. Deciding

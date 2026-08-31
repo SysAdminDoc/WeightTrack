@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P1: Store Health Connect origin and add independent read and write controls
-  Why: Imported rows do not expose their data origin, while the permission set requests directions and record types that users cannot configure independently, making duplicate and source conflicts hard to diagnose.
-  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt`; https://support.google.com/android/answer/12990553?hl=en; https://help.macrofactorapp.com/en/articles/102-integrations; https://github.com/Monkopedia/health-disconnect/issues/93
-  Touches: weight source metadata and migration, Health Connect settings, permission contract, history row details, dedupe tests
-  Acceptance: Read-only, write-only, and two-way modes request exactly their needed permissions; every imported row displays application and device origin when available; a user can exclude an origin or choose precedence; repeated records from the same origin and client ID remain one row.
-  Complexity: L
-
 - [ ] P1: Add an encrypted portable archive with progress photos
   Why: JSON and CSV cannot restore progress-photo files, while a phone-to-phone archive needs confidentiality and tamper detection without exporting Keystore-bound service credentials.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html

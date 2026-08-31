@@ -38,11 +38,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.weighttrack.R
 import com.weighttrack.core.model.EntrySource
+import com.weighttrack.ui.format.OriginNames
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.ui.components.CompositionDetail
@@ -247,6 +249,20 @@ private fun HistoryRow(
                 val details = buildList {
                     add(DateFormatters.time(entry.timestamp))
                     if (entry.source != EntrySource.MANUAL) add(sourceLabel(entry.source))
+                    // Which app in Health Connect wrote it, and on what. Without this a shared
+                    // pool with three writers in it is three unexplained weigh-ins a morning.
+                    entry.origin?.takeIf { it.isKnown }?.let { origin ->
+                        add(
+                            stringResource(
+                                R.string.history_from,
+                                OriginNames.describe(
+                                    LocalContext.current,
+                                    origin.packageName,
+                                    origin.device,
+                                ),
+                            ),
+                        )
+                    }
                     entry.bodyFatPercent?.let { add(stringResource(R.string.history_body_fat, it)) }
                     entry.tags.forEach { add(tagLabel(it)) }
                 }

@@ -34,6 +34,7 @@ fun WeightEntryEntity.toDomain(): WeightEntry = WeightEntry(
     clientRecordId = clientRecordId,
     healthConnectId = healthConnectId,
     composition = readComposition(),
+    origin = com.weighttrack.core.model.RecordOrigin.of(originPackage, originDevice),
 )
 
 /**
@@ -95,6 +96,8 @@ fun WeightEntry.toEntity(
         compositionDevice = composition?.device,
         compositionProtocol = composition?.protocol,
         compositionQuality = composition?.quality?.name,
+        originPackage = origin?.packageName,
+        originDevice = origin?.device,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

@@ -135,6 +135,15 @@ data class WeightEntryEntity(
     @ColumnInfo(defaultValue = "NULL") val compositionDevice: String? = null,
     @ColumnInfo(defaultValue = "NULL") val compositionProtocol: String? = null,
     @ColumnInfo(defaultValue = "NULL") val compositionQuality: String? = null,
+    /**
+     * Which app in Health Connect wrote the reading, and on what.
+     *
+     * Health Connect is a shared pool and a weigh-in in it was written by somebody. Without this
+     * there is no answering "where did this come from" or "stop taking these", and a reading
+     * imported through two apps looked like two weigh-ins a minute apart.
+     */
+    @ColumnInfo(defaultValue = "NULL") val originPackage: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val originDevice: String? = null,
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
 )

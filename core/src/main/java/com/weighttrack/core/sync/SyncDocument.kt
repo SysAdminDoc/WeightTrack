@@ -201,6 +201,14 @@ data class SyncWeight(
     val compositionDevice: String? = null,
     val compositionProtocol: String? = null,
     val compositionQuality: String? = null,
+    /**
+     * Which app in Health Connect wrote the reading, and on what.
+     *
+     * Carried across because it is true wherever the row ends up: the reading did come from that
+     * app, and the other phone showing "from your scale's app" beside it is the same answer.
+     */
+    val originPackage: String? = null,
+    val originDevice: String? = null,
     val updatedAtUtcMillis: Long,
 )
 

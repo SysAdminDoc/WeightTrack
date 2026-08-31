@@ -112,6 +112,7 @@ class WeightRepository @Inject constructor(
         healthConnectId: String? = null,
         clientRecordId: String = UUID.randomUUID().toString(),
         composition: com.weighttrack.core.model.BodyComposition? = null,
+        origin: com.weighttrack.core.model.RecordOrigin? = null,
     ): Long {
         val offset = zone.rules.getOffset(timestamp)
         return dao.upsertByIdentity(
@@ -125,6 +126,7 @@ class WeightRepository @Inject constructor(
                 clientRecordId = clientRecordId,
                 healthConnectId = healthConnectId,
                 composition = composition,
+                origin = origin,
             ).toEntity(profileId = profileId),
         )
     }
@@ -148,6 +150,16 @@ class WeightRepository @Inject constructor(
         dao.latestAtOrBefore(profiles.activeId(), at.toEpochMilli())?.toDomain()
 
     suspend fun byId(id: Long): WeightEntry? = dao.byId(id)?.toDomain()
+
+    /**
+     * Which apps have written readings into this profile's log.
+     *
+     * Read from the log rather than from a list of scale apps somebody thought of, because the
+     * one writing into a person's Health Connect is whichever app they happen to use.
+     */
+    suspend fun origins(): List<com.weighttrack.core.model.RecordOrigin> =
+        dao.origins(profiles.activeId())
+            .map { com.weighttrack.core.model.RecordOrigin(it.packageName, it.device) }
 
     suspend fun byClientRecordId(clientRecordId: String): WeightEntry? =
         dao.byClientRecordId(profiles.activeId(), clientRecordId)?.toDomain()
