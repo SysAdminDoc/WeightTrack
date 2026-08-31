@@ -215,18 +215,14 @@ object WeightCsvImporter {
             val weightValue = parseNumber(rawWeight)
             if (weightValue == null || weightValue <= 0) {
                 skipped++
-                if (problems.size < 5) {
-                    problems += RowProblem(index + 2, RowProblem.Field.WEIGHT, rawWeight)
-                }
+                problems += RowProblem(index + 2, RowProblem.Field.WEIGHT, rawWeight)
                 return@forEachIndexed
             }
             val rawTime = mapping.timeIndex?.let { table.value(row, it) }
             val dateTime = parseDateTime(rawDate, rawTime, mapping.dayFirstDates, zone)
             if (dateTime == null) {
                 skipped++
-                if (problems.size < 5) {
-                    problems += RowProblem(index + 2, RowProblem.Field.DATE, rawDate)
-                }
+                problems += RowProblem(index + 2, RowProblem.Field.DATE, rawDate)
                 return@forEachIndexed
             }
 
@@ -235,13 +231,11 @@ object WeightCsvImporter {
             val plausibility = WeightPlausibility.problem(grams, instant, now)
             if (plausibility != null) {
                 skipped++
-                if (problems.size < 5) {
-                    problems += when (plausibility) {
-                        WeightPlausibility.Problem.WEIGHT ->
-                            RowProblem(index + 2, RowProblem.Field.WEIGHT, rawWeight)
-                        WeightPlausibility.Problem.TIMESTAMP ->
-                            RowProblem(index + 2, RowProblem.Field.DATE, rawDate)
-                    }
+                problems += when (plausibility) {
+                    WeightPlausibility.Problem.WEIGHT ->
+                        RowProblem(index + 2, RowProblem.Field.WEIGHT, rawWeight)
+                    WeightPlausibility.Problem.TIMESTAMP ->
+                        RowProblem(index + 2, RowProblem.Field.DATE, rawDate)
                 }
                 return@forEachIndexed
             }
@@ -325,7 +319,10 @@ object WeightCsvImporter {
             runCatching { LocalDate.parse(date, formatter(pattern)) }.getOrNull()
         } ?: return null
 
-        val time = rawTime?.let { parseTime(it) } ?: LocalTime.NOON
+        val time = when {
+            rawTime.isNullOrBlank() -> LocalTime.NOON
+            else -> parseTime(rawTime) ?: return null
+        }
         return parsedDate.atTime(time)
     }
 

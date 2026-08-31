@@ -121,6 +121,16 @@ class WeightCsvImporterTest {
     }
 
     @Test
+    fun `an invalid separate time is rejected instead of replaced with noon`() {
+        val result = importAll("Date,Time,Weight (kg)\n2026-09-01,13.00,80")
+
+        assertThat(result.entries).isEmpty()
+        assertThat(result.skippedRows).isEqualTo(1)
+        assertThat(result.problems.map { it.field })
+            .containsExactly(RowProblem.Field.DATE)
+    }
+
+    @Test
     fun `a combined date and time column is used`() {
         val result = importAll("Date,Weight (kg)\n2026-01-01 07:30:00,80.5")
         assertThat(result.entries.single().timestamp.atZone(zone).hour).isEqualTo(7)
@@ -207,6 +217,18 @@ class WeightCsvImporterTest {
                 RowProblem.Field.WEIGHT,
                 RowProblem.Field.WEIGHT,
             )
+    }
+
+    @Test
+    fun `every invalid row is reported`() {
+        val rows = (1..6).joinToString("\n") { day -> "2026-01-0$day,401" }
+        val result = importAll("Date,Weight (kg)\n$rows")
+
+        assertThat(result.entries).isEmpty()
+        assertThat(result.skippedRows).isEqualTo(6)
+        assertThat(result.problems).hasSize(6)
+        assertThat(result.problems.map { it.field }.toSet())
+            .containsExactly(RowProblem.Field.WEIGHT)
     }
 
     @Test

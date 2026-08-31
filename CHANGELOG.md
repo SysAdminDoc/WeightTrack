@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- CSV imports now reject a non-empty time they cannot read instead of quietly replacing it with noon. Every rejected row is included in the import report, even when a file has more than five errors.
+
 - The CSV reader and weight importer now live in the shared core. Android and desktop use the
   same column matching, units, date parsing, plausibility limits and repeat-import identities.
 
