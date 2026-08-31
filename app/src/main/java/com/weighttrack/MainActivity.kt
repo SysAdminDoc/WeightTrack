@@ -42,6 +42,20 @@ class MainActivity : FragmentActivity() {
     private fun lockIsUsable(): Boolean =
         AppLockSupport.canBeSatisfied(AppLockSupport.availability(BiometricManager.from(this)))
 
+    /**
+     * The screen something outside the app asked for, if it did.
+     *
+     * Health Connect opens the app with this action when somebody taps through from its own
+     * settings to ask what an access is for. Landing them on the home screen, which is what used
+     * to happen, is not an answer.
+     */
+    private fun openAt(): String? = when (intent?.action) {
+        "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
+        "android.intent.action.VIEW_PERMISSION_USAGE",
+        -> com.weighttrack.ui.navigation.Routes.HEALTH_RATIONALE
+        else -> null
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
@@ -115,7 +129,10 @@ class MainActivity : FragmentActivity() {
                             error = lockError,
                             onUnlock = { requestUnlock(viewModel) },
                         )
-                        else -> WeightTrackApp(onboardingComplete = loaded.onboardingComplete)
+                        else -> WeightTrackApp(
+                            onboardingComplete = loaded.onboardingComplete,
+                            openAt = openAt(),
+                        )
                     }
                 }
             }

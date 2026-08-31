@@ -50,6 +50,13 @@
       and nothing else.
     -->
     <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_HISTORY" />
+    <!--
+      Reading while the app is not open, which is what the hourly exchange is. Without it a
+      background read returns nothing at all rather than failing, so a reading your scale wrote
+      would sit unnoticed until you next opened the app and nothing would say why. Refusing it
+      leaves the exchange working, on the times you open WeightTrack.
+    -->
+    <uses-permission android:name="android.permission.health.READ_HEALTH_DATA_IN_BACKGROUND" />
     <uses-permission android:name="android.permission.health.READ_WEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.READ_BODY_FAT" />

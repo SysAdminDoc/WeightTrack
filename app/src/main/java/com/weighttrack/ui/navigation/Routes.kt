@@ -25,6 +25,7 @@ object Routes {
     const val FOODS = "foods"
     const val SCAN = "scan"
     const val DIARY = "diary"
+    const val HEALTH_RATIONALE = "health-rationale"
     const val LOG = "log"
     const val LOG_WITH_ARG = "log?entryId={entryId}"
     const val ENTRY_ID_ARG = "entryId"

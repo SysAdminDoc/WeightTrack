@@ -39,6 +39,7 @@ class SyncWorker @AssistedInject constructor(
     private val runtimeLog: RuntimeLog,
     private val healthConnect: com.weighttrack.health.HealthConnectSync,
     private val surfaces: com.weighttrack.widget.SurfaceUpdater,
+    private val scheduler: SyncScheduler,
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
@@ -78,6 +79,12 @@ class SyncWorker @AssistedInject constructor(
             return Result.success()
         }
         if (!healthConnect.hasPermissions()) return Result.success()
+        // Revoked since the job was booked. Reading now would return nothing and call it a
+        // success, so the job stands itself down instead and Settings offers the grant again.
+        if (!healthConnect.canSyncInBackground()) {
+            runCatching { scheduler.reschedule() }
+            return Result.success()
+        }
         val result = runCatching { healthConnect.sync() }.getOrElse {
             runtimeLog.write(LogArea.SYNC, LogEvent.BACKGROUND_SYNC_THREW, cause = it)
             return Result.retry()
@@ -109,9 +116,13 @@ class SyncScheduler @Inject constructor(
         // Health Connect keeps the job alive on its own. Somebody who syncs a scale through it
         // and keeps no folder would otherwise have nothing running, and a reading added on the
         // scale would wait for them to open Settings.
+        // Background access as well as the read itself. An hourly job without it reads nothing
+        // and reports success, which leaves somebody with a sync that says it works and a scale
+        // reading that never arrives.
         val forHealth = healthConnect.availability() ==
             com.weighttrack.health.HealthConnectAvailability.INSTALLED &&
-            healthConnect.hasPermissions()
+            healthConnect.hasPermissions() &&
+            healthConnect.canSyncInBackground()
         val forSync = settings.mode != SyncMode.OFF && settings.syncInBackground
         if (!forSync && !forHealth) {
             manager.cancelUniqueWork(WORK_NAME)

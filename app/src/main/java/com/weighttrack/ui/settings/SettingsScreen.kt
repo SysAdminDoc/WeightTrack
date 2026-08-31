@@ -94,6 +94,7 @@ fun SettingsScreen(
     busy: Boolean,
     viewModel: SettingsViewModel,
     onOpenCrashLogs: () -> Unit,
+    onOpenHealthRationale: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -571,6 +572,7 @@ fun SettingsScreen(
                 },
                 onSync = viewModel::syncHealthConnect,
                 onInstall = { openHealthConnectListing(context) },
+                onExplain = onOpenHealthRationale,
             )
         }
 
@@ -957,6 +959,7 @@ private fun HealthConnectCard(
     onRequestPermissions: () -> Unit,
     onSync: () -> Unit,
     onInstall: () -> Unit,
+    onExplain: () -> Unit,
 ) {
     SettingsSection {
         SectionHeading(stringResource(R.string.settings_health_connect))
@@ -1039,6 +1042,12 @@ private fun HealthConnectCard(
                     }
                 }
             }
+        }
+        Spacer(Modifier.height(4.dp))
+        // The same page Health Connect sends people to from its own settings. Somebody deciding
+        // what to allow should be able to read what each access is for from here too.
+        TextButton(onClick = onExplain) {
+            Text(stringResource(R.string.settings_health_what_is_used))
         }
     }
 }

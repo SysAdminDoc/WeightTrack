@@ -312,6 +312,14 @@ class HealthConnectSync @Inject constructor(
     fun grantablePermissions(): Set<String> =
         if (supportsHistory()) permissions else permissions - historyPermissions
 
+    /**
+     * Whether the hourly exchange can actually read anything.
+     *
+     * Scheduling it without this grant produces an hourly run that reads nothing and reports
+     * success, which is the worst of both: no data and no complaint.
+     */
+    suspend fun canSyncInBackground(): Boolean = hasGranted(backgroundPermissions)
+
     suspend fun hasActivityPermissions(): Boolean = hasGranted(activityPermissions)
 
     suspend fun hasSleepPermission(): Boolean = hasGranted(sleepPermissions)
@@ -845,13 +853,25 @@ class HealthConnectSync @Inject constructor(
      * Deliberately outside [corePermissions]: refusing it leaves weight sync working on the
      * last thirty days rather than reporting itself as unauthorised.
      */
+    /**
+     * Reading while the app is not open.
+     *
+     * The hourly exchange is exactly that, and without this Health Connect answers a background
+     * read with nothing rather than with an error: a reading a scale wrote would sit unnoticed
+     * until the app was next opened and nothing anywhere would say why. Its own grant, because
+     * refusing it should cost the hourly run and not the feature.
+     */
+    val backgroundPermissions: Set<String> = setOf(
+        HealthPermission.PERMISSION_READ_HEALTH_DATA_IN_BACKGROUND,
+    )
+
     val historyPermissions: Set<String> = setOf(
         HealthPermission.PERMISSION_READ_HEALTH_DATA_HISTORY,
     )
 
     val permissions: Set<String> =
-        corePermissions + bodyFatPermissions + historyPermissions + hydrationPermissions +
-            nutritionPermissions + activityPermissions + sleepPermissions
+        corePermissions + bodyFatPermissions + backgroundPermissions + historyPermissions +
+            hydrationPermissions + nutritionPermissions + activityPermissions + sleepPermissions
 
         private const val BATCH_SIZE = 200
 

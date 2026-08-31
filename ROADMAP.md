@@ -100,13 +100,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0
 
-- [ ] P0: Align Health Connect background access, rationale, and release declarations
-  Why: Hourly sync is scheduled without `READ_HEALTH_DATA_IN_BACKGROUND`, record permissions do not match implemented reads and writes, and the repository has no dedicated rationale page or public policy URL.
-  Evidence: `app/src/main/AndroidManifest.xml`; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:667-720`; https://developer.android.com/health-and-fitness/health-connect/publish
-  Touches: manifest permissions, `health/HealthConnectSync.kt`, settings permission flow, dedicated privacy activity, public privacy policy, release checklist
-  Acceptance: Background sync cannot be enabled until background access is granted and is unscheduled after revocation; manifest and runtime requests contain only record types exercised by the selected features; the rationale activity explains each use; the published policy URL and Play declarations match an automated manifest-permission snapshot.
-  Complexity: M
-
 - [ ] P1: Distinguish Health Connect token expiry from transient failure
   Why: Any `getChanges` exception currently clears the token and triggers a five-year reread, turning outages and rate limits into expensive full imports.
   Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:401-456`; https://developer.android.com/health-and-fitness/health-connect/sync-data; https://developer.android.com/health-and-fitness/health-connect/rate-limiting

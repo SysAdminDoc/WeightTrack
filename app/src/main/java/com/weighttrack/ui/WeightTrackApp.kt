@@ -86,6 +86,13 @@ import com.weighttrack.ui.water.WaterViewModel
 fun WeightTrackApp(
     onboardingComplete: Boolean,
     modifier: Modifier = Modifier,
+    /**
+     * Where to open, when something outside the app asked for a particular screen.
+     *
+     * Health Connect sends people to the rationale from its own settings, and landing them on
+     * the home screen answers none of what they came to ask.
+     */
+    openAt: String? = null,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -210,7 +217,10 @@ fun WeightTrackApp(
     ) { padding ->
         NavHost(
             navController = navController,
-            startDestination = Routes.HOME,
+            // Home unless something outside the app asked for a screen. Health Connect sends
+            // people to the rationale from its own settings, and answering that with the home
+            // screen answers nothing.
+            startDestination = openAt ?: Routes.HOME,
             modifier = Modifier.padding(padding),
         ) {
             composable(Routes.HOME) {
@@ -344,6 +354,7 @@ fun WeightTrackApp(
                     busy = busy,
                     viewModel = viewModel,
                     onOpenCrashLogs = { navController.navigate(Routes.CRASH_LOGS) },
+                    onOpenHealthRationale = { navController.navigate(Routes.HEALTH_RATIONALE) },
                 )
             }
 
@@ -443,6 +454,19 @@ fun WeightTrackApp(
                         navController.popBackStack()
                     },
                     onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.HEALTH_RATIONALE) {
+                com.weighttrack.ui.health.HealthRationaleScreen(
+                    onBack = {
+                        // Nothing behind it when Health Connect opened the app straight here.
+                        if (!navController.popBackStack()) {
+                            navController.navigate(Routes.HOME) {
+                                popUpTo(Routes.HEALTH_RATIONALE) { inclusive = true }
+                            }
+                        }
+                    },
                 )
             }
 
