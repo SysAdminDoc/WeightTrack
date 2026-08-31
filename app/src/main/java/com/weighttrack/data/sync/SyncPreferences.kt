@@ -33,6 +33,14 @@ data class SyncSettings(
     val webDavUser: String? = null,
     val webDavPassword: String? = null,
     /**
+     * A certificate the person picked for a server that signed its own, base64 of its DER.
+     *
+     * Null is the ordinary case. It is not a secret: a certificate is what a server hands to
+     * anybody who connects, which is why it is stored beside the address rather than under the
+     * keystore with the password.
+     */
+    val webDavCertificate: String? = null,
+    /**
      * What this phone is called in the folder.
      *
      * Generated once and then never changed. A device that renamed itself would leave its old
@@ -137,6 +145,16 @@ class SyncPreferences @Inject constructor(
         it.remove(Keys.WEBDAV_PASSWORD)
     }
 
+    /**
+     * Remembers a server's own certificate, or forgets it.
+     *
+     * Stored as base64 of the DER the person's file held, so what is trusted is exactly the bytes
+     * they picked rather than a fingerprint something else could be made to match.
+     */
+    suspend fun setWebDavCertificate(base64: String?) = dataStore.edit {
+        if (base64 == null) it.remove(Keys.WEBDAV_CERTIFICATE) else it[Keys.WEBDAV_CERTIFICATE] = base64
+    }
+
     suspend fun setBackground(enabled: Boolean) = dataStore.edit {
         it[Keys.BACKGROUND] = enabled
     }
@@ -169,6 +187,7 @@ class SyncPreferences @Inject constructor(
         } ?: SyncMode.OFF,
         folderUri = this[Keys.FOLDER_URI],
         webDavUrl = this[Keys.WEBDAV_URL],
+        webDavCertificate = this[Keys.WEBDAV_CERTIFICATE],
         webDavUser = this[Keys.WEBDAV_USER],
         webDavPassword = this[Keys.WEBDAV_PASSWORD]?.let(secrets::reveal),
         deviceId = this[Keys.DEVICE_ID].orEmpty(),
@@ -181,6 +200,7 @@ class SyncPreferences @Inject constructor(
         val MODE = stringPreferencesKey("sync_mode")
         val FOLDER_URI = stringPreferencesKey("sync_folder_uri")
         val WEBDAV_URL = stringPreferencesKey("sync_webdav_url")
+        val WEBDAV_CERTIFICATE = stringPreferencesKey("webdav_certificate")
         val WEBDAV_USER = stringPreferencesKey("sync_webdav_user")
         val WEBDAV_PASSWORD = stringPreferencesKey("sync_webdav_password")
         val DEVICE_ID = stringPreferencesKey("sync_device_id")

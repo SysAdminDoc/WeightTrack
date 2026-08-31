@@ -46,6 +46,8 @@ fun SyncCard(
     onBackgroundChange: (Boolean) -> Unit,
     needsLocalNetwork: Boolean = false,
     onAllowLocalNetwork: () -> Unit = {},
+    onPickCertificate: () -> Unit = {},
+    onForgetCertificate: () -> Unit = {},
 ) {
     var editingWebDav by remember { mutableStateOf(false) }
 
@@ -90,6 +92,27 @@ fun SyncCard(
                     }
                 }
                 SyncStatus(settings, syncing, onSyncNow, onTurnOff, onBackgroundChange)
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    text = stringResource(R.string.sync_certificate),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.sync_certificate_explained),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(6.dp))
+                if (settings.webDavCertificate == null) {
+                    TextButton(onClick = onPickCertificate) {
+                        Text(stringResource(R.string.sync_certificate_pick))
+                    }
+                } else {
+                    TextButton(onClick = onForgetCertificate) {
+                        Text(stringResource(R.string.sync_certificate_forget))
+                    }
+                }
                 Spacer(Modifier.height(6.dp))
                 TextButton(onClick = { editingWebDav = true }) { Text(stringResource(R.string.settings_change_the_details)) }
             }

@@ -354,6 +354,16 @@
     <string name="settings_turn_off">Turn off</string>
     <string name="settings_webdav">WebDAV</string>
     <string name="settings_address">Address</string>
+    <string name="sync_address_empty">Type your server\'s address.</string>
+    <string name="sync_address_unreadable">That does not look like a server address. It should start with https:// and name your server.</string>
+    <string name="sync_address_not_encrypted">WeightTrack will not send your password and your weights over plain http. Use https:// instead. If your server signs its own certificate, pick that certificate below and WeightTrack will trust it.</string>
+    <string name="sync_address_not_web">WeightTrack only speaks to https:// addresses.</string>
+    <string name="sync_certificate">Server certificate</string>
+    <string name="sync_certificate_explained">A server on your own network usually signs its own certificate, which nothing on the phone has any reason to believe. Pick the certificate it presents and WeightTrack will trust that one, on top of the public authorities rather than instead of them.</string>
+    <string name="sync_certificate_pick">Pick a certificate</string>
+    <string name="sync_certificate_forget">Forget the certificate</string>
+    <string name="sync_certificate_trusted">Trusting %1$s</string>
+    <string name="sync_certificate_unreadable">That file is not a certificate.</string>
     <string name="settings_https_cloud_example_com_remote_php">https://cloud.example.com/remote.php/dav/files/me/WeightTrack</string>
     <string name="settings_username">Username</string>
     <string name="settings_password">Password</string>

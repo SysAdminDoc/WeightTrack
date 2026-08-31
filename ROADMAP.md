@@ -147,13 +147,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: no settings file over 300 lines; the undo path has a test that goes red when `undoDelete` is stubbed out; SyncWorker returns `success` on `Refused` and `retry` on a network failure under `TestListenableWorkerBuilder`.
   Complexity: M
 
-- [ ] P2: network_security_config with a user-supplied certificate path for a self-signed NAS, and a clear cleartext refusal
-  Why: there is no network security config, so an `http://` WebDAV URL fails with a generic error and a self-signed Nextcloud cannot be trusted at all; Android 17 turns Certificate Transparency on by default for apps targeting 37 (confirmed 2026-08-31, this app targets 37) and `usesCleartextTraffic` is slated for deprecation.
-  Evidence: https://developer.android.com/about/versions/17/behavior-changes-all ; https://developer.android.com/about/versions/17/behavior-changes-17 ; app/src/main/res/xml (no network_security_config.xml); ui/settings/SyncCard.kt (no scheme validation)
-  Touches: res/xml/network_security_config.xml, AndroidManifest.xml, data/sync/WebDavSyncTarget.kt (OkHttp client with an optional pinned user certificate loaded from a SAF pick), ui/settings/SyncCard.kt (reject http:// with a sentence, "trust this server's certificate" flow)
-  Acceptance: an http:// URL is refused at entry with the reason; a self-signed HTTPS server passes after the certificate is picked and fails before; cleartext stays blocked.
-  Complexity: M
-
 - [ ] P2: Replace wall-clock tombstone expiry with peer acknowledgements
   Why: Last-write-wins timestamps come from device clocks and tombstones expire after six months, so a skewed or long-offline peer can republish an older live row after its deletion marker disappears.
   Evidence: `core/src/main/java/com/weighttrack/core/sync/SyncMerge.kt:143-158`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://cse.buffalo.edu/~demirbas/publications/hlc.pdf

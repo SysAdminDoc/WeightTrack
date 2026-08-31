@@ -323,6 +323,12 @@ open class SyncTargets @Inject constructor(
                     username = user,
                     password = settings.webDavPassword.orEmpty(),
                     runtimeLog = runtimeLog,
+                    // Only when the person picked one. A file that has stopped being a
+                    // certificate leaves the phone's own trust store deciding, which is what
+                    // would have happened anyway.
+                    pinnedCertificate = settings.webDavCertificate
+                        ?.let { runCatching { android.util.Base64.decode(it, android.util.Base64.NO_WRAP) }.getOrNull() }
+                        ?.let { PinnedTrust.certificateFrom(it) },
                 ) { id, arguments -> strings.get(id, *arguments) }
             }
         }

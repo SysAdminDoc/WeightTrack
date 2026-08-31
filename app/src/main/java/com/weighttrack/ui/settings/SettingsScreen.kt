@@ -220,6 +220,12 @@ fun SettingsScreen(
         }
     }
 
+    // Any file: a certificate arrives as .crt, .cer, .pem or .der depending on where it came
+    // from, and a picker filtered to one of those hides the others.
+    val syncCertificateLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> uri?.let(viewModel::useSyncCertificate) }
+
     val syncFolderLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocumentTree(),
     ) { uri ->
@@ -616,6 +622,8 @@ fun SettingsScreen(
                 syncing = syncing,
                 onPickFolder = { syncFolderLauncher.launch(null) },
                 onUseWebDav = viewModel::useWebDav,
+                onPickCertificate = { syncCertificateLauncher.launch(arrayOf("*/*")) },
+                onForgetCertificate = viewModel::forgetSyncCertificate,
                 onSyncNow = viewModel::syncNow,
                 onTurnOff = viewModel::turnSyncOff,
                 onBackgroundChange = viewModel::setSyncInBackground,

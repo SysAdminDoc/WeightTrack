@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    What this app is allowed to talk to, and how.
+
+    Nothing goes over plain HTTP. The app makes exactly three kinds of request: a WebDAV sync to
+    somebody's own server, and two food lookups. All three carry either a password or a record of
+    what somebody eats, and none of them has any business travelling in the clear. Blocked here
+    rather than left to each call site, because a call site can be added and a policy cannot be
+    forgotten.
+
+    Certificates are the public ones the phone ships with, and nothing else. A Nextcloud on
+    somebody's own network usually signs its own, which is why the app lets them pick that
+    certificate and trusts it at the socket instead: a trust anchor named here would have to be
+    built into the app, and a person cannot put their own server's certificate into a release.
+    See PinnedTrust.
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false">
+        <trust-anchors>
+            <certificates src="system" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>

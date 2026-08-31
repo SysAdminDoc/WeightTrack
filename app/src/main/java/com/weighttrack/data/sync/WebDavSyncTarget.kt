@@ -35,6 +35,14 @@ class WebDavSyncTarget(
      * seam above would let a test pass while the real recovery was broken.
      */
     private val exchange: (suspend (WebDavClient.Request) -> WebDavClient.Response)? = null,
+    /**
+     * A certificate the person picked, for a server that signed its own.
+     *
+     * Null is the ordinary case and means the phone's own trust store decides. Given one, the
+     * app trusts that certificate in addition to the public authorities rather than instead of
+     * them, so pinning a home server cannot quietly weaken the check on a hosted one.
+     */
+    private val pinnedCertificate: java.security.cert.X509Certificate? = null,
     private val say: (Int, Array<out Any>) -> String,
 ) : SyncTarget {
 
@@ -43,6 +51,12 @@ class WebDavSyncTarget(
             .connectTimeout(CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .writeTimeout(READ_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .apply {
+                pinnedCertificate?.let { certificate ->
+                    val trust = PinnedTrust.trustManagerFor(certificate)
+                    sslSocketFactory(PinnedTrust.socketFactoryFor(trust), trust)
+                }
+            }
             .build()
     }
 

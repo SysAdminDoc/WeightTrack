@@ -1,6 +1,33 @@
 package com.weighttrack.core.sync
 
 /**
+ * What is wrong with a server address somebody typed.
+ *
+ * Null means nothing is. Each of these is a thing the person can put right, which is the only
+ * reason to tell them apart: a generic "could not connect" an hour later, from a background job
+ * nobody is watching, is how a sync that was never going to work looks.
+ */
+enum class AddressProblem {
+    /** Nothing there at all. */
+    EMPTY,
+
+    /** Not an address this can make sense of. */
+    UNREADABLE,
+
+    /**
+     * Plain HTTP.
+     *
+     * Refused rather than attempted. The password and every weight would go across the network
+     * in the clear, the app blocks cleartext at the platform level so the attempt fails anyway,
+     * and the failure it produces says nothing about why.
+     */
+    NOT_ENCRYPTED,
+
+    /** A scheme this does not speak. */
+    NOT_WEB,
+}
+
+/**
  * Reading a sync address well enough to know where it points.
  *
  * Android 17 stopped letting an app open a socket to another machine on the same network without
@@ -13,6 +40,28 @@ package com.weighttrack.core.sync
  * the rest of the protocol.
  */
 object SyncAddress {
+
+    /**
+     * Whether an address can be used at all, and what is wrong with it if not.
+     *
+     * Read before anything is stored. A refused address used to be stored and then fail an hour
+     * later in a background job nobody was watching, with a message that said nothing about why.
+     */
+    fun problemWith(raw: String): AddressProblem? {
+        val trimmed = raw.trim()
+        if (trimmed.isEmpty()) return AddressProblem.EMPTY
+        if (!trimmed.contains("://")) return AddressProblem.UNREADABLE
+        val scheme = trimmed.substringBefore("://").lowercase()
+        return when {
+            scheme.isEmpty() -> AddressProblem.UNREADABLE
+            scheme == "http" -> AddressProblem.NOT_ENCRYPTED
+            scheme != "https" -> AddressProblem.NOT_WEB
+            hostOf(trimmed).isNullOrBlank() -> AddressProblem.UNREADABLE
+            else -> null
+        }
+    }
+
+    fun isUsable(raw: String): Boolean = problemWith(raw) == null
 
     /** The host part of an address, without scheme, credentials, port or path. */
     fun hostOf(url: String): String? {

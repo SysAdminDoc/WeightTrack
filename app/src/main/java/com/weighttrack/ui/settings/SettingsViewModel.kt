@@ -99,6 +99,8 @@ class SettingsViewModel @Inject constructor(
     private val crashLogStore: CrashLogStore,
     private val SurfaceUpdater: SurfaceUpdater,
     private val undoOffers: com.weighttrack.ui.UndoCoordinator,
+    @dagger.hilt.android.qualifiers.ApplicationContext
+    private val context: android.content.Context,
     val healthConnect: HealthConnectSync,
 ) : ViewModel() {
 
@@ -664,6 +666,24 @@ class SettingsViewModel @Inject constructor(
 
     fun useWebDav(url: String, user: String, password: String) {
         viewModelScope.launch {
+            // Read before anything is stored. A plain http address used to be accepted and then
+            // fail an hour later in a background job nobody was watching, with a message that
+            // said nothing about why, and the app blocks cleartext at the platform level so it
+            // was never going to work.
+            com.weighttrack.core.sync.SyncAddress.problemWith(url)?.let { problem ->
+                _message.value = strings[
+                    when (problem) {
+                        com.weighttrack.core.sync.AddressProblem.EMPTY -> R.string.sync_address_empty
+                        com.weighttrack.core.sync.AddressProblem.UNREADABLE ->
+                            R.string.sync_address_unreadable
+                        com.weighttrack.core.sync.AddressProblem.NOT_ENCRYPTED ->
+                            R.string.sync_address_not_encrypted
+                        com.weighttrack.core.sync.AddressProblem.NOT_WEB ->
+                            R.string.sync_address_not_web
+                    },
+                ]
+                return@launch
+            }
             // Nothing is stored when the phone will not encrypt the password, so sync stays off
             // and is not scheduled. Saying so is the whole point: the alternative was writing the
             // password down in the clear and letting somebody believe otherwise.
@@ -674,6 +694,40 @@ class SettingsViewModel @Inject constructor(
             syncScheduler.reschedule()
             syncNow()
         }
+    }
+
+    /**
+     * Remembers the certificate a server signed itself with, having read it first.
+     *
+     * Read here rather than at connect time, so somebody who picks the wrong file is told now
+     * instead of an hour later by a background job.
+     */
+    fun useSyncCertificate(uri: Uri) {
+        viewModelScope.launch {
+            val bytes = withContext(Dispatchers.IO) {
+                runCatching {
+                    context.contentResolver.openInputStream(uri)?.use { stream -> stream.readBytes() }
+                }.getOrNull()
+            }
+            val certificate = bytes?.let { raw ->
+                com.weighttrack.data.sync.PinnedTrust.certificateFrom(raw)
+            }
+            if (bytes == null || certificate == null) {
+                _message.value = strings[R.string.sync_certificate_unreadable]
+                return@launch
+            }
+            syncPreferences.setWebDavCertificate(
+                android.util.Base64.encodeToString(certificate.encoded, android.util.Base64.NO_WRAP),
+            )
+            _message.value = strings[
+                R.string.sync_certificate_trusted,
+                certificate.subjectX500Principal.name,
+            ]
+        }
+    }
+
+    fun forgetSyncCertificate() {
+        viewModelScope.launch { syncPreferences.setWebDavCertificate(null) }
     }
 
     fun turnSyncOff() {
