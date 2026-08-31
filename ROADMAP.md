@@ -331,13 +331,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Every non-null `ScaleReading` field round-trips through Room, backup, sync, and export without unit loss; each value retains device, adapter or protocol, and quality state; UI uses “reported by scale” when the vendor method is unknown and never presents BIA as a clinical measurement; weight-only and incomplete captures remain valid and visibly distinct.
   Complexity: L
 
-- [ ] P0: Establish a form-factor-safe phone and Wear release gate
-  Why: Phone and Wear both use version code 5 even though Play requires watch codes to be unique across form factors, and no recorded paired test proves the non-standalone watch path or final binary compatibility.
-  Evidence: `app/build.gradle.kts:19`; `wear/build.gradle.kts:25`; https://developer.android.com/training/wearables/packaging; https://developer.android.com/docs/quality-guidelines/wear-app-quality; https://developer.android.com/guide/practices/page-sizes
-  Touches: shared version configuration, phone and Wear Gradle files and manifests, local release scripts, Data Layer test harness, Play listing checklist
-  Acceptance: Phone and Wear use independent monotonic version-code namespaces while retaining the required package and signing relationship; manifest or bundle inspection fails on a collision; a paired Play-capable phone and watch test covers watch logging, exactly-once phone receipt, tile and complication refresh, disconnect, reconnect, and reinstall; release artifacts pass the 2026-09-15 Wear 64-bit check and `zipalign -c -P 16 -v 4` before the 2027-02-01 16 KB deadline; listing copy mentions the tile and complication and includes a current 1:1 Wear screenshot.
-  Complexity: M
-
 ### P1 additions from 2026-08-31
 
 - [ ] P1: Lock resolved dependencies and verify every fetched artifact

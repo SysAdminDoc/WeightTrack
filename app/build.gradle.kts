@@ -16,8 +16,8 @@ android {
         applicationId = "com.weighttrack"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.4.0"
+        versionCode = Versions.phoneCode(project)
+        versionName = Versions.name(project)
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
     }
