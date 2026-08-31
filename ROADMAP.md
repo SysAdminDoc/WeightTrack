@@ -310,15 +310,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P0 additions from 2026-08-31
 
-- [ ] P0: Persist complete scale composition with quality and provenance
-  Why: Parsers and the live scale screen carry muscle, lean mass, water, impedance, and basal metabolism, but save keeps only weight and body-fat percentage, silently discarding the rest and whether values were scale-reported, app-estimated, absent, or incomplete.
-  Evidence: `core/src/main/java/com/weighttrack/core/scale/ScaleReading.kt:10-23`; `core/src/main/java/com/weighttrack/core/scale/StandardScaleParser.kt:120-142`; `app/src/main/java/com/weighttrack/ui/scale/ScaleViewModel.kt:292-337`; https://www.bluetooth.com/specifications/specs/body-composition-service-bcs/; https://github.com/oliexdev/openScale/issues/1469; https://pubmed.ncbi.nlm.nih.gov/33929337/
-  Touches: Room composition entity and migration, `WeightRepository.kt`, scale save paths, history and detail UI, sync document, structured backup, CSV or public export, Health Connect mapping tests
-  Acceptance: Every non-null `ScaleReading` field round-trips through Room, backup, sync, and export without unit loss; each value retains device, adapter or protocol, and quality state; UI uses “reported by scale” when the vendor method is unknown and never presents BIA as a clinical measurement; weight-only and incomplete captures remain valid and visibly distinct.
-  Complexity: L
-
-### P1 additions from 2026-08-31
-
 - [ ] P1: Lock resolved dependencies and verify every fetched artifact
   Why: The version catalog pins direct coordinates and the wrapper has a checksum, but transitive versions and downloaded plugin or library bytes can still change without a reviewed lock or verification failure.
   Evidence: `gradle/libs.versions.toml`; `gradle/wrapper/gradle-wrapper.properties`; absent `gradle.lockfile` and `gradle/verification-metadata.xml`; https://docs.gradle.org/current/userguide/dependency_locking.html; https://docs.gradle.org/current/userguide/dependency_verification.html

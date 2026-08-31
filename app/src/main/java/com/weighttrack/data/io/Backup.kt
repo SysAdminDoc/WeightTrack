@@ -29,6 +29,12 @@ object WeightCsvExporter {
 
     val HEADER = listOf(
         "date", "time", "weight_kg", "weight_lb", "body_fat_percent", "tags", "note", "source",
+        // What a body-composition scale sent, in the units the app stores rather than in
+        // whatever the scale used, and what those figures are worth. An empty cell means not
+        // measured, which is not zero.
+        "muscle_mass_kg", "fat_free_mass_kg", "soft_lean_mass_kg", "body_water_kg",
+        "muscle_percent", "impedance_ohms", "basal_metabolism_kcal", "scale_bmi",
+        "composition_device", "composition_protocol", "composition_quality",
     )
 
     private val dateFormat: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
@@ -50,6 +56,18 @@ object WeightCsvExporter {
                             entry.tags.joinToString(" ") { it.name },
                             entry.note.orEmpty(),
                             entry.source.name,
+                            grams(entry.composition?.muscleMassGrams),
+                            grams(entry.composition?.fatFreeMassGrams),
+                            grams(entry.composition?.softLeanMassGrams),
+                            grams(entry.composition?.bodyWaterMassGrams),
+                            entry.composition?.musclePercent?.let { decimal(it, 1) }.orEmpty(),
+                            entry.composition?.impedanceOhms?.let { decimal(it, 1) }.orEmpty(),
+                            entry.composition?.basalMetabolismKcal?.let { decimal(it, 0) }
+                                .orEmpty(),
+                            entry.composition?.scaleBmi?.let { decimal(it, 1) }.orEmpty(),
+                            entry.composition?.device.orEmpty(),
+                            entry.composition?.protocol.orEmpty(),
+                            entry.composition?.quality?.name.orEmpty(),
                         ),
                     ),
                 )
@@ -77,6 +95,10 @@ object WeightCsvExporter {
             )
         }
     }
+
+    /** Grams as kilograms, or an empty cell for something nobody measured. */
+    private fun grams(value: Int?): String =
+        value?.let { decimal(UnitConverter.gramsToKg(it), 3) }.orEmpty()
 
     private fun decimal(value: Double, places: Int): String =
         String.format(Locale.ROOT, "%.${places}f", value)

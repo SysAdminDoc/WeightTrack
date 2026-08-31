@@ -11,6 +11,8 @@ import com.weighttrack.ble.ScaleProblem
 import com.weighttrack.ble.ScaleReadingRouter
 import com.weighttrack.ble.ScaleScanEvent
 import com.weighttrack.ble.ScaleScanner
+import com.weighttrack.core.model.BodyComposition
+import com.weighttrack.core.model.CompositionQuality
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.scale.AssembledReading
@@ -288,6 +290,36 @@ class ScaleViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Everything the scale said beyond the weight, with what it was and how it read it.
+     *
+     * Kept whole. The parsers have always carried muscle mass, lean mass, water, impedance and
+     * basal metabolism up to this screen, and saving took the weight and the body-fat
+     * percentage and dropped the rest without a word.
+     *
+     * Null for a scale that only weighs, which is a complete reading and not a failed one.
+     */
+    private fun compositionOf(reading: ScaleReading): BodyComposition? {
+        val device = _state.value.connectedTo
+        return BodyComposition(
+            muscleMassGrams = reading.muscleMassGrams,
+            fatFreeMassGrams = reading.fatFreeMassGrams,
+            softLeanMassGrams = reading.softLeanMassGrams,
+            bodyWaterMassGrams = reading.bodyWaterMassGrams,
+            musclePercent = reading.musclePercent,
+            impedanceOhms = reading.impedanceOhms,
+            basalMetabolismKcal = reading.basalMetabolismKcal,
+            scaleBmi = reading.bmi,
+            scaleUserId = reading.scaleUserId,
+            device = device?.name,
+            protocol = device?.kind?.name,
+            // The scale sent these. How it arrived at them is the manufacturer's own
+            // arithmetic, unpublished and different between makes, which is exactly what this
+            // records rather than hides.
+            quality = CompositionQuality.REPORTED_BY_SCALE,
+        ).takeIf { !it.isEmpty }
+    }
+
     /** Records the reading. Also the yes to "that does not look like you". */
     fun save() {
         val reading = _state.value.reading ?: return
@@ -298,6 +330,7 @@ class ScaleViewModel @Inject constructor(
                 // more often than they are right, and the person is standing on it.
                 bodyFatPercent = reading.bodyFatPercent,
                 source = EntrySource.SCALE,
+                composition = compositionOf(reading),
             )
             // Recorded, so say so before touching the widgets and the watch. Those are a
             // follow-up, and a slow one must not hold up the confirmation for a weight that is
@@ -332,6 +365,7 @@ class ScaleViewModel @Inject constructor(
                 timestamp = java.time.Instant.now(),
                 bodyFatPercent = reading.bodyFatPercent,
                 source = EntrySource.SCALE,
+                composition = compositionOf(reading),
             )
             _state.update {
                 it.copy(

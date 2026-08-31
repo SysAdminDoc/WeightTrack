@@ -97,6 +97,7 @@ class WeightRepository @Inject constructor(
         source: EntrySource = EntrySource.MANUAL,
         healthConnectId: String? = null,
         clientRecordId: String = UUID.randomUUID().toString(),
+        composition: com.weighttrack.core.model.BodyComposition? = null,
     ): Long {
         val offset = zone.rules.getOffset(timestamp)
         return dao.upsertByIdentity(
@@ -109,6 +110,7 @@ class WeightRepository @Inject constructor(
                 source = source,
                 clientRecordId = clientRecordId,
                 healthConnectId = healthConnectId,
+                composition = composition,
             ).toEntity(profileId = profileId),
         )
     }
@@ -161,6 +163,7 @@ class WeightRepository @Inject constructor(
         source: EntrySource = EntrySource.MANUAL,
         healthConnectId: String? = null,
         clientRecordId: String = UUID.randomUUID().toString(),
+        composition: com.weighttrack.core.model.BodyComposition? = null,
     ): Long {
         val offset = zone.rules.getOffset(timestamp)
         val entry = WeightEntry(
@@ -174,6 +177,7 @@ class WeightRepository @Inject constructor(
             source = source,
             clientRecordId = clientRecordId,
             healthConnectId = healthConnectId,
+            composition = composition,
         )
         return dao.upsertByIdentity(entry.toEntity(profileId = profiles.activeId()))
     }

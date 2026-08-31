@@ -181,6 +181,25 @@ data class SyncWeight(
     val note: String? = null,
     val tags: List<String> = emptyList(),
     val source: String,
+    /**
+     * What a scale said beyond the weight.
+     *
+     * Absent in a document written before this existed, and absent for every weight that was
+     * typed in. It travels because it belongs to the reading: a person watching their muscle
+     * mass has the same right to keep it as they have to keep the weight.
+     */
+    val muscleMassGrams: Int? = null,
+    val fatFreeMassGrams: Int? = null,
+    val softLeanMassGrams: Int? = null,
+    val bodyWaterMassGrams: Int? = null,
+    val musclePercent: Double? = null,
+    val impedanceOhms: Double? = null,
+    val basalMetabolismKcal: Double? = null,
+    val scaleBmi: Double? = null,
+    val scaleUserId: Int? = null,
+    val compositionDevice: String? = null,
+    val compositionProtocol: String? = null,
+    val compositionQuality: String? = null,
     val updatedAtUtcMillis: Long,
 )
 

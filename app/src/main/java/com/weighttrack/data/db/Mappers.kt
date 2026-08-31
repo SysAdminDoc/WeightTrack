@@ -1,6 +1,8 @@
 package com.weighttrack.data.db
 
+import com.weighttrack.core.model.BodyComposition
 import com.weighttrack.core.model.BodyMeasurement
+import com.weighttrack.core.model.CompositionQuality
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.EntryTag
 import com.weighttrack.core.model.Goal
@@ -31,7 +33,36 @@ fun WeightEntryEntity.toDomain(): WeightEntry = WeightEntry(
     source = decodeEnum(source, EntrySource.entries, EntrySource.MANUAL),
     clientRecordId = clientRecordId,
     healthConnectId = healthConnectId,
+    composition = readComposition(),
 )
+
+/**
+ * What a scale said beyond the weight, or null when none of it was recorded.
+ *
+ * Null rather than an object full of nulls: a weight typed in has no composition, and something
+ * that reads as an empty one would put "reported by your scale" beside a number nobody weighed.
+ */
+private fun WeightEntryEntity.readComposition(): BodyComposition? {
+    val found = BodyComposition(
+        muscleMassGrams = muscleMassGrams,
+        fatFreeMassGrams = fatFreeMassGrams,
+        softLeanMassGrams = softLeanMassGrams,
+        bodyWaterMassGrams = bodyWaterMassGrams,
+        musclePercent = musclePercent,
+        impedanceOhms = impedanceOhms,
+        basalMetabolismKcal = basalMetabolismKcal,
+        scaleBmi = scaleBmi,
+        scaleUserId = scaleUserId,
+        device = compositionDevice,
+        protocol = compositionProtocol,
+        quality = decodeEnum(
+            compositionQuality.orEmpty(),
+            CompositionQuality.entries,
+            CompositionQuality.REPORTED_BY_SCALE,
+        ),
+    )
+    return found.takeIf { !it.isEmpty }
+}
 
 fun WeightEntry.toEntity(
     profileId: Long,
@@ -50,6 +81,18 @@ fun WeightEntry.toEntity(
         source = source.name,
         clientRecordId = clientRecordId,
         healthConnectId = healthConnectId,
+        muscleMassGrams = composition?.muscleMassGrams,
+        fatFreeMassGrams = composition?.fatFreeMassGrams,
+        softLeanMassGrams = composition?.softLeanMassGrams,
+        bodyWaterMassGrams = composition?.bodyWaterMassGrams,
+        musclePercent = composition?.musclePercent,
+        impedanceOhms = composition?.impedanceOhms,
+        basalMetabolismKcal = composition?.basalMetabolismKcal,
+        scaleBmi = composition?.scaleBmi,
+        scaleUserId = composition?.scaleUserId,
+        compositionDevice = composition?.device,
+        compositionProtocol = composition?.protocol,
+        compositionQuality = composition?.quality?.name,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

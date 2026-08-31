@@ -61,6 +61,13 @@ data class WeightEntry(
     val clientRecordId: String,
     /** Health Connect's own identifier, present only for records that arrived from there. */
     val healthConnectId: String? = null,
+    /**
+     * What a scale said beyond the weight, when one did.
+     *
+     * Null for a weight typed in or imported. Everything a body-composition scale sends used to
+     * reach the screen and then be dropped on save except the body-fat percentage.
+     */
+    val composition: BodyComposition? = null,
 )
 
 data class BodyMeasurement(

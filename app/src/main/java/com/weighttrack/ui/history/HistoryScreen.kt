@@ -45,6 +45,7 @@ import com.weighttrack.R
 import com.weighttrack.core.model.EntrySource
 import com.weighttrack.core.model.WeightEntry
 import com.weighttrack.core.model.WeightUnit
+import com.weighttrack.ui.components.CompositionDetail
 import com.weighttrack.ui.components.EmptyState
 import com.weighttrack.ui.components.SectionHeading
 import com.weighttrack.ui.format.DateFormatters
@@ -254,6 +255,12 @@ private fun HistoryRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // What the scale said beyond the weight, with where it came from. It used to be
+                // read, shown once on the scale screen and then dropped on save.
+                entry.composition?.takeIf { it.hasAnything }?.let { composition ->
+                    Spacer(Modifier.height(4.dp))
+                    CompositionDetail(composition = composition, unit = unit)
+                }
                 entry.note?.let { note ->
                     Spacer(Modifier.height(2.dp))
                     Text(

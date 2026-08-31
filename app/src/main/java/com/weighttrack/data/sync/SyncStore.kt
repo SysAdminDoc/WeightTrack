@@ -255,6 +255,18 @@ class SyncStore @Inject constructor(
                     // and means nothing on another, and copying it would make the second phone
                     // think it had already written a weight it never wrote.
                     healthConnectId = null,
+                    muscleMassGrams = remote.muscleMassGrams,
+                    fatFreeMassGrams = remote.fatFreeMassGrams,
+                    softLeanMassGrams = remote.softLeanMassGrams,
+                    bodyWaterMassGrams = remote.bodyWaterMassGrams,
+                    musclePercent = remote.musclePercent,
+                    impedanceOhms = remote.impedanceOhms,
+                    basalMetabolismKcal = remote.basalMetabolismKcal,
+                    scaleBmi = remote.scaleBmi,
+                    scaleUserId = remote.scaleUserId,
+                    compositionDevice = remote.compositionDevice,
+                    compositionProtocol = remote.compositionProtocol,
+                    compositionQuality = remote.compositionQuality,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
             } else {
@@ -267,6 +279,18 @@ class SyncStore @Inject constructor(
                     note = remote.note,
                     tags = remote.tags.joinToString(","),
                     source = remote.source,
+                    muscleMassGrams = remote.muscleMassGrams,
+                    fatFreeMassGrams = remote.fatFreeMassGrams,
+                    softLeanMassGrams = remote.softLeanMassGrams,
+                    bodyWaterMassGrams = remote.bodyWaterMassGrams,
+                    musclePercent = remote.musclePercent,
+                    impedanceOhms = remote.impedanceOhms,
+                    basalMetabolismKcal = remote.basalMetabolismKcal,
+                    scaleBmi = remote.scaleBmi,
+                    scaleUserId = remote.scaleUserId,
+                    compositionDevice = remote.compositionDevice,
+                    compositionProtocol = remote.compositionProtocol,
+                    compositionQuality = remote.compositionQuality,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
                 // The merge has already decided which version wins, including when two carry the
@@ -859,6 +883,18 @@ class SyncStore @Inject constructor(
         note = note,
         tags = tags.split(",").filter { it.isNotBlank() },
         source = source,
+        muscleMassGrams = muscleMassGrams,
+        fatFreeMassGrams = fatFreeMassGrams,
+        softLeanMassGrams = softLeanMassGrams,
+        bodyWaterMassGrams = bodyWaterMassGrams,
+        musclePercent = musclePercent,
+        impedanceOhms = impedanceOhms,
+        basalMetabolismKcal = basalMetabolismKcal,
+        scaleBmi = scaleBmi,
+        scaleUserId = scaleUserId,
+        compositionDevice = compositionDevice,
+        compositionProtocol = compositionProtocol,
+        compositionQuality = compositionQuality,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

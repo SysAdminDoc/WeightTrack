@@ -22,7 +22,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
     ],
-    version = 13,
+    version = 14,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -53,6 +53,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // describe. They arrive blank; the values that were in the app's settings are handed to
         // whoever was active at the time, once, by ProfileRepository.adoptLegacyDemographics.
         AutoMigration(from = 12, to = 13),
+        // Fourteen keeps what a body-composition scale sends beyond the weight, which every
+        // parser read and every save threw away.
+        AutoMigration(from = 13, to = 14),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {

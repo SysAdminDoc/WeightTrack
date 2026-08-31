@@ -113,6 +113,27 @@ data class WeightEntryEntity(
      * phone switch, and those rows would never reach Health Connect at all.
      */
     @ColumnInfo(defaultValue = "0") val healthExportedAtUtcMillis: Long = 0,
+    /**
+     * What the scale said beyond the weight.
+     *
+     * All null for a weight typed in, imported, or read from a scale that only weighs. Kept on
+     * the weigh-in rather than in a table of its own: it is one row per reading either way, and
+     * a second table would need its own name that travels, its own tombstones and its own place
+     * in every backup for no gain.
+     */
+    @ColumnInfo(defaultValue = "NULL") val muscleMassGrams: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val fatFreeMassGrams: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val softLeanMassGrams: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val bodyWaterMassGrams: Int? = null,
+    @ColumnInfo(defaultValue = "NULL") val musclePercent: Double? = null,
+    @ColumnInfo(defaultValue = "NULL") val impedanceOhms: Double? = null,
+    @ColumnInfo(defaultValue = "NULL") val basalMetabolismKcal: Double? = null,
+    @ColumnInfo(defaultValue = "NULL") val scaleBmi: Double? = null,
+    @ColumnInfo(defaultValue = "NULL") val scaleUserId: Int? = null,
+    /** Which scale, which reader understood it, and what the figures are worth. */
+    @ColumnInfo(defaultValue = "NULL") val compositionDevice: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val compositionProtocol: String? = null,
+    @ColumnInfo(defaultValue = "NULL") val compositionQuality: String? = null,
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
 )
