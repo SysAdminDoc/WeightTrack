@@ -52,6 +52,16 @@ data class TrendSeries(
      */
     fun trendOn(date: LocalDate): Double? = points.firstOrNull { it.date == date }?.trendGrams
 
+    /**
+     * Where the smoothed line stood on a day, or on the nearest day before it there is.
+     *
+     * The series runs from the first reading to the last, and neither boundary lands on a
+     * calendar week. Asking for an exact day and giving up when it is missing is how a weekly
+     * figure disappears for anybody who does not weigh themselves every single morning.
+     */
+    fun trendOnOrBefore(date: LocalDate): Double? =
+        points.lastOrNull { !it.date.isAfter(date) }?.trendGrams
+
     fun changeOverDays(days: Int): Double? {
         if (points.size < 2) return null
         val last = points.last()

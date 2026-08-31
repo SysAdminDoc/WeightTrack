@@ -39,6 +39,9 @@ class WearSummaryBuilderTest {
         latest = entry(grams.last(), start.plusDays(grams.size - 1L)),
         goalGrams = goalGrams,
         entryCount = grams.size,
+        // The last day the fixture covers, so "this week" is the week the readings are in
+        // rather than whichever week the machine running the test happens to be in.
+        today = start.plusDays(grams.size - 1L),
     )
 
     @Test
@@ -53,6 +56,22 @@ class WearSummaryBuilderTest {
         assertThat(built.lastLoggedEpochDay).isEqualTo(start.plusDays(7).toEpochDay())
         // Losing weight, so the week's change has to be negative on the watch too.
         assertThat(built.weekChangeGrams!!).isLessThan(0.0)
+    }
+
+    @Test
+    fun `a week with nothing logged in it says nothing rather than zero`() {
+        // Zero reads as a week held steady. A week nobody stepped on the scale in is not that,
+        // and the watch has room for one number.
+        val built = WearSummaryBuilder.build(
+            settings = AppSettings(),
+            series = TrendEngine.computeSeries(daily(83_000, 82_800), AppSettings().trendWindowDays),
+            latest = entry(82_800, start.plusDays(1)),
+            goalGrams = 78_000,
+            entryCount = 2,
+            today = start.plusMonths(2),
+        )
+
+        assertThat(built.weekChangeGrams).isNull()
     }
 
     @Test

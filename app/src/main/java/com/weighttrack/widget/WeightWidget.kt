@@ -69,7 +69,9 @@ internal data class WidgetData(
 internal fun buildWidgetData(
     appLockEnabled: Boolean,
     unit: WeightUnit,
+    rule: com.weighttrack.core.math.WeekRule,
     series: TrendSeries?,
+    today: java.time.LocalDate = java.time.LocalDate.now(),
 ): WidgetData {
     if (appLockEnabled) {
         return WidgetData(trendGrams = null, unit = unit, weekChangeGrams = null, lastLogged = null, hidden = true)
@@ -80,7 +82,9 @@ internal fun buildWidgetData(
     return WidgetData(
         trendGrams = series.latestTrendGrams?.roundToInt(),
         unit = unit,
-        weekChangeGrams = series.changeOverDays(7),
+        // The same week the app itself shows. See TrendHeroCard.
+        weekChangeGrams =
+            com.weighttrack.core.math.Analytics.changeSinceWeekStart(series, rule, today),
         lastLogged = series.lastMeasured?.date,
     )
 }
@@ -104,7 +108,12 @@ class WeightWidget : GlanceAppWidget() {
         val settings = entryPoint.settingsRepository().settings.first()
         val daily = entryPoint.weightRepository().observeDailyWeights().first()
         val series = if (daily.isEmpty()) null else TrendEngine.computeSeries(daily, settings.trendWindowDays)
-        return buildWidgetData(settings.appLockEnabled, settings.weightUnit, series)
+        return buildWidgetData(
+            appLockEnabled = settings.appLockEnabled,
+            unit = settings.weightUnit,
+            rule = settings.weekRule,
+            series = series,
+        )
     }
 
     companion object {

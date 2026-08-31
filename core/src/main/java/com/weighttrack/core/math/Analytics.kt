@@ -39,33 +39,54 @@ object Analytics {
     ): List<WeeklyChange> {
         val points = series.points
         if (points.size < 8) return emptyList()
-        val byDate = points.associateBy { it.date }
         val earliest = points.first().date
+        val latest = points.last().date
 
         val result = ArrayList<WeeklyChange>()
-        var weekStart = rule.startOf(points.last().date)
-        while (result.size < weeks) {
-            // The day before the week began, which is what its change is measured from.
-            val before = weekStart.minusDays(1)
-            val lastDay = weekStart.plusDays(WeekRule.DAYS_IN_WEEK - 1L)
-            if (before < earliest) break
-            val start = byDate[before]
-            val end = byDate[lastDay]
-            if (start != null && end != null) {
-                result += WeeklyChange(
-                    weekStart = weekStart,
-                    weekEnd = end.date,
-                    changeGrams = end.trendGrams - start.trendGrams,
-                )
-            } else if (result.isNotEmpty()) {
-                // A hole in the middle, which the series does not produce. The week in progress
-                // is the only week that legitimately has no last day, and it is the first one
-                // looked at.
-                break
-            }
+        // The week the newest reading falls in has not finished unless that reading is on or
+        // after its last day. A person who weighs themselves on Friday and stops has a finished
+        // week behind them, and asking for the exact Sunday would have dropped it.
+        var weekStart = rule.startOf(latest)
+        if (rule.endOf(latest) > latest) {
+            weekStart = weekStart.minusDays(WeekRule.DAYS_IN_WEEK.toLong())
+        }
+        while (result.size < weeks && weekStart >= earliest) {
+            val weekEnd = weekStart.plusDays(WeekRule.DAYS_IN_WEEK - 1L)
+            // Where the line stood the day before the week began, or at the first reading there
+            // is. A history that starts mid-week still gets a bar for its first whole week.
+            val start = series.trendOnOrBefore(weekStart.minusDays(1))
+                ?: points.first().trendGrams
+            val end = series.trendOnOrBefore(weekEnd) ?: break
+            result += WeeklyChange(
+                weekStart = weekStart,
+                weekEnd = weekEnd,
+                changeGrams = end - start,
+            )
             weekStart = weekStart.minusDays(WeekRule.DAYS_IN_WEEK.toLong())
         }
         return result.reversed()
+    }
+
+    /**
+     * How far the smoothed line has moved since the current week began.
+     *
+     * What "this week" means on the home screen, the widget and the watch. All three counted
+     * seven days back from the newest reading, so they said one thing while the chart beside
+     * them and the weekly notification said another, on the same phone on the same day.
+     *
+     * Null when there is nothing to compare against yet, and null when nothing has been recorded
+     * this week at all: zero would read as a week held steady rather than as a week not weighed.
+     */
+    fun changeSinceWeekStart(
+        series: TrendSeries,
+        rule: WeekRule = WeekRule.MONDAY,
+        today: LocalDate = LocalDate.now(),
+    ): Double? {
+        val newest = series.points.lastOrNull() ?: return null
+        val weekStart = rule.startOf(today)
+        if (newest.date < weekStart) return null
+        val before = series.trendOnOrBefore(weekStart.minusDays(1)) ?: return null
+        return newest.trendGrams - before
     }
 
     /**

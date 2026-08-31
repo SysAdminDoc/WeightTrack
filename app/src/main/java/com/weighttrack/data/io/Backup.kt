@@ -37,12 +37,28 @@ object WeightCsvExporter {
         "muscle_percent", "impedance_ohms", "basal_metabolism_kcal", "scale_bmi",
         "scale_height_cm",
         "composition_device", "composition_protocol", "composition_quality",
+        // Whose reading it is. Last, so anything reading the columns by position is unaffected,
+        // and empty when the file covers one person and there is nobody to distinguish them from.
+        "profile",
     )
 
     private val dateFormat: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
     private val timeFormat: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.ROOT)
 
-    fun toCsv(entries: List<WeightEntry>, zone: ZoneId = ZoneId.systemDefault()): String =
+    /**
+     * The readings as a spreadsheet.
+     *
+     * [profileNames] names whose each reading is, keyed by the identifier a caller uses for the
+     * row. A household's weekly export used to carry whichever person happened to be open, with
+     * nothing in the file saying who, which is the same fault the backup had before it started
+     * carrying everybody.
+     */
+    fun toCsv(
+        entries: List<WeightEntry>,
+        zone: ZoneId = ZoneId.systemDefault(),
+        profileNames: Map<Long, String> = emptyMap(),
+        profileOf: (WeightEntry) -> Long? = { null },
+    ): String =
         buildString {
             appendLine(Csv.row(HEADER))
             entries.sortedBy { it.timestamp }.forEach { entry ->
@@ -73,6 +89,7 @@ object WeightCsvExporter {
                             entry.composition?.device.orEmpty(),
                             entry.composition?.protocol.orEmpty(),
                             entry.composition?.quality?.name.orEmpty(),
+                            profileOf(entry)?.let { profileNames[it] }.orEmpty(),
                         ),
                     ),
                 )

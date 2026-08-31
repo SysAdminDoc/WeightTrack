@@ -2,6 +2,7 @@ package com.weighttrack.widget
 
 import com.google.common.truth.Truth.assertThat
 import com.weighttrack.core.math.TrendEngine
+import com.weighttrack.core.math.WeekRule
 import com.weighttrack.core.math.DailyWeight
 import com.weighttrack.core.model.WeightUnit
 import org.junit.Test
@@ -17,7 +18,7 @@ class WeightWidgetDataTest {
 
     @Test
     fun `the widget shows the trend when the app is not locked`() {
-        val data = buildWidgetData(appLockEnabled = false, unit = WeightUnit.KG, series = series())
+        val data = buildWidgetData(appLockEnabled = false, unit = WeightUnit.KG, rule = WeekRule.MONDAY, series = series(), today = day0.plusDays(13))
         assertThat(data.hidden).isFalse()
         assertThat(data.trendGrams).isNotNull()
         assertThat(data.weekChangeGrams).isNotNull()
@@ -28,7 +29,7 @@ class WeightWidgetDataTest {
     fun `the app lock hides every reading from the widget`() {
         // The home screen is exactly where someone else can read it, so nothing about the
         // weight may survive into the widget while the lock is on.
-        val data = buildWidgetData(appLockEnabled = true, unit = WeightUnit.KG, series = series())
+        val data = buildWidgetData(appLockEnabled = true, unit = WeightUnit.KG, rule = WeekRule.MONDAY, series = series(), today = day0.plusDays(13))
         assertThat(data.hidden).isTrue()
         assertThat(data.trendGrams).isNull()
         assertThat(data.weekChangeGrams).isNull()
@@ -37,14 +38,14 @@ class WeightWidgetDataTest {
 
     @Test
     fun `an empty log is not reported as locked`() {
-        val data = buildWidgetData(appLockEnabled = false, unit = WeightUnit.KG, series = null)
+        val data = buildWidgetData(appLockEnabled = false, unit = WeightUnit.KG, rule = WeekRule.MONDAY, series = null)
         assertThat(data.hidden).isFalse()
         assertThat(data.trendGrams).isNull()
     }
 
     @Test
     fun `the unit still comes through while locked so the widget can render`() {
-        val data = buildWidgetData(appLockEnabled = true, unit = WeightUnit.LB, series = series())
+        val data = buildWidgetData(appLockEnabled = true, unit = WeightUnit.LB, rule = WeekRule.MONDAY, series = series(), today = day0.plusDays(13))
         assertThat(data.unit).isEqualTo(WeightUnit.LB)
     }
 }

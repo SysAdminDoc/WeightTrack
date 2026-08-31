@@ -14,6 +14,7 @@ import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.sync.SyncSettings as SyncedSettings
+import com.weighttrack.data.db.toDomain
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.GoalRepository
 import com.weighttrack.data.repo.MeasurementRepository
@@ -120,7 +121,17 @@ class BackupService @Inject constructor(
      */
     suspend fun exportedCsv(): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
-            WeightCsvExporter.toCsv(weightRepository.observeEntries().first())
+            // Everybody, like the backup beside it. Scoped to whoever happens to be open, a
+            // household's weekly spreadsheet carried one person's readings with nothing in the
+            // file saying whose, which is the fault the backup itself was fixed for.
+            val names = database.profileDao().all().associate { it.id to it.name }
+            val rows = database.syncDao().weights()
+            val owners = rows.associate { it.clientRecordId to it.profileId }
+            WeightCsvExporter.toCsv(
+                entries = rows.map { it.toDomain() },
+                profileNames = names,
+                profileOf = { owners[it.clientRecordId] },
+            )
         }
     }
 

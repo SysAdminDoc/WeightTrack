@@ -77,9 +77,14 @@ object WeeklySummaryBuilder {
 
         // Across that week, from where the trend stood the day before it began. A week's figure
         // has to be about the week, not about the seven days ending whenever this was sent.
-        val trendByDate = series.points.associate { it.date to it.trendGrams }
-        val before = trendByDate[weekStart.minusDays(1)] ?: return null
-        val after = trendByDate[weekEnd] ?: return null
+        //
+        // Nearest day at or before each end, not the exact day. The series runs from the first
+        // reading to the last, so a person who takes the weekend off has no point on a Sunday
+        // and asking for one exactly is how the notification stops arriving for them.
+        val before = series.trendOnOrBefore(weekStart.minusDays(1))
+            ?: series.points.firstOrNull()?.trendGrams
+            ?: return null
+        val after = series.trendOnOrBefore(weekEnd) ?: return null
         val change = after - before
 
         val headline = when {

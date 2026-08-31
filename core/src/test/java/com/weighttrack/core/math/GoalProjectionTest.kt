@@ -283,6 +283,44 @@ class GoalProjectionTest {
     }
 }
 
+class GoalBandsTest {
+
+    @Test
+    fun `the offered bands are whole numbers of whichever unit is read`() {
+        assertThat(GoalBands.optionsGrams(WeightUnit.KG)).containsExactly(500, 1_000, 2_000)
+            .inOrder()
+        assertThat(GoalBands.optionsGrams(WeightUnit.LB)).containsExactly(
+            UnitConverter.lbToGrams(1.0),
+            UnitConverter.lbToGrams(2.0),
+            UnitConverter.lbToGrams(5.0),
+        ).inOrder()
+    }
+
+    @Test
+    fun `a kilogram band shows as the nearest pound band rather than as nothing`() {
+        // The stored default is a kilogram, which is no whole number of pounds, so a pounds
+        // reader opened the goal screen with three unselected chips and no way back to the band
+        // their goal was actually using.
+        val snapped = GoalBands.nearest(1_000, WeightUnit.LB)
+
+        assertThat(GoalBands.optionsGrams(WeightUnit.LB)).contains(snapped)
+        assertThat(snapped).isEqualTo(UnitConverter.lbToGrams(2.0))
+    }
+
+    @Test
+    fun `a band already on the ladder is left where it is`() {
+        assertThat(GoalBands.nearest(1_000, WeightUnit.KG)).isEqualTo(1_000)
+        assertThat(GoalBands.nearest(UnitConverter.lbToGrams(5.0), WeightUnit.LB))
+            .isEqualTo(UnitConverter.lbToGrams(5.0))
+    }
+
+    @Test
+    fun `stones read the same ladder as pounds`() {
+        assertThat(GoalBands.optionsGrams(WeightUnit.ST_LB))
+            .isEqualTo(GoalBands.optionsGrams(WeightUnit.LB))
+    }
+}
+
 class MilestonesTest {
 
     private val day0: LocalDate = LocalDate.of(2026, 1, 1)

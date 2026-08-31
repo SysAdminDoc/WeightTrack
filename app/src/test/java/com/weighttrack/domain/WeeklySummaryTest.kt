@@ -179,4 +179,58 @@ class WeeklySummaryTest {
         assertThat(WeeklySummaryBuilder.weekStart(LocalDate.of(2026, 6, 14), WeekRule.MONDAY))
             .isEqualTo(LocalDate.of(2026, 6, 8))
     }
+
+    @Test
+    fun `taking the weekend off does not silence the summary`() {
+        // Readings Sunday through Friday and nothing at the weekend, which is most people. The
+        // series stops on the Friday, so there is no point on the week's own last day, and
+        // asking for one exactly meant no notification arrived at all.
+        val start = LocalDate.of(2026, 6, 7)
+        val points = (0..5).map { offset ->
+            TrendPoint(
+                date = start.plusDays(offset.toLong()),
+                trendGrams = 85_000.0 - 100.0 * offset,
+                actualGrams = (85_000 - 100 * offset),
+            )
+        }
+
+        val summary = WeeklySummaryBuilder.build(
+            TrendSeries(points, 0.1),
+            WeightUnit.KG,
+            GoalDirection.LOSE,
+            null,
+            today,
+            WeekRule.MONDAY,
+        )
+
+        assertThat(summary).isNotNull()
+        // Sunday the seventh to Friday the twelfth: five days of loss inside the reported week.
+        assertThat(summary!!.changeGrams).isWithin(1e-6).of(-500.0)
+    }
+
+    @Test
+    fun `the first whole week of a history gets a summary`() {
+        // Nothing before the week began, so there is nothing to measure from except the history
+        // itself. Refusing meant somebody's very first weekly notification never arrived.
+        val start = LocalDate.of(2026, 6, 8)
+        val points = (0..6).map { offset ->
+            TrendPoint(
+                date = start.plusDays(offset.toLong()),
+                trendGrams = 85_000.0 - 100.0 * offset,
+                actualGrams = (85_000 - 100 * offset),
+            )
+        }
+
+        val summary = WeeklySummaryBuilder.build(
+            TrendSeries(points, 0.1),
+            WeightUnit.KG,
+            GoalDirection.LOSE,
+            null,
+            today,
+            WeekRule.MONDAY,
+        )
+
+        assertThat(summary).isNotNull()
+        assertThat(summary!!.daysWeighed).isEqualTo(7)
+    }
 }

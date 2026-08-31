@@ -36,7 +36,12 @@ class AnalyticsTest {
     fun `each bar covers seven days of the trend`() {
         val values = (0..27).map { 100_000.0 - 100.0 * it }
         val changes = Analytics.weeklyChanges(series(values), rule = WeekRule.MONDAY)
-        assertThat(changes).isNotEmpty()
+        // Thursday 2026-01-01 through Wednesday 2026-01-28: three whole Monday weeks in it.
+        assertThat(changes.map { it.weekStart }).containsExactly(
+            LocalDate.of(2026, 1, 5),
+            LocalDate.of(2026, 1, 12),
+            LocalDate.of(2026, 1, 19),
+        ).inOrder()
         changes.forEach {
             assertThat(it.changeGrams).isWithin(1e-6).of(-700.0)
             assertThat(java.time.temporal.ChronoUnit.DAYS.between(it.weekStart, it.weekEnd))
@@ -61,11 +66,18 @@ class AnalyticsTest {
         val monday = Analytics.weeklyChanges(series(values), rule = WeekRule.MONDAY)
         val sunday = Analytics.weeklyChanges(series(values), rule = WeekRule.SUNDAY)
 
-        assertThat(monday.first().weekStart.dayOfWeek).isEqualTo(DayOfWeek.MONDAY)
-        assertThat(sunday.first().weekStart.dayOfWeek).isEqualTo(DayOfWeek.SUNDAY)
-        // Same history, same total movement, different boundaries. Counted back from the newest
+        assertThat(monday.map { it.weekStart }).containsExactly(
+            LocalDate.of(2026, 1, 5),
+            LocalDate.of(2026, 1, 12),
+            LocalDate.of(2026, 1, 19),
+        ).inOrder()
+        // Same history, same steady loss, boundaries a day apart. Counted back from the newest
         // reading, both would have produced the same arbitrary blocks.
-        assertThat(monday.map { it.weekStart }).containsNoneIn(sunday.map { it.weekStart })
+        assertThat(sunday.map { it.weekStart }).containsExactly(
+            LocalDate.of(2026, 1, 4),
+            LocalDate.of(2026, 1, 11),
+            LocalDate.of(2026, 1, 18),
+        ).inOrder()
     }
 
     @Test
@@ -87,6 +99,50 @@ class AnalyticsTest {
         assertThat(Analytics.weeklyChanges(values.let { series(it) }, weeks = 4)).hasSize(4)
     }
 
+    @Test
+    fun `a history that stops mid-week still shows the week that finished`() {
+        // Twelve contiguous days, Monday 2025-12-29 through Friday 2026-01-09. The week
+        // 2026-01-05 to 01-11 is not over, but 2025-12-29 to 01-04 is, and asking for its exact
+        // last day would have dropped it along with everything else and drawn an empty card.
+        val start = LocalDate.of(2025, 12, 29)
+        val points = (0..11).map { offset ->
+            TrendPoint(start.plusDays(offset.toLong()), 90_000.0 - 100.0 * offset, null)
+        }
+
+        val changes = Analytics.weeklyChanges(TrendSeries(points, 0.1), rule = WeekRule.MONDAY)
+
+        assertThat(changes.map { it.weekStart }).containsExactly(start)
+    }
+
+    @Test
+    fun `this week counts from the day the week began, not seven days back`() {
+        // Thursday 2026-01-01 through Wednesday 2026-01-14, losing a hundred grams a day.
+        val values = (0..13).map { 90_000.0 - 100.0 * it }
+        val series = series(values)
+
+        // Under a Monday rule the week began on the twelfth, measured from the Sunday before it:
+        // Monday, Tuesday and Wednesday, so three days of loss.
+        assertThat(
+            Analytics.changeSinceWeekStart(series, WeekRule.MONDAY, LocalDate.of(2026, 1, 14)),
+        ).isWithin(1e-6).of(-300.0)
+        // Under a Sunday rule it began a day earlier, so four.
+        assertThat(
+            Analytics.changeSinceWeekStart(series, WeekRule.SUNDAY, LocalDate.of(2026, 1, 14)),
+        ).isWithin(1e-6).of(-400.0)
+        // And neither is the seven days the old reading gave, which is what the two surfaces
+        // showing "this week" disagreed with the chart about.
+        assertThat(series.changeOverDays(7)).isWithin(1e-6).of(-700.0)
+    }
+
+    @Test
+    fun `there is nothing to say about this week before the week began`() {
+        val values = (0..13).map { 90_000.0 - 100.0 * it }
+
+        // A day inside the first week the history covers has nothing before it to measure from.
+        assertThat(
+            Analytics.changeSinceWeekStart(series(values), WeekRule.MONDAY, day0),
+        ).isNull()
+    }
     @Test
     fun `a weekday that reads heavy shows a positive deviation`() {
         // Flat trend, with every Saturday reading a kilogram above the line.

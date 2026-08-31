@@ -156,23 +156,52 @@ class ExportRoundTripTest {
     }
 
     @Test
-    fun `where a week starts changes nothing about an exported row`() {
-        // The rule decides how days are gathered into weeks and nothing else. An export that
-        // moved when somebody changed their region, or the setting that overrides it, would mean
-        // the rule had rewritten their history.
+    fun `an exported row carries the day it was recorded on, whatever the region says`() {
+        // Where a week starts decides how days are gathered up and nothing else, so an export
+        // must not move when somebody changes their region. Every stored date is asserted
+        // individually rather than the two files being compared, because two identical wrong
+        // files would satisfy a comparison.
         val entries = (0..13).map { entry(day = it + 1, grams = 80_000 - it * 100) }
         val original = java.util.Locale.getDefault()
         try {
-            java.util.Locale.setDefault(java.util.Locale.US)
-            val american = WeightCsvExporter.toCsv(entries, zone)
-            java.util.Locale.setDefault(java.util.Locale.GERMANY)
-            val german = WeightCsvExporter.toCsv(entries, zone)
-
-            assertThat(german).isEqualTo(american)
-            // And the days in it are the days the readings were taken on.
-            entries.forEach { assertThat(american).contains(it.localDate.toString()) }
+            listOf(java.util.Locale.US, java.util.Locale.GERMANY).forEach { locale ->
+                java.util.Locale.setDefault(locale)
+                val text = WeightCsvExporter.toCsv(entries, zone)
+                val dates = Csv.parse(text)!!.rows.map { it.first() }
+                assertThat(dates).isEqualTo(entries.map { it.localDate.toString() })
+            }
         } finally {
             java.util.Locale.setDefault(original)
         }
+    }
+
+    @Test
+    fun `an export says whose reading each row is when it is asked to`() {
+        // A household's weekly spreadsheet used to carry whichever person happened to be open,
+        // with nothing in the file saying who.
+        val hers = entry(day = 1, grams = 62_000)
+        val his = entry(day = 2, grams = 84_000)
+        val owners = mapOf(hers.clientRecordId to 1L, his.clientRecordId to 2L)
+
+        val table = Csv.parse(
+            WeightCsvExporter.toCsv(
+                entries = listOf(hers, his),
+                zone = zone,
+                profileNames = mapOf(1L to "Sam", 2L to "Alex"),
+                profileOf = { owners[it.clientRecordId] },
+            ),
+        )!!
+
+        val column = table.header.indexOf("profile")
+        assertThat(column).isAtLeast(0)
+        assertThat(table.rows.map { it[column] }).containsExactly("Sam", "Alex").inOrder()
+    }
+
+    @Test
+    fun `an export of one person leaves the profile column empty rather than guessing`() {
+        val table = Csv.parse(WeightCsvExporter.toCsv(listOf(entry(day = 1, grams = 80_000)), zone))!!
+
+        val column = table.header.indexOf("profile")
+        assertThat(table.rows.single()[column]).isEmpty()
     }
 }

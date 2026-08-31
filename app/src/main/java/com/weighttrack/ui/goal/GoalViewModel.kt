@@ -80,8 +80,13 @@ class GoalViewModel @Inject constructor(
                         KeypadValue.fromGrams(active.targetGrams, settings.weightUnit)
                     }.orEmpty(),
                     targetDate = goal?.targetDate,
-                    bandGrams = goal?.bandGrams
-                        ?: com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
+                    // Snapped to the nearest band this unit offers. The stored default is a
+                    // kilogram, which is not one of the pound options, so a pounds user opened
+                    // this screen with three unselected chips and no way back to their own band.
+                    bandGrams = com.weighttrack.core.math.GoalBands.nearest(
+                        goal?.bandGrams ?: com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
+                        settings.weightUnit,
+                    ),
                     milestoneStepGrams = goal?.milestoneStepGrams
                         ?: settings.milestoneStepGrams.takeIf { step -> step > 0 }
                         ?: Milestones.defaultStepGrams(settings.weightUnit),
@@ -107,14 +112,17 @@ class GoalViewModel @Inject constructor(
 
     fun onBandChange(grams: Int) = _state.update { it.copy(bandGrams = grams) }
 
+
+
     /** The spans people actually hold a weight within, in whichever unit they read. */
-    fun bandOptions(): List<Pair<String, Int>> = when (state.value.unit) {
-        WeightUnit.KG -> listOf("0.5 kg" to 500, "1 kg" to 1_000, "2 kg" to 2_000)
-        WeightUnit.LB, WeightUnit.ST_LB -> listOf(
-            "1 lb" to UnitConverter.lbToGrams(1.0),
-            "2 lb" to UnitConverter.lbToGrams(2.0),
-            "5 lb" to UnitConverter.lbToGrams(5.0),
-        )
+    fun bandOptions(): List<Pair<String, Int>> = bandOptionsFor(state.value.unit)
+
+    private fun bandOptionsFor(unit: WeightUnit): List<Pair<String, Int>> {
+        val labels = when (unit) {
+            WeightUnit.KG -> listOf("0.5 kg", "1 kg", "2 kg")
+            WeightUnit.LB, WeightUnit.ST_LB -> listOf("1 lb", "2 lb", "5 lb")
+        }
+        return labels.zip(com.weighttrack.core.math.GoalBands.optionsGrams(unit))
     }
 
     /** The two spacings people actually pick, offered in whichever unit they read. */

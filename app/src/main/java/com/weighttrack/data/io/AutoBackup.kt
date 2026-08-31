@@ -29,7 +29,7 @@ object AutoBackup {
      * person who wants to look at their own history, or hand it to something else, wants the
      * rows: openScale's users asked for exactly this, a scheduled export that is not a backup.
      */
-    const val CSV_SUFFIX = ".csv"
+    const val CSV_SUFFIX = "-weekly.csv"
 
     /**
      * What marks a half-written backup, before the extension rather than after it.
@@ -80,10 +80,18 @@ object AutoBackup {
         }
     }
 
-    /** Leftovers from a run that died before it could put its file in place. */
-    fun partialsIn(names: List<String>): List<String> = names.filter {
-        it.startsWith(PREFIX) &&
-            (it.endsWith("$PARTIAL_MARKER$SUFFIX") || it.endsWith("$PARTIAL_MARKER$CSV_SUFFIX"))
+    /**
+     * Leftovers from a run that died before it could put its file in place.
+     *
+     * The date is parsed, not merely the shape of the name. Matching on the shape alone deletes
+     * anything a person happens to have called `weighttrack-something-part.csv`, and this folder
+     * is theirs.
+     */
+    fun partialsIn(names: List<String>): List<String> = names.filter { name ->
+        listOf(SUFFIX, CSV_SUFFIX).any { suffix ->
+            name.endsWith("$PARTIAL_MARKER$suffix") &&
+                dateOf(name.removeSuffix("$PARTIAL_MARKER$suffix") + suffix, suffix) != null
+        }
     }
 
     /** Every backup in the folder, newest first. Anything else there is ignored. */

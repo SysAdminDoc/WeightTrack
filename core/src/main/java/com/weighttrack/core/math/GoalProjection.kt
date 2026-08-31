@@ -97,6 +97,34 @@ data class GoalProjection(
         etaDaysPessimistic?.let { today.plusDays(ceil(it).toLong()) }
 }
 
+/**
+ * The bands a goal can be held to, in whichever unit somebody reads.
+ *
+ * Here rather than in the screen because the two ladders do not line up: the stored default is a
+ * kilogram, which is not any whole number of pounds, so a pounds reader opened the goal screen
+ * with three unselected chips and no way back to the band their goal actually used.
+ */
+object GoalBands {
+
+    fun optionsGrams(unit: WeightUnit): List<Int> = when (unit) {
+        WeightUnit.KG -> listOf(500, 1_000, 2_000)
+        WeightUnit.LB, WeightUnit.ST_LB -> listOf(
+            UnitConverter.lbToGrams(1.0),
+            UnitConverter.lbToGrams(2.0),
+            UnitConverter.lbToGrams(5.0),
+        )
+    }
+
+    /**
+     * The offered band closest to a stored one.
+     *
+     * A band is a number somebody picked in the unit they read. Snapping keeps the screen honest
+     * about what is selected; nothing is written until they save.
+     */
+    fun nearest(grams: Int, unit: WeightUnit): Int =
+        optionsGrams(unit).minByOrNull { abs(it - grams) } ?: grams
+}
+
 object GoalProjector {
 
     /** Beyond this the estimate is noise, so no date is offered at all. */

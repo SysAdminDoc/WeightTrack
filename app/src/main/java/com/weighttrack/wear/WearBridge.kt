@@ -76,12 +76,20 @@ class WearSummaryBuilder @Inject constructor(
             latest: WeightEntry?,
             goalGrams: Int?,
             entryCount: Int,
+            today: java.time.LocalDate = java.time.LocalDate.now(),
         ): WearSummary {
             if (settings.appLockEnabled) return locked(settings)
             return WearSummary(
                 trendGrams = series?.latestTrendGrams?.roundToInt(),
                 latestGrams = latest?.grams,
-                weekChangeGrams = series?.changeOverDays(7),
+                // The same week the phone shows. See TrendHeroCard.
+                weekChangeGrams = series?.let {
+                    com.weighttrack.core.math.Analytics.changeSinceWeekStart(
+                        it,
+                        settings.weekRule,
+                        today,
+                    )
+                },
                 goalGrams = goalGrams,
                 weightUnit = settings.weightUnit,
                 lastLoggedEpochDay = series?.lastMeasured?.date?.toEpochDay(),

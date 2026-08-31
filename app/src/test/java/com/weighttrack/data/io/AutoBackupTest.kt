@@ -201,55 +201,76 @@ class AutoBackupTest {
     }
 
     @Test
-    fun `the spreadsheet is named after the same day as the backup beside it`() {
+    fun `the spreadsheet carries the same date and a name of its own`() {
         val day = LocalDate.of(2026, 8, 29)
-        assertThat(AutoBackup.csvNameFor(day)).isEqualTo("weighttrack-2026-08-29.csv")
-        assertThat(AutoBackup.partialCsvNameFor(day)).isEqualTo("weighttrack-2026-08-29-part.csv")
+        // Not weighttrack-2026-08-29.csv: that is what the manual export suggests, and a
+        // scheduled file sharing the name means the pruning deletes somebody's own export.
+        assertThat(AutoBackup.csvNameFor(day)).isEqualTo("weighttrack-2026-08-29-weekly.csv")
+        assertThat(AutoBackup.partialCsvNameFor(day))
+            .isEqualTo("weighttrack-2026-08-29-part-weekly.csv")
+        assertThat(AutoBackup.dateOf(AutoBackup.csvNameFor(day), AutoBackup.CSV_SUFFIX))
+            .isEqualTo(day)
     }
 
     @Test
     fun `the two kinds are counted apart from each other`() {
-        // Counted together, four weeks of backups throw out every spreadsheet beside them: the
-        // newest four names in the folder are all backups.
-        val folder = listOf(
-            "weighttrack-2026-08-29.json", "weighttrack-2026-08-29.csv",
-            "weighttrack-2026-08-22.json", "weighttrack-2026-08-22.csv",
-            "weighttrack-2026-08-15.json", "weighttrack-2026-08-15.csv",
-            "weighttrack-2026-08-08.json", "weighttrack-2026-08-08.csv",
-        )
+        // Five of each. Counted together the newest four names would be backups alone, so every
+        // spreadsheet in the folder would be thrown out to make room for them.
+        val folder = (0..4).flatMap {
+            val day = LocalDate.of(2026, 8, 29).minusWeeks(it.toLong())
+            listOf(AutoBackup.nameFor(day), AutoBackup.csvNameFor(day))
+        }
 
-        assertThat(AutoBackup.toRemove(folder)).isEmpty()
+        assertThat(AutoBackup.toRemove(folder)).containsExactly(
+            AutoBackup.nameFor(LocalDate.of(2026, 8, 1)),
+            AutoBackup.csvNameFor(LocalDate.of(2026, 8, 1)),
+        )
     }
 
     @Test
-    fun `the oldest of each kind goes once there is a fifth of it`() {
-        val folder = listOf(
-            "weighttrack-2026-08-29.json", "weighttrack-2026-08-29.csv",
-            "weighttrack-2026-08-22.json", "weighttrack-2026-08-22.csv",
-            "weighttrack-2026-08-15.json", "weighttrack-2026-08-15.csv",
-            "weighttrack-2026-08-08.json", "weighttrack-2026-08-08.csv",
-            "weighttrack-2026-08-01.json", "weighttrack-2026-08-01.csv",
-        )
+    fun `a spreadsheet saved by hand is never touched`() {
+        // The manual export suggests weighttrack-<date>.csv, so a scheduled one must not be
+        // called that. A folder is somebody's own and deleting a file the app did not write is
+        // the worst possible outcome of a backup feature.
+        val byHand = "weighttrack-2026-07-04.csv"
+        val folder = (0..4).map {
+            AutoBackup.csvNameFor(LocalDate.of(2026, 8, 29).minusWeeks(it.toLong()))
+        } + byHand
 
-        assertThat(AutoBackup.toRemove(folder))
-            .containsExactly("weighttrack-2026-08-01.json", "weighttrack-2026-08-01.csv")
+        assertThat(AutoBackup.toRemove(folder)).doesNotContain(byHand)
+        assertThat(AutoBackup.dateOf(byHand, AutoBackup.CSV_SUFFIX)).isNull()
     }
 
     @Test
     fun `a half-written spreadsheet is collected like a half-written backup`() {
+        val day = LocalDate.of(2026, 8, 29)
         val folder = listOf(
-            "weighttrack-2026-08-29-part.json",
-            "weighttrack-2026-08-29-part.csv",
-            "weighttrack-2026-08-29.json",
+            AutoBackup.partialNameFor(day),
+            AutoBackup.partialCsvNameFor(day),
+            AutoBackup.nameFor(day),
             "notes.txt",
         )
 
         assertThat(AutoBackup.partialsIn(folder)).containsExactly(
-            "weighttrack-2026-08-29-part.json",
-            "weighttrack-2026-08-29-part.csv",
+            AutoBackup.partialNameFor(day),
+            AutoBackup.partialCsvNameFor(day),
         )
         // And never counted as a backup, or the pruning throws out a real one to make room.
         assertThat(AutoBackup.toRemove(folder, keep = 0))
-            .containsExactly("weighttrack-2026-08-29.json")
+            .containsExactly(AutoBackup.nameFor(day))
+    }
+
+    @Test
+    fun `something of somebody else's that merely looks half-written is left alone`() {
+        // Matched on the shape of the name alone, any of these was deleted on the next
+        // successful run.
+        val theirs = listOf(
+            "weighttrack-export-part.csv",
+            "weighttrack-part.json",
+            "weighttrack-notes-part.json",
+        )
+
+        assertThat(AutoBackup.partialsIn(theirs)).isEmpty()
+        assertThat(AutoBackup.toRemove(theirs, keep = 0)).isEmpty()
     }
 }

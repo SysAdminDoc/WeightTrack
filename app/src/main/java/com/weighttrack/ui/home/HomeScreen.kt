@@ -199,7 +199,14 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
     val unit = snapshot.settings.weightUnit
     val trendColors = LocalTrendColors.current
     val trendGrams = snapshot.series.latestTrendGrams?.roundToInt()
-    val weekChange = snapshot.series.changeOverDays(7)
+    // The week you are in, under the same rule the chart and the weekly notification use. Seven
+    // days back from the newest reading meant this card and the chart beside it said different
+    // things about "this week" on the same phone on the same day.
+    val weekChange = com.weighttrack.core.math.Analytics.changeSinceWeekStart(
+        snapshot.series,
+        snapshot.settings.weekRule,
+        today,
+    )
 
     Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
         SectionHeading(stringResource(R.string.home_trend_weight))
