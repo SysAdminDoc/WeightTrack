@@ -7,7 +7,6 @@ import androidx.health.connect.client.PermissionController
 import androidx.health.connect.client.permission.HealthPermission
 import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.BodyFatRecord
-import androidx.health.connect.client.records.HeightRecord
 import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.MealType
 import androidx.health.connect.client.records.NutritionRecord
@@ -309,8 +308,47 @@ class HealthConnectSync @Inject constructor(
      * A provider too old for the history grant would otherwise leave "Allow the rest" on the
      * screen for ever, for somebody who has already allowed everything they can.
      */
-    fun grantablePermissions(): Set<String> =
-        if (supportsHistory()) permissions else permissions - historyPermissions
+    fun grantablePermissions(): Set<String> {
+        var asking = permissions
+        if (!supportsHistory()) asking = asking - historyPermissions
+        if (!supportsBackground()) asking = asking - backgroundPermissions
+        return asking
+    }
+
+    /**
+     * Whether this phone's Health Connect knows what a background read is.
+     *
+     * Its own feature, separate from the history one. A provider that does not have it will
+     * never report the permission as granted however many times it is asked, so asking anyway
+     * leaves "Allow the rest" on screen for ever for somebody who has already allowed
+     * everything they can. That trap has been walked into here once before.
+     */
+    fun supportsBackground(): Boolean = runCatching {
+        clientOrNull()?.features?.getFeatureStatus(
+            HealthConnectFeatures.FEATURE_READ_HEALTH_DATA_IN_BACKGROUND,
+        ) == HealthConnectFeatures.FEATURE_STATUS_AVAILABLE
+    }.getOrDefault(false)
+
+    /**
+     * Whether the hourly exchange is allowed to read anything.
+     *
+     * True on a provider too old to have the permission at all: those read in the background
+     * without asking, which is how this worked before the grant existed. Requiring a grant
+     * nobody can give would have cancelled the hourly job on those phones for good.
+     */
+    suspend fun backgroundReadIsPossible(): Boolean =
+        !supportsBackground() || canSyncInBackground()
+
+    /**
+     * Whether anybody holds Health Connect.
+     *
+     * True while nobody has answered the question, because the first run answers it. False once
+     * somebody has switched it off, which is what stops the hourly job running for ever against
+     * a connection that has been given up.
+     */
+    suspend fun isTiedToAProfile(): Boolean =
+        profileRepository.healthConnectId() != null ||
+            !settingsRepository.healthConnectDecided()
 
     /**
      * Whether the hourly exchange can actually read anything.
@@ -637,6 +675,13 @@ class HealthConnectSync @Inject constructor(
      */
     private suspend fun exportWeights(session: Session): Int {
         val client = session.client
+        // A grant that arrived after the first export has to reach what was already sent. Those
+        // readings went across without their body-fat figure and were marked done, so allowing
+        // it afterwards would otherwise reach nothing already recorded.
+        val withBodyFat = session.granted.containsAll(bodyFatPermissions)
+        if (withBodyFat && !settingsRepository.healthBodyFatExported(session.profileId)) {
+            weightRepository.resendBodyFatToHealth(session.profileId)
+        }
         val waiting = weightRepository.awaitingHealthExport(session.profileId)
             .filter { (_, entry) -> entry.source != EntrySource.HEALTH_CONNECT }
         val pending = pendingDeletions(session)
@@ -676,10 +721,23 @@ class HealthConnectSync @Inject constructor(
                     recordIdsList = emptyList(),
                     clientRecordIdsList = listOf(name),
                 )
+                // And the body-fat record that went with it, which carries the same name with a
+                // marker in front. Left behind, a figure the person deleted here stays in their
+                // health record for ever with the weight it belonged to gone.
+                client.deleteRecords(
+                    recordType = BodyFatRecord::class,
+                    recordIdsList = emptyList(),
+                    clientRecordIdsList = listOf(BODY_FAT_PREFIX + name),
+                )
             }.onSuccess { done += name }
                 .onFailure { failed(LogEvent.HEALTH_WRITE_FAILED, it) }
         }
         rememberDeletionsSent(session, done)
+        // Noted only once something has actually gone across under this grant, so a run that
+        // wrote nothing does not claim the backfill has been done.
+        if (withBodyFat && sent.isNotEmpty()) {
+            settingsRepository.setHealthBodyFatExported(session.profileId)
+        }
         return written
     }
 
@@ -777,7 +835,7 @@ class HealthConnectSync @Inject constructor(
             percentage = Percentage(percent),
             metadata = Metadata.manualEntry(
                 device = Device(type = Device.TYPE_PHONE),
-                clientRecordId = "bf:$clientRecordId",
+                clientRecordId = BODY_FAT_PREFIX + clientRecordId,
             ),
         )
     }
@@ -791,6 +849,9 @@ class HealthConnectSync @Inject constructor(
      * Connect, so nothing prefixed this way is ever sent back to it as a deletion.
      */
     const val IMPORTED_PREFIX = "hc:"
+
+    /** What a body-fat record is called, so it can be found again when its weigh-in goes. */
+    const val BODY_FAT_PREFIX = "bf:"
 
     /**
      * What weight sync itself needs. Kept separate from the full set so that adding a new

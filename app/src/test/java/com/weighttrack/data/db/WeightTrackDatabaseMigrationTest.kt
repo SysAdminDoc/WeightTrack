@@ -50,6 +50,14 @@ class WeightTrackDatabaseMigrationTest {
         context.deleteDatabase(databaseName)
     }
 
+    /** The newest schema Room has exported, which is the version the app actually ships. */
+    private fun newestSchemaVersion(): Int = checkNotNull(
+        schemaFile(1).parentFile
+            ?.listFiles { file -> file.name.endsWith(".json") }
+            ?.mapNotNull { it.name.removeSuffix(".json").toIntOrNull() }
+            ?.maxOrNull(),
+    ) { "No exported Room schemas were found" }
+
     private fun schemaFile(version: Int): File {
         val relative = "schemas/com.weighttrack.data.db.WeightTrackDatabase/$version.json"
         // Unit tests run from the module directory, but tolerate the repo root too.
@@ -299,5 +307,21 @@ class WeightTrackDatabaseMigrationTest {
         val db = openCurrent()
         assertThat(db.weightEntryDao().count(DEFAULT_PROFILE)).isEqualTo(0)
         assertThat(db.waterDao().totalForDate(DEFAULT_PROFILE, "2026-01-01")).isEqualTo(0)
+    }
+
+    @Test
+    fun `the newest step has a case of its own, whatever the newest step is`() = runTest {
+        // The version before this one, read off the database rather than typed in, so this keeps
+        // covering the newest migration without anybody remembering to come back here. A phone
+        // updating one release runs only that step: proving the chain from version 1 says
+        // nothing about it.
+        // Read off what Room exported rather than off the annotation: that one is not kept at
+        // runtime, and a number typed in here is the very thing this is guarding against.
+        createDatabaseAtVersion(newestSchemaVersion() - 1)
+
+        val db = openCurrent()
+
+        assertThat(db.profileDao().count()).isAtLeast(0)
+        assertThat(db.weightEntryDao().count(DEFAULT_PROFILE)).isEqualTo(0)
     }
 }

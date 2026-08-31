@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Six more fixes from reviewing the last few changes. A Health Connect too old to offer the background-read permission is no longer asked for it, and the hourly exchange keeps running on those phones instead of being cancelled for good; that permission was one release away from repeating a trap this app has already fallen into once. Turning Health Connect off no longer leaves the hourly job failing and retrying every hour. Restoring a backup taken before this release brings your height, sex, year of birth and activity level back instead of quietly leaving them behind. Allowing body fat after WeightTrack has already sent some readings now reaches those readings rather than only the ones that come afterwards, and deleting a weigh-in takes its body-fat record with it. The settings text also now names the drinks and meals Health Connect receives, which it had left out.
+
 - Everything a body-composition scale sends is now kept: muscle mass, fat-free mass, soft lean mass, body water, muscle percentage, impedance and the scale's own basal metabolism and BMI. The app read all of it, showed it once, and then saved the weight and the body-fat percentage and threw the rest away without saying so. It travels to your other devices, into a backup and into the CSV export, in the units the app stores rather than whichever the scale used.
 - Each reading now says which scale it came from and what the figures are worth. A scale like this passes a small current through you and estimates from how easily it travels, and how it turns that into a percentage is the maker's own arithmetic. That is now said on screen rather than left to look like a measurement. A scale that only weighs says so, which is a complete reading and not a failed one.
 

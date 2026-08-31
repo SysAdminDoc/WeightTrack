@@ -82,6 +82,10 @@ class WeightRepository @Inject constructor(
     suspend fun awaitingHealthExport(profileId: Long): List<Pair<Long, WeightEntry>> =
         dao.awaitingHealthExport(profileId).map { it.id to it.toDomain() }
 
+    /** Sends every reading that carries a body-fat figure again, for a grant that arrived late. */
+    suspend fun resendBodyFatToHealth(profileId: Long) =
+        dao.forgetHealthExportOfBodyFat(profileId)
+
     /** Records that Health Connect has been told about these rows, as they stand now. */
     suspend fun markHealthExported(ids: List<Long>) {
         if (ids.isEmpty()) return

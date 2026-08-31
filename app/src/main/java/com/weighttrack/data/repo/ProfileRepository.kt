@@ -205,12 +205,15 @@ class ProfileRepository @Inject constructor(
     suspend fun adoptLegacyDemographics() {
         val settings = settingsRepository.settings.first()
         if (settings.legacyDemographicsAdopted) return
-        settingsRepository.setLegacyDemographicsAdopted()
-        val active = dao.byId(activeId()) ?: return
+        val active = dao.byId(activeId())
         // Nothing to move, and nothing to overwrite if this profile has already been filled in.
-        if (settings.profile.heightMm <= 0 && settings.profile.birthYear <= 0) return
-        if (active.heightMm > 0 || active.birthYear > 0) return
-        setDemographics(active.id, settings.profile)
+        val worthMoving = active != null &&
+            (settings.profile.heightMm > 0 || settings.profile.birthYear > 0) &&
+            active.heightMm <= 0 && active.birthYear <= 0
+        if (worthMoving) setDemographics(active.id, settings.profile)
+        // Marked afterwards. Written first, a kill in between would lose the values for good:
+        // the flag says it has been done and the row still says nothing.
+        settingsRepository.setLegacyDemographicsAdopted()
     }
 
     /** The name a profile travels under, which is what a tombstone names it by. */

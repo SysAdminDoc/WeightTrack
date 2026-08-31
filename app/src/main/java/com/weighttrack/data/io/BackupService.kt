@@ -237,7 +237,7 @@ class BackupService @Inject constructor(
     suspend fun importJson(uri: Uri): Result<ImportSummary> = withContext(Dispatchers.IO) {
         runCatching {
             val backup = readBackup(uri)
-            backup.document?.let { return@runCatching restoreDocument(it) }
+            backup.document?.let { return@runCatching restoreDocument(it, backup.settings) }
             val entries = backup.entries.mapNotNull(BackupCodec::backupToEntry)
             val measurements = backup.measurements.mapNotNull(BackupCodec::backupToMeasurement)
             // Resolved before the transaction opens: it comes off a flow, and a flow read inside
@@ -306,6 +306,7 @@ class BackupService @Inject constructor(
                     updatedAtUtcMillis = System.currentTimeMillis(),
                 )
             }
+            adoptDemographics(backup.settings)
             ImportSummary(
                 imported = entries.size,
                 skipped = backup.entries.size - entries.size,
@@ -321,8 +322,44 @@ class BackupService @Inject constructor(
      * diary lands on the person it belonged to even though the row numbers on this phone are
      * different ones. Nothing here is scoped to whoever happens to be active.
      */
+    /**
+     * Gives a restored profile the body a backup describes, when the file kept it apart.
+     *
+     * Height, sex, year of birth and activity level used to belong to the phone rather than to
+     * the person, so every backup taken before this release carries them once, beside the
+     * settings. Nothing reads that copy any more. Without this, restoring an older backup onto a
+     * new phone brought the weigh-ins, the goals and the diary back and quietly left the BMI,
+     * the healthy range, the body-fat estimate, the basal rate and the daily burn behind.
+     *
+     * Only onto a profile that has none of its own: the newer per-profile values are the better
+     * answer wherever they exist, and a file's single figure must not overwrite two people's.
+     */
+    private suspend fun adoptDemographics(stored: BackupSettings?) {
+        if (stored == null) return
+        if (stored.heightMm <= 0 && stored.birthYear <= 0) return
+        val id = profileRepository.activeId()
+        val existing = profileRepository.observeAll().first().firstOrNull { it.id == id }
+            ?.demographics
+            ?: return
+        if (existing.heightMm > 0 || existing.birthYear > 0) return
+        profileRepository.setDemographics(
+            id,
+            com.weighttrack.core.model.UserProfile(
+                heightMm = stored.heightMm,
+                sex = decode(stored.sex, Sex.entries, existing.sex),
+                birthYear = stored.birthYear,
+                activityLevel = decode(
+                    stored.activityLevel,
+                    ActivityLevel.entries,
+                    existing.activityLevel,
+                ),
+            ),
+        )
+    }
+
     private suspend fun restoreDocument(
         document: com.weighttrack.core.sync.SyncDocument,
+        backup: BackupSettings?,
     ): ImportSummary {
         val now = Instant.now().toEpochMilli()
         // A phone that has only ever been opened once. The app makes a profile on first start,
@@ -353,6 +390,9 @@ class BackupService @Inject constructor(
                 updatedAtUtcMillis = System.currentTimeMillis(),
             )
         }
+        // A document written before the demographics moved onto the profile carries them in its
+        // settings instead, where nothing reads them any more.
+        adoptDemographics(backup)
         return ImportSummary(
             imported = document.weights.size,
             skipped = 0,

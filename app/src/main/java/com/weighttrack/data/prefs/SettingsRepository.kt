@@ -139,6 +139,19 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setHealthConnectDecided() = edit { it[Keys.HEALTH_CONNECT_DECIDED] = true }
     /**
+     * Whether the readings already sent to Health Connect went with their body-fat figures.
+     *
+     * False until a run has sent something with the body-fat grant in hand. What it guards is
+     * the one-off resend: a reading exported while body fat was not allowed went across without
+     * it and was marked done, so allowing it afterwards would reach nothing already recorded.
+     */
+    suspend fun healthBodyFatExported(profileId: Long): Boolean =
+        dataStore.data.first()[Keys.healthBodyFatExported(profileId)] ?: false
+
+    suspend fun setHealthBodyFatExported(profileId: Long) = edit {
+        it[Keys.healthBodyFatExported(profileId)] = true
+    }
+    /**
      * Deletions Health Connect has already been told about, for one person.
      *
      * Kept as a list of names rather than a moment in time. A tombstone that arrives from
@@ -350,6 +363,9 @@ class SettingsRepository @Inject constructor(
             stringPreferencesKey("health_changes_token_$profileId")
 
         val HEALTH_CONNECT_DECIDED = booleanPreferencesKey("health_connect_decided")
+
+        fun healthBodyFatExported(profileId: Long) =
+            booleanPreferencesKey("health_body_fat_exported_$profileId")
 
         fun healthDeletionsSent(profileId: Long) =
             stringSetPreferencesKey("health_deletions_sent_$profileId")

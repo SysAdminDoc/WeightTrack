@@ -175,7 +175,11 @@ class HealthConnectExportTest {
         weights.delete(entry)
         sync.sync().getOrThrow()
 
-        assertThat(client.deletedClientIds).containsExactly(entry.clientRecordId)
+        // Two calls: the weigh-in, and the body-fat record that carries the same name with a
+        // marker in front. The second is asked for even when there was no body fat to write,
+        // because nothing left to delete costs a call and a figure left behind costs the truth.
+        assertThat(client.deletedClientIds)
+            .containsExactly(entry.clientRecordId, "bf:" + entry.clientRecordId)
     }
 
     @Test
@@ -331,6 +335,54 @@ class HealthConnectExportTest {
         assertThat(result.isFailure).isTrue()
         assertThat(profiles.healthConnectId()).isNull()
         assertThat(weights.entriesFor(bob)).isEmpty()
+    }
+
+    @Test
+    fun `body fat allowed after the fact reaches what was already sent`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        weights.addFor(
+            profileId = id,
+            grams = 80_000,
+            timestamp = Instant.now().minus(1, ChronoUnit.HOURS),
+            bodyFatPercent = 22.5,
+        )
+        // Sent while body fat was not allowed: the weight went across, the figure did not, and
+        // the row was marked done.
+        sync().sync().getOrThrow()
+        val afterWeightOnly = client.inserted
+        assertThat(afterWeightOnly).isEqualTo(1)
+
+        grant(*HealthConnectSync.bodyFatPermissions.toTypedArray())
+        sync().sync().getOrThrow()
+
+        // Allowing it afterwards has to reach the readings already recorded, or no historical
+        // figure ever arrives and nothing anywhere says why.
+        assertThat(client.inserted).isEqualTo(2)
+    }
+
+    @Test
+    fun `a deleted reading takes its body-fat record with it`() = runTest {
+        profiles.ensureDefault()
+        val id = profiles.observeAll().first().single().id
+        grant(*HealthConnectSync.bodyFatPermissions.toTypedArray())
+        weights.addFor(
+            profileId = id,
+            grams = 80_000,
+            timestamp = Instant.now().minus(1, ChronoUnit.HOURS),
+            bodyFatPercent = 22.5,
+        )
+        val sync = sync()
+        sync.sync().getOrThrow()
+        val entry = weights.observeEntries().first().single()
+
+        weights.delete(entry)
+        sync.sync().getOrThrow()
+
+        // Left behind, a figure somebody deleted here stays in their health record for ever with
+        // the weight it belonged to gone.
+        assertThat(client.deletedClientIds)
+            .containsExactly(entry.clientRecordId, "bf:${entry.clientRecordId}")
     }
 
     @Test

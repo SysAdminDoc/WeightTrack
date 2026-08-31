@@ -350,6 +350,56 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `an older backup brings its height and its year of birth back`() = runTest {
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+        val file = write(VERSION_ONE)
+
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        // Every backup taken before the demographics moved onto the profile carries them once,
+        // beside the settings, where nothing reads them any more. Without this, restoring one
+        // brought the weigh-ins and the goals back and left the BMI, the healthy range, the
+        // body-fat estimate and the daily burn behind with nothing said about it.
+        val restored = profiles.observeAll().first().single().demographics
+        assertThat(restored.heightMm).isEqualTo(1_803)
+        assertThat(restored.birthYear).isEqualTo(1988)
+        assertThat(restored.sex).isEqualTo(com.weighttrack.core.model.Sex.FEMALE)
+        assertThat(restored.activityLevel)
+            .isEqualTo(com.weighttrack.core.model.ActivityLevel.ACTIVE)
+    }
+
+    @Test
+    fun `a backup does not overwrite a body somebody has already given`() = runTest {
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+        val mine = profiles.observeAll().first().single().id
+        profiles.setDemographics(
+            mine,
+            com.weighttrack.core.model.UserProfile(heightMm = 1_700, birthYear = 1990),
+        )
+        val file = write(VERSION_ONE)
+
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        // The per-profile value is the better answer wherever it exists, and one figure from an
+        // old file must not be handed to somebody it does not describe.
+        assertThat(profiles.observeAll().first().single().demographics.heightMm).isEqualTo(1_700)
+    }
+
+    @Test
     fun `a version one restore is one commit like the rest`() {
         // No version-1 file can be made to break a constraint: nothing its four sections reach
         // has a unique index, so there is no failure to inject and the behaviour cannot be

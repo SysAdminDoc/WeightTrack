@@ -140,7 +140,24 @@ class MigrationTest {
     }
 
     private companion object {
-        const val LATEST = 11
+        /**
+         * The version the database is actually on, read off it.
+         *
+         * It was a literal, and it stopped at 11 while the database went to 14: every one of
+         * these validated an upgrade that stopped two releases short and passed. A number
+         * repeated by hand beside the thing it describes drifts, and this is the one place where
+         * drifting means the migration test asserts nothing at all.
+         */
+        val LATEST: Int = androidx.test.platform.app.InstrumentationRegistry
+            .getInstrumentation()
+            .context
+            .assets
+            .list("com.weighttrack.data.db.WeightTrackDatabase")
+            .orEmpty()
+            .mapNotNull { it.removeSuffix(".json").toIntOrNull() }
+            .maxOrNull()
+            ?: error("No exported Room schemas were found")
+
         const val NAME = "migration-test.db"
     }
 }

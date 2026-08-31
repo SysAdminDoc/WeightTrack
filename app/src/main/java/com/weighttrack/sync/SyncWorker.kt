@@ -79,9 +79,9 @@ class SyncWorker @AssistedInject constructor(
             return Result.success()
         }
         if (!healthConnect.hasPermissions()) return Result.success()
-        // Revoked since the job was booked. Reading now would return nothing and call it a
-        // success, so the job stands itself down instead and Settings offers the grant again.
-        if (!healthConnect.canSyncInBackground()) {
+        // Given up or revoked since the job was booked. Either way there is nothing to do and
+        // nothing retrying would fix, so the job stands itself down and Settings offers it back.
+        if (!healthConnect.backgroundReadIsPossible() || !healthConnect.isTiedToAProfile()) {
             runCatching { scheduler.reschedule() }
             return Result.success()
         }
@@ -116,13 +116,16 @@ class SyncScheduler @Inject constructor(
         // Health Connect keeps the job alive on its own. Somebody who syncs a scale through it
         // and keeps no folder would otherwise have nothing running, and a reading added on the
         // scale would wait for them to open Settings.
-        // Background access as well as the read itself. An hourly job without it reads nothing
-        // and reports success, which leaves somebody with a sync that says it works and a scale
-        // reading that never arrives.
+        // Background access as well as the read itself, where the provider has such a thing to
+        // grant. An hourly job without it reads nothing and reports success, which leaves
+        // somebody with a sync that says it works and a scale reading that never arrives; but
+        // demanding a grant an older Health Connect cannot give would cancel the job for good on
+        // phones where it worked perfectly well.
         val forHealth = healthConnect.availability() ==
             com.weighttrack.health.HealthConnectAvailability.INSTALLED &&
             healthConnect.hasPermissions() &&
-            healthConnect.canSyncInBackground()
+            healthConnect.backgroundReadIsPossible() &&
+            healthConnect.isTiedToAProfile()
         val forSync = settings.mode != SyncMode.OFF && settings.syncInBackground
         if (!forSync && !forHealth) {
             manager.cancelUniqueWork(WORK_NAME)

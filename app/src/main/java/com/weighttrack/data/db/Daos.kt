@@ -34,9 +34,26 @@ interface WeightEntryDao {
     @Query(
         "SELECT * FROM weight_entries WHERE profileId = :profileId " +
             "AND healthExportedAtUtcMillis < updatedAtUtcMillis " +
+            // Never the ones that came from there. They match for ever otherwise, because
+            // nothing ever marks them, and a five-year imported history is then read into
+            // memory on every hourly run to be thrown away.
+            "AND source != 'HEALTH_CONNECT' " +
             "ORDER BY timestampUtcMillis ASC",
     )
     suspend fun awaitingHealthExport(profileId: Long): List<WeightEntryEntity>
+
+    /**
+     * Forgets that these were told, so the next run says it all again.
+     *
+     * For a grant that arrives after the fact: a reading exported while body fat was not allowed
+     * went across without its figure and was marked done, so allowing it afterwards reached
+     * nothing already recorded.
+     */
+    @Query(
+        "UPDATE weight_entries SET healthExportedAtUtcMillis = 0 " +
+            "WHERE profileId = :profileId AND bodyFatPercent IS NOT NULL",
+    )
+    suspend fun forgetHealthExportOfBodyFat(profileId: Long)
 
     /** Marks rows as told, at the version that was told. */
     @Query(
