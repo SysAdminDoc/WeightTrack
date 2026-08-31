@@ -103,12 +103,13 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 - [ ] P1: Add an encrypted portable archive with progress photos
   Why: JSON and CSV cannot restore progress-photo files, while a phone-to-phone archive needs confidentiality and tamper detection without exporting Keystore-bound service credentials.
   Evidence: `app/src/main/java/com/weighttrack/data/io/Backup.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`; https://cheatsheetseries.owasp.org/cheatsheets/Password_Storage_Cheat_Sheet.html
+  Note (2026-08-31 afternoon): format template verified — Aegis vault (scrypt KEK, slot system wrapping one AES-256-GCM master key, GCM tag as tamper check, https://github.com/beemdevelopment/Aegis/blob/master/docs/vault.md) for the header, SeedVault-style chunked streaming AEAD for photo payloads (https://github.com/seedvault-app/seedvault/blob/master/doc/README.md); slots let a password and the device keystore both unlock one archive.
   Touches: versioned archive codec, backup service, photo repository, export and restore UI, malformed-archive tests
   Acceptance: A password-protected archive restores all structured data and photo bytes with verified hashes; wrong password, modified content, path traversal, excessive expansion, or unsupported version changes nothing; non-secret settings travel, WebDAV passwords and API keys do not; JSON and CSV remain available with a clear photo-exclusion label.
   Complexity: L
 
 - [ ] P1: Add undo for destructive profile and journal actions
-  Why: The product promises snackbar undo for records, but profile, photo, fast, water, food, recipe, diary, and goal deletion is immediate while only weight deletion has a complete undo path.
+  Why: The product promises snackbar undo for records, but profile, photo, fast, water, food, recipe, diary, and goal deletion is immediate while only weight deletion has a complete undo path. (2026-08-31: no inspected OSS tracker ships snackbar-undo — the ecosystem still uses confirm dialogs — so this stays a differentiator.)
   Evidence: `ROADMAP.md` section `Complaints we will not repeat`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt`; `app/src/main/java/com/weighttrack/data/repo/ProgressPhotoRepository.kt`
   Touches: repositories for destructive entities, deletion staging, ViewModels and snackbars, file recovery cache, tests
   Acceptance: Each destructive action removes the item immediately and offers one timed undo without a confirmation dialog; undo restores relationships and files with their original sync IDs; expiry writes one tombstone; process recreation during the undo window resolves deterministically and is covered by tests.
@@ -128,6 +129,7 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Why: MyFitnessPal (free, 2026-04-28), Noom (free, 2026-06-24) and MyNetDiary (paid, 2026-05-05) all shipped this in 2026; no OSS tracker has it; the science says 1.2 to 1.6 g/kg protein and a lean-mass watch during the 10 to 13 percent loss these users see.
   Evidence: https://finance.yahoo.com/sectors/healthcare/articles/myfitnesspal-launches-comprehensive-glp-1-130000875.html ; https://shotsyapp.com/glp-1-tracker/ (feature bar: site rotation, severity on the dose timeline, level between doses, PDF) ; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12673431/ ; https://www.clinicalnutritionreport.com/articles/preventing-lean-mass-loss-glp1/
   Touches: new core/medication (dose schedule, site rotation, pharmacokinetic decay per drug from published half-lives), new data/db MedicationDose + SideEffect entities (Room v12, syncable with tombstones, added to DeletionCoverageTest), new ui/medication screen behind a Settings toggle, charts overlay of dose markers on the trend, PDF via android.graphics.pdf, protein target surfaced in the diary when the toggle is on
+  Note (2026-08-31 afternoon): demand confirmed table stakes — MyFitnessPal made GLP-1 dose/site/side-effect logging free on 2026-04-28 (https://blog.myfitnesspal.com/glp-1-support-medication-tracking/), and Shotsy, Pep, and Noyoyo are dedicated Android trackers; none is local-first and none exports a clinician report, so the niche below stands.
   Acceptance: a dose logged with a site suggests the next site in rotation; a side effect appears on the same day axis as doses on the chart; the PDF lists doses, side effects and the weight trend for a chosen range with no other data; deleting a dose produces a tombstone; the feature is invisible while the toggle is off. Stays local: Health Connect Medical Records has no Play policy yet (https://developer.android.com/health-and-fitness/health-connect/medical-records).
   Complexity: XL
 
@@ -142,6 +144,7 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Why: an EMA lags a steady slope by design; TrendWeight 2.11.0 (2026-08-26) added Holt's linear trend for exactly this, trale #481 proposes a Kalman equivalent, and Happy Scale offers four modes.
   Evidence: https://github.com/trendweight/trendweight/issues/396 ; https://github.com/QuantumPhysique/trale/issues/481 ; https://happyscale.com/support ; core/src/main/java/com/weighttrack/core/math/TrendEngine.kt
   Touches: core/math/TrendEngine.kt (second smoother with the same gap-aware compounding), data/prefs/SettingsRepository.kt (mode), ui/settings smoothing section, ui/components/TrendChart.kt (no change if TrendSeries stays the shape)
+  Note (2026-08-31 afternoon): if a second smoother is added, structural/Kalman is the evidence-backed candidate beyond Holt — best agreement on gappy real smart-scale data (https://pmc.ncbi.nlm.nih.gov/articles/PMC7519428/), and per-point uncertainty bands would be a first among consumer trackers.
   Acceptance: on a synthetic steady 0.5 kg/week loss the Holt trend lags the true line by under 0.1 kg after 30 days where the EMA lags by more; milestones, rate and ETA all read off whichever mode is chosen; the default stays EMA alpha 0.1.
   Complexity: M
 
@@ -181,7 +184,7 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Complexity: M
 
 - [ ] P2: network_security_config with a user-supplied certificate path for a self-signed NAS, and a clear cleartext refusal
-  Why: there is no network security config, so an `http://` WebDAV URL fails with a generic error and a self-signed Nextcloud cannot be trusted at all; Android 17 turns Certificate Transparency on by default and `usesCleartextTraffic` is slated for deprecation.
+  Why: there is no network security config, so an `http://` WebDAV URL fails with a generic error and a self-signed Nextcloud cannot be trusted at all; Android 17 turns Certificate Transparency on by default for apps targeting 37 (confirmed 2026-08-31, this app targets 37) and `usesCleartextTraffic` is slated for deprecation.
   Evidence: https://developer.android.com/about/versions/17/behavior-changes-all ; https://developer.android.com/about/versions/17/behavior-changes-17 ; app/src/main/res/xml (no network_security_config.xml); ui/settings/SyncCard.kt (no scheme validation)
   Touches: res/xml/network_security_config.xml, AndroidManifest.xml, data/sync/WebDavSyncTarget.kt (OkHttp client with an optional pinned user certificate loaded from a SAF pick), ui/settings/SyncCard.kt (reject http:// with a sentence, "trust this server's certificate" flow)
   Acceptance: an http:// URL is refused at entry with the reason; a self-signed HTTPS server passes after the certificate is picked and fails before; cleartext stays blocked.
@@ -245,15 +248,15 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: `:wear:assembleRelease` at targetSdk 36 with no deprecation warning from tiles; the tile still refreshes after a phone-side change on the Wear AVD.
   Complexity: S
 
-- [ ] P3: Bump Compose BOM to 2026.08.01 line, Material3 1.4.0, OkHttp 5.5.0
-  Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and 5.5.0 rotated its signing key.
+- [ ] P3: Bump Compose BOM to 2026.08.00, Material3 1.4.0, OkHttp 5.5.0
+  Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and the 5.4.0 response-header cap, and 5.5.0 rotated its signing key. (2026-08-31: everything else in the catalog verified current; Kotlin 2.4.20 with the KAPT CVE fix is due September 2026 and can ride along when stable.)
   Evidence: https://developer.android.com/jetpack/androidx/releases/compose-ui ; https://developer.android.com/jetpack/androidx/releases/compose-material3 ; https://github.com/square/okhttp/blob/master/CHANGELOG.md ; gradle/libs.versions.toml
   Touches: gradle/libs.versions.toml
   Acceptance: all four unit suites and both lint tasks green; both release APKs assemble; WebDAV PROPFIND round trip against the recorded-reply test passes.
   Complexity: S
 
 - [ ] P3: Move design-qa.md under docs/ and add CONTRIBUTING.md and SECURITY.md
-  Why: design-qa.md is tracked at the repo root outside the documented doc set; there is no contribution or vulnerability-report guidance, and README still says "Next up: translations" after string extraction shipped.
+  Why: design-qa.md is tracked at the repo root outside the documented doc set, and there is no contribution or vulnerability-report guidance. (2026-08-31: the stale README "Next up: translations" line named here has already been fixed; the rest of the item stands.)
   Evidence: `git ls-files` 2026-08-29; README.md line 104
   Touches: docs/design-qa.md, CONTRIBUTING.md, SECURITY.md, README.md
   Acceptance: root holds only README, CHANGELOG, ROADMAP, LICENSE and build files; README roadmap line names the current next item.
@@ -265,6 +268,7 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Why: The version catalog pins direct coordinates and the wrapper has a checksum, but transitive versions and downloaded plugin or library bytes can still change without a reviewed lock or verification failure.
   Evidence: `gradle/libs.versions.toml`; `gradle/wrapper/gradle-wrapper.properties`; absent `gradle.lockfile` and `gradle/verification-metadata.xml`; https://docs.gradle.org/current/userguide/dependency_locking.html; https://docs.gradle.org/current/userguide/dependency_verification.html
   Touches: root and module Gradle configuration, lock state, `gradle/verification-metadata.xml`, local dependency-update and release checks
+  Note (2026-08-31 afternoon): plan around the documented generation traps — metadata must be generated from a clean GRADLE_USER_HOME (gradle/gradle#19228), the configuration cache does not invalidate on metadata changes (#19716), settings-plugin locking breaks with version catalogs (#23727), and OkHttp 5.5.0+ signs with a new Commonhaus key that needs trusting; JetBrains' kotlin repo verification-metadata.xml is a working reference.
   Acceptance: Strict lock state covers all resolvable app, Wear, test, plugin, and release configurations; changing a transitive version without refreshing locks fails; replacing a cached artifact with different bytes fails verification; the documented local update command regenerates metadata for review without disabling verification.
   Complexity: M
 
@@ -320,6 +324,22 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Touches: `app/src/main/res/drawable`, shared icon wrappers, Compose screens and navigation, version catalog
   Acceptance: Every used icon is a reviewed vector resource with correct RTL behavior and content description at the call site; `material-icons-extended` is absent from the resolved graph; phone screenshots and accessibility semantics remain equivalent; release APK size and clean build time are recorded before and after.
   Complexity: M
+
+### Additions from 2026-08-31 (afternoon pass)
+
+- [ ] P1: Refuse implausible weights and timestamps at every import boundary
+  Why: Health Connect import files any record with positive grams at any instant, and CSV import guesses epoch millis versus seconds with no range check, while the BLE path already refuses outside 20 to 400 kg; corrupted scale timestamps reaching trackers is a live upstream failure class as of 2026-08-31.
+  Evidence: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt` take(); `app/src/main/java/com/weighttrack/data/io/WeightCsvImporter.kt:280-283`; `app/src/main/java/com/weighttrack/ble/ScaleReadingRouter.kt:60-62`; https://github.com/oliexdev/openScale/issues/1500 ("Sep 16 2094", 2026-08-31); https://codeberg.org/Freeyourgadget/Gadgetbridge/issues/6349 (year-2800 timestamps into Health Connect)
+  Touches: health/HealthConnectSync.kt, data/io/WeightCsvImporter.kt, sync result counts, runtime log, tests
+  Acceptance: a Health Connect record outside the plausible weight bounds or dated outside a sane window (before 1970 or more than a day in the future) is refused, counted as skipped, and logged; a CSV row with a year-2094 date or a 5-gram weight is reported in the import preview rather than filed; the refusal bounds are shared with the BLE constants rather than re-declared; existing valid imports are unchanged and a test proves each boundary refuses and counts.
+  Complexity: S
+
+- [ ] P3: Make the last two absolute privacy lines as precise as the settings copy
+  Why: Onboarding still says "Your readings stay on this phone" and the extraction-rules comment says data is never uploaded anywhere, while user-configured folder or WebDAV sync deliberately moves readings and demographics off the phone; the settings copy was already corrected this cycle and these two were missed.
+  Evidence: `app/src/main/res/values/strings.xml:245`; `app/src/main/res/xml/data_extraction_rules.xml:3-5`; `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt` (demographics travel in sync)
+  Touches: strings.xml onboarding copy, data_extraction_rules.xml comment
+  Acceptance: onboarding states the true contract (data leaves only when the person exports or sets up sync, matching the README's own phrasing); the extraction-rules comment no longer claims "never uploads anywhere"; no other absolute claim survives a grep for "never leave", "stays on this phone", or "never uploads".
+  Complexity: S
 
 ## Never
 
