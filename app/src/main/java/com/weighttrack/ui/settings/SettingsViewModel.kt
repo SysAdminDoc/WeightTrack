@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.weighttrack.R
+import com.weighttrack.core.io.RowProblem
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.Sex
@@ -151,10 +152,10 @@ class SettingsViewModel @Inject constructor(
     }
 
     /** Says which row would not read and why, in the reader's language. */
-    private fun describe(problem: com.weighttrack.data.io.RowProblem): String = strings[
+    private fun describe(problem: RowProblem): String = strings[
         when (problem.field) {
-            com.weighttrack.data.io.RowProblem.Field.WEIGHT -> R.string.settings_import_bad_weight
-            com.weighttrack.data.io.RowProblem.Field.DATE -> R.string.settings_import_bad_date
+            RowProblem.Field.WEIGHT -> R.string.settings_import_bad_weight
+            RowProblem.Field.DATE -> R.string.settings_import_bad_date
         },
         problem.row,
         problem.value,

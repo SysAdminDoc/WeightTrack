@@ -1,4 +1,4 @@
-package com.weighttrack.data.io
+package com.weighttrack.core.io
 
 /** A parsed delimited file: the header row, and every data row padded to the header's width. */
 data class CsvTable(

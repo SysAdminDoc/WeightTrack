@@ -1,4 +1,4 @@
-package com.weighttrack.data.io
+package com.weighttrack.core.io
 
 import com.weighttrack.core.math.UnitConverter
 import com.weighttrack.core.model.EntrySource

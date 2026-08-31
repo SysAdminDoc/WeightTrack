@@ -75,9 +75,9 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew :app:testPlayDebugUnitTest # 1,094 Play-flavour tests
-./gradlew :app:testFossDebugUnitTest # 1,100 F-Droid-flavour tests
-./gradlew :core:testDebugUnitTest    # 333 for the maths, scale protocols, food clients and merge
+./gradlew :app:testPlayDebugUnitTest # 1,065 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 1,071 F-Droid-flavour tests
+./gradlew :core:testDebugUnitTest    # 362 for shared maths, import, scale, food and sync code
 ./gradlew :wear:testDebugUnitTest    # 19 for the watch
 ./gradlew checkFormFactorVersions    # build and verify the exact phone and watch version identity
 ```

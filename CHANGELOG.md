@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- The CSV reader and weight importer now live in the shared core. Android and desktop use the
+  same column matching, units, date parsing, plausibility limits and repeat-import identities.
+
 - CSV and Health Connect imports now refuse weights below 20 kg or above 400 kg, dates before 1970, and dates more than one day ahead. CSV previews and import results identify rejected rows. Health Connect counts and records each refusal without putting the reading in diagnostics. A corrupt low reading can no longer hide a valid one when lowest-of-day import is enabled.
 
 - The phone and watch version check now builds all three release manifests before reading them. Running it on a clean checkout no longer fails because an older build happened to leave no manifest behind, and it requires both phone flavors rather than accepting whichever one was already there. The version name must match exactly, so a suffix or a missing name stops the release too.
