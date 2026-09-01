@@ -12,6 +12,7 @@ local.properties
 /app/build
 /wear/build/
 /core/build/
+/benchmark/build/
 /buildSrc/build/
 /.kotlin/
 *.apk

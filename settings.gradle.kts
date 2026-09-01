@@ -18,3 +18,4 @@ rootProject.name = "WeightTrack"
 include(":core")
 include(":app")
 include(":wear")
+include(":benchmark")

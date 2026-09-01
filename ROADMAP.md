@@ -126,13 +126,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: Mutations use a hybrid logical clock with device ID tie-breaking; a tombstone is pruned only after the retention floor and acknowledgement from every non-retired known peer; a fixture returning after nine months cannot resurrect its deleted row; clock rollback and equal-millisecond edits converge identically on every merge order.
   Complexity: XL
 
-- [ ] P2: Add a long-history performance regression fixture
-  Why: Weight trackers commonly accumulate years of daily data, and trale issue 279 reports navigation degradation on large histories; WeightTrack has no pinned dataset or frame-time budget for this case.
-  Evidence: https://github.com/QuantumPhysique/trale/issues/279; `app/src/main/java/com/weighttrack/ui/charts`; `app/src/main/java/com/weighttrack/data/db/Daos.kt`
-  Touches: benchmark fixtures, DAO paging and aggregation queries, chart downsampling, Baseline Profile or Macrobenchmark checks
-  Acceptance: A fixture with 7,300 daily readings, 1,825 diary days, and monthly measurements opens Home and Charts within 500 ms and switches a date range within 100 ms on the pinned medium emulator; peak memory and frame timing are recorded; the benchmark fails on a regression over the checked-in budget.
-  Complexity: M
-
 ### P3
 
 - [ ] P3: Vibrate on a successful scale capture and show the settling weight live

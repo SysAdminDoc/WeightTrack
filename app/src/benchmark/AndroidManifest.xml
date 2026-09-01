@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Only in the benchmark build type, which is never published. It is exported because the
+        benchmark that seeds the fixture runs in another process, and it is guarded by a
+        permission the shell holds so nothing else on the phone can reach it even here.
+    -->
+    <application>
+        <receiver
+            android:name="com.weighttrack.benchmark.FixtureSeeder"
+            android:exported="true"
+            android:permission="android.permission.DUMP">
+            <intent-filter>
+                <action android:name="com.weighttrack.benchmark.SEED" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

@@ -65,6 +65,27 @@ android {
             // in-place updates and strands everyone who already installed the app.
             signingConfig = signingConfigs.getByName("release")
         }
+        /**
+         * What the performance fixture measures.
+         *
+         * The release build, minified and shrunk exactly as it ships, with two differences: it
+         * is signed with the debug key, because the release key is not on every machine that
+         * might run this, and it is profileable, which is what lets a benchmark read frame
+         * timings out of a process it does not own. Measuring the debug build instead would
+         * measure a build nobody installs.
+         */
+        create("benchmark") {
+            initWith(getByName("release"))
+            signingConfig = signingConfigs.getByName("debug")
+            isDebuggable = false
+            isProfileable = true
+            applicationIdSuffix = ".benchmark"
+            versionNameSuffix = "-benchmark"
+            matchingFallbacks += "release"
+            // The fixture is seeded through a receiver that only this build type carries, and
+            // shrinking removes anything nothing calls from inside the app.
+            proguardFiles("benchmark-rules.pro")
+        }
     }
 
     flavorDimensions += "distribution"

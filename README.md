@@ -89,13 +89,29 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew :app:testPlayDebugUnitTest # 1,098 Play-flavour tests
-./gradlew :app:testFossDebugUnitTest # 1,104 F-Droid-flavour tests
-./gradlew :core:testDebugUnitTest    # 364 for shared maths, import, scale, food and sync code
+./gradlew :app:testPlayDebugUnitTest # 1,168 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 1,174 F-Droid-flavour tests
+./gradlew :core:testDebugUnitTest    # 440 for shared maths, import, scale, food and sync code
 ./gradlew :wear:testDebugUnitTest    # 19 for the watch
 ./gradlew checkFormFactorVersions    # build and verify the exact phone and watch version identity
 ```
 
+There is a performance fixture for a history nobody wants to wait for the app to grow. It fills
+the database with twenty years of daily weigh-ins, five years of meals and twenty years of monthly
+measurements, then measures cold start, the chart, and switching the chart's range. It needs a
+device or emulator attached:
+
+```
+ANDROID_SERIAL=<serial> ./gradlew :benchmark:connectedBenchmarkAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED,DEBUGGABLE,NOT-PROFILEABLE
+pwsh -NoProfile -File tools/check-benchmark-budgets.ps1
+```
+
+The suppressions are what let it run on an emulator at all. Numbers from one are noisy and slower
+than any real phone, so the budgets in `tools/benchmark-budgets.json` are a regression guard
+rather than a target: they are set from measured runs on one pinned emulator and mean nothing on
+different hardware. Reset them when you change device. `tools/test-benchmark-budget-gate.ps1`
+proves the check can fail.
 Every normal build uses strict dependency locks and checks the SHA-256 of each downloaded plugin
 or library. To review an intentional dependency update, regenerate the trust files from a fresh
 cache and then run the negative trust checks:

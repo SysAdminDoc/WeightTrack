@@ -1,0 +1,28 @@
+{
+  "_comment": [
+    "Ceilings for the long-history performance fixture, in the units the run reports.",
+    "Each is the worst value seen across two full runs on the pinned emulator, plus about a",
+    "quarter for the noise a software-rendered virtual device produces. They are a regression",
+    "guard and nothing else: a real phone is several times faster, and these numbers would be",
+    "a poor target for one.",
+    "The resident-set metrics are recorded but not gated. They move with whatever else the",
+    "device is doing, so a ceiling on them would fail for reasons that have nothing to do with",
+    "this app.",
+    "Checked by tools/check-benchmark-budgets.ps1, which fails when a median goes over, and by",
+    "tools/test-benchmark-budget-gate.ps1, which proves that check can fail."
+  ],
+  "device": "WeightTrack_API35 (headless, swiftshader_indirect)",
+  "benchmarks": {
+    "homeOnTwentyYears": {
+      "timeToInitialDisplayMs": 1600,
+      "memoryHeapSizeMaxKb": 24000
+    },
+    "chartsOnTwentyYears": {
+      "frameCount": 90,
+      "memoryHeapSizeMaxKb": 48000
+    },
+    "rangeSwitchOnTwentyYears": {
+      "frameCount": 130
+    }
+  }
+}
