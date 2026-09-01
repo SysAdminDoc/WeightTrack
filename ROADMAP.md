@@ -128,13 +128,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P3
 
-- [ ] P3: Vibrate on a successful scale capture and show the settling weight live
-  Why: openScale #1097 asks for feedback at the moment the reading lands; ble-scale-sync 1.26.0 shows the weight settling before it is final, which tells the person to keep standing still.
-  Evidence: https://github.com/oliexdev/openScale/issues/1097 ; https://github.com/KristianP26/ble-scale-sync/releases/tag/v1.26.0 ; ui/scale/ScaleScreen.kt
-  Touches: ui/scale/ScaleScreen.kt, ble/ScaleReadingRouter.kt (emit unstable readings as a separate state), VibratorManager use
-  Acceptance: unstable frames update a live number without filing; the stable frame files, vibrates once, and the live number stops.
-  Complexity: S
-
 - [ ] P3: New measurement entry pre-fills unchanged sites from the last entry
   Why: openScale 3.1.2 (2026-08-09) added it because thirteen sites retyped every time is why people stop measuring.
   Evidence: https://github.com/oliexdev/openScale/releases/tag/v3.1.2 ; ui/measurements/MeasurementsScreen.kt

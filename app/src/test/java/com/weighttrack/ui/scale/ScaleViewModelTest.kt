@@ -134,8 +134,16 @@ class ScaleViewModelTest {
         profileRepository = profiles,
         settingsRepository = settingsRepository,
         surfaceUpdater = surfaceUpdater,
+        haptics = haptics,
     )
 
+    /** Counts the buzzes rather than making them, so "once" is something a test can say. */
+    private class CountingHaptics : Haptics {
+        var buzzes = 0
+        override fun weighInLanded() { buzzes++ }
+    }
+
+    private val haptics = CountingHaptics()
     private fun broadcast(grams: Int, stabilized: Boolean = true) = ScaleScanEvent.Broadcast(
         device = broadcastScale,
         broadcast = ScaleBroadcast(
@@ -161,6 +169,57 @@ class ScaleViewModelTest {
         // The scale is remembered so the next weigh-in does not start with a hunt.
         assertThat(settingsRepository.settings.first().scaleAddress)
             .isEqualTo(broadcastScale.address)
+    }
+
+    @Test
+    fun `the frame that settles buzzes, once`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        // Standing still. Nothing has been filed, so nothing should have been felt.
+        scanEvents.emit(broadcast(82_100, stabilized = false))
+        scanEvents.emit(broadcast(82_300, stabilized = false))
+        advanceUntilIdle()
+        assertThat(haptics.buzzes).isEqualTo(0)
+
+        scanEvents.emit(broadcast(82_500))
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.reading?.grams).isEqualTo(82_500)
+        assertThat(haptics.buzzes).isEqualTo(1)
+    }
+
+    @Test
+    fun `a scale that keeps broadcasting the same settled weight buzzes once`() =
+        runTest(dispatcher) {
+            val viewModel = viewModel()
+            advanceUntilIdle()
+
+            // What a broadcasting scale actually does: the same settled frame, over and over,
+            // for as long as somebody stands on it.
+            repeat(5) { scanEvents.emit(broadcast(82_500)) }
+            advanceUntilIdle()
+
+            assertThat(viewModel.state.value.reading?.grams).isEqualTo(82_500)
+            assertThat(haptics.buzzes).isEqualTo(1)
+        }
+
+    @Test
+    fun `the live number stops once the weight is filed`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        scanEvents.emit(broadcast(82_300, stabilized = false))
+        advanceUntilIdle()
+        assertThat(viewModel.state.value.liveGrams).isEqualTo(82_300)
+
+        scanEvents.emit(broadcast(82_500))
+        advanceUntilIdle()
+
+        // The settled reading is what the screen shows now, and there is no live number left
+        // underneath it to keep twitching.
+        assertThat(viewModel.state.value.liveGrams).isNull()
+        assertThat(viewModel.state.value.reading?.grams).isEqualTo(82_500)
     }
 
     @Test

@@ -38,6 +38,11 @@ abstract class SyncWorkModule {
     @dagger.Binds
     @Singleton
     abstract fun syncWork(real: com.weighttrack.sync.RealSyncWork): com.weighttrack.sync.SyncWork
+
+    @dagger.Binds
+    abstract fun haptics(
+        real: com.weighttrack.ui.scale.AndroidHaptics,
+    ): com.weighttrack.ui.scale.Haptics
 }
 
 @Module

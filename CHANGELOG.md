@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The phone buzzes once when a weight lands off a Bluetooth scale. You are looking down at the scale when it happens, not at a phone across the room, and until now nothing told you it had worked: you went and picked the phone up to find out. A body composition scale sends the weight and then the body fat a moment later, and it still buzzes once, because that is one weigh-in.
+
 - Corrections to the two things above, before anybody has either of them. The new trend line carried itself forward along your last known direction for as long as you stayed off the scale, with nothing stopping it: a fortnight away after a good run drew the line more than a kilo below the lowest weight you had ever recorded and then announced a gain for the week as it came back, and three months away drew a weight nobody has. It now stops about a week past your last reading and waits, however long you are gone. It also started every line flat and spent the first month catching up, which made the goal date read about a quarter too soon at exactly the point people check it; it starts from your opening readings now instead.
 
 - And the step-count reading is fixed in two places. A single day of no steps at all used to switch the whole thing off, which threw away the week on the sofa that it exists to notice. More annoying: everybody moves less at the weekend, and comparing single days against your average day meant an ordinary week looked like a change of habit and stayed that way. Since the weekend is also when most people eat most, the days being discounted were the big ones, and the estimate came out a couple of hundred calories light. Each day is now weighed against the week around it rather than against the average day.

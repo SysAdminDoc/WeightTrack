@@ -104,6 +104,7 @@ class ScaleViewModel @Inject constructor(
     private val profileRepository: ProfileRepository,
     private val settingsRepository: SettingsRepository,
     private val surfaceUpdater: SurfaceUpdater,
+    private val haptics: Haptics,
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(ScaleUiState())
@@ -267,6 +268,11 @@ class ScaleViewModel @Inject constructor(
         // same settled weight for a while, so without this the rejected reading comes straight
         // back the moment the search starts again and cannot be got rid of.
         if (assembled.reading.grams == rejectedGrams) return
+
+        // Once, on the frame that settled. A body composition scale sends the weight and then
+        // the fat a heartbeat later, and buzzing again for the second half would say a second
+        // weigh-in had happened.
+        if (_state.value.reading == null) haptics.weighInLanded()
         val match = ScaleReadingRouter.match(assembled.reading.grams, lastKnownGrams)
         if (match == ScaleMatch.IMPLAUSIBLE) return
         // A reading of its own to record, so whatever was said about the last one is spent.
