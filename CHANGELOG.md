@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Measurements can be recorded as a set. Thirteen sites retyped one at a time is why people stop measuring, so "Record a set" starts with every site at whatever it was last time, faded, and you change the ones you actually measured. The rest are carried forward so a chart of one site is not full of holes, and they are marked as carried, in the app and in the CSV export, because a carried number is a fact about the last time you got the tape out rather than about today. Open it, change nothing and close it, and nothing is written at all.
+
 - The phone buzzes once when a weight lands off a Bluetooth scale. You are looking down at the scale when it happens, not at a phone across the room, and until now nothing told you it had worked: you went and picked the phone up to find out. A body composition scale sends the weight and then the body fat a moment later, and it still buzzes once, because that is one weigh-in.
 
 - Corrections to the two things above, before anybody has either of them. The new trend line carried itself forward along your last known direction for as long as you stayed off the scale, with nothing stopping it: a fortnight away after a good run drew the line more than a kilo below the lowest weight you had ever recorded and then announced a gain for the week as it came back, and three months away drew a weight nobody has. It now stops about a week past your last reading and waits, however long you are gone. It also started every line flat and spent the first month catching up, which made the goal date read about a quarter too soon at exactly the point people check it; it starts from your opening readings now instead.

@@ -101,7 +101,13 @@ object WeightCsvExporter {
         measurements: List<BodyMeasurement>,
         zone: ZoneId = ZoneId.systemDefault(),
     ): String = buildString {
-        appendLine(Csv.row(listOf("date", "time", "type", "value_cm", "value_in", "note")))
+        // `carried` says the value came forward from the last set rather than being measured
+        // that day. Last, so anything reading the earlier columns by position is unaffected.
+        appendLine(
+            Csv.row(
+                listOf("date", "time", "type", "value_cm", "value_in", "note", "carried"),
+            ),
+        )
         measurements.sortedBy { it.timestamp }.forEach { measurement ->
             val time = measurement.timestamp.atZone(zone).toLocalTime()
             appendLine(
@@ -113,6 +119,7 @@ object WeightCsvExporter {
                         decimal(UnitConverter.mmToCm(measurement.valueMm), 2),
                         decimal(UnitConverter.mmToInches(measurement.valueMm), 2),
                         measurement.note.orEmpty(),
+                        if (measurement.carried) "yes" else "",
                     ),
                 ),
             )

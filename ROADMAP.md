@@ -128,13 +128,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P3
 
-- [ ] P3: New measurement entry pre-fills unchanged sites from the last entry
-  Why: openScale 3.1.2 (2026-08-09) added it because thirteen sites retyped every time is why people stop measuring.
-  Evidence: https://github.com/oliexdev/openScale/releases/tag/v3.1.2 ; ui/measurements/MeasurementsScreen.kt
-  Touches: ui/measurements, data/repo/MeasurementRepository.kt (latest per site)
-  Acceptance: opening a new measurement shows last values greyed; saving with none changed creates no row; changing one site saves all thirteen with the carried values marked as carried in the CSV export.
-  Complexity: S
-
 - [ ] P3: Editable chart date shortcuts and week-over-week comparison
   Why: Happy Scale 2026.5.3 made the shortcut row editable (last X days, since date, custom range); Withings users' loudest chart complaint is losing the period delta and week-over-week view.
   Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; https://support.withings.com/hc/en-us/community/posts/11251967828497 ; ui/charts/ChartsScreen.kt

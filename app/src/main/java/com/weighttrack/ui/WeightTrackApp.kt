@@ -565,10 +565,16 @@ fun WeightTrackApp(
                 val viewModel: MeasurementsViewModel = hiltViewModel()
                 val state by viewModel.state.collectAsStateWithLifecycle()
                 val editor by viewModel.editor.collectAsStateWithLifecycle()
+                val measurementSet by viewModel.measurementSet.collectAsStateWithLifecycle()
                 MeasurementsScreen(
                     state = state,
                     editor = editor,
+                    measurementSet = measurementSet,
                     onStartEditing = viewModel::startEditing,
+                    onStartSet = viewModel::startSet,
+                    onSetValueChange = viewModel::onSetValueChange,
+                    onCancelSet = viewModel::cancelSet,
+                    onSaveSet = viewModel::saveSet,
                     onEditorTextChange = viewModel::onEditorTextChange,
                     onCancelEditing = viewModel::cancelEditing,
                     onSaveEditor = viewModel::saveEditor,

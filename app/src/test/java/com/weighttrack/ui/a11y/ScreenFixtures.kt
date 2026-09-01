@@ -283,6 +283,11 @@ internal object ScreenFixtures {
             MeasurementsScreen(
                 state = MeasurementsUiState(),
                 editor = null,
+                measurementSet = null,
+                onStartSet = {},
+                onSetValueChange = { _, _ -> },
+                onCancelSet = {},
+                onSaveSet = {},
                 onStartEditing = {},
                 onEditorTextChange = {},
                 onCancelEditing = {},

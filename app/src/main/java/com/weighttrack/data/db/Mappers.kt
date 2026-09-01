@@ -110,6 +110,7 @@ fun MeasurementEntity.toDomain(): BodyMeasurement? {
         type = decodedType,
         valueMm = valueMm,
         note = note,
+        carried = carried,
     )
 }
 
@@ -134,6 +135,7 @@ fun BodyMeasurement.toEntity(
         type = type.name,
         valueMm = valueMm,
         note = note?.takeIf { it.isNotBlank() },
+        carried = carried,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

@@ -49,6 +49,7 @@ class MeasurementRepository @Inject constructor(
         timestamp: Instant = Instant.now(),
         zone: ZoneId = ZoneId.systemDefault(),
         note: String? = null,
+        carried: Boolean = false,
     ): Long {
         val measurement = BodyMeasurement(
             timestamp = timestamp,
@@ -56,8 +57,43 @@ class MeasurementRepository @Inject constructor(
             type = type,
             valueMm = valueMm,
             note = note,
+            carried = carried,
         )
         return dao.insert(measurement.toEntity(profileId = profiles.activeId()))
+    }
+
+    /**
+     * Records a whole set at one moment, saying which values were measured and which carried.
+     *
+     * Thirteen sites and almost nobody changes all thirteen, so a set typed one site at a time
+     * is why people stop measuring. Writing the unchanged ones keeps each set complete, and the
+     * carried flag keeps them honest: they are a fact about the last time somebody measured.
+     *
+     * Nothing is written when nothing was measured. A set of thirteen carried values records a
+     * day on which nobody got the tape out.
+     */
+    suspend fun addSet(
+        measured: Map<MeasurementType, Int>,
+        carried: Map<MeasurementType, Int> = emptyMap(),
+        timestamp: Instant = Instant.now(),
+        zone: ZoneId = ZoneId.systemDefault(),
+    ): Int {
+        if (measured.isEmpty()) return 0
+        val date = timestamp.atZone(zone).toLocalDate()
+        val owner = profiles.activeId()
+        val rows = (measured.map { it to false } + carried.map { it to true })
+            .filter { (entry, _) -> entry.value > 0 }
+            .map { (entry, wasCarried) ->
+                BodyMeasurement(
+                    timestamp = timestamp,
+                    localDate = date,
+                    type = entry.key,
+                    valueMm = entry.value,
+                    carried = wasCarried,
+                ).toEntity(profileId = owner)
+            }
+        dao.insertAll(rows)
+        return rows.size
     }
 
     suspend fun update(measurement: BodyMeasurement) {

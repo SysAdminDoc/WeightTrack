@@ -165,7 +165,17 @@ data class MeasurementEntity(
     val type: String,
     val valueMm: Int,
     val note: String?,
+    /**
+     * Carried forward from the last set rather than measured again.
+     *
+     * A set of measurements is thirteen sites and almost nobody changes all thirteen. Writing the
+     * unchanged ones keeps each set complete, so a chart of one site is not full of holes, but
+     * the difference matters: a carried value is a fact about the last time somebody measured,
+     * not about today, and anything reading the history should be able to tell.
+     */
+    @ColumnInfo(defaultValue = "0") val carried: Boolean = false,
     val updatedAtUtcMillis: Long,
+
     /**
      * What this row is called on every device.
      *

@@ -15,15 +15,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -37,6 +41,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.weighttrack.R
+import com.weighttrack.core.model.LengthUnit
 import com.weighttrack.core.model.MeasurementType
 import com.weighttrack.ui.components.LedgerSection
 import com.weighttrack.ui.components.SectionHeading
@@ -49,7 +54,12 @@ import java.time.LocalDate
 fun MeasurementsScreen(
     state: MeasurementsUiState,
     editor: MeasurementEditor?,
+    measurementSet: MeasurementSet?,
     onStartEditing: (MeasurementType) -> Unit,
+    onStartSet: () -> Unit,
+    onSetValueChange: (MeasurementType, String) -> Unit,
+    onCancelSet: () -> Unit,
+    onSaveSet: () -> Unit,
     onEditorTextChange: (String) -> Unit,
     onCancelEditing: () -> Unit,
     onSaveEditor: () -> Unit,
@@ -100,6 +110,12 @@ fun MeasurementsScreen(
                 }
             }
 
+            item {
+                Button(
+                    onClick = onStartSet,
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                ) { Text(stringResource(R.string.measurements_record_a_set)) }
+            }
             item {
                 MeasurementSectionHeading(
                     text = stringResource(R.string.measurements_body_fat_estimate),
@@ -161,6 +177,85 @@ fun MeasurementsScreen(
             dismissButton = { TextButton(onClick = onCancelEditing) { Text(stringResource(R.string.common_cancel)) } },
         )
     }
+
+    if (measurementSet != null) {
+        MeasurementSetDialog(
+            set = measurementSet,
+            lengthUnit = state.lengthUnit,
+            onValueChange = onSetValueChange,
+            onCancel = onCancelSet,
+            onSave = onSaveSet,
+        )
+    }
+}
+
+/**
+ * Every site at once, filled in from the last time each was measured.
+ *
+ * The carried values are shown faded, so what is on screen is visibly last week's until somebody
+ * changes it. Saving with nothing changed writes nothing: an opened and closed screen is not a
+ * day on which somebody got the tape out.
+ */
+@Composable
+private fun MeasurementSetDialog(
+    set: MeasurementSet,
+    lengthUnit: LengthUnit,
+    onValueChange: (MeasurementType, String) -> Unit,
+    onCancel: () -> Unit,
+    onSave: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onCancel,
+        title = { Text(stringResource(R.string.measurements_record_a_set)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(
+                    text = stringResource(R.string.measurements_set_explained),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Spacer(Modifier.height(12.dp))
+                MeasurementType.entries.forEach { type ->
+                    val carried = set.isCarried(type)
+                    OutlinedTextField(
+                        value = set.values[type].orEmpty(),
+                        onValueChange = { onValueChange(type, it) },
+                        label = {
+                            Text(
+                                measurementLabel(type) + " (" +
+                                    LengthFormatter.unitLabel(lengthUnit) + ")",
+                            )
+                        },
+                        // Faded until it is touched, which is the whole signal: what is in the
+                        // box is what it was last time, not what it is today.
+                        textStyle = LocalTextStyle.current.copy(
+                            color = if (carried) {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                        ),
+                        supportingText = if (carried) {
+                            { Text(stringResource(R.string.measurements_carried)) }
+                        } else {
+                            null
+                        },
+                        keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                        ),
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onSave, enabled = set.hasAnyChange) {
+                Text(stringResource(R.string.common_save))
+            }
+        },
+        dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.common_cancel)) } },
+    )
 }
 
 @Composable

@@ -84,6 +84,8 @@ data class BodyMeasurement(
     val type: MeasurementType,
     val valueMm: Int,
     val note: String? = null,
+    /** Carried forward from the last set rather than measured again. */
+    val carried: Boolean = false,
 )
 
 /**

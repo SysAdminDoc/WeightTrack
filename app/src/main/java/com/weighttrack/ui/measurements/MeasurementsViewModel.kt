@@ -29,6 +29,23 @@ data class MeasurementsUiState(
     val lengthUnit: LengthUnit = LengthUnit.CM,
 )
 
+/**
+ * A whole set being entered at once.
+ *
+ * [values] holds every site as text, seeded from the last time each was measured. [changed] is
+ * which of them somebody has touched, and is the difference between a measurement and a value
+ * carried forward.
+ */
+data class MeasurementSet(
+    val values: Map<MeasurementType, String>,
+    val changed: Set<MeasurementType>,
+) {
+    val hasAnyChange: Boolean get() = changed.isNotEmpty()
+
+    fun isCarried(type: MeasurementType): Boolean =
+        type !in changed && !values[type].isNullOrBlank()
+}
+
 data class MeasurementEditor(
     val type: MeasurementType,
     val text: String,
@@ -49,6 +66,77 @@ class MeasurementsViewModel @Inject constructor(
         MeasurementsUiState(latest = latest, lengthUnit = unit)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
 
+    private val _set = MutableStateFlow<MeasurementSet?>(null)
+
+    /** The whole-set editor, when one is open. */
+    val measurementSet: StateFlow<MeasurementSet?> = _set.asStateFlow()
+
+    /**
+     * Opens a set with every site filled in from the last time it was measured.
+     *
+     * Thirteen sites retyped every time is why people stop measuring, so the carried values are
+     * there to be kept and only the ones somebody actually changes count as measured.
+     */
+    fun startSet() {
+        val unit = state.value.lengthUnit
+        _set.value = MeasurementSet(
+            values = MeasurementType.entries.associateWith { type ->
+                state.value.latest[type]
+                    ?.let { formatted(it.valueMm, unit) }
+                    .orEmpty()
+            },
+            changed = emptySet(),
+        )
+    }
+
+    fun onSetValueChange(type: MeasurementType, text: String) {
+        _set.update { open ->
+            open?.copy(
+                values = open.values + (type to text),
+                // Typing the same number back is still a measurement: somebody checked.
+                changed = open.changed + type,
+            )
+        }
+    }
+
+    fun cancelSet() {
+        _set.value = null
+    }
+
+    /**
+     * Writes the set, or nothing at all.
+     *
+     * A set nobody changed is a screen somebody opened and closed again. Recording thirteen
+     * carried values for it would put a measurement on a day when none was taken.
+     */
+    fun saveSet() {
+        val open = _set.value ?: return
+        val unit = state.value.lengthUnit
+        val millimetres = open.values.mapNotNull { (type, text) ->
+            LocaleNumbers.decimal(text)
+                ?.takeIf { it > 0 }
+                ?.let { type to UnitConverter.displayToMm(it, unit) }
+        }.toMap()
+        val measured = millimetres.filterKeys { it in open.changed }
+        if (measured.isEmpty()) {
+            _set.value = null
+            return
+        }
+        viewModelScope.launch {
+            measurementRepository.addSet(
+                measured = measured,
+                carried = millimetres.filterKeys { it !in open.changed },
+            )
+            _set.value = null
+        }
+    }
+
+    private fun formatted(valueMm: Int, unit: LengthUnit): String =
+        String.format(
+            java.util.Locale.getDefault(),
+            "%.1f",
+            UnitConverter.mmToDisplay(valueMm, unit),
+        )
     private val _editor = MutableStateFlow<MeasurementEditor?>(null)
     val editor: StateFlow<MeasurementEditor?> = _editor.asStateFlow()
 
