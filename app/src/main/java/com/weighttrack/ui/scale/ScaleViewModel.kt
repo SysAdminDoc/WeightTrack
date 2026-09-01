@@ -269,12 +269,14 @@ class ScaleViewModel @Inject constructor(
         // back the moment the search starts again and cannot be got rid of.
         if (assembled.reading.grams == rejectedGrams) return
 
-        // Once, on the frame that settled. A body composition scale sends the weight and then
-        // the fat a heartbeat later, and buzzing again for the second half would say a second
-        // weigh-in had happened.
-        if (_state.value.reading == null) haptics.weighInLanded()
         val match = ScaleReadingRouter.match(assembled.reading.grams, lastKnownGrams)
         if (match == ScaleMatch.IMPLAUSIBLE) return
+
+        // Once, on the frame that is actually being kept, and after the frame has survived the
+        // plausibility check. Before it, a cat on the scale buzzed and filed nothing, and then
+        // buzzed again for the person who stood on it next: one weigh-in, two buzzes, the first
+        // of them for a reading the app threw away.
+        val first = _state.value.reading == null
         // A reading of its own to record, so whatever was said about the last one is spent.
         answered = false
 
@@ -290,6 +292,10 @@ class ScaleViewModel @Inject constructor(
             ?.profileIds
             ?.mapNotNull { id -> profiles.firstOrNull { it.id == id } }
             .orEmpty()
+
+        // A body composition scale sends the weight and then the fat a heartbeat later, and
+        // buzzing again for the second half would say a second weigh-in had happened.
+        if (first) haptics.weighInLanded()
 
         _state.update {
             it.copy(

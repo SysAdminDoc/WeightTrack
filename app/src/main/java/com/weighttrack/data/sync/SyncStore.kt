@@ -331,6 +331,7 @@ class SyncStore @Inject constructor(
                     type = remote.type,
                     valueMm = remote.valueMm,
                     note = remote.note,
+                    carried = remote.carried,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                 )
@@ -341,6 +342,7 @@ class SyncStore @Inject constructor(
                     type = remote.type,
                     valueMm = remote.valueMm,
                     note = remote.note,
+                    carried = remote.carried,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
                 )
                 // The merge has already decided which version wins, including when two carry the
@@ -917,6 +919,7 @@ class SyncStore @Inject constructor(
         type = type,
         valueMm = valueMm,
         note = note,
+        carried = carried,
         updatedAtUtcMillis = updatedAtUtcMillis,
     )
 

@@ -12,6 +12,8 @@
     "tools/test-benchmark-budget-gate.ps1, which proves that check can fail."
   ],
   "device": "WeightTrack_API35 (headless, swiftshader_indirect)",
+  "model": "sdk_gphone64_x86_64",
+  "sdk": 35,
   "benchmarks": {
     "homeOnTwentyYears": {
       "timeToInitialDisplayMs": 1600,

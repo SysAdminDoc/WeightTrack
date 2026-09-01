@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -38,6 +39,8 @@ data class MeasurementsUiState(
  */
 data class MeasurementSet(
     val values: Map<MeasurementType, String>,
+    /** What each site was stored as, in millimetres, for the ones nobody touches. */
+    val original: Map<MeasurementType, Int>,
     val changed: Set<MeasurementType>,
 ) {
     val hasAnyChange: Boolean get() = changed.isNotEmpty()
@@ -77,24 +80,34 @@ class MeasurementsViewModel @Inject constructor(
      * Thirteen sites retyped every time is why people stop measuring, so the carried values are
      * there to be kept and only the ones somebody actually changes count as measured.
      */
-    fun startSet() {
-        val unit = state.value.lengthUnit
+    fun startSet() = viewModelScope.launch {
+        // Read from the repository rather than from the state flow. That flow is only warm while
+        // something is collecting it, so a set opened a moment too early would come up blank and
+        // silently write one measurement instead of a set.
+        val unit = settingsRepository.settings.first().lengthUnit
+        val latest = measurementRepository.observeLatestPerType().first()
         _set.value = MeasurementSet(
             values = MeasurementType.entries.associateWith { type ->
-                state.value.latest[type]
-                    ?.let { formatted(it.valueMm, unit) }
-                    .orEmpty()
+                latest[type]?.let { formatted(it.valueMm, unit) }.orEmpty()
             },
+            // The millimetres as they were stored, kept beside the text. A carried value is
+            // written from these rather than from what is in the box, because the box holds one
+            // decimal place of inches: 865 mm reads as 34.1 in and parses back as 866, so a
+            // value nobody touched came out a millimetre different from the one it copied.
+            original = latest.mapValues { (_, measurement) -> measurement.valueMm },
             changed = emptySet(),
         )
     }
 
     fun onSetValueChange(type: MeasurementType, text: String) {
         _set.update { open ->
-            open?.copy(
+            open ?: return@update null
+            open.copy(
                 values = open.values + (type to text),
-                // Typing the same number back is still a measurement: somebody checked.
-                changed = open.changed + type,
+                // Typing the same number back is still a measurement: somebody checked. Clearing
+                // the box is not: it is somebody part way through retyping, and treating it as a
+                // change dropped that site out of the set without saying so.
+                changed = if (text.isBlank()) open.changed - type else open.changed + type,
             )
         }
     }
@@ -109,23 +122,28 @@ class MeasurementsViewModel @Inject constructor(
      * A set nobody changed is a screen somebody opened and closed again. Recording thirteen
      * carried values for it would put a measurement on a day when none was taken.
      */
-    fun saveSet() {
-        val open = _set.value ?: return
-        val unit = state.value.lengthUnit
-        val millimetres = open.values.mapNotNull { (type, text) ->
-            LocaleNumbers.decimal(text)
-                ?.takeIf { it > 0 }
-                ?.let { type to UnitConverter.displayToMm(it, unit) }
-        }.toMap()
-        val measured = millimetres.filterKeys { it in open.changed }
+    fun saveSet() = viewModelScope.launch {
+        val unit = settingsRepository.settings.first().lengthUnit
+        val open = _set.value ?: return@launch
+        val measured = open.values
+            .filterKeys { it in open.changed }
+            .mapNotNull { (type, text) ->
+                LocaleNumbers.decimal(text)
+                    ?.takeIf { it > 0 }
+                    ?.let { type to UnitConverter.displayToMm(it, unit) }
+            }
+            .toMap()
+        // Untouched sites keep the millimetres they were stored with. Nothing round-trips
+        // through the text, so nothing changes by being carried.
+        val carried = open.original.filterKeys { it !in open.changed }
         if (measured.isEmpty()) {
             _set.value = null
-            return
+            return@launch
         }
-        viewModelScope.launch {
+        run {
             measurementRepository.addSet(
                 measured = measured,
-                carried = millimetres.filterKeys { it !in open.changed },
+                carried = carried,
             )
             _set.value = null
         }

@@ -172,6 +172,33 @@ class ScaleViewModelTest {
     }
 
     @Test
+    fun `a reading the app throws away does not buzz`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        // A cat, a bag, or the scale glitching. Nothing is filed, so nothing should be felt:
+        // a buzz teaches somebody that a weigh-in was saved.
+        scanEvents.emit(broadcast(4_000))
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.reading).isNull()
+        assertThat(haptics.buzzes).isEqualTo(0)
+    }
+
+    @Test
+    fun `a rejected frame before the real one still leaves one buzz`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        // Cat off, person on. One weigh-in, however many frames it took to get there.
+        scanEvents.emit(broadcast(4_000))
+        scanEvents.emit(broadcast(82_500))
+        advanceUntilIdle()
+
+        assertThat(viewModel.state.value.reading?.grams).isEqualTo(82_500)
+        assertThat(haptics.buzzes).isEqualTo(1)
+    }
+    @Test
     fun `the frame that settles buzzes, once`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()

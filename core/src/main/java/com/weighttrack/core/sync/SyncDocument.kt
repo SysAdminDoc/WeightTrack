@@ -221,6 +221,14 @@ data class SyncMeasurement(
     val type: String,
     val valueMm: Int,
     val note: String? = null,
+    /**
+     * Carried forward from the last set rather than measured again.
+     *
+     * Defaulted, so a document from a device that has not been updated still reads. Without it
+     * the receiving phone recorded every carried value as measured, and since the sending
+     * phone's own row was never rewritten the two disagreed for good.
+     */
+    val carried: Boolean = false,
     val updatedAtUtcMillis: Long,
 )
 

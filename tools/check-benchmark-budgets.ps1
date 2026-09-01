@@ -15,7 +15,8 @@ stops measuring something reads exactly like a fixture that is passing.
 param(
     [string] $Root = (Split-Path -Parent $PSScriptRoot),
     [string] $ResultsPath,
-    [string] $BudgetFile
+    [string] $BudgetFile,
+    [double] $MaxAgeHours = 12
 )
 
 $ErrorActionPreference = 'Stop'
@@ -35,11 +36,36 @@ if (-not $ResultsPath) {
         Sort-Object LastWriteTime -Descending |
         Select-Object -First 1
     if (-not $found) { throw "no benchmarkData.json under $searchRoot; run the benchmark first" }
+    # A run that crashed leaves last week's file sitting there, and a second device leaves its
+    # own beside it. Grading either of those and calling it today's numbers is worse than
+    # refusing: the whole point is to notice when something got slower.
+    $age = (Get-Date) - $found.LastWriteTime
+    if ($age.TotalHours -gt $MaxAgeHours) {
+        throw ("the newest results are {0:N1} hours old ({1}); run the benchmark again, or pass " +
+            "-ResultsPath to grade them deliberately") -f $age.TotalHours, $found.FullName
+    }
     $ResultsPath = $found.FullName
 }
 
 $budget = Get-Content -LiteralPath $BudgetFile -Raw | ConvertFrom-Json
 $results = Get-Content -LiteralPath $ResultsPath -Raw | ConvertFrom-Json
+
+# The budgets are numbers off one device and mean nothing on another, so the file names the
+# hardware and this refuses to grade anything else. Without it, a run on a faster phone sitting
+# beside the emulator's results passed budgets it was never measured against.
+#
+# Model and API level rather than the fingerprint: the fingerprint carries a build id that moves
+# every time the emulator image is updated, which would fail for no reason anybody cares about.
+if ($budget.model) {
+    $ranModel = $results.context.build.model
+    $ranSdk = $results.context.build.version.sdk
+    if ($ranModel -ne $budget.model) {
+        throw "these budgets were measured on '$($budget.model)'; this run is from '$ranModel'"
+    }
+    if ($budget.sdk -and [int] $ranSdk -ne [int] $budget.sdk) {
+        throw "these budgets were measured on API $($budget.sdk); this run is API $ranSdk"
+    }
+}
 
 Write-Host "Reading $ResultsPath"
 Write-Host "Against  $BudgetFile"
@@ -65,7 +91,14 @@ foreach ($entry in $budget.benchmarks.PSObject.Properties) {
             continue
         }
 
-        $value = [double] $recorded.Value.median
+        # Null is not zero. Cast straight to double it becomes 0, which is under every ceiling,
+        # so a metric the run failed to record read as a perfect score.
+        $raw = $recorded.Value.median
+        if ($null -eq $raw -or "$raw" -eq '') {
+            $problems.Add("'$name' recorded no value for '$metric', so nothing was checked")
+            continue
+        }
+        $value = [double] $raw
         $checked++
         $verdict = if ($value -gt $ceiling) { 'OVER' } else { 'ok' }
         Write-Host ("{0,-28} {1,-26} {2,10:N1} / {3,10:N1}  {4}" -f $name, $metric, $value, $ceiling, $verdict)

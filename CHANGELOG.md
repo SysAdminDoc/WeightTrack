@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- Corrections to the two above, before anybody has either. Backing up and restoring turned every carried measurement back into one you had taken that day, and syncing did the same to the other phone and then never corrected itself, so the two disagreed for good. Carrying a value forward while your units are set to inches also moved it by a millimetre, because it went out to the box as one decimal place and came back rounded. And clearing a box to retype it, then changing your mind, quietly dropped that site out of the set instead of carrying it.
+
+- The scale no longer buzzes for a weight it throws away. A cat, a bag, or the scale glitching would buzz and file nothing, and then buzz a second time for the person who stepped on next, which taught the buzz to mean nothing in particular.
+
 - Measurements can be recorded as a set. Thirteen sites retyped one at a time is why people stop measuring, so "Record a set" starts with every site at whatever it was last time, faded, and you change the ones you actually measured. The rest are carried forward so a chart of one site is not full of holes, and they are marked as carried, in the app and in the CSV export, because a carried number is a fact about the last time you got the tape out rather than about today. Open it, change nothing and close it, and nothing is written at all.
 
 - The phone buzzes once when a weight lands off a Bluetooth scale. You are looking down at the scale when it happens, not at a phone across the room, and until now nothing told you it had worked: you went and picked the phone up to find out. A body composition scale sends the weight and then the body fat a moment later, and it still buzzes once, because that is one weigh-in.

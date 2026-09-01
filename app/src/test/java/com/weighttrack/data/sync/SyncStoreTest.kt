@@ -107,6 +107,45 @@ class SyncStoreTest {
     }
 
     @Test
+    fun `a carried measurement is still carried on the other phone`() = runTest {
+        // A value carried forward is a fact about the last time somebody got the tape out.
+        // Dropped in transit, the receiving phone records it as measured, and since the sending
+        // phone never rewrites its own row the two disagree for good.
+        val profileId = seedProfile(phone)
+        phone.syncDao().insertMeasurements(
+            listOf(
+                MeasurementEntity(
+                    profileId = profileId,
+                    timestampUtcMillis = now,
+                    localDate = "2026-08-30",
+                    type = "CHEST",
+                    valueMm = 1_020,
+                    note = null,
+                    carried = true,
+                    updatedAtUtcMillis = now,
+                    syncId = "m-carried",
+                ),
+                MeasurementEntity(
+                    profileId = profileId,
+                    timestampUtcMillis = now,
+                    localDate = "2026-08-30",
+                    type = "WAIST",
+                    valueMm = 865,
+                    note = null,
+                    carried = false,
+                    updatedAtUtcMillis = now,
+                    syncId = "m-measured",
+                ),
+            ),
+        )
+
+        sync(from = phoneStore, fromId = "aaa", to = tabletStore, toId = "bbb")
+
+        val landed = tablet.syncDao().measurements().associateBy { it.syncId }
+        assertThat(landed.getValue("m-carried").carried).isTrue()
+        assertThat(landed.getValue("m-measured").carried).isFalse()
+    }
+    @Test
     fun `a fresh device ends up with everything`() = runTest {
         val profileId = seedProfile(phone)
         phone.syncDao().insertWeights(

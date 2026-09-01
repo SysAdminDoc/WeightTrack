@@ -128,6 +128,12 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P3
 
+- [ ] P3: Let the accessibility gate render dialogs
+  Why: every dialog in the app is invisible to the touch-target, RTL, light-theme and 200%-font checks. Adding a fixture with an AlertDialog open fails with `AppNotIdleException: Compose did not get idle after 55,121 attempts in 60 SECONDS`, and the pre-existing single-site measurement editor fails the same way, so this is the harness rather than any one dialog. `ScreenCoverageTest` enumerates top-level `fun *Screen(` in `*Screen.kt`, so a dialog composable is structurally invisible to "every screen is covered" and nothing reports the gap.
+  Evidence: found 2026-08-31 by an adversarial review of the measurement-set commit; reproduced against `MeasurementSetDialog` and against the existing editor dialog in `ui/measurements/MeasurementsScreen.kt`
+  Touches: app/src/test/java/com/weighttrack/ui/a11y (idling strategy for dialog windows), ScreenFixtures.kt, ScreenCoverageTest.kt (count dialogs as surfaces)
+  Acceptance: a fixture with the measurement set dialog open renders in all seven appearances without timing out; ScreenCoverageTest fails when a dialog composable has no fixture.
+  Complexity: M
 - [ ] P3: Editable chart date shortcuts and week-over-week comparison
   Why: Happy Scale 2026.5.3 made the shortcut row editable (last X days, since date, custom range); Withings users' loudest chart complaint is losing the period delta and week-over-week view.
   Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; https://support.withings.com/hc/en-us/community/posts/11251967828497 ; ui/charts/ChartsScreen.kt

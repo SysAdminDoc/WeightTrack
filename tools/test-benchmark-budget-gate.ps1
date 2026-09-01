@@ -4,8 +4,10 @@ Proves the benchmark budget gate can fail.
 
 .DESCRIPTION
 A check nobody has watched fail is a check nobody knows works. This runs
-check-benchmark-budgets.ps1 against the real results four times: once as it stands, which has to
-pass, and three times against a doctored budget or result file, each of which has to fail.
+check-benchmark-budgets.ps1 against the real results six times: once as it stands, which has to
+pass, and five times against a doctored budget or result file, each of which has to fail. The
+last two matter most: a metric the run recorded as null used to read as a score of zero, and
+nothing here noticed when the checker compared the minimum rather than the median.
 
 Run it after changing either the checker or the budgets:
     pwsh -File tools/test-benchmark-budget-gate.ps1
@@ -85,6 +87,37 @@ try {
     if ((Invoke-Checker -Budget $path -Results $ResultsPath) -eq 0) {
         $failures.Add('a budget naming a metric the run does not record was accepted')
     }
+    # 5. A metric the run recorded as null. Cast straight to a double that is zero, which is
+    #    under every ceiling, so the run with the missing number scored best of all.
+    $firstBenchmark = ($real.benchmarks.PSObject.Properties | Select-Object -First 1)
+    $firstMetric = ($firstBenchmark.Value.PSObject.Properties | Select-Object -First 1).Name
+    $blank = Get-Content -LiteralPath $ResultsPath -Raw | ConvertFrom-Json
+    $target = $blank.benchmarks | Where-Object { $_.name -eq $firstBenchmark.Name }
+    $target.metrics.$firstMetric.median = $null
+    $path = Join-Path $scratch 'null-median.json'
+    $blank | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path
+    if ((Invoke-Checker -Budget $budgets -Results $path) -eq 0) {
+        $failures.Add('a metric recorded as null was accepted')
+    }
+
+    # 6. The median is the number being compared, not some other one that happens to be smaller.
+    #    Nothing else here would notice the checker reading the minimum instead.
+    $shifted = Get-Content -LiteralPath $ResultsPath -Raw | ConvertFrom-Json
+    foreach ($b in $shifted.benchmarks) {
+        foreach ($m in $b.metrics.PSObject.Properties) {
+            if ($null -ne $m.Value.median) {
+                $m.Value.minimum = 0
+                $m.Value.maximum = 0
+                $m.Value.median = 999999
+            }
+        }
+    }
+    $path = Join-Path $scratch 'median-only.json'
+    $shifted | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path
+    if ((Invoke-Checker -Budget $budgets -Results $path) -eq 0) {
+        $failures.Add('a run whose medians are all over budget was accepted, so the median is not what is read')
+    }
+
 } finally {
     Remove-Item -LiteralPath $scratch -Recurse -Force -ErrorAction SilentlyContinue
 }

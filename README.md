@@ -89,8 +89,8 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew :app:testPlayDebugUnitTest # 1,168 Play-flavour tests
-./gradlew :app:testFossDebugUnitTest # 1,174 F-Droid-flavour tests
+./gradlew :app:testPlayDebugUnitTest # 1,176 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 1,182 F-Droid-flavour tests
 ./gradlew :core:testDebugUnitTest    # 440 for shared maths, import, scale, food and sync code
 ./gradlew :wear:testDebugUnitTest    # 19 for the watch
 ./gradlew checkFormFactorVersions    # build and verify the exact phone and watch version identity
@@ -102,8 +102,9 @@ measurements, then measures cold start, the chart, and switching the chart's ran
 device or emulator attached:
 
 ```
-ANDROID_SERIAL=<serial> ./gradlew :benchmark:connectedBenchmarkAndroidTest \
-  -Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED,DEBUGGABLE,NOT-PROFILEABLE
+$env:ANDROID_SERIAL = '<serial>'
+./gradlew :benchmark:connectedBenchmarkAndroidTest `
+  "-Pandroid.testInstrumentationRunnerArguments.androidx.benchmark.suppressErrors=EMULATOR,LOW-BATTERY,UNLOCKED,DEBUGGABLE,NOT-PROFILEABLE"
 pwsh -NoProfile -File tools/check-benchmark-budgets.ps1
 ```
 

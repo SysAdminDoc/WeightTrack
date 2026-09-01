@@ -155,6 +155,14 @@ data class BackupMeasurement(
     val type: String,
     val valueMm: Int,
     val note: String? = null,
+    /**
+     * Carried forward from the last set rather than measured again.
+     *
+     * Defaulted, so a file written before sets existed still reads, and an older build ignores
+     * it rather than refusing the file. Without it a restore turned every carried value into a
+     * measured one, which is the one distinction the whole feature exists to keep.
+     */
+    val carried: Boolean = false,
 )
 
 @Serializable
@@ -324,6 +332,7 @@ object BackupCodec {
         type = measurement.type.name,
         valueMm = measurement.valueMm,
         note = measurement.note,
+        carried = measurement.carried,
     )
 
     fun backupToMeasurement(backup: BackupMeasurement): BodyMeasurement? {
@@ -336,6 +345,7 @@ object BackupCodec {
             type = type,
             valueMm = backup.valueMm,
             note = backup.note,
+            carried = backup.carried,
         )
     }
 

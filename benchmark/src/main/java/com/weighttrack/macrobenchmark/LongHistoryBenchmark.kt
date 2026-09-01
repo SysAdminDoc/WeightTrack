@@ -44,9 +44,12 @@ class LongHistoryBenchmark {
         setupBlock = { seedFixture() },
     ) {
         startActivityAndWait()
-        // Waited for by name rather than by a fixed sleep: the trend card is the thing that has
-        // to read the whole history, so a run that timed out here is the finding.
-        device.wait(Until.hasObject(By.textContains("kg")), SCREEN_TIMEOUT_MS)
+        // Waited for by name rather than by a fixed sleep, and the answer is checked. The trend
+        // card is the thing that has to read the whole history; if it never draws, a startup
+        // metric is still recorded and the run goes green after a silent ten second timeout,
+        // which is a measurement of the app failing reported as a measurement of it working.
+        val trend = device.wait(Until.hasObject(By.textContains("kg")), SCREEN_TIMEOUT_MS)
+        check(trend) { "the home screen never drew a weight; nothing here measured a history" }
     }
 
     @Test

@@ -70,6 +70,8 @@ $trustFiles = @(
     'core/gradle.lockfile',
     'wear/buildscript-gradle.lockfile',
     'wear/gradle.lockfile',
+    'benchmark/buildscript-gradle.lockfile',
+    'benchmark/gradle.lockfile',
     'buildSrc/gradle.lockfile'
 )
 $backupRoot = Join-Path $trustHome 'state-backup'
@@ -96,6 +98,7 @@ try {
             ':app:dependencies' `
             ':core:dependencies' `
             ':wear:dependencies' `
+            ':benchmark:dependencies' `
             ':core:testDebugUnitTest' `
             ':app:testPlayDebugUnitTest' `
             ':app:testFossDebugUnitTest' `
@@ -107,6 +110,7 @@ try {
             ':app:assemblePlayRelease' `
             ':app:assembleFossRelease' `
             ':wear:assembleRelease' `
+            ':benchmark:assembleBenchmark' `
             'checkFormFactorVersions' `
             '--write-locks' `
             '--write-verification-metadata' 'sha256' `
