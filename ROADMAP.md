@@ -6,7 +6,7 @@ Single task tracker for the project. Research was refreshed 2026-08-31; prices a
 
 Happy Scale quality, on Android, free forever. No account, no ads, no subscription, no cloud you don't control. Your data lives on your phone and leaves only when you export it.
 
-Current release: v0.4.0. The Quiet Ledger redesign is complete across the eight main screens, with paired emulator evidence under `docs/design/qa/`.
+Current release: v0.5.0.
 
 Every feature the paid apps lock up is either client-side math or a free API call. WeightTrack ships all of it in the open.
 
@@ -112,13 +112,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 ### P2 additions from 2026-08-31
 
 ### P3 additions from 2026-08-31
-
-- [ ] P3: Open supported export files directly into a safe import preview
-  Why: Users receiving or downloading a WeightTrack CSV or JSON must currently launch the app and browse for it, while a narrow Android file handoff is a requested OSS migration path.
-  Evidence: `app/src/main/AndroidManifest.xml`; `app/src/main/java/com/weighttrack/data/io`; https://github.com/simonoppowa/OpenNutriTracker/issues/621
-  Touches: narrow `ACTION_VIEW` intent filters, URI permission handling, app-lock routing, import preview, atomic restore tests
-  Acceptance: A supported CSV or WeightTrack JSON opened from Files reaches the same preview and atomic import path as the in-app picker; an unrelated, oversized, malformed, or unsupported file changes nothing and shows a clear result; URI access is temporary and survives process recreation only as long as the preview needs it.
-  Complexity: S
 
 - [ ] P3: Replace Material Icons Extended with checked-in Material Symbols vectors
   Why: Compose Material no longer recommends or updates the icons library, and the extended bundle increases build and preview cost while WeightTrack uses a finite icon set.

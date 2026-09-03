@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 (2026-09-03)
 
 - A backup or a spreadsheet of readings can be opened straight into WeightTrack. Tap one in Files, or send it from another app, and it goes down the same path the picker in Settings uses: a backup shows you what is in it before a single row changes, and a spreadsheet imports with the same report of anything it had to refuse. WeightTrack only offers itself for those two kinds of file, so it will not clutter the list for a photograph, and a file it cannot make sense of says so and changes nothing.
 

@@ -1,15 +1,15 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.4.0-35D6A0?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.5.0-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
-# WeightTrack v0.4.0
+# WeightTrack v0.5.0
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. There is no server behind it: your readings go only where you send them, in an export you take or a folder you point sync at.
 
-Version 0.4.0 brings a quieter AMOLED interface to every main screen. The trend stays prominent, controls take less room, and the common jobs remain reachable without hunting through cards.
+Version 0.5.0 is the big one for anyone syncing between two phones or taking a GLP-1. Sync no longer trusts either device's clock and remembers a deletion until every device has seen it. There's an optional injection log with dose, site rotation, side effects and a one-page report for an appointment. The app reads your periods if you let it, so half a kilogram of water stops reading as a gain. The chart counts from a day you pick and says what that stretch did against the one before it. And the widget, tile and complication can show a direction instead of a weight.
 
 Most weight apps hide the trend line, the goal projection, body measurements or a working export behind a monthly plan. MyFitnessPal even took the barcode scanner away from people who had used it free for a decade. WeightTrack ships the lot for nothing, and the MIT licence means it cannot be taken back later.
 
@@ -74,7 +74,7 @@ signing certificate before you install:
 
 ```sh
 sha256sum -c SHA256SUMS.txt
-apksigner verify --verbose --print-certs WeightTrack-v0.4.0-play-release.apk
+apksigner verify --verbose --print-certs WeightTrack-v0.5.0-play-release.apk
 ```
 
 The fingerprint that comes back has to match the one published in
@@ -89,10 +89,10 @@ Needs Android Studio or the command line SDK, with JDK 17 or newer.
 ./gradlew assemblePlayDebug       # Play flavour
 ./gradlew assembleFossDebug       # F-Droid flavour, no Google dependencies
 ./gradlew :wear:assembleDebug     # the watch app
-./gradlew :app:testPlayDebugUnitTest # 1,176 Play-flavour tests
-./gradlew :app:testFossDebugUnitTest # 1,182 F-Droid-flavour tests
-./gradlew :core:testDebugUnitTest    # 440 for shared maths, import, scale, food and sync code
-./gradlew :wear:testDebugUnitTest    # 19 for the watch
+./gradlew :app:testPlayDebugUnitTest # 1,344 Play-flavour tests
+./gradlew :app:testFossDebugUnitTest # 1,350 F-Droid-flavour tests
+./gradlew :core:testDebugUnitTest    # 507 for shared maths, import, scale, food and sync code
+./gradlew :wear:testDebugUnitTest    # 23 for the watch
 ./gradlew checkFormFactorVersions    # build and verify the exact phone and watch version identity
 ```
 
@@ -160,8 +160,9 @@ The chart is drawn directly on a Compose canvas rather than through a charting l
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Next up: the chart date shortcuts, an above-or-below-trend mode for
-the widget and the watch tile, and launcher shortcuts for logging a weight and reading a scale.
+See [ROADMAP.md](ROADMAP.md). Next up: dropping a stale block of demographics that backups and
+sync still carry, showing what's in an encrypted archive before it's restored, and saying so when
+Health Connect hands over only the last thirty days.
 
 Contributions are welcome: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) says what helps.
 
@@ -171,7 +172,7 @@ Each device writes one file, named after itself, into a folder you choose. It re
 
 Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Every edit carries a stamp that names the device that made it and can never go backwards, so a phone with a wrong clock cannot hold a stale version in place, and two edits made in the same millisecond settle the same way on every device. Deletions are remembered so they travel too, otherwise a phone that still holds the record hands it straight back.
 
-What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and travel in the encrypted archive instead. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
+What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, the injection log if you keep one, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and travel in the encrypted archive instead. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
 
 If the server is on your own network rather than a hosted one, Android 17 and later ask your permission before the app may reach it. WeightTrack requests that only when the address really is a local one, and says so on the settings screen when it is missing.
 
