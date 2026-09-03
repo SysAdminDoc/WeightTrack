@@ -78,7 +78,7 @@ apksigner verify --verbose --print-certs WeightTrack-v0.4.0-play-release.apk
 ```
 
 The fingerprint that comes back has to match the one published in
-[SECURITY.md](SECURITY.md), which also records the retired key from v0.1.0 and v0.2.0 and what to
+[docs/SECURITY.md](docs/SECURITY.md), which also records the retired key from v0.1.0 and v0.2.0 and what to
 do if you're still on one of those.
 
 ## Building
@@ -160,19 +160,22 @@ The chart is drawn directly on a Compose canvas rather than through a charting l
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md). Current work follows the reliability and interoperability backlog recorded there.
+See [ROADMAP.md](ROADMAP.md). Next up: the chart date shortcuts, an above-or-below-trend mode for
+the widget and the watch tile, and launcher shortcuts for logging a weight and reading a scale.
+
+Contributions are welcome: [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) says what helps.
 
 ### How sync works
 
 Each device writes one file, named after itself, into a folder you choose. It reads every other device's file from the same folder and merges them. Nothing ever writes to a file it did not create, which is what stops a folder sync tool producing conflict copies that somebody then has to arbitrate by hand.
 
-Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Deletions are remembered for six months so they travel too, otherwise a phone that still holds the record hands it straight back.
+Records are matched on an identifier that stays the same on every device, and the most recently changed version wins. Every edit carries a stamp that names the device that made it and can never go backwards, so a phone with a wrong clock cannot hold a stale version in place, and two edits made in the same millisecond settle the same way on every device. Deletions are remembered so they travel too, otherwise a phone that still holds the record hands it straight back.
 
 What travels: weigh-ins, body measurements, water, fasts, goals, calorie and macro targets, your own foods, recipes and food diary, profiles, and the settings that describe you. What does not: progress photos, which are files rather than rows and travel in the encrypted archive instead. Whether a food is a favourite, and when you last ate it, stay on the phone that did the eating, because that is a fact about a phone rather than about the food.
 
 If the server is on your own network rather than a hosted one, Android 17 and later ask your permission before the app may reach it. WeightTrack requests that only when the address really is a local one, and says so on the settings screen when it is missing.
 
-Two other limits worth knowing. It relies on the devices roughly agreeing about the time, so a badly wrong clock can hold a stale edit in place. And a device left switched off for more than six months will bring back what it still holds, because by then the deletions that would have removed it have been forgotten.
+Something you delete is remembered until every device you sync with has published a file saying it has seen it, so a phone that spends a year in a drawer cannot bring the reading back when it returns. That means the deletion notes stay for as long as a device you own has not synced. If one is sold, lost or broken, Settings lists your devices and one tap says so: the others stop waiting for it, and nothing it ever sent is removed. The same tap puts it back if you change your mind.
 
 ## License
 

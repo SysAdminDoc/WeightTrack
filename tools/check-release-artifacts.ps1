@@ -6,7 +6,7 @@ Checks prepared release APKs, their signing identity, and SHA-256 checksums.
 Requires the exact Play, FOSS, and Wear release set for the project version. Each APK must carry
 the expected package, version, version-code band, signing certificate, supported native ABIs, and
 16 KB zip alignment, and a v2 or v3 signature. SHA256SUMS.txt must name every APK exactly once
-and contain no extra entry. SECURITY.md must publish the enforced fingerprint and every retired
+and contain no extra entry. docs/SECURITY.md must publish the enforced fingerprint and every retired
 one, because a fingerprint nobody can read is a fingerprint nobody can check against.
 #>
 [CmdletBinding()]
@@ -273,20 +273,20 @@ foreach ($spec in $specs) {
 
 # The permanent guide is what a person actually reads before installing, so a fingerprint that
 # only exists in the trust file is a fingerprint nobody can check against.
-$guide = Join-Path $rootPath 'SECURITY.md'
+$guide = Join-Path $rootPath 'docs/SECURITY.md'
 if (-not (Test-Path -LiteralPath $guide -PathType Leaf)) {
-    $problems.Add('SECURITY.md is missing, so no fingerprint is published anywhere a person reads.')
+    $problems.Add('docs/SECURITY.md is missing, so no fingerprint is published anywhere a person reads.')
 } else {
     $published = (Get-Content -LiteralPath $guide -Raw)
     $documented = @([regex]::Matches($published, '[0-9a-fA-F]{64}') |
         ForEach-Object { $_.Value.ToLowerInvariant() })
     if ($ExpectedCertificateSha256 -notin $documented) {
-        $problems.Add('SECURITY.md does not publish the signing fingerprint the gate enforces.')
+        $problems.Add('docs/SECURITY.md does not publish the signing fingerprint the gate enforces.')
     }
     foreach ($retired in @($trust.retiredCertificates)) {
         $value = Normalize-Fingerprint -Value ([string]$retired.certificateSha256)
         if ($value -and $value -notin $documented) {
-            $problems.Add("SECURITY.md does not record the retired fingerprint $value.")
+            $problems.Add("docs/SECURITY.md does not record the retired fingerprint $value.")
         }
     }
 }

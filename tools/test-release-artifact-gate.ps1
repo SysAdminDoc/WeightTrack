@@ -128,15 +128,16 @@ try {
     # against, so the gate has to notice when the published guide stops naming it.
     $undocumentedRoot = Join-Path $testRoot 'undocumented'
     New-Item -ItemType Directory -Path (Join-Path $undocumentedRoot 'tools') | Out-Null
+    New-Item -ItemType Directory -Path (Join-Path $undocumentedRoot 'docs') | Out-Null
     Copy-Item `
         -LiteralPath (Join-Path $rootPath 'gradle.properties') `
         -Destination (Join-Path $undocumentedRoot 'gradle.properties')
     Copy-Item `
         -LiteralPath (Join-Path $rootPath 'tools/release-trust.json') `
         -Destination (Join-Path $undocumentedRoot 'tools/release-trust.json')
-    $stripped = (Get-Content -LiteralPath (Join-Path $rootPath 'SECURITY.md') -Raw) `
+    $stripped = (Get-Content -LiteralPath (Join-Path $rootPath 'docs/SECURITY.md') -Raw) `
         -replace '[0-9a-fA-F]{64}', 'not-a-fingerprint'
-    [IO.File]::WriteAllText((Join-Path $undocumentedRoot 'SECURITY.md'), $stripped)
+    [IO.File]::WriteAllText((Join-Path $undocumentedRoot 'docs/SECURITY.md'), $stripped)
     Assert-Rejected `
         -Name 'undocumented fingerprint' `
         -Result (Invoke-Gate -Root $undocumentedRoot) `

@@ -135,13 +135,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: all four unit suites and both lint tasks green; both release APKs assemble; WebDAV PROPFIND round trip against the recorded-reply test passes.
   Complexity: S
 
-- [ ] P3: Move design-qa.md under docs/ and add CONTRIBUTING.md and SECURITY.md
-  Why: design-qa.md is tracked at the repo root outside the documented doc set, and there is no contribution or vulnerability-report guidance. (2026-08-31: the stale README "Next up: translations" line named here has already been fixed; the rest of the item stands.)
-  Evidence: `git ls-files` 2026-08-29; README.md line 104
-  Touches: docs/design-qa.md, CONTRIBUTING.md, SECURITY.md, README.md
-  Acceptance: root holds only README, CHANGELOG, ROADMAP, LICENSE and build files; README roadmap line names the current next item.
-  Complexity: S
-
 ### P2 additions from 2026-08-31
 
 ### P3 additions from 2026-08-31
