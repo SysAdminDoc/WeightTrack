@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Long-press the app icon and there are two shortcuts: log a weight, or read your scale. Both go straight to the screen rather than to the home page, both still ask for your screen lock if you have one on, and tapping one while the app is already open moves you there instead of opening a second copy.
+
 - The chart can count from a day you pick. Under the week, month and year buttons there is now a date: choose the day you started, or your operation, or the first of the year, and the chart shows everything since. It is remembered, so you pick it once rather than every time you open the screen. Underneath, the chart says what the shown stretch actually did and how that compares with the same length of time before it, which is the question you opened it to ask. "Down 1.4 kg over 30 days" tells you nothing on its own; "down 1.4 kg, against 0.4 the 30 before" tells you whether the month worked.
 
 - The home screen widget, the watch tile and the watch complication can show a direction instead of a weight. Turn it on in Settings and they say whether this morning was above or below your trend and by how much, with the weight itself nowhere on them. It is for anyone who wants the one thing worth knowing at a glance without it being readable by whoever is standing next to them. The app is unchanged.

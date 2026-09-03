@@ -13,6 +13,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -49,17 +50,41 @@ class MainActivity : FragmentActivity() {
      * settings to ask what an access is for. Landing them on the home screen, which is what used
      * to happen, is not an answer.
      */
-    private fun openAt(): String? = when (intent?.action) {
+    private fun openAt(intent: android.content.Intent?): String? = when (intent?.action) {
         "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
         "android.intent.action.VIEW_PERMISSION_USAGE",
         -> com.weighttrack.ui.navigation.Routes.HEALTH_RATIONALE
-        else -> null
+        else -> com.weighttrack.shortcuts.LauncherShortcuts.routeFor(intent?.action)
+    }
+
+    /**
+     * The screen asked for, and how many times it has been asked for.
+     *
+     * A launcher shortcut tapped while the app is already open arrives as a new intent rather
+     * than as a fresh start, so reading the intent once at composition would leave the second
+     * tap doing nothing at all. The count is what tells the difference between the same request
+     * still standing and the same request made again.
+     */
+    private var openRoute by mutableStateOf<String?>(null)
+    private var openRequests by mutableIntStateOf(0)
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        openAt(intent)?.let { route ->
+            openRoute = route
+            openRequests += 1
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
         Notifications.ensureChannel(this)
+        // Published on every start rather than once: a label changes when the app is translated,
+        // and a shortcut left by an older version would otherwise keep its old wording.
+        com.weighttrack.shortcuts.LauncherShortcuts.publish(this)
+        openRoute = openAt(intent)
 
         setContent {
             val viewModel: AppViewModel = hiltViewModel()
@@ -129,9 +154,12 @@ class MainActivity : FragmentActivity() {
                             error = lockError,
                             onUnlock = { requestUnlock(viewModel) },
                         )
+                        // Reached only once the lock is satisfied, and onboarding is answered
+                        // inside, so a shortcut cannot skip either of them.
                         else -> WeightTrackApp(
                             onboardingComplete = loaded.onboardingComplete,
-                            openAt = openAt(),
+                            openAt = openRoute,
+                            openRequests = openRequests,
                         )
                     }
                 }

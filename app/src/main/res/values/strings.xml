@@ -437,6 +437,10 @@
     <string name="medication_dose_row">%1$s, %2$s mg, %3$s</string>
     <string name="medication_effect_row">%1$s, %2$s</string>
     <string name="charts_dose_legend">Dose</string>
+    <string name="shortcut_log_weight_short">Log weight</string>
+    <string name="shortcut_log_weight_long">Log a weight</string>
+    <string name="shortcut_read_scale_short">Read scale</string>
+    <string name="shortcut_read_scale_long">Read your Bluetooth scale</string>
     <string name="charts_since_a_date">Since a date…</string>
     <string name="charts_since">Since %1$s</string>
     <string name="charts_since_clear">Clear</string>

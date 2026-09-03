@@ -119,13 +119,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 ### P3 additions from 2026-08-31
 
-- [ ] P3: Add launcher shortcuts for Log weight and Read scale
-  Why: Weight entry is the dominant open-app action in a completed trale request, and WeightTrack's three-second logging goal should extend to the Android launcher.
-  Evidence: https://github.com/QuantumPhysique/trale/issues/468; no shortcut declaration or `ShortcutManager` usage in the 2026-08-31 repository scan
-  Touches: shortcut XML or manager, manifest, navigation deep links, app-lock and onboarding routing tests
-  Acceptance: Both shortcuts appear on supported launchers; Log weight and Read scale land on the intended screen after app lock or onboarding is satisfied; denial and unavailable-Bluetooth states remain visible; repeated shortcut use creates no duplicate navigation or saved row.
-  Complexity: S
-
 - [ ] P3: Open supported export files directly into a safe import preview
   Why: Users receiving or downloading a WeightTrack CSV or JSON must currently launch the app and browse for it, while a narrow Android file handoff is a requested OSS migration path.
   Evidence: `app/src/main/AndroidManifest.xml`; `app/src/main/java/com/weighttrack/data/io`; https://github.com/simonoppowa/OpenNutriTracker/issues/621

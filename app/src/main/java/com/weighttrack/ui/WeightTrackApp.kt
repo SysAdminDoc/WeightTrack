@@ -27,8 +27,10 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.weighttrack.R
@@ -94,6 +96,15 @@ fun WeightTrackApp(
      * the home screen answers none of what they came to ask.
      */
     openAt: String? = null,
+    /**
+     * How many times [openAt] has been asked for.
+     *
+     * A launcher shortcut tapped while the app is already open cannot change the graph's start
+     * destination, because the graph was built long ago. Counting the requests is what tells a
+     * second tap from the first one still standing, so the second one moves and a recomposition
+     * for any other reason does not.
+     */
+    openRequests: Int = 0,
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -103,6 +114,16 @@ fun WeightTrackApp(
         val state by viewModel.state.collectAsStateWithLifecycle()
         OnboardingScreen(state = state, viewModel = viewModel, modifier = modifier)
         return
+    }
+
+    // Seeded with what is on screen already: the first request is the start destination below,
+    // and navigating to it again would put a second copy of it on the back stack.
+    var answered by remember { mutableIntStateOf(openRequests) }
+    LaunchedEffect(openRequests, openAt) {
+        if (openAt != null && openRequests != answered) {
+            navController.navigate(openAt) { launchSingleTop = true }
+        }
+        answered = openRequests
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()
