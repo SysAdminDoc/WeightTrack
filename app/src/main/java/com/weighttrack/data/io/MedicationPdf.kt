@@ -48,7 +48,7 @@ class MedicationPdfWriter @Inject constructor(
      *
      * Split out because `PdfDocument` is native and cannot run off a device, so a test that went
      * through it could only ever check that nothing threw. This is the part with decisions in it:
-     * which sections appear, in which order, in whose language, and that nothing else of somebody''s
+     * which sections appear, in which order, in whose language, and that nothing else of somebody's
      * gets onto a page they are about to hand across a desk.
      */
     fun lines(content: MedicationReport.Content, unit: WeightUnit): List<Line> {

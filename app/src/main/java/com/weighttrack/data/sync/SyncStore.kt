@@ -79,9 +79,21 @@ class SyncStore @Inject constructor(
     private val clock: SyncClock,
 ) {
 
-    /** This device's own view of everything, ready to be written to a file. */
-    suspend fun snapshot(deviceId: String, now: Long): SyncDocument = withContext(Dispatchers.IO) {
-        stampLocalEdits(deviceId, now)
+    /**
+     * This device's own view of everything, ready to be written to a file.
+     *
+     * [publishing] is false for an archive, which is a photograph of this phone rather than this
+     * phone speaking. Nothing is stamped and nothing is attributed: a row that has never carried
+     * a stamp goes into the archive still carrying none, so restoring it onto another phone makes
+     * it that phone's row rather than one belonging to a device called "backup" that has never
+     * existed and never will.
+     */
+    suspend fun snapshot(
+        deviceId: String,
+        now: Long,
+        publishing: Boolean = true,
+    ): SyncDocument = withContext(Dispatchers.IO) {
+        if (publishing) stampLocalEdits(deviceId, now)
         val known = peers.all()
         val profiles = nameAnythingUnnamed()
         val nameOf = profiles.associate { it.id to it.syncId }
@@ -143,7 +155,7 @@ class SyncStore @Inject constructor(
             },
             // Anything still carrying no name is this device's own, which is what the document
             // says by putting its own name on it.
-        ).attributed()
+        ).let { if (publishing) it.attributed() else it }
     }
 
     /**
@@ -160,71 +172,88 @@ class SyncStore @Inject constructor(
             rows: List<T>,
             updatedAt: (T) -> Long,
             stampMillis: (T) -> Long,
+            stampDeviceId: (T) -> String,
             stamped: (T, Long) -> T,
             write: suspend (List<T>) -> Unit,
         ) {
-            val stale = rows.filter { updatedAt(it) != stampMillis(it) }
+            // A blank name is as unstamped as a zero time. An archive carries rows that way on
+            // purpose, and a restore has to make them this phone's rather than leave them owned
+            // by nobody, where nothing would ever pick them up again.
+            val stale = rows.filter { updatedAt(it) != stampMillis(it) || stampDeviceId(it).isBlank() }
             if (stale.isEmpty()) return
-            write(stale.map { row -> stamped(row, clock.stampFor(updatedAt(row), now)) })
+            write(
+                stale.map { row ->
+                    // A row that has never carried a stamp is believed rather than pushed past
+                    // the clock. See SyncClock.adopt: every row is in that state on the first
+                    // run after the upgrade, and insisting each one beat the last would rewrite
+                    // a whole history into today in the order the tables are read.
+                    val at = if (stampMillis(row) == 0L || stampDeviceId(row).isBlank()) {
+                        clock.adopt(updatedAt(row), now)
+                    } else {
+                        clock.stampFor(updatedAt(row), now)
+                    }
+                    stamped(row, at)
+                },
+            )
         }
 
         restamp(
-            dao.profiles(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.profiles(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { rows -> rows.forEach { dao.updateProfile(it) } },
         )
         restamp(
-            dao.weights(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.weights(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateWeights(it) },
         )
         restamp(
-            dao.measurements(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.measurements(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateMeasurements(it) },
         )
         restamp(
-            dao.water(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.water(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateWater(it) },
         )
         restamp(
-            dao.fasts(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.fasts(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateFasts(it) },
         )
         restamp(
-            dao.goals(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.goals(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateGoals(it) },
         )
         restamp(
-            dao.macroTargets(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.macroTargets(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateMacroTargets(it) },
         )
         restamp(
-            dao.foods(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.foods(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateFoods(it) },
         )
         restamp(
-            dao.recipes(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.recipes(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateRecipes(it) },
         )
         restamp(
-            dao.foodLog(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            dao.foodLog(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateFoodLog(it) },
         )
         restamp(
-            medication.all(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            medication.all(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { medication.updateAll(it) },
         )
         restamp(
-            effects.all(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            effects.all(), { it.updatedAtUtcMillis }, { it.stampMillis }, { it.stampDeviceId },
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { effects.updateAll(it) },
         )
@@ -1070,6 +1099,12 @@ class SyncStore @Inject constructor(
                     dao.macroTargets().filter { it.profileId in ids }.map { it.syncId },
                 )
                 dao.deleteFoodLog(dao.foodLog().filter { it.profileId in ids }.map { it.syncId })
+                medication.deleteByNames(
+                    medication.all().filter { it.profileId in ids }.map { it.syncId },
+                )
+                effects.deleteByNames(
+                    effects.all().filter { it.profileId in ids }.map { it.syncId },
+                )
                 dao.deleteProfiles(names)
                 removed += allowed.size
             }

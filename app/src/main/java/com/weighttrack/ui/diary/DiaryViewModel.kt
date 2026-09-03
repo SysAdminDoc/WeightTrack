@@ -194,7 +194,7 @@ class DiaryViewModel @Inject constructor(
             // Only for somebody keeping an injection log, and worked out from the trend rather
             // than the last reading, so one mistyped morning cannot move a target. Losing this
             // fast takes muscle with it unless protein stays up, which is the one number worth
-            // putting in front of the day''s eating.
+            // putting in front of the day's eating.
             val protein = if (snapshot.settings.medicationEnabled) {
                 snapshot.series.latestTrendGrams
                     ?.let { com.weighttrack.core.medication.ProteinTarget.dailyGrams(it.roundToInt()) }

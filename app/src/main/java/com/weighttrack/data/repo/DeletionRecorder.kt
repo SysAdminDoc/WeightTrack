@@ -60,6 +60,10 @@ class DeletionRecorder @Inject constructor(
         // the other device goes on offering days of eating for somebody who no longer exists,
         // and every sync afterwards reports them as records with nowhere to belong.
         SyncKind.FOOD_LOG to syncDao.foodLogNames(profileId),
+        // The injection log belongs to a person the same way, whether or not that person ever
+        // switched it on: a profile deleted here has to take it off the other phone too.
+        SyncKind.MEDICATION_DOSE to syncDao.medicationDoseNames(profileId),
+        SyncKind.SIDE_EFFECT to syncDao.sideEffectNames(profileId),
     )
 
     /**

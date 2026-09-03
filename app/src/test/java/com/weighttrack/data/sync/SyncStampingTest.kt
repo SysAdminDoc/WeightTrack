@@ -101,14 +101,22 @@ class SyncStampingTest {
 
     @Test
     fun `an edit made after a clock went backwards is stamped ahead of what it corrects`() = runTest {
-        // The other phone's edit landed at "now". This phone's clock then jumped an hour back,
-        // so the correction it makes afterwards carries an earlier time than the version it is
-        // correcting, and under a plain newest-wins it loses forever.
+        // Driven through the shape the app actually produces rather than a hand-built row: the
+        // reading is published once, so it is stamped, and only then does the clock go wrong.
+        // The other phone's edit landed at "now"; this phone's clock then jumped an hour back,
+        // so the correction made here carries an earlier time than the version it is correcting
+        // and under a plain newest-wins it would lose forever.
         val clock = SyncClock.inMemory()
+        seed(updatedAt = now - 7_200_000)
+        val store = store(clock)
+        store.snapshot("aaa", now)
         clock.observe(now, now)
-        seed(updatedAt = now - 3_600_000)
 
-        val document = store(clock).snapshot("aaa", now - 3_600_000)
+        val row = database.syncDao().weights().single()
+        database.syncDao().updateWeights(
+            listOf(row.copy(grams = 79_000, updatedAtUtcMillis = now - 3_600_000)),
+        )
+        val document = store.snapshot("aaa", now - 3_600_000)
 
         assertThat(document.weights.single().updatedAtUtcMillis).isGreaterThan(now)
     }
@@ -187,6 +195,135 @@ class SyncStampingTest {
         store.apply(archive, now)
 
         assertThat(database.deletionDao().all().map { it.syncId }).containsExactly("x1")
+    }
+
+    /**
+     * The state every row is in the first time the app runs after the upgrade that added stamps:
+     * a profile touched this morning, and a reading from months ago.
+     */
+    private suspend fun seedAsAfterTheUpgrade() {
+        val profileId = database.syncDao().insertProfile(
+            ProfileEntity(
+                name = "Me",
+                position = 0,
+                createdAtUtcMillis = now - 40_000_000,
+                syncId = "p1",
+                updatedAtUtcMillis = now - 1_000,
+            ),
+        )
+        database.syncDao().insertWeights(
+            listOf(
+                WeightEntryEntity(
+                    profileId = profileId,
+                    timestampUtcMillis = now - 10_000_000,
+                    zoneOffsetSeconds = 0,
+                    localDate = "2026-08-01",
+                    grams = 80_000,
+                    bodyFatPercent = null,
+                    note = null,
+                    tags = "",
+                    source = "MANUAL",
+                    clientRecordId = "w1",
+                    healthConnectId = null,
+                    updatedAtUtcMillis = now - 10_000_000,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `an upgrade does not drag an old reading's time up to today`() = runTest {
+        // Every row is unstamped on the first run after the upgrade, and they are stamped in
+        // whatever order the tables are walked. Insisting each one beat the clock meant the
+        // profile touched this morning pulled every reading behind it forward to now.
+        seedAsAfterTheUpgrade()
+
+        val document = store().snapshot("aaa", now)
+
+        assertThat(document.weights.single().updatedAtUtcMillis).isEqualTo(now - 10_000_000)
+    }
+
+    @Test
+    fun `a deletion still beats a reading the upgrade has just stamped`() = runTest {
+        // What the bug above actually cost: a reading deleted on the other phone last week came
+        // back, because this phone had just re-dated it to today.
+        seedAsAfterTheUpgrade()
+        val store = store()
+        val mine = store.snapshot("aaa", now)
+        val theirs = mine.copy(
+            deviceId = "bbb",
+            weights = emptyList(),
+            deletions = listOf(
+                com.weighttrack.core.sync.SyncDeletion(
+                    kind = com.weighttrack.core.sync.SyncKind.WEIGHT,
+                    syncId = "w1",
+                    deletedAtUtcMillis = now - 5_000_000,
+                    profileSyncId = "p1",
+                    stampDeviceId = "bbb",
+                ),
+            ),
+        )
+
+        assertThat(SyncMerge.merge(listOf(mine, theirs), "aaa", now).weights).isEmpty()
+    }
+
+    @Test
+    fun `taking a backup does not put its own name on this phone's rows`() = runTest {
+        // A backup is a photograph of this phone rather than this phone speaking, so it stamps
+        // nothing. Stamping there named every unstamped row after a device called "backup" that
+        // has never existed, and that name then travelled and broke ties against real phones.
+        seedAsAfterTheUpgrade()
+        val store = store()
+
+        store.snapshot("backup", now, publishing = false)
+        val published = store.snapshot("aaa", now)
+
+        assertThat(published.weights.single().stampDeviceId).isEqualTo("aaa")
+    }
+
+    @Test
+    fun `a correction made after the clock was put right still wins`() = runTest {
+        // The phone thought it was ten days later than it was. Believing that time would put the
+        // row past the furthest the clock will ever follow, so nothing stamped afterwards could
+        // beat it and the correction would lose for good.
+        val profileId = database.syncDao().insertProfile(
+            ProfileEntity(
+                name = "Me",
+                position = 0,
+                createdAtUtcMillis = now - 100_000,
+                syncId = "p1",
+                updatedAtUtcMillis = now - 100_000,
+            ),
+        )
+        val tenDays = 10L * 24 * 60 * 60 * 1000
+        database.syncDao().insertWeights(
+            listOf(
+                WeightEntryEntity(
+                    profileId = profileId,
+                    timestampUtcMillis = now,
+                    zoneOffsetSeconds = 0,
+                    localDate = "2026-09-01",
+                    grams = 80_000,
+                    bodyFatPercent = null,
+                    note = null,
+                    tags = "",
+                    source = "MANUAL",
+                    clientRecordId = "w1",
+                    healthConnectId = null,
+                    updatedAtUtcMillis = now + tenDays,
+                ),
+            ),
+        )
+        val store = store()
+        val first = store.snapshot("aaa", now).weights.single()
+
+        val row = database.syncDao().weights().single()
+        database.syncDao().updateWeights(
+            listOf(row.copy(grams = 79_000, updatedAtUtcMillis = now + 2_000)),
+        )
+        val second = store.snapshot("aaa", now).weights.single()
+
+        assertThat(second.updatedAtUtcMillis).isGreaterThan(first.updatedAtUtcMillis)
     }
 
     @Test

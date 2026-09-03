@@ -207,7 +207,7 @@ class ChartsViewModel @Inject constructor(
  *
  * Its own function so the promise can be a test: with the injection log switched off this is
  * empty whatever is in the database, which is what makes the chart of somebody who has never
- * heard of the feature exactly the chart it always was. Both sets are keyed on the row''s own
+ * heard of the feature exactly the chart it always was. Both sets are keyed on the row's own
  * local date, which is the same axis the trend is drawn on.
  */
 internal fun medicationDaysFrom(

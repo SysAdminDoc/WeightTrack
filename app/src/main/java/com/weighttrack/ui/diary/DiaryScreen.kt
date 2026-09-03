@@ -222,7 +222,7 @@ fun DiaryScreen(
                             }
                         }
                         // Only for somebody keeping an injection log. Losing weight this fast
-                        // takes muscle with it unless protein stays up, and the day''s eating is
+                        // takes muscle with it unless protein stays up, and the day's eating is
                         // the one place that number is any use.
                         state.proteinGrams?.let { grams ->
                             Spacer(Modifier.height(8.dp))

@@ -147,7 +147,7 @@ class BackupService @Inject constructor(
             // the same thing and there is one description of what that is. Every profile, not
             // just whoever is open, and the tombstones with it.
             val now = Instant.now().toEpochMilli()
-            val everything = syncStore.snapshot("backup", now).copy(
+            val everything = syncStore.snapshot("backup", now, publishing = false).copy(
                 settings = SyncedSettings(
                     weightUnit = settings.weightUnit.name,
                     lengthUnit = settings.lengthUnit.name,
@@ -534,7 +534,7 @@ class BackupService @Inject constructor(
             // a write transaction waits for the connection that transaction is holding.
             val owner = profileRepository.activeId()
             val now = Instant.now().toEpochMilli()
-            val profiles = syncStore.snapshot("backup", now).profiles
+            val profiles = syncStore.snapshot("backup", now, publishing = false).profiles
             // One commit for the lot. Four separate ones left a file whose food section broke a
             // constraint restoring the weigh-ins, the measurements and the goal and then failing,
             // which is a half-restored database nobody asked for and no way back to the old one.
@@ -703,7 +703,7 @@ class BackupService @Inject constructor(
         document: com.weighttrack.core.sync.SyncDocument,
     ): Long? {
         if (document.profiles.isEmpty()) return null
-        val local = syncStore.snapshot("backup", Instant.now().toEpochMilli())
+        val local = syncStore.snapshot("backup", Instant.now().toEpochMilli(), publishing = false)
         val only = local.profiles.singleOrNull() ?: return null
         if (document.profiles.any { it.syncId == only.syncId }) return null
         val empty = local.weights.isEmpty() && local.measurements.isEmpty() &&

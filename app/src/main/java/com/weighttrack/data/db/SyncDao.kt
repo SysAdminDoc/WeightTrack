@@ -73,6 +73,12 @@ interface SyncDao {
     @Query("SELECT syncId FROM food_log_entries WHERE profileId = :profileId")
     suspend fun foodLogNames(profileId: Long): List<String>
 
+    @Query("SELECT syncId FROM medication_doses WHERE profileId = :profileId")
+    suspend fun medicationDoseNames(profileId: Long): List<String>
+
+    @Query("SELECT syncId FROM side_effects WHERE profileId = :profileId")
+    suspend fun sideEffectNames(profileId: Long): List<String>
+
     // Inserts abort rather than replace. Everything written here has been looked up by its
     // travelling name first, so a conflict would mean the lookup was wrong, and replacing would
     // quietly overwrite a row belonging to somebody else's profile.

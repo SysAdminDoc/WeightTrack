@@ -184,6 +184,61 @@ class MedicationSyncTest {
     }
 
     @Test
+    fun `deleting a profile here takes its injection log with it`() = runTest {
+        // Nothing cascades in this schema, so rows belonging to a deleted person sit there
+        // invisible and unreachable, and the other phone goes on offering them.
+        seedProfile(phone)
+        val second = phone.syncDao().insertProfile(
+            ProfileEntity(
+                name = "Them",
+                position = 1,
+                createdAtUtcMillis = now - 100_000,
+                syncId = "p2",
+                updatedAtUtcMillis = now - 10_000,
+            ),
+        )
+        medication(phone).addDose(GlpDrug.SEMAGLUTIDE, 0.5, InjectionSite.ABDOMEN_LEFT, at)
+        val doomed = phone.profileDao().all().first { it.syncId == "p1" }
+
+        phone.profileDao().deleteWithData(doomed)
+
+        assertThat(phone.medicationDoseDao().all()).isEmpty()
+        assertThat(second).isGreaterThan(0L)
+    }
+
+    @Test
+    fun `a profile deleted on the other phone takes its injection log with it`() = runTest {
+        seedProfile(phone)
+        phone.syncDao().insertProfile(
+            ProfileEntity(
+                name = "Them",
+                position = 1,
+                createdAtUtcMillis = now - 100_000,
+                syncId = "p2",
+                updatedAtUtcMillis = now - 10_000,
+            ),
+        )
+        medication(phone).addDose(GlpDrug.SEMAGLUTIDE, 0.5, InjectionSite.ABDOMEN_LEFT, at)
+        val mine = phoneStore.snapshot("aaa", now)
+        val theirs = mine.copy(
+            profiles = mine.profiles.filterNot { it.syncId == "p1" },
+            medicationDoses = emptyList(),
+            deletions = listOf(
+                com.weighttrack.core.sync.SyncDeletion(
+                    kind = SyncKind.PROFILE,
+                    syncId = "p1",
+                    deletedAtUtcMillis = System.currentTimeMillis() + 10_000,
+                    stampDeviceId = "bbb",
+                ),
+            ),
+        )
+
+        phoneStore.apply(theirs, now, replaceDeletions = true)
+
+        assertThat(phone.medicationDoseDao().all()).isEmpty()
+    }
+
+    @Test
     fun `a backup written here restores the injection log`() = runTest {
         seedProfile(phone)
         medication(phone).addDose(GlpDrug.LIRAGLUTIDE, 1.8, InjectionSite.UPPER_ARM_LEFT, at)

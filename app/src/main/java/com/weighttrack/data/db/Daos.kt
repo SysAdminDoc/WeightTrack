@@ -595,6 +595,8 @@ interface ProfileDao {
         deleteProgressPhotos(profile.id)
         deleteFoodLog(profile.id)
         deleteMacroTargets(profile.id)
+        deleteMedicationDoses(profile.id)
+        deleteSideEffects(profile.id)
         delete(profile)
     }
 
@@ -615,6 +617,12 @@ interface ProfileDao {
 
     @Query("DELETE FROM progress_photos WHERE profileId = :profileId")
     suspend fun deleteProgressPhotos(profileId: Long)
+
+    @Query("DELETE FROM medication_doses WHERE profileId = :profileId")
+    suspend fun deleteMedicationDoses(profileId: Long)
+
+    @Query("DELETE FROM side_effects WHERE profileId = :profileId")
+    suspend fun deleteSideEffects(profileId: Long)
 
     @Query("DELETE FROM food_log_entries WHERE profileId = :profileId")
     suspend fun deleteFoodLog(profileId: Long)
@@ -638,6 +646,8 @@ interface ProfileDao {
         progressPhotos = progressPhotosOf(profileId),
         foodLog = foodLogOf(profileId),
         macroTargets = macroTargetsOf(profileId),
+        medicationDoses = medicationDosesOf(profileId),
+        sideEffects = sideEffectsOf(profileId),
     )
 
     /** Puts a profile and everything it owned back, in one transaction. */
@@ -654,6 +664,8 @@ interface ProfileDao {
         insertProgressPhotos(data.progressPhotos)
         insertFoodLog(data.foodLog)
         insertMacroTargets(data.macroTargets)
+        insertMedicationDoses(data.medicationDoses)
+        insertSideEffects(data.sideEffects)
     }
 
     @Query("SELECT * FROM weight_entries WHERE profileId = :profileId")
@@ -680,6 +692,12 @@ interface ProfileDao {
     @Query("SELECT * FROM macro_targets WHERE profileId = :profileId")
     suspend fun macroTargetsOf(profileId: Long): List<MacroTargetEntity>
 
+    @Query("SELECT * FROM medication_doses WHERE profileId = :profileId")
+    suspend fun medicationDosesOf(profileId: Long): List<MedicationDoseEntity>
+
+    @Query("SELECT * FROM side_effects WHERE profileId = :profileId")
+    suspend fun sideEffectsOf(profileId: Long): List<SideEffectEntity>
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertWeightEntries(rows: List<WeightEntryEntity>)
 
@@ -703,6 +721,12 @@ interface ProfileDao {
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertMacroTargets(rows: List<MacroTargetEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertMedicationDoses(rows: List<MedicationDoseEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertSideEffects(rows: List<SideEffectEntity>)
 }
 
 /** Everything one profile owns, held for as long as its undo is on offer. */
@@ -715,6 +739,8 @@ data class ProfileData(
     val progressPhotos: List<ProgressPhotoEntity>,
     val foodLog: List<FoodLogEntryEntity>,
     val macroTargets: List<MacroTargetEntity>,
+    val medicationDoses: List<MedicationDoseEntity> = emptyList(),
+    val sideEffects: List<SideEffectEntity> = emptyList(),
 )
 
 /** A recipe with everything in it, which is the only useful way to read one. */
