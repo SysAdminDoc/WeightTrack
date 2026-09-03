@@ -249,7 +249,7 @@
     <string name="onboarding_skip">Skip</string>
     <string name="onboarding_no_goal_for_now">No goal for now</string>
     <string name="onboarding_your_weight_your_data">Your weight. Your data.</string>
-    <string name="onboarding_track_the_trend_without_an_account">Track the trend without an account, ads, or a subscription. Your readings stay on this phone.</string>
+    <string name="onboarding_track_the_trend_without_an_account">Track the trend without an account, ads, or a subscription. There is no server: your readings go only where you send them, in an export you take or a folder you point sync at.</string>
     <string name="onboarding_weight">Weight</string>
     <string name="onboarding_a_little_about_you">A little about you</string>
     <string name="onboarding_this_is_only_used_to_work">This is only used to work out BMI, body fat and roughly how many calories you burn. Skip it and everything else still works.</string>
@@ -266,7 +266,7 @@
     <string name="photos_gallery">  Gallery</string>
     <string name="photos_camera">  Camera</string>
     <string name="photos_no_photos_yet">No photos yet</string>
-    <string name="photos_photos_stay_on_this_phone_and">Photos stay on this phone and are never uploaded. Pick two to see them side by side with the weight change between them.</string>
+    <string name="photos_photos_stay_on_this_phone_and">Photos are files rather than rows, so they are left out of sync entirely and travel only in an encrypted backup you take yourself. Pick two to see them side by side with the weight change between them.</string>
     <string name="photos_side_by_side">Side by side</string>
     <string name="photos_between_these_two">%1$s between these two.</string>
     <string name="photos_selected">Selected</string>
@@ -376,7 +376,7 @@
     <string name="medication_title">Injections</string>
     <string name="medication_settings_heading">Injection log</string>
     <string name="medication_settings_toggle">Keep an injection log</string>
-    <string name="medication_settings_explained">For anyone on a GLP-1 like semaglutide or tirzepatide. It records your doses, where each one went, and how you felt, and it stays on your phone: nothing about it is sent anywhere and nothing appears in the app until you turn it on.</string>
+    <string name="medication_settings_explained">For anyone on a GLP-1 like semaglutide or tirzepatide. It records your doses, where each one went, and how you felt. Nothing about it appears anywhere in the app until you turn it on, and it travels the same way the rest of your data does: in your own backups and between your own devices if you set sync up, and nowhere else.</string>
     <string name="medication_home_subtitle">Doses, sites and how you felt</string>
     <string name="medication_log_a_dose">Log a dose</string>
     <string name="medication_log_how_you_felt">Log how you felt</string>
@@ -785,6 +785,16 @@
     <string name="widget_tap_to_add">Tap to add %1$s</string>
     <string name="widget_this_week">%1$s this week</string>
     <string name="widget_weighed">Weighed %1$s</string>
+    <string name="widget_against_trend">AGAINST TREND</string>
+    <string name="widget_arrow_up">\u25b2</string>
+    <string name="widget_arrow_down">\u25bc</string>
+    <string name="widget_arrow_level">\u2014</string>
+    <string name="widget_above_your_trend">above your trend</string>
+    <string name="widget_below_your_trend">below your trend</string>
+    <string name="widget_on_your_trend">on your trend</string>
+    <string name="settings_glance_heading">On the home screen and the watch</string>
+    <string name="settings_glance_toggle">Show a direction, not a weight</string>
+    <string name="settings_glance_explained">The widget, the watch tile and the complication then say whether this morning was above or below your trend and by how much, and never print the weight itself. The app is unchanged.</string>
     <string name="reminder_title">Time to weigh in</string>
     <string name="reminder_title_for">Time to weigh in, %1$s</string>
     <string name="reminder_body">One reading keeps the trend line honest.</string>
@@ -848,7 +858,7 @@
     <string name="health_no_profile">Health Connect is not tied to anybody. Turn it on for a profile in Settings.</string>
     <string name="health_rationale_title">How WeightTrack uses Health Connect</string>
     <string name="settings_health_what_is_used">What WeightTrack uses, and why</string>
-    <string name="health_rationale_intro">Every access below has one feature behind it. WeightTrack asks for nothing it does not use, and everything it reads stays on this phone.</string>
+    <string name="health_rationale_intro">Every access below has one feature behind it. WeightTrack asks for nothing it does not use, and there is no server for any of it to go to.</string>
     <string name="health_rationale_weight_title">Weight</string>
     <string name="health_rationale_weight_body">Read, so a weigh-in from your scale\'s own app arrives here without you typing it again. Written, so the readings you log here show up in whatever else you use.</string>
     <string name="health_rationale_body_fat_title">Body fat</string>
@@ -868,7 +878,7 @@
     <string name="charts_period_legend">Period</string>
     <string name="health_rationale_cycle_title">Periods</string>
     <string name="health_rationale_cycle_body">Read only, and asked for on its own because it is the most private thing here. A period puts on about half a kilogram of water and no fat at all, so the chart marks those days and the maths stops reading them as a gain. Refusing it changes nothing else.</string>
-    <string name="health_rationale_nothing_leaves">None of this is sent anywhere. WeightTrack has no account, no server and no analytics: what it reads from Health Connect stays on this phone unless you export it yourself.</string>
+    <string name="health_rationale_nothing_leaves">WeightTrack has no account, no server and no analytics, so none of this is sent anywhere on its own. What it reads from Health Connect moves only where you send it: a backup or export you take, and a folder or server you point sync at.</string>
     <string name="settings_today_at">today at %1$s</string>
     <string name="settings_tomorrow_at">tomorrow at %1$s</string>
     <string name="settings_on_day_at">on %1$s at %2$s</string>

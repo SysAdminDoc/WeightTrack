@@ -94,6 +94,9 @@ class WearSummaryBuilder @Inject constructor(
                 weightUnit = settings.weightUnit,
                 lastLoggedEpochDay = series?.lastMeasured?.date?.toEpochDay(),
                 entryCount = entryCount,
+                aboveTrendGrams = series?.lastMeasured
+                    ?.let { point -> point.actualGrams?.let { it - point.trendGrams } },
+                glanceOnly = settings.glanceOnlySurfaces,
             )
         }
     }

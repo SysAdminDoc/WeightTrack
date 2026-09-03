@@ -299,6 +299,15 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch { settingsRepository.setMedicationEnabled(enabled) }
     }
 
+    fun setGlanceOnlySurfaces(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsRepository.setGlanceOnlySurfaces(enabled)
+            // The widget and the watch are already drawn. Without this the mode only takes
+            // effect the next time somebody weighs, which reads as the switch not working.
+            surfaces.refresh()
+        }
+    }
+
     fun syncNow() = sync.syncNow()
     fun setSyncDeviceRetired(deviceId: String, retired: Boolean) =
         sync.setDeviceRetired(deviceId, retired)

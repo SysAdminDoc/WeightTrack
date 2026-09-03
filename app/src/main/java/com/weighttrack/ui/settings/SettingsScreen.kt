@@ -113,6 +113,7 @@ fun SettingsScreen(
         )
         foodLoggingSection(settings, viewModel)
         medicationSection(settings, viewModel)
+        glanceSection(settings, viewModel)
         item {
             ReminderCard(
                 profile = activeProfile,

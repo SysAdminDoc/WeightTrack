@@ -9,6 +9,12 @@
     <string name="wear_no_readings">No readings yet</string>
     <string name="wear_trend_weight">Trend weight</string>
     <string name="wear_this_week">%1$s this week</string>
+    <string name="wear_arrow_up">\u25b2</string>
+    <string name="wear_arrow_down">\u25bc</string>
+    <string name="wear_arrow_level">\u2014</string>
+    <string name="wear_above_trend">above your trend</string>
+    <string name="wear_below_trend">below your trend</string>
+    <string name="wear_on_trend">on your trend</string>
     <string name="wear_waiting_title">Waiting for your phone</string>
     <string name="wear_waiting_body">Open WeightTrack on your phone once and the figures land here.</string>
     <string name="wear_locked_on_phone">Locked on your phone</string>

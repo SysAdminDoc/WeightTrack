@@ -70,6 +70,52 @@ class WearGlanceTextTest {
         assertThat(WearGlanceText.shortDetail(single)).isEmpty()
     }
 
+    /** Any run of digits that could be read as a body weight, in kilograms or in pounds. */
+    private fun weightsIn(text: String): List<String> =
+        Regex("""\d+(?:[.,]\d+)?""").findAll(text)
+            .map { it.value }
+            .filter { (it.replace(',', '.').toDoubleOrNull() ?: 0.0) >= 20.0 }
+            .toList()
+
+    @Test
+    fun `the glance mode puts no weight on a wrist`() {
+        val glance = loaded.copy(aboveTrendGrams = 600.0, glanceOnly = true)
+
+        val everything = listOf(
+            WearGlanceText.headline(context, glance),
+            WearGlanceText.detail(context, glance),
+            WearGlanceText.shortDetail(glance),
+        )
+
+        assertThat(everything.flatMap { weightsIn(it) }).isEmpty()
+    }
+
+    @Test
+    fun `the glance mode says which way and by how much`() {
+        val above = loaded.copy(aboveTrendGrams = 600.0, glanceOnly = true)
+        val below = loaded.copy(aboveTrendGrams = -300.0, glanceOnly = true)
+
+        assertThat(WearGlanceText.headline(context, above)).isEqualTo("▲ 0.6 kg")
+        assertThat(WearGlanceText.detail(context, above)).isEqualTo("above your trend")
+        assertThat(WearGlanceText.headline(context, below)).isEqualTo("▼ 0.3 kg")
+        assertThat(WearGlanceText.detail(context, below)).isEqualTo("below your trend")
+    }
+
+    @Test
+    fun `the glance mode with nothing to compare says so rather than guessing`() {
+        val nothing = loaded.copy(aboveTrendGrams = null, glanceOnly = true)
+
+        assertThat(WearGlanceText.headline(context, nothing)).isEqualTo("--")
+        assertThat(weightsIn(WearGlanceText.detail(context, nothing))).isEmpty()
+    }
+
+    @Test
+    fun `a summary from a phone that has never heard of the glance mode reads as before`() {
+        // Every field defaults off, so an older phone's summary draws the tile it always did.
+        assertThat(loaded.glanceOnly).isFalse()
+        assertThat(WearGlanceText.headline(context, loaded)).isEqualTo("82.5 kg")
+    }
+
     @Test
     fun `the figures follow the unit the phone is set to`() {
         val pounds = loaded.copy(weightUnit = WeightUnit.LB)

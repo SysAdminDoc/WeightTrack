@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  WeightTrack never uploads a person's body data anywhere. Cloud backup and device transfer
-  are both refused so the promise holds without an asterisk; moving to a new phone is done
-  with the app's own export and import, which the person controls.
+  Nothing about a person leaves this phone unless they arranged it: an export or backup they
+  took, or a folder or server they pointed sync at. Android's own cloud backup and device
+  transfer are neither of those, so both are refused here rather than quietly copying a body
+  somewhere nobody chose. Moving to a new phone is done with the app's own export and import.
 -->
 <data-extraction-rules>
     <cloud-backup>

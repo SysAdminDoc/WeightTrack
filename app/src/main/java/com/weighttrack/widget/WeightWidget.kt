@@ -27,8 +27,6 @@ import com.weighttrack.core.math.TrendSeries
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.data.prefs.SettingsRepository
 import com.weighttrack.data.repo.WeightRepository
-import com.weighttrack.ui.format.DateFormatters
-import com.weighttrack.core.format.WeightFormatter
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
 import dagger.hilt.android.EntryPointAccessors
@@ -57,6 +55,15 @@ internal data class WidgetData(
     val lastLogged: LocalDate?,
     /** True when the app lock is on, in which case the widget shows nothing readable. */
     val hidden: Boolean = false,
+    /**
+     * How far the last reading sat above or below the trend, signed, in grams.
+     *
+     * Only filled in for the glance mode. Null when the last day the person weighed carries no
+     * reading of its own, which is every day after a gap.
+     */
+    val aboveTrendGrams: Double? = null,
+    /** True when the widget may show a direction but never a weight. */
+    val glanceOnly: Boolean = false,
 )
 
 /**
@@ -72,12 +79,33 @@ internal fun buildWidgetData(
     rule: com.weighttrack.core.math.WeekRule,
     series: TrendSeries?,
     today: java.time.LocalDate = java.time.LocalDate.now(),
+    /** See `AppSettings.glanceOnlySurfaces`. */
+    glanceOnly: Boolean = false,
 ): WidgetData {
     if (appLockEnabled) {
         return WidgetData(trendGrams = null, unit = unit, weekChangeGrams = null, lastLogged = null, hidden = true)
     }
     if (series == null) {
-        return WidgetData(trendGrams = null, unit = unit, weekChangeGrams = null, lastLogged = null)
+        return WidgetData(
+            trendGrams = null,
+            unit = unit,
+            weekChangeGrams = null,
+            lastLogged = null,
+            glanceOnly = glanceOnly,
+        )
+    }
+    val measured = series.lastMeasured
+    if (glanceOnly) {
+        // Every absolute figure is left out here rather than hidden in the drawing, so there is
+        // no branch anywhere further on that could put a weight back on the home screen.
+        return WidgetData(
+            trendGrams = null,
+            unit = unit,
+            weekChangeGrams = null,
+            lastLogged = measured?.date,
+            aboveTrendGrams = measured?.actualGrams?.let { it - measured.trendGrams },
+            glanceOnly = true,
+        )
     }
     return WidgetData(
         trendGrams = series.latestTrendGrams?.roundToInt(),
@@ -85,7 +113,7 @@ internal fun buildWidgetData(
         // The same week the app itself shows. See TrendHeroCard.
         weekChangeGrams =
             com.weighttrack.core.math.Analytics.changeSinceWeekStart(series, rule, today),
-        lastLogged = series.lastMeasured?.date,
+        lastLogged = measured?.date,
     )
 }
 
@@ -113,6 +141,7 @@ class WeightWidget : GlanceAppWidget() {
             unit = settings.weightUnit,
             rule = settings.weekRule,
             series = series,
+            glanceOnly = settings.glanceOnlySurfaces,
         )
     }
 
@@ -124,18 +153,9 @@ class WeightWidget : GlanceAppWidget() {
     }
 }
 
-/**
- * A word from the resource file.
- *
- * Glance has no `stringResource`, so this is the equivalent. It exists so the widgets are
- * translated along with the rest of the app rather than staying in English on the home screen.
- */
-@androidx.compose.runtime.Composable
-private fun words(@androidx.annotation.StringRes id: Int, vararg arguments: Any): String =
-    androidx.glance.LocalContext.current.getString(id, *arguments)
-
 @androidx.compose.runtime.Composable
 private fun WidgetContent(data: WidgetData) {
+    val lines = widgetLines(androidx.glance.LocalContext.current, data)
     Column(
         modifier = GlanceModifier
             .fillMaxSize()
@@ -145,7 +165,7 @@ private fun WidgetContent(data: WidgetData) {
         verticalAlignment = Alignment.Vertical.CenterVertically,
     ) {
         Text(
-            text = words(com.weighttrack.R.string.widget_trend),
+            text = lines.caption,
             style = TextStyle(
                 color = GlanceTheme.colors.onSurfaceVariant,
                 fontSize = 10.sp,
@@ -154,61 +174,53 @@ private fun WidgetContent(data: WidgetData) {
         )
         Spacer(GlanceModifier.height(2.dp))
 
-        if (data.hidden) {
+        // A phrase where a figure would be, so it is set at reading size rather than at the size
+        // a two-digit weight wants.
+        if (lines.unit == null) {
             Text(
-                text = words(com.weighttrack.R.string.widget_locked),
+                text = lines.value,
                 style = TextStyle(
                     color = GlanceTheme.colors.onSurface,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Medium,
                 ),
             )
-            Text(
-                text = words(com.weighttrack.R.string.widget_open_weighttrack),
-                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
-            )
-            return@Column
+        } else {
+            Row(verticalAlignment = Alignment.Vertical.Bottom) {
+                Text(
+                    text = lines.value,
+                    style = TextStyle(
+                        color = GlanceTheme.colors.onSurface,
+                        fontSize = 30.sp,
+                        fontWeight = FontWeight.Bold,
+                    ),
+                )
+                Text(
+                    text = " " + lines.unit,
+                    style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp),
+                )
+            }
         }
 
-        if (data.trendGrams == null) {
-            Text(
-                text = words(com.weighttrack.R.string.widget_tap_to_log),
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Medium,
-                ),
-            )
-            return@Column
-        }
-
-        Row(verticalAlignment = Alignment.Vertical.Bottom) {
-            Text(
-                text = WeightFormatter.value(data.trendGrams, data.unit),
-                style = TextStyle(
-                    color = GlanceTheme.colors.onSurface,
-                    fontSize = 30.sp,
-                    fontWeight = FontWeight.Bold,
-                ),
-            )
-            Text(
-                text = " ${WeightFormatter.unitLabel(data.unit)}",
-                style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 13.sp),
-            )
-        }
-
-        data.weekChangeGrams?.let { change ->
+        lines.change?.let { change ->
             Spacer(GlanceModifier.height(2.dp))
             Text(
-                text = words(com.weighttrack.R.string.widget_this_week, WeightFormatter.delta(change, data.unit)),
-                style = TextStyle(color = GlanceTheme.colors.primary, fontSize = 12.sp),
+                text = change,
+                style = TextStyle(
+                    color = if (lines.unit == null) {
+                        GlanceTheme.colors.onSurfaceVariant
+                    } else {
+                        GlanceTheme.colors.primary
+                    },
+                    fontSize = if (lines.unit == null) 11.sp else 12.sp,
+                ),
             )
         }
 
-        data.lastLogged?.let { date ->
+        lines.logged?.let { logged ->
             Spacer(GlanceModifier.height(2.dp))
             Text(
-                text = words(com.weighttrack.R.string.widget_weighed, DateFormatters.sinceDay(date)),
+                text = logged,
                 style = TextStyle(color = GlanceTheme.colors.onSurfaceVariant, fontSize = 11.sp),
             )
         }

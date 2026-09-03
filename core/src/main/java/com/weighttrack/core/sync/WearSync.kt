@@ -78,6 +78,22 @@ data class WearSummary(
      * not: a weight on a wrist is exactly what the lock exists to keep off a glanceable surface.
      */
     val hidden: Boolean = false,
+    /**
+     * How far the last reading sat above or below the trend, signed, in grams.
+     *
+     * Sent whether or not the glance mode is on, because it is the same fact either way and the
+     * watch has to be able to draw it the moment somebody turns the mode on rather than after
+     * the next reading reaches it.
+     */
+    val aboveTrendGrams: Double? = null,
+    /**
+     * Whether the tile and the complication may print a weight.
+     *
+     * False is what every watch did before this existed, and what a summary from an older phone
+     * still says. The picker is untouched either way: somebody logging a weight on a wrist is
+     * looking at their own watch on purpose.
+     */
+    val glanceOnly: Boolean = false,
 ) {
     /** The number to open the picker on: the trend if there is one, else the last reading. */
     val startingGrams: Int? get() = trendGrams ?: latestGrams

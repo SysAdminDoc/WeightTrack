@@ -53,15 +53,31 @@ object DateFormatters {
 
     /** How long ago a reading was taken, for the "last weighed" line. */
     @Composable
-    fun sinceDay(date: LocalDate, today: LocalDate = LocalDate.now()): String {
+    fun sinceDay(date: LocalDate, today: LocalDate = LocalDate.now()): String =
+        sinceDay(androidx.compose.ui.platform.LocalContext.current, date, today)
+
+    /**
+     * The same words, somewhere there is no composition to read them from.
+     *
+     * The home screen widget is drawn by Glance, which has no `stringResource`, and it has to say
+     * the same thing as the app rather than a second version of it that drifts.
+     */
+    fun sinceDay(
+        context: android.content.Context,
+        date: LocalDate,
+        today: LocalDate = LocalDate.now(),
+    ): String {
         val days = ChronoUnit.DAYS.between(date, today)
         return when {
-            days <= 0L -> stringResource(R.string.common_today_2)
-            days == 1L -> stringResource(R.string.common_yesterday_2)
-            days < 7L -> stringResource(R.string.common_days_ago, days)
-            days < 14L -> stringResource(R.string.common_a_week_ago)
-            days < 60L -> stringResource(R.string.common_weeks_ago, days / 7)
-            else -> stringResource(R.string.common_months_ago, days / 30)
+            days <= 0L -> context.getString(R.string.common_today_2)
+            days == 1L -> context.getString(R.string.common_yesterday_2)
+            // Handed over as text, because the resources say %s. A Long there formats the same
+            // way, and lint is right that a resource and its argument disagreeing is a thing to
+            // notice rather than to leave for a translator to trip over.
+            days < 7L -> context.getString(R.string.common_days_ago, days.toString())
+            days < 14L -> context.getString(R.string.common_a_week_ago)
+            days < 60L -> context.getString(R.string.common_weeks_ago, (days / 7).toString())
+            else -> context.getString(R.string.common_months_ago, (days / 30).toString())
         }
     }
 }

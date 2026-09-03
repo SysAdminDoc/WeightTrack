@@ -121,13 +121,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: a custom "since 2026-01-01" chip persists across launches; the header shows the change over the chosen range and versus the previous equal range.
   Complexity: M
 
-- [ ] P3: Above/below-trend glance mode on the widget and tile
-  Why: Hacker's Diet readers ask for a display that shows only whether today is above or below the trend, with no raw number, and the widget already hides the number under the lock.
-  Evidence: https://news.ycombinator.com/item?id=39301552 ; widget/WeightWidget.kt ; wear/WeightTileService.kt
-  Touches: widget/WeightWidget.kt, wear tile and complication, data/prefs/SettingsRepository.kt (mode)
-  Acceptance: with the mode on, widget and tile show an arrow and the delta from trend with no absolute weight; a widget snapshot test asserts no digit sequence resembling a weight.
-  Complexity: S
-
 - [ ] P3: Bump Compose BOM to 2026.08.00, Material3 1.4.0, OkHttp 5.5.0
   Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and the 5.4.0 response-header cap, and 5.5.0 rotated its signing key. (2026-08-31: everything else in the catalog verified current; Kotlin 2.4.20 with the KAPT CVE fix is due September 2026 and can ride along when stable.)
   Evidence: https://developer.android.com/jetpack/androidx/releases/compose-ui ; https://developer.android.com/jetpack/androidx/releases/compose-material3 ; https://github.com/square/okhttp/blob/master/CHANGELOG.md ; gradle/libs.versions.toml
@@ -161,13 +154,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Complexity: M
 
 ### Additions from 2026-08-31 (afternoon pass)
-
-- [ ] P3: Make the last two absolute privacy lines as precise as the settings copy
-  Why: Onboarding still says "Your readings stay on this phone" and the extraction-rules comment says data is never uploaded anywhere, while user-configured folder or WebDAV sync deliberately moves readings and demographics off the phone; the settings copy was already corrected this cycle and these two were missed.
-  Evidence: `app/src/main/res/values/strings.xml:245`; `app/src/main/res/xml/data_extraction_rules.xml:3-5`; `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt` (demographics travel in sync)
-  Touches: strings.xml onboarding copy, data_extraction_rules.xml comment
-  Acceptance: onboarding states the true contract (data leaves only when the person exports or sets up sync, matching the README's own phrasing); the extraction-rules comment no longer claims "never uploads anywhere"; no other absolute claim survives a grep for "never leave", "stays on this phone", or "never uploads".
-  Complexity: S
 
 ## Never
 

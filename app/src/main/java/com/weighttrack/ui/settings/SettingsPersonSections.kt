@@ -251,6 +251,32 @@ internal fun LazyListScope.medicationSection(
     }
 }
 
+/**
+ * Whether the glanceable surfaces print a weight.
+ *
+ * Its own section rather than a line under the widget, because it covers three surfaces and
+ * somebody looking for it is looking for "stop showing my weight on my watch".
+ */
+internal fun LazyListScope.glanceSection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) = item {
+    SettingsSection {
+        SectionHeading(stringResource(R.string.settings_glance_heading))
+        Spacer(Modifier.height(4.dp))
+        ToggleRow(
+            label = stringResource(R.string.settings_glance_toggle),
+            checked = settings.glanceOnlySurfaces,
+            onCheckedChange = viewModel::setGlanceOnlySurfaces,
+        )
+        Text(
+            text = stringResource(R.string.settings_glance_explained),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** The one switch that turns the whole food half of the app on. */
 internal fun LazyListScope.foodLoggingSection(
     settings: AppSettings,

@@ -7,7 +7,7 @@
 
 # WeightTrack v0.4.0
 
-A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. Your readings stay on your phone and leave only when you export them.
+A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. There is no server behind it: your readings go only where you send them, in an export you take or a folder you point sync at.
 
 Version 0.4.0 brings a quieter AMOLED interface to every main screen. The trend stays prominent, controls take less room, and the common jobs remain reachable without hunting through cards.
 

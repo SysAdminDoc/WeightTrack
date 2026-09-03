@@ -70,6 +70,15 @@ data class AppSettings(
      * about it.
      */
     val medicationEnabled: Boolean = false,
+    /**
+     * Whether the home screen and the watch show a direction instead of a weight.
+     *
+     * Off by default. On, the widget, the tile and the complication say whether this morning was
+     * above or below the trend and by how much, and never print the weight itself. It is for
+     * anybody who wants the one thing worth knowing on a glanceable surface without the number
+     * being readable by whoever is standing next to them.
+     */
+    val glanceOnlySurfaces: Boolean = false,
     /** Whoever uses the app supplies their own, since this one will not ship a shared key. */
     val usdaApiKey: String? = null,
     /** Keep only the lowest weigh-in of each day when importing from Health Connect. */
@@ -343,6 +352,7 @@ class SettingsRepository @Inject constructor(
         legacyDemographicsAdopted = this[Keys.LEGACY_DEMOGRAPHICS_ADOPTED] ?: false,
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
         medicationEnabled = this[Keys.MEDICATION_ENABLED] ?: false,
+        glanceOnlySurfaces = this[Keys.GLANCE_ONLY_SURFACES] ?: false,
         usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
         importLowestOfDay = this[Keys.IMPORT_LOWEST_OF_DAY] ?: false,
         healthDirection = HealthDirection.entries
@@ -368,6 +378,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setMedicationEnabled(enabled: Boolean) = edit {
         it[Keys.MEDICATION_ENABLED] = enabled
+    }
+
+    suspend fun setGlanceOnlySurfaces(enabled: Boolean) = edit {
+        it[Keys.GLANCE_ONLY_SURFACES] = enabled
     }
 
     suspend fun setImportLowestOfDay(only: Boolean) = edit {
@@ -450,6 +464,7 @@ class SettingsRepository @Inject constructor(
             booleanPreferencesKey("legacy_demographics_adopted")
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
         val MEDICATION_ENABLED = booleanPreferencesKey("medication_enabled")
+        val GLANCE_ONLY_SURFACES = booleanPreferencesKey("glance_only_surfaces")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
         val IMPORT_LOWEST_OF_DAY = booleanPreferencesKey("import_lowest_of_day")
         val HEALTH_DIRECTION = stringPreferencesKey("health_direction")
