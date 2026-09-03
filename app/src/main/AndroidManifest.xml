@@ -114,6 +114,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!--
+              A backup or a spreadsheet of readings, opened from Files or handed over by a share
+              sheet. Deliberately narrow: the content scheme only, and only the types this app
+              actually reads, so WeightTrack never appears in the list for somebody's photograph.
+              A file it cannot make sense of is still refused inside the app and changes nothing.
+            -->
+            <intent-filter android:label="@string/open_with_weighttrack">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" android:mimeType="application/json" />
+                <data android:scheme="content" android:mimeType="text/json" />
+                <data android:scheme="content" android:mimeType="text/csv" />
+                <data android:scheme="content" android:mimeType="text/comma-separated-values" />
+                <data android:scheme="content" android:mimeType="application/csv" />
+            </intent-filter>
+
             <!-- Health Connect on Android 13 and below asks for the rationale this way. -->
             <intent-filter>
                 <action android:name="androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE" />

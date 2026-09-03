@@ -2,6 +2,7 @@ package com.weighttrack.ui.settings
 
 import android.net.Uri
 import com.weighttrack.R
+import com.weighttrack.core.io.OpenedFileKind
 import com.weighttrack.core.io.RowProblem
 import com.weighttrack.data.io.AutoBackupScheduler
 import com.weighttrack.data.io.BackupService
@@ -139,6 +140,26 @@ internal class BackupSettingsController(
                 },
             )
             _busy.value = false
+        }
+    }
+
+    /**
+     * A file opened from somewhere else in the phone, taken down the same path a picked one takes.
+     *
+     * The whole point is that there is no second path: a backup is shown before anything is
+     * written and a spreadsheet is imported, exactly as they are when the file came from the
+     * picker on this screen. Anything else says so and changes nothing.
+     */
+    fun openFile(uri: Uri) {
+        scope.launch {
+            _busy.value = true
+            val kind = runCatching { backupService.openedFileKind(uri) }.getOrNull()
+            _busy.value = false
+            when (kind) {
+                OpenedFileKind.BACKUP -> previewRestore(uri)
+                OpenedFileKind.READINGS -> importCsv(uri)
+                null -> onMessage(strings[R.string.settings_open_unsupported])
+            }
         }
     }
 

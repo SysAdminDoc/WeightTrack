@@ -105,6 +105,15 @@ fun WeightTrackApp(
      * for any other reason does not.
      */
     openRequests: Int = 0,
+    /**
+     * A file the phone asked the app to open, if it did.
+     *
+     * Handed to the settings screen, which already owns the picker for the same two kinds of
+     * file, so a backup opened from Files is shown before it is written exactly as a picked one
+     * is. Null for every ordinary launch.
+     */
+    openedFile: android.net.Uri? = null,
+    onOpenedFileTaken: () -> Unit = {},
 ) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -360,6 +369,16 @@ fun WeightTrackApp(
                     message?.let {
                         snackbarHostState.showSnackbar(it)
                         viewModel.consumeMessage()
+                    }
+                }
+
+                // Taken once. The address is only readable for as long as this launch holds the
+                // grant, and offering the same restore again after a rotation would be a second
+                // question about a file somebody has already answered for.
+                LaunchedEffect(openedFile) {
+                    openedFile?.let {
+                        viewModel.openFile(it)
+                        onOpenedFileTaken()
                     }
                 }
 

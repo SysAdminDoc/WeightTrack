@@ -437,6 +437,8 @@
     <string name="medication_dose_row">%1$s, %2$s mg, %3$s</string>
     <string name="medication_effect_row">%1$s, %2$s</string>
     <string name="charts_dose_legend">Dose</string>
+    <string name="settings_open_unsupported">WeightTrack could not read that file. It reads its own backups and spreadsheets of readings.</string>
+    <string name="open_with_weighttrack">Open in WeightTrack</string>
     <string name="shortcut_log_weight_short">Log weight</string>
     <string name="shortcut_log_weight_long">Log a weight</string>
     <string name="shortcut_read_scale_short">Read scale</string>

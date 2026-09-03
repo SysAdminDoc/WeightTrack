@@ -279,6 +279,9 @@ class SettingsViewModel @Inject constructor(
     fun importArchive(uri: Uri, password: CharArray) = backups.importArchive(uri, password)
     fun exportMeasurements(uri: Uri) = backups.exportMeasurements(uri)
     fun importCsv(uri: Uri) = backups.importCsv(uri)
+
+    /** A file the phone handed the app, rather than one picked on this screen. */
+    fun openFile(uri: Uri) = backups.openFile(uri)
     fun previewRestore(uri: Uri) = backups.previewRestore(uri)
     fun cancelRestore() = backups.cancelRestore()
     fun confirmRestore() = backups.confirmRestore()

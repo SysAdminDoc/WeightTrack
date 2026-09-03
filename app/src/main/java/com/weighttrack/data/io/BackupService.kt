@@ -5,6 +5,8 @@ import com.weighttrack.R
 import android.net.Uri
 import androidx.room.withTransaction
 import com.weighttrack.core.io.Csv
+import com.weighttrack.core.io.OpenedFile
+import com.weighttrack.core.io.OpenedFileKind
 import com.weighttrack.core.io.ImportPreview
 import com.weighttrack.core.io.RowProblem
 import com.weighttrack.core.io.WeightCsvImporter
@@ -753,6 +755,24 @@ class BackupService @Inject constructor(
             stream.write(text.toByteArray(Charsets.UTF_8))
             stream.flush()
         } ?: error(say(R.string.file_could_not_write))
+    }
+
+    /**
+     * What a file handed to the app from outside turns out to be.
+     *
+     * Both the declared type and the name are asked for, because neither is reliable on its own:
+     * a file manager will send a backup as `application/octet-stream`, and the name is all that
+     * is left when it does. Nothing is read here; deciding costs a metadata query and no more.
+     */
+    suspend fun openedFileKind(uri: Uri): OpenedFileKind? = withContext(Dispatchers.IO) {
+        val type = runCatching { context.contentResolver.getType(uri) }.getOrNull()
+        val name = runCatching {
+            context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                val column = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (column >= 0 && cursor.moveToFirst()) cursor.getString(column) else null
+            }
+        }.getOrNull() ?: uri.lastPathSegment
+        OpenedFile.kindOf(type, name)
     }
 
     /**

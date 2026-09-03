@@ -54,8 +54,22 @@ class MainActivity : FragmentActivity() {
         "androidx.health.ACTION_SHOW_PERMISSIONS_RATIONALE",
         "android.intent.action.VIEW_PERMISSION_USAGE",
         -> com.weighttrack.ui.navigation.Routes.HEALTH_RATIONALE
+        // A file opened from Files or a share sheet. It lands on Settings, because that is where
+        // the picker for the same two kinds of file already lives and where a restore is shown
+        // before it happens.
+        android.content.Intent.ACTION_VIEW ->
+            if (intent.data != null) com.weighttrack.ui.navigation.Routes.SETTINGS else null
         else -> com.weighttrack.shortcuts.LauncherShortcuts.routeFor(intent?.action)
     }
+
+    /**
+     * The file the phone asked this app to open, while the screen still needs it.
+     *
+     * Held on the activity and nowhere else. The read permission on it belongs to this activity
+     * and this launch: writing it down somewhere that outlives them would leave a stored address
+     * the app is no longer allowed to open.
+     */
+    private var openedFile by mutableStateOf<android.net.Uri?>(null)
 
     /**
      * The screen asked for, and how many times it has been asked for.
@@ -75,7 +89,11 @@ class MainActivity : FragmentActivity() {
             openRoute = route
             openRequests += 1
         }
+        fileFrom(intent)?.let { openedFile = it }
     }
+
+    private fun fileFrom(intent: android.content.Intent?): android.net.Uri? =
+        intent?.takeIf { it.action == android.content.Intent.ACTION_VIEW }?.data
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -85,6 +103,7 @@ class MainActivity : FragmentActivity() {
         // and a shortcut left by an older version would otherwise keep its old wording.
         com.weighttrack.shortcuts.LauncherShortcuts.publish(this)
         openRoute = openAt(intent)
+        openedFile = fileFrom(intent)
 
         setContent {
             val viewModel: AppViewModel = hiltViewModel()
@@ -160,6 +179,10 @@ class MainActivity : FragmentActivity() {
                             onboardingComplete = loaded.onboardingComplete,
                             openAt = openRoute,
                             openRequests = openRequests,
+                            openedFile = openedFile,
+                            // Forgotten the moment the screen has taken it, so a rotation does
+                            // not offer to restore the same file all over again.
+                            onOpenedFileTaken = { openedFile = null },
                         )
                     }
                 }
