@@ -31,6 +31,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
 import java.time.LocalTime
@@ -102,20 +103,44 @@ class DiaryViewModel @Inject constructor(
 ) : ViewModel() {
 
     /**
-     * Daily step counts, when Health Connect has them and has been allowed to share them.
+     * What Health Connect will say about the fortnight, where it has been allowed to say it.
      *
-     * Read once when the screen opens. Never turned into calories: all it decides is whether the
-     * days in the window are evidence about what this person burns this week.
+     * Read once when the screen opens. Two separate grants that both feed the same fit, held
+     * together only because a combine takes five flows and this is the fifth. Empty is the
+     * ordinary case and leaves the maths exactly as it is.
      */
-    private val steps = MutableStateFlow<Map<LocalDate, Long>>(emptyMap())
+    private data class HealthSignals(
+        /**
+         * Daily step counts. Never turned into calories: all they decide is whether the days in
+         * the window are evidence about what this person burns this week.
+         */
+        val steps: Map<LocalDate, Long> = emptyMap(),
+        /** Days carrying water that is not tissue, so the rate is not fitted through them. */
+        val cycleDays: Set<LocalDate> = emptySet(),
+    )
+
+    private val health = MutableStateFlow(HealthSignals())
 
     init {
         viewModelScope.launch {
             val read = runCatching { healthConnect.readDailyActivity(days = STEP_HISTORY_DAYS) }
                 .getOrNull()
             if (read is com.weighttrack.health.HealthOutcome.Ok) {
-                steps.value = read.value.mapNotNull { day -> day.steps?.let { day.date to it } }
-                    .toMap()
+                health.update { current ->
+                    current.copy(
+                        steps = read.value.mapNotNull { day -> day.steps?.let { day.date to it } }
+                            .toMap(),
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            // Its own read and its own grant. Somebody who shares steps and not their cycle, or
+            // the other way round, gets whichever they said yes to.
+            val read = runCatching { healthConnect.readMenstruationDays(days = STEP_HISTORY_DAYS) }
+                .getOrNull()
+            if (read is com.weighttrack.health.HealthOutcome.Ok) {
+                health.update { it.copy(cycleDays = read.value) }
             }
         }
     }
@@ -136,16 +161,17 @@ class DiaryViewModel @Inject constructor(
             message,
             progressCalculator.observe(),
             foodLogRepository.observeRecentDays(),
-            steps,
+            health,
             goalRepository.observeAll(),
-        ) { message, snapshot, intake, steps, goals ->
+        ) { message, snapshot, intake, health, goals ->
             // Worked out here rather than in the screen, so the one place the maths is wired
             // together stays the one place.
             val estimate = AdaptiveExpenditure.estimate(
                 series = snapshot.series,
                 intakeByDate = intake.associate { it.date to it.nutrients.kcal },
                 today = LocalDate.now(),
-                stepsByDate = steps,
+                stepsByDate = health.steps,
+                waterRetentionDays = health.cycleDays,
             )?.let { measured -> afterAnyGoalChange(measured, snapshot, goals) }
             val goal = snapshot.goal
             val recommendation = estimate?.let {

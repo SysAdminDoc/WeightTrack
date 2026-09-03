@@ -82,6 +82,7 @@ fun HealthRationaleScreen(
             Use(title = R.string.health_rationale_food_title, body = R.string.health_rationale_food_body)
             Use(title = R.string.health_rationale_movement_title, body = R.string.health_rationale_movement_body)
             Use(title = R.string.health_rationale_sleep_title, body = R.string.health_rationale_sleep_body)
+            Use(title = R.string.health_rationale_cycle_title, body = R.string.health_rationale_cycle_body)
             Text(
                 stringResource(R.string.health_rationale_nothing_leaves),
                 style = MaterialTheme.typography.bodySmall,

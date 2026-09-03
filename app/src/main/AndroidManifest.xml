@@ -78,6 +78,12 @@
       happy to share step counts and not the hours they were in bed.
     -->
     <uses-permission android:name="android.permission.health.READ_SLEEP" />
+    <!--
+      Periods, read only, so the chart can mark them and the maths can stop reading half a
+      kilogram of water as a gain. Its own grant, and the most private thing this app ever asks
+      for: refusing it leaves every other feature exactly as it was.
+    -->
+    <uses-permission android:name="android.permission.health.READ_MENSTRUATION" />
     <uses-permission android:name="android.permission.health.READ_STEPS" />
     <uses-permission android:name="android.permission.health.READ_ACTIVE_CALORIES_BURNED" />
 

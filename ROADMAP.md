@@ -111,12 +111,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
   Acceptance: a dose logged with a site suggests the next site in rotation; a side effect appears on the same day axis as doses on the chart; the PDF lists doses, side effects and the weight trend for a chosen range with no other data; deleting a dose produces a tombstone; the feature is invisible while the toggle is off. Stays local: Health Connect Medical Records has no Play policy yet (https://developer.android.com/health-and-fitness/health-connect/medical-records).
   Complexity: XL
 
-- [ ] P2: Cycle-aware trend: read MenstruationPeriodRecord and annotate expected water weight
-  Why: the measured effect is +0.45 kg at menstruation from extracellular water with no fat change, which the trend and the expenditure loop both misread; only three tiny iOS apps do this and none on Android.
-  Evidence: https://onlinelibrary.wiley.com/doi/full/10.1002/ajhb.23951 ; https://mytideline.com/ ; https://support.google.com/googlehealth/answer/14237115?hl=en (Health Connect cycle data) ; https://macrofactor.com/expenditure-v3/ (damped updates during flagged water events)
-  Touches: AndroidManifest.xml (READ_MENSTRUATION, its own grant like sleep), health/HealthConnectSync.kt, core/math/Insights.kt (phase markers), ui/charts (shaded phase band, optional), core/math/AdaptiveExpenditure.kt (down-weight days flagged as menstruation)
-  Acceptance: with the permission granted and periods recorded, the chart shows a band for each period and the weekday/insight cards exclude those days from "unusual" calls; a core test shows expenditure moves less than 50 kcal when a flagged 0.5 kg spike is injected versus more without the flag; refusing the permission changes nothing else.
-  Complexity: L
 
 
 - [ ] P2: Replace wall-clock tombstone expiry with peer acknowledgements

@@ -95,11 +95,21 @@ object Analytics {
      * A consistently positive Monday is the weekend showing up on the scale. Measuring against
      * the trend rather than against raw weight removes the underlying loss or gain, so what is
      * left is the weekly rhythm on its own.
+     *
+     * [excluded] days are left out of the averages entirely. A period puts on about half a
+     * kilogram of extracellular water, and because a cycle is not seven days long it lands on a
+     * different weekday every month: read as a weekly rhythm it is noise with an opinion, and it
+     * would tell somebody their Thursdays are heavy when what is heavy is one week in four.
      */
-    fun weekdayEffects(series: TrendSeries, minimumReadingsPerDay: Int = 2): List<WeekdayEffect> {
+    fun weekdayEffects(
+        series: TrendSeries,
+        minimumReadingsPerDay: Int = 2,
+        excluded: Set<LocalDate> = emptySet(),
+    ): List<WeekdayEffect> {
         val deviations = HashMap<DayOfWeek, MutableList<Double>>()
         series.points.forEach { point ->
             val actual = point.actualGrams ?: return@forEach
+            if (point.date in excluded) return@forEach
             deviations.getOrPut(point.date.dayOfWeek) { ArrayList() }
                 .add(actual - point.trendGrams)
         }

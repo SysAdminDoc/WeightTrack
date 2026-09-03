@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The app can read your periods, if you let it, and stop misreading them. A period puts on about half a kilogram of water and no fat at all, and every weight app treats that as a gain: the trend goes up, the weekly figure goes red, and the calorie estimate quietly tells you to eat less at exactly the wrong time. Those days are now shaded on the chart, left out of the "your Mondays read heavy" card, and counted for a tenth in the estimate of what you burn. The readings themselves are untouched and stay exactly where you recorded them. It is asked for separately from everything else, it is the only thing that permission is used for, and refusing it changes nothing at all: no band, no exclusion, the same numbers as before. What you ate on those days still counts in full, because a period says something about the scale and nothing about your dinner.
+
 - Corrections to the two above, before anybody has either. Backing up and restoring turned every carried measurement back into one you had taken that day, and syncing did the same to the other phone and then never corrected itself, so the two disagreed for good. Carrying a value forward while your units are set to inches also moved it by a millimetre, because it went out to the box as one decimal place and came back rounded. And clearing a box to retype it, then changing your mind, quietly dropped that site out of the set instead of carrying it.
 
 - The scale no longer buzzes for a weight it throws away. A cat, a bag, or the scale glitching would buzz and file nothing, and then buzz a second time for the person who stepped on next, which taught the buzz to mean nothing in particular.

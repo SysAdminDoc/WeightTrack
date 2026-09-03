@@ -296,10 +296,12 @@ fun WeightTrackApp(
                 // A steps permission granted in Settings has to take effect on return.
                 ResumeEffect { viewModel.onScreenResumed() }
                 val associations by viewModel.associations.collectAsStateWithLifecycle()
+                val cycleDays by viewModel.cycleDays.collectAsStateWithLifecycle()
                 ChartsScreen(
                     snapshot = snapshot,
                     activity = activity,
                     associations = associations,
+                    cycleDays = cycleDays,
                 )
             }
 

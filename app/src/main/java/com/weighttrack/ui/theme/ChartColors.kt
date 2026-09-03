@@ -22,6 +22,7 @@ fun rememberTrendChartColors(): TrendChartColors {
             marker = scheme.onSurface.copy(alpha = 0.4f),
             markerSurface = scheme.inverseSurface,
             markerText = scheme.inverseOnSurface,
+            waterBand = scheme.tertiary.copy(alpha = 0.14f),
         )
     }
 }

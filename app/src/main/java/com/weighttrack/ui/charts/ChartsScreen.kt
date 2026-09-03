@@ -72,6 +72,13 @@ fun ChartsScreen(
     snapshot: ProgressSnapshot,
     activity: ActivityState,
     associations: AssociationState = AssociationState(),
+    /**
+     * Days a period covered, shaded on the chart and left out of the weekday averages.
+     *
+     * Empty unless somebody has granted the cycle permission, which is the whole of what
+     * refusing it costs.
+     */
+    cycleDays: Set<LocalDate> = emptySet(),
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -91,7 +98,9 @@ fun ChartsScreen(
     val weekly = remember(snapshot.series, weekRule) {
         Analytics.weeklyChanges(snapshot.series, rule = weekRule)
     }
-    val weekdays = remember(snapshot.series) { Analytics.weekdayEffects(snapshot.series) }
+    val weekdays = remember(snapshot.series, cycleDays) {
+        Analytics.weekdayEffects(snapshot.series, excluded = cycleDays)
+    }
 
     LazyColumn(
         modifier = modifier.fillMaxSize(),
@@ -178,6 +187,14 @@ fun ChartsScreen(
                     ChartLegend("Raw", MaterialTheme.colorScheme.onSurfaceVariant, dot = true)
                     ChartLegend("Trend", MaterialTheme.colorScheme.primary)
                     ChartLegend("Goal", MaterialTheme.colorScheme.secondary)
+                    // Only when there is something shaded. A key to a band nobody has is a line
+                    // about periods on the screen of somebody who never asked for one.
+                    if (cycleDays.isNotEmpty()) {
+                        ChartLegend(
+                            stringResource(R.string.charts_period_legend),
+                            MaterialTheme.colorScheme.tertiary,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
                 TrendChart(
@@ -187,6 +204,7 @@ fun ChartsScreen(
                     range = range,
                     goalGrams = snapshot.goal?.targetGrams,
                     milestoneGrams = snapshot.milestones.map { it.grams },
+                    waterDays = cycleDays,
                     today = today,
                     height = 250.dp,
                 )

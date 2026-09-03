@@ -80,6 +80,21 @@ object AdaptiveExpenditure {
     const val STALE_MOVEMENT_WEIGHT = 0.25
 
     /**
+     * What a morning inside a flagged water event is worth to the rate.
+     *
+     * Damped rather than dropped, and for the same reason the movement weighting damps: a person
+     * who weighs themselves through a period and not much else would otherwise have no window
+     * left to fit anything to. A tenth is enough that a measured half-kilogram of water moves the
+     * answer by about twenty calories a day instead of a hundred and thirty-five, and small
+     * enough that it cannot decide the number on its own.
+     *
+     * It applies to the weight fit and not to the intake mean. The morning's reading is
+     * contaminated; the food eaten that day is not, and down-weighting it would quietly discount
+     * the days a lot of people eat most.
+     */
+    const val WATER_EVENT_WEIGHT = 0.1
+
+    /**
      * How far expenditure moves when the weekly target changes, as a multiple of that change.
      *
      * MacroFactor's figure. Somebody holding a one percent weekly deficit is burning roughly four
@@ -154,6 +169,15 @@ object AdaptiveExpenditure {
          * week, which is the one thing a step counter is actually good at.
          */
         stepsByDate: Map<LocalDate, Long> = emptyMap(),
+        /**
+         * Days somebody is known to be carrying water that is not tissue.
+         *
+         * Menstruation, where the app has been allowed to read it. The measured effect is about
+         * half a kilogram of extracellular water with no change in fat, arriving and leaving
+         * over a few days, which is exactly the shape a fortnight-long fit reads as a real gain.
+         * Left empty the maths is unchanged, which is what refusing the permission has to mean.
+         */
+        waterRetentionDays: Set<LocalDate> = emptySet(),
     ): Estimate? {
         if (windowDays < MIN_DAYS) return null
         val from = today.minusDays(windowDays.toLong() - 1)
@@ -185,17 +209,24 @@ object AdaptiveExpenditure {
         val weightOfDay = movementWeights(stepsByDate, first, last)
         val movementChanged = weightOfDay.values.any { it < 1.0 }
 
-        val readings = weighed.map {
-            Weighted(it.first.toEpochDay().toDouble(), it.second.toDouble(), weightOfDay.of(it.first))
+        val readings = weighed.map { (date, grams) ->
+            val water = if (date in waterRetentionDays) WATER_EVENT_WEIGHT else 1.0
+            Weighted(date.toEpochDay().toDouble(), grams.toDouble(), weightOfDay.of(date) * water)
         }
         val gramsPerDay = slopePerDay(readings) ?: return null
         val kgPerDay = gramsPerDay / 1_000.0
         // What the window covers, first reading to last. A span, not a count: fourteen days have
         // thirteen nights between them. Reported to the person, and never used as the rate.
         val changeKg = kgPerDay * (days - 1)
-        // Averaged over the same stretch the weight was measured across, and weighted the same
-        // way, so the two halves of the sum describe the same fortnight. Weighting one and not
-        // the other is how a window becomes an answer about two different people.
+        // Averaged over the same stretch the weight was measured across, and carrying the
+        // movement weighting, so the two halves of the sum describe the same fortnight. A week
+        // at a different activity level is a different week for both food and weight, and
+        // weighting one and not the other is how a window becomes an answer about two people.
+        //
+        // The water weighting is deliberately not applied here, and it is the one asymmetry in
+        // this sum: a period contaminates the morning's reading and tells you nothing about the
+        // food, so discounting the intake as well would drop the days a lot of people eat most
+        // and hand back an expenditure built on the wrong fortnight of eating.
         val logged = window.filterKeys { !it.isBefore(first) && !it.isAfter(last) }
         if (logged.size < MIN_DAYS) return null
         val intakeWeight = logged.keys.sumOf { weightOfDay.of(it) }

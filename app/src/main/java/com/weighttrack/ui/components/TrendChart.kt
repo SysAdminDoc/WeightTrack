@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -71,6 +72,8 @@ data class TrendChartColors(
     val marker: Color,
     val markerSurface: Color,
     val markerText: Color,
+    /** The shading behind days somebody is carrying water rather than tissue. */
+    val waterBand: Color,
 )
 
 /**
@@ -90,6 +93,14 @@ fun TrendChart(
     range: ChartRange = ChartRange.MONTH,
     goalGrams: Int? = null,
     milestoneGrams: List<Int> = emptyList(),
+    /**
+     * Days to shade, drawn behind everything else.
+     *
+     * Periods, where the app has been allowed to read them. Marked rather than corrected: the
+     * readings are real and stay exactly where they were recorded, and all the band says is that
+     * a few hundred grams of that week was water. Empty is the ordinary case and draws nothing.
+     */
+    waterDays: Set<LocalDate> = emptySet(),
     showRawReadings: Boolean = true,
     alwaysIncludeGoalInBounds: Boolean = false,
     dateAxisTicks: Int = 3,
@@ -137,13 +148,26 @@ fun TrendChart(
 
     // A chart is a picture, and a screen reader announcing nothing at all is the same as it not
     // being on the screen. The summary is what somebody would say if asked to read it aloud.
-    val description = stringResource(
+    val summary = stringResource(
         R.string.chart_description,
         WeightFormatter.full(visible.last().trendGrams.roundToInt(), unit),
         visible.size,
         WeightFormatter.full(bounds.start.roundToInt(), unit),
         WeightFormatter.full(bounds.endInclusive.roundToInt(), unit),
     )
+    // Shading is a picture too. Said out loud rather than left to the eye, or the band is a
+    // difference between what a sighted person is told about their chart and what anybody else
+    // is, on the one part of it that explains a week the numbers cannot.
+    val shadedInWindow = visible.count { it.date in waterDays }
+    val description = if (shadedInWindow == 0) {
+        summary
+    } else {
+        summary + " " + pluralStringResource(
+            R.plurals.chart_description_water_days,
+            shadedInWindow,
+            shadedInWindow,
+        )
+    }
     Canvas(
         modifier = modifier
             .fillMaxWidth()
@@ -194,6 +218,28 @@ fun TrendChart(
         fun yFor(grams: Double): Float {
             val span = (bounds.endInclusive - bounds.start).coerceAtLeast(1.0)
             return plot.bottom - ((grams - bounds.start) / span * plot.height).toFloat()
+        }
+
+        // Behind the grid, so the lines and the readings stay the things being read.
+        //
+        // A day owns half the gap either side of its own point, which means consecutive days
+        // meet exactly and a period comes out as one band rather than a row of stripes. Drawn
+        // per day rather than per record because that is the shape everything else here uses,
+        // and a run of days needs no grouping to look like a run.
+        if (waterDays.isNotEmpty()) {
+            val dayWidth = plot.width / (windowDays - 1).coerceAtLeast(1).toFloat()
+            visible.forEach { point ->
+                if (point.date !in waterDays) return@forEach
+                val centre = xFor(point.date)
+                val left = (centre - dayWidth / 2f).coerceAtLeast(plot.left)
+                val right = (centre + dayWidth / 2f).coerceAtMost(plot.right)
+                if (right <= left) return@forEach
+                drawRect(
+                    color = colors.waterBand,
+                    topLeft = Offset(left, plot.top),
+                    size = Size(right - left, plot.height),
+                )
+            }
         }
 
         drawGrid(bounds, unit, plot, colors, textMeasurer, ::yFor)

@@ -53,7 +53,8 @@ class HealthPermissionSetTest {
                 HealthConnectSync.hydrationPermissions +
                 HealthConnectSync.nutritionPermissions +
                 HealthConnectSync.activityPermissions +
-                HealthConnectSync.sleepPermissions,
+                HealthConnectSync.sleepPermissions +
+                HealthConnectSync.menstruationPermissions,
         )
     }
 }

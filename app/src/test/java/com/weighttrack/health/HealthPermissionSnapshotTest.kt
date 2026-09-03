@@ -56,6 +56,7 @@ class HealthPermissionSnapshotTest {
             "READ_STEPS",
             "READ_ACTIVE_CALORIES_BURNED",
             "READ_SLEEP",
+            "READ_MENSTRUATION",
         )
     }
 
@@ -95,6 +96,7 @@ class HealthPermissionSnapshotTest {
             "food",
             "movement",
             "sleep",
+            "cycle",
         )
     }
 }

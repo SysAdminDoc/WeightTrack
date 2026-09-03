@@ -790,6 +790,9 @@
     <string name="health_rationale_movement_body">Read only, for the card that shows how your movement lines up with the trend. Refusing it hides that card.</string>
     <string name="health_rationale_sleep_title">Sleep</string>
     <string name="health_rationale_sleep_body">Read only, and asked for separately, because plenty of people are happy to share step counts and not the hours they were in bed. Refusing it hides one card.</string>
+    <string name="charts_period_legend">Period</string>
+    <string name="health_rationale_cycle_title">Periods</string>
+    <string name="health_rationale_cycle_body">Read only, and asked for on its own because it is the most private thing here. A period puts on about half a kilogram of water and no fat at all, so the chart marks those days and the maths stops reading them as a gain. Refusing it changes nothing else.</string>
     <string name="health_rationale_nothing_leaves">None of this is sent anywhere. WeightTrack has no account, no server and no analytics: what it reads from Health Connect stays on this phone unless you export it yourself.</string>
     <string name="settings_today_at">today at %1$s</string>
     <string name="settings_tomorrow_at">tomorrow at %1$s</string>
@@ -851,6 +854,10 @@
     <string name="diagnostics_recent_activity">Recent activity</string>
     <string name="diagnostics_recent_activity_explained">What the app tried and how it went. It holds no readings, no food and no addresses, so it is safe to send on.</string>
     <string name="chart_description">Weight trend chart. Latest trend %1$s, from %2$d days shown, ranging between %3$s and %4$s.</string>
+    <plurals name="chart_description_water_days">
+        <item quantity="one">%1$d shaded day is a period, when the scale reads high on water.</item>
+        <item quantity="other">%1$d shaded days are periods, when the scale reads high on water.</item>
+    </plurals>
     <string name="chart_weekly_description">Week by week change, %1$d weeks shown.</string>
     <string name="chart_steps_description">Daily steps, %1$d days shown.</string>
     <string name="fasting_ring_description">Fast progress, %1$d percent of the target.</string>

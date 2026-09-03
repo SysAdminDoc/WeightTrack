@@ -63,6 +63,7 @@ class ChartAccessibilityTest {
                         marker = Color.White,
                         markerSurface = Color.Black,
                         markerText = Color.White,
+                        waterBand = Color.Magenta,
                     ),
                 )
             }

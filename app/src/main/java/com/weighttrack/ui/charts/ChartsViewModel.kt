@@ -82,12 +82,41 @@ class ChartsViewModel @Inject constructor(
     private val _associations = MutableStateFlow(AssociationState())
     val associations: StateFlow<AssociationState> = _associations.asStateFlow()
 
+    /**
+     * Days a period covered, where the app has been allowed to read them.
+     *
+     * Empty by default and empty for anybody who refuses, which is what makes refusing free: the
+     * chart draws no band and the weekday card counts every morning exactly as it did before.
+     */
+    private val _cycleDays = MutableStateFlow<Set<LocalDate>>(emptySet())
+    val cycleDays: StateFlow<Set<LocalDate>> = _cycleDays.asStateFlow()
+
     init {
         refreshActivity()
+        refreshCycle()
     }
 
     /** Called when the screen resumes, so a permission granted in Settings takes effect. */
-    fun onScreenResumed() = refreshActivity()
+    fun onScreenResumed() {
+        refreshActivity()
+        refreshCycle()
+    }
+
+    /**
+     * Reads the periods, on its own.
+     *
+     * Deliberately not folded into [refreshActivity]. That one gives up the moment step counts
+     * are refused, and hanging this off it would mean somebody who shares their cycle and not
+     * their step count silently gets neither.
+     */
+    private fun refreshCycle() {
+        viewModelScope.launch {
+            if (healthConnect.availability() != HealthConnectAvailability.INSTALLED) return@launch
+            _cycleDays.value = healthConnect.readMenstruationDays(days = ASSOCIATION_DAYS)
+                .valueOrNull()
+                .orEmpty()
+        }
+    }
 
     fun refreshActivity() {
         viewModelScope.launch {

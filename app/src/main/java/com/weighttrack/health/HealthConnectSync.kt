@@ -9,6 +9,7 @@ import androidx.health.connect.client.records.ActiveCaloriesBurnedRecord
 import androidx.health.connect.client.records.BodyFatRecord
 import androidx.health.connect.client.records.HydrationRecord
 import androidx.health.connect.client.records.MealType
+import androidx.health.connect.client.records.MenstruationPeriodRecord
 import androidx.health.connect.client.records.NutritionRecord
 import androidx.health.connect.client.units.Energy
 import androidx.health.connect.client.records.SleepSessionRecord
@@ -409,6 +410,58 @@ class HealthConnectSync @Inject constructor(
                     byMorning[morning] = (byMorning[morning] ?: 0.0) + hours
                 }
                 byMorning.toMap()
+            }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }
+                .fold({ HealthOutcome.Ok(it) }, { HealthOutcome.Failed(it) })
+        }
+
+    suspend fun hasMenstruationPermission(): Boolean = hasGranted(menstruationPermissions)
+
+    /**
+     * Every day a period covered, over the last [days].
+     *
+     * Expanded into whole days rather than kept as intervals, because everything that reads this
+     * works a day at a time: one morning's weight, one row on the chart, one point in the fit.
+     *
+     * A record ending exactly at midnight belongs to the day before it, which is how Health
+     * Connect writes a period that finished on the fourth: an interval closing at the fifth at
+     * 00:00. Taken literally that marks a day nobody said anything about.
+     */
+    suspend fun readMenstruationDays(days: Long = 120): HealthOutcome<Set<LocalDate>> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                val client = clientOrNull() ?: return@withContext HealthOutcome.NotAvailable
+                if (!hasMenstruationPermission()) return@withContext HealthOutcome.NotAllowed
+                val zone = ZoneId.systemDefault()
+                val end = LocalDate.now().plusDays(1).atStartOfDay()
+                val start = end.minusDays(days)
+                val records = readAllPages { token ->
+                    val page = client.readRecords(
+                        ReadRecordsRequest(
+                            recordType = MenstruationPeriodRecord::class,
+                            timeRangeFilter = TimeRangeFilter.between(start, end),
+                            pageToken = token,
+                        ),
+                    )
+                    page.records to page.pageToken
+                }
+                val flagged = mutableSetOf<LocalDate>()
+                for (record in records) {
+                    val first = record.startTime.atZone(zone).toLocalDate()
+                    val closed = record.endTime.minusNanos(1).coerceAtLeast(record.startTime)
+                    // Capped, because this walks a day at a time and the record came from some
+                    // other app. One with an end time in the next century would otherwise spin
+                    // here for ever on a background thread nobody is watching.
+                    val last = minOf(
+                        closed.atZone(zone).toLocalDate(),
+                        first.plusDays(MAX_PERIOD_DAYS - 1),
+                    )
+                    var day = first
+                    while (!day.isAfter(last)) {
+                        flagged += day
+                        day = day.plusDays(1)
+                    }
+                }
+                flagged.toSet()
             }.onFailure { failed(LogEvent.HEALTH_READ_FAILED, it) }
                 .fold({ HealthOutcome.Ok(it) }, { HealthOutcome.Failed(it) })
         }
@@ -1030,6 +1083,17 @@ class HealthConnectSync @Inject constructor(
     )
 
     /**
+     * Periods, read only, and its own grant.
+     *
+     * The most private thing the app asks for, and the one people are most likely to say no to,
+     * so it is asked for alone and refusing it changes nothing else. All it is read for is which
+     * mornings carry water that is not tissue.
+     */
+    val menstruationPermissions: Set<String> = setOf(
+        HealthPermission.getReadPermission(MenstruationPeriodRecord::class),
+    )
+
+    /**
      * Reading further back than the last thirty days.
      *
      * Health Connect answers with a month unless this is granted, no matter what window the
@@ -1057,7 +1121,8 @@ class HealthConnectSync @Inject constructor(
 
     val permissions: Set<String> =
         corePermissions + bodyFatPermissions + backgroundPermissions + historyPermissions +
-            hydrationPermissions + nutritionPermissions + activityPermissions + sleepPermissions
+            hydrationPermissions + nutritionPermissions + activityPermissions + sleepPermissions +
+            menstruationPermissions
 
     /**
      * What a direction actually needs, and nothing else.
@@ -1098,6 +1163,14 @@ class HealthConnectSync @Inject constructor(
 
         /** Shorter than this is a nap, and a nap is not a night's sleep. */
         private const val MINIMUM_SLEEP_HOURS = 3.0
+
+        /**
+         * The longest a single period record is taken at its word.
+         *
+         * Ten days is already beyond anything a clinician would call ordinary. This is a bound on
+         * a loop over data another app wrote, not a medical opinion.
+         */
+        private const val MAX_PERIOD_DAYS = 10L
 
         /** How Health Connect names the meals this app splits a day into. */
         fun mealTypeFor(meal: com.weighttrack.core.nutrition.Meal): Int = when (meal) {
