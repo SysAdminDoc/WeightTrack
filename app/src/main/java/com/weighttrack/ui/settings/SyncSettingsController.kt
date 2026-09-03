@@ -20,10 +20,21 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.ZoneId
+
+/**
+ * One of the devices sharing this person's sync folder, as the settings screen shows it.
+ */
+data class SyncDevice(
+    val deviceId: String,
+    val lastSeenAtUtcMillis: Long,
+    val retired: Boolean,
+    val isThisDevice: Boolean,
+)
 
 /**
  * Everything the settings screen does to sync, off the view model.
@@ -36,6 +47,7 @@ internal class SyncSettingsController(
     private val preferences: SyncPreferences,
     private val engine: SyncEngine,
     private val scheduler: SyncScheduler,
+    private val peers: com.weighttrack.data.db.SyncPeerDao,
     private val strings: AppStrings,
     private val context: Context,
     /** Null clears whatever is on screen, which is what a sync with nothing to report does. */
@@ -47,6 +59,44 @@ internal class SyncSettingsController(
         SharingStarted.WhileSubscribed(5_000),
         SyncSettings(),
     )
+
+    /**
+     * The devices this one syncs with.
+     *
+     * On screen because retiring one is the only thing that lets the others stop waiting for it
+     * before they forget a deletion, and nobody can retire a device they cannot see.
+     */
+    val devices: StateFlow<List<SyncDevice>> = peers.observeAll()
+        .map { rows ->
+            val self = preferences.deviceId()
+            rows.map {
+                SyncDevice(
+                    deviceId = it.deviceId,
+                    lastSeenAtUtcMillis = it.lastSeenAtUtcMillis,
+                    retired = it.retiredAtUtcMillis > 0,
+                    isThisDevice = it.deviceId == self,
+                )
+            }
+        }
+        .stateIn(scope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    /**
+     * Says a device is gone, or takes it back.
+     *
+     * Immediate either way, and reversible, so nothing here needs a dialog asking whether
+     * somebody meant it. Retiring never touches that device's readings.
+     */
+    fun setDeviceRetired(deviceId: String, retired: Boolean) {
+        scope.launch {
+            val now = System.currentTimeMillis()
+            peers.setRetired(deviceId, retiredAt = if (retired) now else 0, decidedAt = now)
+            onMessage(
+                strings[
+                    if (retired) R.string.sync_device_retired else R.string.sync_device_restored,
+                ],
+            )
+        }
+    }
 
     private val _syncing = MutableStateFlow(false)
     val syncing: StateFlow<Boolean> = _syncing.asStateFlow()

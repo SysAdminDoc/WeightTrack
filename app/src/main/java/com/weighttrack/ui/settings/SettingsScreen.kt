@@ -152,6 +152,7 @@ fun SettingsScreen(
         item {
             val syncSettings by viewModel.syncSettings.collectAsStateWithLifecycle()
             val syncing by viewModel.syncing.collectAsStateWithLifecycle()
+            val syncDevices by viewModel.syncDevices.collectAsStateWithLifecycle()
             SyncCard(
                 settings = syncSettings,
                 folderName = syncSettings.folderUri
@@ -168,6 +169,8 @@ fun SettingsScreen(
                     !localNetworkGranted &&
                     SyncAddress.isOnLocalNetwork(syncSettings.webDavUrl.orEmpty()),
                 onAllowLocalNetwork = { localNetworkLauncher.launch(LocalNetworkPermission.NAME) },
+                devices = syncDevices,
+                onDeviceRetiredChange = viewModel::setSyncDeviceRetired,
             )
         }
         item {

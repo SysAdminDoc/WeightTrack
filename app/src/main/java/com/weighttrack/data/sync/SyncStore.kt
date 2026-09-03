@@ -2,6 +2,8 @@ package com.weighttrack.data.sync
 
 import androidx.room.withTransaction
 import com.weighttrack.core.sync.SyncDeletion
+import com.weighttrack.core.sync.SyncStamp
+import com.weighttrack.core.sync.stamp
 import com.weighttrack.core.sync.SyncDocument
 import com.weighttrack.core.sync.SyncFast
 import com.weighttrack.core.sync.SyncFood
@@ -71,10 +73,14 @@ class SyncStore @Inject constructor(
     private val database: com.weighttrack.data.db.WeightTrackDatabase,
     private val dao: SyncDao,
     private val deletions: DeletionDao,
+    private val peers: com.weighttrack.data.db.SyncPeerDao,
+    private val clock: SyncClock,
 ) {
 
     /** This device's own view of everything, ready to be written to a file. */
     suspend fun snapshot(deviceId: String, now: Long): SyncDocument = withContext(Dispatchers.IO) {
+        stampLocalEdits(deviceId, now)
+        val known = peers.all()
         val profiles = nameAnythingUnnamed()
         val nameOf = profiles.associate { it.id to it.syncId }
         SyncDocument(
@@ -114,7 +120,108 @@ class SyncStore @Inject constructor(
                 }
             },
             deletions = deletions.all().mapNotNull { it.toSync() },
+            peers = known.map {
+                com.weighttrack.core.sync.SyncPeer(
+                    deviceId = it.deviceId,
+                    lastSeenAtUtcMillis = it.lastSeenAtUtcMillis,
+                    retiredAtUtcMillis = it.retiredAtUtcMillis,
+                    retirementDecidedAtUtcMillis = it.retirementDecidedAtUtcMillis,
+                )
+            },
+            // What this device holds from each of the others. The other phones read it as an
+            // acknowledgement and it is the whole basis on which a deletion is ever forgotten.
+            observed = known.map {
+                com.weighttrack.core.sync.SyncObservation(it.deviceId, it.observedThroughMillis)
+            },
+            // Anything still carrying no name is this device's own, which is what the document
+            // says by putting its own name on it.
+        ).attributed()
+    }
+
+    /**
+     * Gives a fresh stamp to every row edited here since it was last published.
+     *
+     * A row's stamp is current only while [stampMillis] matches its own last-touched time, so
+     * anything that wrote the row without knowing about sync has already marked it. The stamp
+     * comes from the hybrid clock, so a phone whose clock is slow or has gone backwards still
+     * produces an edit that sorts after the version it is correcting; on a phone whose clock is
+     * fine the recorded time is kept exactly as it was.
+     */
+    private suspend fun stampLocalEdits(deviceId: String, now: Long) {
+        suspend fun <T> restamp(
+            rows: List<T>,
+            updatedAt: (T) -> Long,
+            stampMillis: (T) -> Long,
+            stamped: (T, Long) -> T,
+            write: suspend (List<T>) -> Unit,
+        ) {
+            val stale = rows.filter { updatedAt(it) != stampMillis(it) }
+            if (stale.isEmpty()) return
+            write(stale.map { row -> stamped(row, clock.stampFor(updatedAt(row), now)) })
+        }
+
+        restamp(
+            dao.profiles(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { rows -> rows.forEach { dao.updateProfile(it) } },
         )
+        restamp(
+            dao.weights(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateWeights(it) },
+        )
+        restamp(
+            dao.measurements(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateMeasurements(it) },
+        )
+        restamp(
+            dao.water(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateWater(it) },
+        )
+        restamp(
+            dao.fasts(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateFasts(it) },
+        )
+        restamp(
+            dao.goals(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateGoals(it) },
+        )
+        restamp(
+            dao.macroTargets(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateMacroTargets(it) },
+        )
+        restamp(
+            dao.foods(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateFoods(it) },
+        )
+        restamp(
+            dao.recipes(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateRecipes(it) },
+        )
+        restamp(
+            dao.foodLog(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { dao.updateFoodLog(it) },
+        )
+        // A tombstone's stamp is the moment of the deletion, so it is never moved: doing that
+        // would hold a delete against an edit made after it. Only the name of the device that
+        // made it is filled in, and only when it is missing.
+        val unstamped = deletions.all().filter { it.stampDeviceId.isBlank() }
+        if (unstamped.isNotEmpty()) {
+            deletions.recordAll(
+                unstamped.map {
+                    it.copy(stampMillis = it.deletedAtUtcMillis, stampDeviceId = deviceId)
+                },
+            )
+        }
+        clock.persist()
     }
 
     /**
@@ -124,16 +231,33 @@ class SyncStore @Inject constructor(
      * older than the one arriving is updated in place, keeping its own row identifier, so
      * anything on this phone pointing at that row still points at it.
      */
-    suspend fun apply(merged: SyncDocument, now: Long): SyncChanges = withContext(Dispatchers.IO) {
+    suspend fun apply(
+        merged: SyncDocument,
+        now: Long,
+        /**
+         * Whether the document is the last word on what has been deleted.
+         *
+         * True only for a sync, where the merge has looked at every device's file and worked out
+         * which tombstones are finished with. A restore is not that: the archive carries whatever
+         * deletions it was written with, and treating them as the whole truth would throw away
+         * every deletion made on this phone since, so those rows would come home from the other
+         * device on the next sync.
+         */
+        replaceDeletions: Boolean = false,
+    ): SyncChanges = withContext(Dispatchers.IO) {
         // One commit for the whole document. It spans eleven tables and the ingredients and the
         // diary both point at rows written earlier in the same run, so a failure halfway through
         // used to leave a database that no single writer could have produced: a recipe with no
         // food under it, a day's eating attached to a profile that never arrived. A restore is
         // the moment somebody has the most to lose, so it either lands or it does not.
-        database.withTransaction { applyEverything(merged, now) }
+        database.withTransaction { applyEverything(merged, now, replaceDeletions) }
     }
 
-    private suspend fun applyEverything(merged: SyncDocument, now: Long): SyncChanges {
+    private suspend fun applyEverything(
+        merged: SyncDocument,
+        now: Long,
+        replaceDeletions: Boolean,
+    ): SyncChanges {
         var changes = applyProfiles(merged)
         val profileIdOf = dao.profiles().associate { it.syncId to it.id }
 
@@ -153,15 +277,56 @@ class SyncStore @Inject constructor(
         changes += applyFoodLog(merged, profileIdOf)
         changes += applyDeletions(merged)
 
-        // Everybody else's tombstones are kept as if they were this device's own, so a deletion
-        // that arrived here goes on travelling to a third device that has not seen it yet.
+        // The merged set replaces what is here rather than being added to it. Everybody else's
+        // tombstones are kept as if they were this device's own, so a deletion that arrived here
+        // goes on travelling to a third device that has not seen it yet; and one the merge has
+        // decided is finished with is actually gone, instead of being handed straight back by
+        // this table on the next pass.
+        if (replaceDeletions) deletions.deleteAll()
         deletions.recordAll(
             merged.deletions.map {
-                DeletionEntity(it.kind.name, it.syncId, it.deletedAtUtcMillis, it.profileSyncId)
+                DeletionEntity(
+                    kind = it.kind.name,
+                    syncId = it.syncId,
+                    deletedAtUtcMillis = it.deletedAtUtcMillis,
+                    profileSyncId = it.profileSyncId,
+                    stampMillis = it.deletedAtUtcMillis,
+                    stampDeviceId = it.stampDeviceId,
+                )
             },
         )
-        deletions.forgetBefore(now - SyncMerge.TOMBSTONE_LIFETIME_MILLIS)
+        rememberPeers(merged)
+        // Everything just read raises this device's clock, so the next edit made here sorts
+        // after it however far apart the two phones' clocks are.
+        merged.highestStampPerDevice().values.maxOrNull()?.let { clock.observe(it, now) }
+        clock.persist()
         return changes
+    }
+
+    /**
+     * Writes down who this device syncs with, and how far it has caught up with each of them.
+     *
+     * The list is the whole basis on which a deletion is ever forgotten, so it is stored rather
+     * than worked out again from the files: a device that stops publishing has to go on being
+     * waited for, and it cannot be waited for if nobody remembers it existed.
+     */
+    private suspend fun rememberPeers(merged: SyncDocument) {
+        val observed = merged.observed.associate { it.deviceId to it.throughMillis }
+        val known = merged.peers.associateBy { it.deviceId }
+        val names = (known.keys + observed.keys).filter { it.isNotBlank() }
+        if (names.isEmpty()) return
+        peers.upsertAll(
+            names.map { name ->
+                val peer = known[name]
+                com.weighttrack.data.db.SyncPeerEntity(
+                    deviceId = name,
+                    lastSeenAtUtcMillis = peer?.lastSeenAtUtcMillis ?: 0,
+                    retiredAtUtcMillis = peer?.retiredAtUtcMillis ?: 0,
+                    retirementDecidedAtUtcMillis = peer?.decidedAtUtcMillis ?: 0,
+                    observedThroughMillis = observed[name] ?: 0,
+                )
+            },
+        )
     }
 
     // ---- profiles ----
@@ -194,6 +359,8 @@ class SyncStore @Inject constructor(
                         activityLevel = remote.activityLevel,
                         syncId = remote.syncId,
                         updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                        stampMillis = remote.updatedAtUtcMillis,
+                        stampDeviceId = remote.stampDeviceId,
                     ),
                 )
                 added++
@@ -211,10 +378,12 @@ class SyncStore @Inject constructor(
                     birthYear = remote.birthYear.takeIf { it > 0 } ?: existing.birthYear,
                     activityLevel = remote.activityLevel.ifBlank { existing.activityLevel },
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     // Whether this phone talks to Health Connect is a fact about this phone, so
                     // it is never taken from another one.
                 )
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     dao.updateProfile(candidate)
                     updated++
                 }
@@ -271,6 +440,8 @@ class SyncStore @Inject constructor(
                     originPackage = remote.originPackage,
                     originDevice = remote.originDevice,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
             } else {
                 val candidate = existing.copy(
@@ -298,12 +469,14 @@ class SyncStore @Inject constructor(
                     originPackage = remote.originPackage,
                     originDevice = remote.originDevice,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
                 // The merge has already decided which version wins, including when two carry the
                 // same millisecond. Comparing what would be written against what is here keeps a
                 // sync that changes nothing reporting nothing, which a plain "newer or equal"
                 // would not: every record would be rewritten on every pass.
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -333,6 +506,8 @@ class SyncStore @Inject constructor(
                     note = remote.note,
                     carried = remote.carried,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
             } else {
@@ -344,12 +519,14 @@ class SyncStore @Inject constructor(
                     note = remote.note,
                     carried = remote.carried,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
                 // The merge has already decided which version wins, including when two carry the
                 // same millisecond. Comparing what would be written against what is here keeps a
                 // sync that changes nothing reporting nothing, which a plain "newer or equal"
                 // would not: every record would be rewritten on every pass.
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -377,6 +554,8 @@ class SyncStore @Inject constructor(
                     millilitres = remote.millilitres,
                     healthConnectId = null,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
             } else {
@@ -385,12 +564,14 @@ class SyncStore @Inject constructor(
                     localDate = remote.localDate,
                     millilitres = remote.millilitres,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
                 // The merge has already decided which version wins, including when two carry the
                 // same millisecond. Comparing what would be written against what is here keeps a
                 // sync that changes nothing reporting nothing, which a plain "newer or equal"
                 // would not: every record would be rewritten on every pass.
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -418,6 +599,8 @@ class SyncStore @Inject constructor(
                     targetMinutes = remote.targetMinutes,
                     note = remote.note,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
             } else {
@@ -427,12 +610,14 @@ class SyncStore @Inject constructor(
                     targetMinutes = remote.targetMinutes,
                     note = remote.note,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
                 // The merge has already decided which version wins, including when two carry the
                 // same millisecond. Comparing what would be written against what is here keeps a
                 // sync that changes nothing reporting nothing, which a plain "newer or equal"
                 // would not: every record would be rewritten on every pass.
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -466,6 +651,8 @@ class SyncStore @Inject constructor(
                     createdAtUtcMillis = remote.updatedAtUtcMillis,
                     syncId = remote.syncId,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
             } else {
                 val candidate = existing.copy(
@@ -478,12 +665,14 @@ class SyncStore @Inject constructor(
                     bandGrams = remote.bandGrams,
                     active = remote.active,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
                 // The merge has already decided which version wins, including when two carry the
                 // same millisecond. Comparing what would be written against what is here keeps a
                 // sync that changes nothing reporting nothing, which a plain "newer or equal"
                 // would not: every record would be rewritten on every pass.
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -532,6 +721,8 @@ class SyncStore @Inject constructor(
                     fatG = remote.fatG,
                     basis = remote.basis,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
                 fresh += made
@@ -547,13 +738,15 @@ class SyncStore @Inject constructor(
                     fatG = remote.fatG,
                     basis = remote.basis,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
                 // The merge has already decided which version wins, including when two carry the
                 // same millisecond. Comparing what would be written against what is here keeps a
                 // sync that changes nothing reporting nothing, which a plain "newer or equal"
                 // would not: every record would be rewritten on every pass.
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -590,6 +783,8 @@ class SyncStore @Inject constructor(
                     favourite = false,
                     lastUsedAtUtcMillis = 0,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
             } else {
@@ -607,8 +802,10 @@ class SyncStore @Inject constructor(
                     servingGrams = remote.servingGrams,
                     origin = remote.origin,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -629,6 +826,8 @@ class SyncStore @Inject constructor(
                     name = remote.name,
                     servings = remote.servings,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                     syncId = remote.syncId,
                 )
             } else {
@@ -636,8 +835,10 @@ class SyncStore @Inject constructor(
                     name = remote.name,
                     servings = remote.servings,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -709,6 +910,8 @@ class SyncStore @Inject constructor(
                     loggedAtUtcMillis = remote.loggedAtUtcMillis,
                     syncId = remote.syncId,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
             } else {
                 val candidate = existing.copy(
@@ -723,8 +926,10 @@ class SyncStore @Inject constructor(
                     fatG = remote.fatG,
                     loggedAtUtcMillis = remote.loggedAtUtcMillis,
                     updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
                 )
-                if (remote.updatedAtUtcMillis >= existing.updatedAtUtcMillis && candidate != existing) {
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
                     revised += candidate
                 }
             }
@@ -878,6 +1083,7 @@ class SyncStore @Inject constructor(
         birthYear = birthYear,
         activityLevel = activityLevel,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun WeightEntryEntity.toSync(profileSyncId: String) = SyncWeight(
@@ -909,6 +1115,7 @@ class SyncStore @Inject constructor(
         originPackage = originPackage,
         originDevice = originDevice,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun MeasurementEntity.toSync(profileSyncId: String) = SyncMeasurement(
@@ -921,6 +1128,7 @@ class SyncStore @Inject constructor(
         note = note,
         carried = carried,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun WaterEntryEntity.toSync(profileSyncId: String) = SyncWater(
@@ -930,6 +1138,7 @@ class SyncStore @Inject constructor(
         localDate = localDate,
         millilitres = millilitres,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun FastEntity.toSync(profileSyncId: String) = SyncFast(
@@ -940,6 +1149,7 @@ class SyncStore @Inject constructor(
         targetMinutes = targetMinutes,
         note = note,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun GoalEntity.toSync(profileSyncId: String) = SyncGoal(
@@ -954,6 +1164,7 @@ class SyncStore @Inject constructor(
         bandGrams = bandGrams,
         active = active,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun MacroTargetEntity.toSync(profileSyncId: String) = SyncMacroTarget(
@@ -966,6 +1177,7 @@ class SyncStore @Inject constructor(
         fatG = fatG,
         basis = basis,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun FoodEntity.toSync() = SyncFood(
@@ -983,6 +1195,7 @@ class SyncStore @Inject constructor(
         servingGrams = servingGrams,
         origin = origin,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun RecipeEntity.toSync() = SyncRecipe(
@@ -990,6 +1203,7 @@ class SyncStore @Inject constructor(
         name = name,
         servings = servings,
         updatedAtUtcMillis = updatedAtUtcMillis,
+        stampDeviceId = stampDeviceId,
     )
 
     private fun RecipeItemEntity.toSync(recipeSyncId: String, foodSyncId: String) = SyncRecipeItem(
@@ -1016,6 +1230,7 @@ class SyncStore @Inject constructor(
             fatG = fatG,
             loggedAtUtcMillis = loggedAtUtcMillis,
             updatedAtUtcMillis = updatedAtUtcMillis,
+            stampDeviceId = stampDeviceId,
         )
 
     private fun DeletionEntity.toSync(): SyncDeletion? {
@@ -1025,6 +1240,52 @@ class SyncStore @Inject constructor(
             syncId = syncId,
             deletedAtUtcMillis = deletedAtUtcMillis,
             profileSyncId = profileSyncId,
+            stampDeviceId = stampDeviceId,
         )
     }
 }
+
+/**
+ * The stamp a row that is already here carries.
+ *
+ * A row whose stamp does not match its own last-touched time has been edited on this phone since
+ * it was last published, so it counts as this device's own version at the time of that edit.
+ * That is the same rule the sync store uses when it stamps rows on the way out, and having it in
+ * one place is what stops an apply and a snapshot disagreeing about who made a row.
+ */
+private fun stampOf(updatedAt: Long, stampMillis: Long, stampDeviceId: String, localDeviceId: String) =
+    if (stampMillis == updatedAt && stampDeviceId.isNotBlank()) {
+        com.weighttrack.core.sync.SyncStamp(stampMillis, stampDeviceId)
+    } else {
+        com.weighttrack.core.sync.SyncStamp(updatedAt, localDeviceId)
+    }
+
+private fun ProfileEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun WeightEntryEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun MeasurementEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun WaterEntryEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun FastEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun GoalEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun MacroTargetEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun FoodEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun RecipeEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun FoodLogEntryEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)

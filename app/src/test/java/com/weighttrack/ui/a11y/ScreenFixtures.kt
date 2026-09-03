@@ -101,7 +101,10 @@ private object FixtureBarcodeReader : BarcodeReader {
  * A constructor-free mock keeps the fixture deterministic and makes every flow the screen reads
  * explicit. No service, scheduler, database, camera, or Health Connect provider is started.
  */
-private fun settingsViewModel(): SettingsViewModel {
+private fun settingsViewModel(
+    syncSettings: SyncSettings = SyncSettings(),
+    syncDevices: List<com.weighttrack.ui.settings.SyncDevice> = emptyList(),
+): SettingsViewModel {
     val health = mock(HealthConnectSync::class.java)
     doReturn(PermissionController.createRequestPermissionResultContract())
         .`when`(health).permissionContract()
@@ -110,8 +113,9 @@ private fun settingsViewModel(): SettingsViewModel {
     return mock(SettingsViewModel::class.java).also { viewModel ->
         doReturn(health).`when`(viewModel).healthConnect
         doReturn(MutableStateFlow(UserProfile())).`when`(viewModel).demographics
-        doReturn(MutableStateFlow(SyncSettings())).`when`(viewModel).syncSettings
+        doReturn(MutableStateFlow(syncSettings)).`when`(viewModel).syncSettings
         doReturn(MutableStateFlow(false)).`when`(viewModel).syncing
+        doReturn(MutableStateFlow(syncDevices)).`when`(viewModel).syncDevices
         doReturn(MutableStateFlow(AutoBackupState()))
             .`when`(viewModel).autoBackup
         doReturn(MutableStateFlow(0)).`when`(viewModel).crashReportCount
@@ -419,6 +423,50 @@ internal object ScreenFixtures {
                 healthConnectState = HealthConnectState(),
                 busy = false,
                 viewModel = remember { settingsViewModel() },
+                onOpenCrashLogs = {},
+                onOpenHealthRationale = {},
+            )
+        },
+        // Sync on, with another device that has been gone long enough to be worth retiring. The
+        // device list only exists once sync is set up, so the empty settings screen above never
+        // renders it and nothing would check it.
+        ScreenFixture("SettingsScreen", "syncing with a device that is gone") {
+            SettingsScreen(
+                settings = AppSettings(),
+                profiles = listOf(Profile(1, "You", 0)),
+                activeProfileId = 1,
+                entryCount = 12,
+                healthConnectState = HealthConnectState(),
+                busy = false,
+                viewModel = remember {
+                    settingsViewModel(
+                        syncSettings = SyncSettings(
+                            mode = com.weighttrack.data.sync.SyncMode.FOLDER,
+                            folderUri = "content://fixture/folder",
+                            deviceId = "aaaa1111bbbb",
+                        ),
+                        syncDevices = listOf(
+                            com.weighttrack.ui.settings.SyncDevice(
+                                deviceId = "aaaa1111bbbb",
+                                lastSeenAtUtcMillis = NOON.toEpochMilli(),
+                                retired = false,
+                                isThisDevice = true,
+                            ),
+                            com.weighttrack.ui.settings.SyncDevice(
+                                deviceId = "cccc2222dddd",
+                                lastSeenAtUtcMillis = NOON.toEpochMilli() - 270L * 86_400_000,
+                                retired = false,
+                                isThisDevice = false,
+                            ),
+                            com.weighttrack.ui.settings.SyncDevice(
+                                deviceId = "eeee3333ffff",
+                                lastSeenAtUtcMillis = 0,
+                                retired = true,
+                                isThisDevice = false,
+                            ),
+                        ),
+                    )
+                },
                 onOpenCrashLogs = {},
                 onOpenHealthRationale = {},
             )

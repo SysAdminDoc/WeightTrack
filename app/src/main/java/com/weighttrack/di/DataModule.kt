@@ -160,4 +160,8 @@ object DataModule {
 
     @Provides
     fun provideSyncDao(database: WeightTrackDatabase): SyncDao = database.syncDao()
+
+    @Provides
+    fun provideSyncPeerDao(database: WeightTrackDatabase): com.weighttrack.data.db.SyncPeerDao =
+        database.syncPeerDao()
 }

@@ -5,6 +5,24 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 
+/*
+ * Every row that can be synced carries two extra columns, and they work as a pair.
+ *
+ * `stampDeviceId` is the device that made the version of the row that is here, and `stampMillis`
+ * is the time that came with it. Together they are the record's `SyncStamp`, which is what
+ * decides whose edit wins when two phones disagree.
+ *
+ * The pair is only current while `stampMillis` equals `updatedAtUtcMillis`. Anything that edits a
+ * row writes a new `updatedAtUtcMillis` and leaves the stamp alone, so the two stop matching and
+ * that is exactly how the sync store knows the row has been changed here since it was last
+ * published. It stamps it afresh on the way out, from the hybrid clock, in this device's name.
+ *
+ * Deliberately not stamped at the moment of the edit. Doing that would put a clock and a device
+ * name into every repository that writes a row, and a single method that forgot would produce a
+ * row that silently sorts wrong on another phone forever. This way, code that has never heard of
+ * sync gets the right answer by not doing anything.
+ */
+
 /**
  * Whose readings these are.
  *
@@ -49,6 +67,8 @@ data class ProfileEntity(
      */
     @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
     @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
     /**
      * The body these figures describe.
      *
@@ -146,6 +166,8 @@ data class WeightEntryEntity(
     @ColumnInfo(defaultValue = "NULL") val originDevice: String? = null,
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
 )
 
 @Entity(
@@ -175,6 +197,8 @@ data class MeasurementEntity(
      */
     @ColumnInfo(defaultValue = "0") val carried: Boolean = false,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
 
     /**
      * What this row is called on every device.
@@ -215,6 +239,8 @@ data class GoalEntity(
      */
     @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
     @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
 )
 
 @Entity(
@@ -235,6 +261,8 @@ data class WaterEntryEntity(
     val millilitres: Int,
     val healthConnectId: String?,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
     /**
      * What this row is called on every device.
      *
@@ -270,6 +298,8 @@ data class FastEntity(
     val targetMinutes: Int,
     val note: String?,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
     /**
      * What this row is called on every device.
      *
@@ -346,6 +376,8 @@ data class FoodEntity(
     /** When it was last read from the service it came from. Zero for anything typed in here. */
     @ColumnInfo(defaultValue = "0") val fetchedAtUtcMillis: Long = 0,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
     /**
      * What this row is called on every device. See the note on the weight entry.
      */
@@ -360,6 +392,8 @@ data class RecipeEntity(
     /** What the whole recipe makes, so a portion can be worked out from it. */
     val servings: Int,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
     /**
      * What this row is called on every device. See the note on the weight entry.
      */
@@ -417,6 +451,8 @@ data class FoodLogEntryEntity(
      */
     @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
     @ColumnInfo(defaultValue = "0") val updatedAtUtcMillis: Long = 0,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
 )
 
 /**
@@ -442,6 +478,8 @@ data class MacroTargetEntity(
     /** Only how it is shown and edited. What is stored is always grams. */
     val basis: String,
     val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
     /**
      * What this row is called on every device.
      *
@@ -475,6 +513,29 @@ data class DeletionEntity(
      * which is what a profile's own deletion means.
      */
     @ColumnInfo(defaultValue = "''") val profileSyncId: String = "",
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
+)
+
+/**
+ * A device this one syncs with, and how far it has caught up with it.
+ *
+ * Kept so a deletion can be forgotten on evidence rather than on a calendar. Until every device
+ * that is not retired has confirmed it has seen a deletion, the tombstone stays, so the phone
+ * that spent nine months in a drawer cannot bring the row back when it returns.
+ *
+ * [observedThroughMillis] is the newest edit from that device this one holds. Published in the
+ * sync file, where the others read it as an acknowledgement.
+ */
+@Entity(tableName = "sync_peers")
+data class SyncPeerEntity(
+    @PrimaryKey val deviceId: String,
+    val lastSeenAtUtcMillis: Long = 0,
+    /** When somebody said that device was gone for good, or zero while it is expected back. */
+    val retiredAtUtcMillis: Long = 0,
+    /** When that was last decided either way, so retiring can be undone. */
+    val retirementDecidedAtUtcMillis: Long = 0,
+    val observedThroughMillis: Long = 0,
 )
 
 /**

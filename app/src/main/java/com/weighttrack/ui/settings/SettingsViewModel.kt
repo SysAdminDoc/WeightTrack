@@ -58,6 +58,7 @@ class SettingsViewModel @Inject constructor(
     syncPreferences: SyncPreferences,
     syncEngine: SyncEngine,
     syncScheduler: SyncScheduler,
+    syncPeers: com.weighttrack.data.db.SyncPeerDao,
     private val settingsRepository: SettingsRepository,
     weightRepository: WeightRepository,
     profileRepository: ProfileRepository,
@@ -117,6 +118,7 @@ class SettingsViewModel @Inject constructor(
         preferences = syncPreferences,
         engine = syncEngine,
         scheduler = syncScheduler,
+        peers = syncPeers,
         strings = strings,
         context = context,
         onMessage = onMessage,
@@ -137,6 +139,7 @@ class SettingsViewModel @Inject constructor(
     val autoBackup: StateFlow<AutoBackupState> get() = backups.autoBackup
     val syncSettings get() = sync.settings
     val syncing: StateFlow<Boolean> get() = sync.syncing
+    val syncDevices get() = sync.devices
 
     private val _crashReportCount = MutableStateFlow(0)
     val crashReportCount: StateFlow<Int> = _crashReportCount.asStateFlow()
@@ -293,4 +296,6 @@ class SettingsViewModel @Inject constructor(
     fun turnSyncOff() = sync.turnOff()
     fun setSyncInBackground(enabled: Boolean) = sync.setInBackground(enabled)
     fun syncNow() = sync.syncNow()
+    fun setSyncDeviceRetired(deviceId: String, retired: Boolean) =
+        sync.setDeviceRetired(deviceId, retired)
 }

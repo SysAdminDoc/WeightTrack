@@ -373,6 +373,16 @@
     <string name="sync_certificate_forget">Forget the certificate</string>
     <string name="sync_certificate_trusted">Trusting %1$s</string>
     <string name="sync_certificate_unreadable">That file is not a certificate.</string>
+    <string name="sync_devices">Your devices</string>
+    <string name="sync_devices_explained">Something you delete is remembered until every device here has seen that it is gone, so a phone you have sold or lost keeps those notes open for good. Say it is gone and the others stop waiting for it. Nothing it sent is removed, and you can bring it back.</string>
+    <string name="sync_device_this_one">%1$s (this phone)</string>
+    <string name="sync_device_last_seen">Last seen %1$s</string>
+    <string name="sync_device_never_seen">Not seen yet</string>
+    <string name="sync_device_gone">Gone</string>
+    <string name="sync_device_forget">It is gone</string>
+    <string name="sync_device_bring_back">Bring it back</string>
+    <string name="sync_device_retired">The others will stop waiting for that device. Nothing it sent was removed.</string>
+    <string name="sync_device_restored">That device counts again.</string>
     <string name="settings_https_cloud_example_com_remote_php">https://cloud.example.com/remote.php/dav/files/me/WeightTrack</string>
     <string name="settings_username">Username</string>
     <string name="settings_password">Password</string>

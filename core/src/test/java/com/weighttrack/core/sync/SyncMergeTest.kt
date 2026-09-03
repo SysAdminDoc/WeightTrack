@@ -149,7 +149,7 @@ class SyncMergeTest {
 
     @Test
     fun `old deletions are forgotten`() {
-        val ancient = now - SyncMerge.TOMBSTONE_LIFETIME_MILLIS - 1
+        val ancient = now - SyncMerge.TOMBSTONE_RETENTION_FLOOR_MILLIS - 1
         val document = document("aaa", deletions = listOf(SyncDeletion(SyncKind.WEIGHT, "w1", ancient)))
 
         assertThat(SyncMerge.merge(listOf(document), "aaa", now).deletions).isEmpty()
@@ -157,7 +157,7 @@ class SyncMergeTest {
 
     @Test
     fun `a deletion right on the edge is still remembered`() {
-        val old = now - SyncMerge.TOMBSTONE_LIFETIME_MILLIS
+        val old = now - SyncMerge.TOMBSTONE_RETENTION_FLOOR_MILLIS
         val document = document("aaa", deletions = listOf(SyncDeletion(SyncKind.WEIGHT, "w1", old)))
 
         assertThat(SyncMerge.merge(listOf(document), "aaa", now).deletions).hasSize(1)
@@ -324,11 +324,17 @@ class SyncMergeTest {
             weights = listOf(weight("w1", 80_000, now)),
             deletions = listOf(SyncDeletion(SyncKind.WATER, "x1", now)),
             settings = settings(),
+        ).copy(
+            peers = listOf(SyncPeer("bbb", lastSeenAtUtcMillis = now, retiredAtUtcMillis = 0)),
+            observed = listOf(SyncObservation("bbb", now - 500)),
         )
 
-        val round = SyncDocument.decode(SyncDocument.encode(original))
-
-        assertThat(round).isEqualTo(original)
+        // Reading a file resolves who made each record, so a document written with the name left
+        // blank comes back with the writer's name filled in. Everything else has to survive
+        // untouched, and reading a resolved document has to be exactly the identity.
+        val settled = original.attributed()
+        assertThat(SyncDocument.decode(SyncDocument.encode(original))).isEqualTo(settled)
+        assertThat(SyncDocument.decode(SyncDocument.encode(settled))).isEqualTo(settled)
     }
 
     private fun settings(themeMode: String = "SYSTEM", updatedAt: Long = 1_000L) = SyncSettings(

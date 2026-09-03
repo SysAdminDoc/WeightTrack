@@ -1,5 +1,6 @@
 package com.weighttrack.data.io
 
+import com.weighttrack.data.sync.SyncClock
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -74,7 +75,7 @@ class BackupServiceTest {
         )
         val deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao())
         return BackupService(
-            syncStore = SyncStore(database, database.syncDao(), database.deletionDao()),
+            syncStore = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory()),
             context = ApplicationProvider.getApplicationContext(),
             weightRepository = WeightRepository(database.weightEntryDao(), profiles, deletions),
             measurementRepository = MeasurementRepository(

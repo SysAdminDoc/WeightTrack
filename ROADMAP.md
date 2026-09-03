@@ -113,13 +113,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 
 
-- [ ] P2: Replace wall-clock tombstone expiry with peer acknowledgements
-  Why: Last-write-wins timestamps come from device clocks and tombstones expire after six months, so a skewed or long-offline peer can republish an older live row after its deletion marker disappears.
-  Evidence: `core/src/main/java/com/weighttrack/core/sync/SyncMerge.kt:143-158`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt`; https://cse.buffalo.edu/~demirbas/publications/hlc.pdf
-  Touches: sync stamp model, `SyncDocument` format, `SyncMerge`, peer retirement UI, migration and convergence tests
-  Acceptance: Mutations use a hybrid logical clock with device ID tie-breaking; a tombstone is pruned only after the retention floor and acknowledgement from every non-retired known peer; a fixture returning after nine months cannot resurrect its deleted row; clock rollback and equal-millisecond edits converge identically on every merge order.
-  Complexity: XL
-
 ### P3
 
 - [ ] P3: Let the accessibility gate render dialogs

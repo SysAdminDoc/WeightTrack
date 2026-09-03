@@ -86,12 +86,16 @@ class SettingsViewModelInitializationTest {
 
         val syncPreferences = mock(SyncPreferences::class.java)
         doReturn(MutableStateFlow(SyncSettings())).`when`(syncPreferences).settings
+        val syncPeers = mock(com.weighttrack.data.db.SyncPeerDao::class.java)
+        doReturn(MutableStateFlow(emptyList<com.weighttrack.data.db.SyncPeerEntity>()))
+            .`when`(syncPeers).observeAll()
 
         return SettingsViewModel(
             strings = mock(AppStrings::class.java),
             syncPreferences = syncPreferences,
             syncEngine = mock(SyncEngine::class.java),
             syncScheduler = mock(SyncScheduler::class.java),
+            syncPeers = syncPeers,
             settingsRepository = settingsRepository,
             weightRepository = weightRepository,
             profileRepository = profileRepository,

@@ -8,19 +8,22 @@ package com.weighttrack.core.sync
  * awkward cases can be written down as tests rather than found on a phone.
  *
  * Every device runs this over the same set of files and has to reach the same answer, or they
- * will hand edits back and forth forever. That is why ties are broken on the device identifier
- * instead of on which file happened to be read first.
+ * will hand edits back and forth forever. Two things make that hold. Edits are ordered by a
+ * [SyncStamp], which pairs the time with the device that made the edit rather than with the
+ * device whose file it arrived in, so a record relayed by a third phone sorts the same wherever
+ * it is read. And the stamp itself comes from a [HybridClock], so a phone with a wrong clock
+ * cannot hold a stale edit in place forever.
  */
 object SyncMerge {
 
     /**
-     * How long a deletion is remembered.
+     * The shortest a deletion is remembered, whatever anybody says.
      *
-     * Long enough that a phone left in a drawer over a holiday does not bring back everything
-     * deleted while it was away. Not so long that the file grows without end. A device quiet for
-     * longer than this will resurrect what it still holds, which is worth saying plainly.
+     * A floor, not a lifetime. Even when every device has confirmed it has seen a deletion, the
+     * tombstone stays this long, because "every device" only means the ones that are known: a
+     * phone set up from a backup and not yet synced is holding rows nobody has heard of.
      */
-    const val TOMBSTONE_LIFETIME_MILLIS: Long = 180L * 24 * 60 * 60 * 1000
+    const val TOMBSTONE_RETENTION_FLOOR_MILLIS: Long = 30L * 24 * 60 * 60 * 1000
 
     /**
      * The merged state of every document handed in.
@@ -34,13 +37,16 @@ object SyncMerge {
         deviceId: String,
         now: Long,
     ): SyncDocument {
-        val deletions = mergeDeletions(documents, now)
+        val attributed = documents.map { it.attributed() }
+        val peers = mergePeers(attributed, deviceId, now)
+        val observed = mergeObservations(attributed, deviceId)
+        val deletions = mergeDeletions(attributed, peers, deviceId, observed, now)
         fun gone(kind: SyncKind, syncId: String, profile: String, updatedAt: Long): Boolean {
             // A tombstone naming a profile applies to that profile only. One naming none applies
             // wherever the name is found, which is what a profile's own tombstone means and what
             // a file written before deletions carried a profile says.
-            val deletedAt = deletions[Key(kind, syncId, profile)]
-                ?: deletions[Key(kind, syncId, "")]
+            val deletedAt = deletions[Key(kind, syncId, profile)]?.deletedAtUtcMillis
+                ?: deletions[Key(kind, syncId, "")]?.deletedAtUtcMillis
                 ?: return false
             // An edit made after the delete brings the record back, which is what somebody who
             // deleted a row on one phone and then corrected it on another actually meant.
@@ -52,46 +58,49 @@ object SyncMerge {
             writtenAtUtcMillis = now,
             // Profiles are named on their own; everything else is named within a profile, so
             // two people who happen to hold rows with the same name keep their own.
-            profiles = documents.newest({ it.profiles }, { it.syncId }, { it.updatedAtUtcMillis })
+            profiles = attributed.newest({ it.profiles }, { it.syncId }, { it.stamp() })
                 .filterNot { gone(SyncKind.PROFILE, it.syncId, "", it.updatedAtUtcMillis) },
-            weights = documents
-                .newest({ it.weights }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            weights = attributed
+                .newest({ it.weights }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.WEIGHT, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
-            measurements = documents
-                .newest({ it.measurements }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            measurements = attributed
+                .newest({ it.measurements }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.MEASUREMENT, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
-            water = documents
-                .newest({ it.water }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            water = attributed
+                .newest({ it.water }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.WATER, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
-            fasts = documents
-                .newest({ it.fasts }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            fasts = attributed
+                .newest({ it.fasts }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.FAST, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
-            goals = documents
-                .newest({ it.goals }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            goals = attributed
+                .newest({ it.goals }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.GOAL, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
-            macroTargets = documents
-                .newest({ it.macroTargets }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            macroTargets = attributed
+                .newest({ it.macroTargets }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.MACRO_TARGET, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
             // Foods and recipes belong to nobody in particular, so they are named on their own.
-            foods = documents.newest({ it.foods }, { it.syncId }, { it.updatedAtUtcMillis })
+            foods = attributed.newest({ it.foods }, { it.syncId }, { it.stamp() })
                 .filterNot { gone(SyncKind.FOOD, it.syncId, "", it.updatedAtUtcMillis) },
-            recipes = documents.newest({ it.recipes }, { it.syncId }, { it.updatedAtUtcMillis })
+            recipes = attributed.newest({ it.recipes }, { it.syncId }, { it.stamp() })
                 .filterNot { gone(SyncKind.RECIPE, it.syncId, "", it.updatedAtUtcMillis) },
-            recipeItems = documents
-                .newest({ it.recipeItems }, { it.syncId }, { it.updatedAtUtcMillis })
+            recipeItems = attributed
+                .newest({ it.recipeItems }, { it.syncId }, { it.stamp() })
                 .filterNot { gone(SyncKind.RECIPE_ITEM, it.syncId, "", it.updatedAtUtcMillis) },
-            foodLog = documents
-                .newest({ it.foodLog }, { owned(it.profileSyncId, it.syncId) }, { it.updatedAtUtcMillis })
+            foodLog = attributed
+                .newest({ it.foodLog }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.FOOD_LOG, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
-            settings = newestSettings(documents),
-            deletions = deletions.map { (key, at) ->
+            settings = newestSettings(attributed),
+            deletions = deletions.map { (key, kept) ->
                 SyncDeletion(
                     kind = key.kind,
                     syncId = key.syncId,
-                    deletedAtUtcMillis = at,
+                    deletedAtUtcMillis = kept.deletedAtUtcMillis,
                     profileSyncId = key.profileSyncId,
+                    stampDeviceId = kept.stampDeviceId,
                 )
             }.sortedWith(compareBy({ it.kind }, { it.profileSyncId }, { it.syncId })),
+            peers = peers,
+            observed = observed.map { SyncObservation(it.key, it.value) }.sortedBy { it.deviceId },
         )
     }
 
@@ -136,75 +145,178 @@ object SyncMerge {
     /** What names a deleted record: its kind, its own name, and whose it was. */
     private data class Key(val kind: SyncKind, val syncId: String, val profileSyncId: String)
 
+    /** A tombstone as it stands after every file has had its say. */
+    private data class Tombstone(val deletedAtUtcMillis: Long, val stampDeviceId: String)
+
     /** A record's identity, which is the profile it belongs to and its own name. */
     private fun owned(profileSyncId: String, syncId: String): String = "$profileSyncId/$syncId"
 
+    /**
+     * Every device anybody has heard of.
+     *
+     * A device is known once any file mentions it, so a phone that has never met another one
+     * directly still waits for it before forgetting a deletion. Retirement is carried across the
+     * same way and is deliberately one way: it is somebody saying a phone is gone, and a merge
+     * has no business overruling that because a stale file is still sitting in the folder.
+     */
+    private fun mergePeers(
+        documents: List<SyncDocument>,
+        deviceId: String,
+        now: Long,
+    ): List<SyncPeer> {
+        val known = LinkedHashMap<String, SyncPeer>()
+        fun note(peer: SyncPeer) {
+            if (peer.deviceId.isBlank()) return
+            val current = known[peer.deviceId]
+            known[peer.deviceId] = if (current == null) {
+                peer
+            } else {
+                // The most recent decision about retirement wins, so bringing a device back is
+                // possible; when two decisions carry the same moment, retired wins, because
+                // waiting for a device that is not coming back only costs a file some room and
+                // not waiting for one that is costs somebody a reading they deleted.
+                val settled = when {
+                    peer.decidedAtUtcMillis > current.decidedAtUtcMillis -> peer
+                    current.decidedAtUtcMillis > peer.decidedAtUtcMillis -> current
+                    current.isRetired -> current
+                    else -> peer
+                }
+                SyncPeer(
+                    deviceId = peer.deviceId,
+                    lastSeenAtUtcMillis = maxOf(current.lastSeenAtUtcMillis, peer.lastSeenAtUtcMillis),
+                    retiredAtUtcMillis = settled.retiredAtUtcMillis,
+                    retirementDecidedAtUtcMillis = settled.decidedAtUtcMillis,
+                )
+            }
+        }
+        for (document in documents) {
+            document.peers.forEach(::note)
+            // A file that is here was written by a device that exists, whatever anybody's list
+            // says, and reading it now is the most recent thing known about it.
+            note(SyncPeer(deviceId = document.deviceId, lastSeenAtUtcMillis = now))
+        }
+        note(SyncPeer(deviceId = deviceId, lastSeenAtUtcMillis = now))
+        return known.values.sortedBy { it.deviceId }
+    }
+
+    /**
+     * How far this device has caught up with each of the others.
+     *
+     * Worked out from the stamps actually present rather than from what anybody claims, plus
+     * whatever this device's own file already said. Believing a peer's claim would be quicker
+     * and is exactly the wrong risk to take: a device that overstates what it holds makes the
+     * others forget a deletion it never saw, and the row it still has comes back.
+     */
+    private fun mergeObservations(
+        documents: List<SyncDocument>,
+        deviceId: String,
+    ): Map<String, Long> {
+        val through = HashMap<String, Long>()
+        fun note(origin: String, millis: Long) {
+            val current = through[origin]
+            if (current == null || millis > current) through[origin] = millis
+        }
+        for (document in documents) {
+            document.highestStampPerDevice().forEach { (origin, millis) -> note(origin, millis) }
+        }
+        // Only this device's own previous list. It is a record of what this device held before,
+        // and a deletion pruned since then would otherwise quietly lower its own answer.
+        documents.filter { it.deviceId == deviceId }
+            .forEach { own -> own.observed.forEach { note(it.deviceId, it.throughMillis) } }
+        return through
+    }
+
+    /**
+     * Which deletions are still worth carrying.
+     *
+     * The old rule was a calendar: six months and the tombstone went, whether or not anybody had
+     * seen it. That is safe only if every device syncs inside six months, and it fails in the
+     * ordinary way that matters, because the phone in the drawer is exactly the one still
+     * holding the row. It comes back, nobody has a tombstone left to tell it otherwise, and the
+     * reading somebody deleted last winter is back on their chart.
+     *
+     * The rule here is evidence. A tombstone goes when it is older than the floor and every
+     * device that is not retired has published a list saying it holds everything from the
+     * deleting device up to at least that point. A device that has not been heard from has
+     * published nothing, so nothing is forgotten while it is away.
+     */
     private fun mergeDeletions(
         documents: List<SyncDocument>,
+        peers: List<SyncPeer>,
+        deviceId: String,
+        observed: Map<String, Long>,
         now: Long,
-    ): Map<Key, Long> {
-        val kept = mutableMapOf<Key, Long>()
+    ): Map<Key, Tombstone> {
+        val kept = mutableMapOf<Key, Tombstone>()
         for (document in documents) {
             for (deletion in document.deletions) {
-                // Forgotten once they are old enough. A tombstone from the future is somebody's
-                // clock being wrong and is kept rather than discarded, which is the safe way
-                // round: it holds a delete in place instead of undoing one.
-                if (now - deletion.deletedAtUtcMillis > TOMBSTONE_LIFETIME_MILLIS) continue
                 val key = Key(deletion.kind, deletion.syncId, deletion.profileSyncId)
                 val existing = kept[key]
-                if (existing == null || deletion.deletedAtUtcMillis > existing) {
-                    kept[key] = deletion.deletedAtUtcMillis
+                // A tombstone from the future is somebody's clock being wrong and is kept rather
+                // than discarded, which is the safe way round: it holds a delete in place
+                // instead of undoing one.
+                if (existing == null || deletion.deletedAtUtcMillis > existing.deletedAtUtcMillis) {
+                    kept[key] = Tombstone(deletion.deletedAtUtcMillis, deletion.stampDeviceId)
                 }
             }
         }
-        return kept
+        val byDevice = documents.associateBy { it.deviceId }
+        val waiting = peers.filterNot { it.isRetired }.map { it.deviceId }
+        return kept.filterValues { tombstone ->
+            if (now - tombstone.deletedAtUtcMillis <= TOMBSTONE_RETENTION_FLOOR_MILLIS) {
+                return@filterValues true
+            }
+            val stillWaitingOn = waiting.any { peer ->
+                // The device that did the deleting plainly knows about it.
+                if (peer == tombstone.stampDeviceId) return@any false
+                val through = if (peer == deviceId) {
+                    // This device's own answer is what this merge just worked out. It holds
+                    // everything in front of it by the time the result is written.
+                    observed[tombstone.stampDeviceId] ?: 0L
+                } else {
+                    // No file from that device in this round means no evidence either way, and
+                    // no evidence means the tombstone stays.
+                    val theirs = byDevice[peer] ?: return@any true
+                    theirs.observed.firstOrNull { it.deviceId == tombstone.stampDeviceId }
+                        ?.throughMillis ?: 0L
+                }
+                through < tombstone.deletedAtUtcMillis
+            }
+            stillWaitingOn
+        }
     }
 
     /**
      * The newest version of each record, across every file.
      *
-     * Ties go to the file from the device whose identifier sorts highest. Arbitrary, but the
-     * same everywhere, which is the only property that matters: two devices that break a tie
-     * differently will each keep sending the other its own version, forever.
+     * Ordered by [SyncStamp]: the time first, then the device that made the edit. Two edits
+     * carrying the same millisecond are decided by a name that travels with the record, so every
+     * device reaches the same answer however the files were read and whoever relayed them.
      */
     private fun <T> List<SyncDocument>.newest(
         select: (SyncDocument) -> List<T>,
         id: (T) -> String,
-        updatedAt: (T) -> Long,
+        stamp: (T) -> SyncStamp,
     ): List<T> {
-        val best = LinkedHashMap<String, Pair<T, String>>()
+        val best = LinkedHashMap<String, T>()
         for (document in sortedBy { it.deviceId }) {
             for (record in select(document)) {
                 val key = id(record)
                 val existing = best[key]
-                if (existing == null ||
-                    updatedAt(record) > updatedAt(existing.first) ||
-                    // Equal times: the higher device identifier wins. Sorting the documents
-                    // first means this is reached in a fixed order however the files were read.
-                    (updatedAt(record) == updatedAt(existing.first) &&
-                        document.deviceId > existing.second)
-                ) {
-                    best[key] = record to document.deviceId
+                if (existing == null || stamp(record) > stamp(existing)) {
+                    best[key] = record
                 }
             }
         }
-        return best.values.map { it.first }.sortedBy { id(it) }
+        return best.values.sortedBy { id(it) }
     }
 
     private fun newestSettings(documents: List<SyncDocument>): SyncSettings? {
         var best: SyncSettings? = null
-        var bestDevice = ""
         for (document in documents.sortedBy { it.deviceId }) {
             val candidate = document.settings ?: continue
             val current = best
-            if (current == null ||
-                candidate.updatedAtUtcMillis > current.updatedAtUtcMillis ||
-                (candidate.updatedAtUtcMillis == current.updatedAtUtcMillis &&
-                    document.deviceId > bestDevice)
-            ) {
-                best = candidate
-                bestDevice = document.deviceId
-            }
+            if (current == null || candidate.stamp() > current.stamp()) best = candidate
         }
         return best
     }

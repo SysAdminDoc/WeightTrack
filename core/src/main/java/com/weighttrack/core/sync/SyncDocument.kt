@@ -53,7 +53,72 @@ data class SyncDocument(
      * is the single most irritating way for sync to be wrong.
      */
     val deletions: List<SyncDeletion> = emptyList(),
+    /**
+     * Every device this one has heard of, including itself.
+     *
+     * Shared so that a phone which has never met another one directly still knows it exists and
+     * still waits for it before forgetting a deletion.
+     */
+    val peers: List<SyncPeer> = emptyList(),
+    /**
+     * How far this device has caught up with each of the others.
+     *
+     * This is the acknowledgement the tombstone rule reads. See [SyncObservation].
+     */
+    val observed: List<SyncObservation> = emptyList(),
 ) {
+
+    /**
+     * The same document with every record saying which device made it.
+     *
+     * A file written before stamps existed, or by a device that fills nothing in, leaves the
+     * name blank. Blank has to mean "whoever wrote this file", and it has to be resolved before
+     * the merge rather than during it: a record relayed by a third phone would otherwise be
+     * re-attributed to the relay, and then which version of a record wins would depend on which
+     * files happened to be in the folder.
+     */
+    fun attributed(): SyncDocument {
+        fun name(current: String) = current.ifBlank { deviceId }
+        return copy(
+            profiles = profiles.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            weights = weights.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            measurements = measurements.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            water = water.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            fasts = fasts.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            goals = goals.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            macroTargets = macroTargets.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            foods = foods.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            recipes = recipes.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            recipeItems = recipeItems.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            foodLog = foodLog.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            settings = settings?.let { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            deletions = deletions.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+        )
+    }
+
+    /** The newest stamp this document holds from each device, its own edits included. */
+    fun highestStampPerDevice(): Map<String, Long> {
+        val highest = HashMap<String, Long>()
+        fun note(deviceId: String, millis: Long) {
+            val current = highest[deviceId]
+            if (current == null || millis > current) highest[deviceId] = millis
+        }
+        profiles.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        weights.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        measurements.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        water.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        fasts.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        goals.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        macroTargets.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        foods.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        recipes.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        recipeItems.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        foodLog.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        settings?.let { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        deletions.forEach { note(it.stampDeviceId, it.deletedAtUtcMillis) }
+        return highest.filterKeys { it.isNotBlank() }
+    }
+
     companion object {
         const val APP = "WeightTrack"
         const val FORMAT_VERSION = 1
@@ -94,7 +159,7 @@ data class SyncDocument(
          * every other device's data.
          */
         fun decode(text: String): SyncDocument? = runCatching {
-            json.decodeFromString(serializer(), text).takeIf { it.app == APP }
+            json.decodeFromString(serializer(), text).takeIf { it.app == APP }?.attributed()
         }.getOrNull()
     }
 }
@@ -132,6 +197,65 @@ data class SyncDeletion(
      * file written before this field existed says.
      */
     val profileSyncId: String = "",
+    /** Which device deleted it. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
+)
+
+/**
+ * A device this one knows about.
+ *
+ * Kept so a deletion can be forgotten on evidence rather than on a calendar. A tombstone is only
+ * safe to drop once every device that could still be holding the row has seen that it is gone,
+ * and that question cannot be answered without a list of who those devices are.
+ *
+ * Retirement is how somebody says a phone is not coming back. It is the only thing that lets the
+ * others stop waiting for it, and it only ever affects when deletions are forgotten: a retired
+ * device's readings still merge exactly as they did, so retiring one by mistake loses nothing.
+ */
+@Serializable
+data class SyncPeer(
+    val deviceId: String,
+    /** When a file written by that device was last read. */
+    val lastSeenAtUtcMillis: Long = 0,
+    /** When somebody said it was gone for good, or zero while it is still expected back. */
+    val retiredAtUtcMillis: Long = 0,
+    /**
+     * When retirement was last decided, either way.
+     *
+     * Kept apart from the flag so retiring can be undone. Taking the largest [retiredAtUtcMillis]
+     * across everybody's files would settle it, but only in one direction: a phone brought back
+     * by mistake could never be brought back, because every other device's file would still be
+     * carrying the retirement and would keep putting it back.
+     */
+    val retirementDecidedAtUtcMillis: Long = 0,
+) {
+    val isRetired: Boolean get() = retiredAtUtcMillis > 0
+
+    /**
+     * When this entry's retirement was decided.
+     *
+     * A file written before the decision was recorded separately says only when the device was
+     * retired, and that moment is the decision.
+     */
+    val decidedAtUtcMillis: Long get() = maxOf(retirementDecidedAtUtcMillis, retiredAtUtcMillis)
+}
+
+/**
+ * How far one device has caught up with another.
+ *
+ * A document's own list says, for each device it has ever heard of, the newest edit from that
+ * device it holds. Read from somebody else's file it is an acknowledgement: a phone whose list
+ * says it holds everything device X made up to Tuesday has seen anything X deleted before then,
+ * and is not going to hand it back.
+ *
+ * Small by construction. There is one entry per device in the household, not one per record.
+ */
+@Serializable
+data class SyncObservation(
+    /** The device the edits came from. */
+    val deviceId: String,
+    /** The newest stamp from that device this one holds. */
+    val throughMillis: Long,
 )
 
 @Serializable
@@ -160,6 +284,8 @@ data class SyncProfile(
     val birthYear: Int = 0,
     val activityLevel: String = "",
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 /**
@@ -210,6 +336,8 @@ data class SyncWeight(
     val originPackage: String? = null,
     val originDevice: String? = null,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 @Serializable
@@ -230,6 +358,8 @@ data class SyncMeasurement(
      */
     val carried: Boolean = false,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 @Serializable
@@ -240,6 +370,8 @@ data class SyncWater(
     val localDate: String,
     val millilitres: Int,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 @Serializable
@@ -251,6 +383,8 @@ data class SyncFast(
     val targetMinutes: Int,
     val note: String? = null,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 @Serializable
@@ -272,6 +406,8 @@ data class SyncGoal(
     val bandGrams: Int = com.weighttrack.core.model.DEFAULT_GOAL_BAND_GRAMS,
     val active: Boolean,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 @Serializable
@@ -285,6 +421,8 @@ data class SyncMacroTarget(
     val fatG: Double? = null,
     val basis: String,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 /**
@@ -306,6 +444,8 @@ data class SyncSettings(
     val trendWindowDays: Int,
     val milestoneStepGrams: Int,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
     /**
      * Which smoother draws the line, by name.
      *
@@ -340,6 +480,8 @@ data class SyncFood(
     val servingGrams: Double? = null,
     val origin: String,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 @Serializable
@@ -348,6 +490,8 @@ data class SyncRecipe(
     val name: String,
     val servings: Int,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 /**
@@ -363,6 +507,8 @@ data class SyncRecipeItem(
     val foodSyncId: String,
     val grams: Double,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )
 
 /**
@@ -387,4 +533,6 @@ data class SyncFoodLogEntry(
     val fatG: Double? = null,
     val loggedAtUtcMillis: Long,
     val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
 )

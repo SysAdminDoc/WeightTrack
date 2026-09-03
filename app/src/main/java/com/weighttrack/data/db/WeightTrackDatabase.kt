@@ -21,8 +21,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         FoodLogEntryEntity::class,
         MacroTargetEntity::class,
         DeletionEntity::class,
+        SyncPeerEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -68,6 +69,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // Nineteen marks a measurement carried forward from the last set rather than measured
         // again, so a set can be complete without every value claiming to be today's.
         AutoMigration(from = 18, to = 19),
+        // Twenty stamps every syncable row with the device that made the version of it that is
+        // here, and adds the table of devices this one syncs with. Together they replace a
+        // deletion rule that ran on the calendar with one that runs on evidence.
+        AutoMigration(from = 19, to = 20),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {
@@ -83,6 +88,7 @@ abstract class WeightTrackDatabase : RoomDatabase() {
     abstract fun macroTargetDao(): MacroTargetDao
     abstract fun deletionDao(): DeletionDao
     abstract fun syncDao(): SyncDao
+    abstract fun syncPeerDao(): SyncPeerDao
 
     /**
      * Creates the profile every existing row was just handed to.

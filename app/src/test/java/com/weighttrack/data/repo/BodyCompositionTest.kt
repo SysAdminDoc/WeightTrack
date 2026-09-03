@@ -1,5 +1,6 @@
 package com.weighttrack.data.repo
 
+import com.weighttrack.data.sync.SyncClock
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
@@ -167,9 +168,9 @@ class BodyCompositionTest {
         ).allowMainThreadQueries().build()
 
         try {
-            val document = SyncStore(database, database.syncDao(), database.deletionDao())
+            val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
                 .snapshot("phone", System.currentTimeMillis())
-            SyncStore(other, other.syncDao(), other.deletionDao()).apply(
+            SyncStore(other, other.syncDao(), other.deletionDao(), other.syncPeerDao(), SyncClock.inMemory()).apply(
                 checkNotNull(SyncDocument.decode(SyncDocument.encode(document))),
                 System.currentTimeMillis(),
             )
@@ -195,7 +196,7 @@ class BodyCompositionTest {
     @Test
     fun `it survives the backup file`() = runTest {
         record(full)
-        val document = SyncStore(database, database.syncDao(), database.deletionDao())
+        val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
             .snapshot("backup", System.currentTimeMillis())
 
         val text = BackupCodec.encode(

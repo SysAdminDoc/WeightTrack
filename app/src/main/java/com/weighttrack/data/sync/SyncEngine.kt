@@ -126,7 +126,12 @@ class SyncEngine @Inject constructor(
         // One commit for the rows, and nothing published until it has landed. A half-applied
         // merge followed by this device republishing its own view would hand that half back to
         // everybody else as though it were the whole answer.
-        val changes = runCatching { store.apply(merged, now) }.getOrElse { failure ->
+        val changes = runCatching {
+            // The merge has seen every device's file, so its list of deletions is the whole
+            // truth and replaces what this phone was holding. That is what actually lets a
+            // tombstone everybody has acknowledged be forgotten.
+            store.apply(merged, now, replaceDeletions = true)
+        }.getOrElse { failure ->
             runtimeLog.write(LogArea.SYNC, LogEvent.SYNC_APPLY_FAILED, cause = failure)
             return@withLock finish(now, SyncResult.Unreachable(strings[com.weighttrack.R.string.sync_apply_failed]))
         }

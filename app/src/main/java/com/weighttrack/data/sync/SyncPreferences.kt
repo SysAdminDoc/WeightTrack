@@ -176,6 +176,18 @@ class SyncPreferences @Inject constructor(
 
     suspend fun clearPendingSettings() = dataStore.edit { it.remove(Keys.PENDING_SETTINGS) }
 
+    /**
+     * Where the hybrid clock keeps its state between runs.
+     *
+     * See [SyncClock]. Kept beside the sync settings rather than in the database because it is a
+     * fact about this device rather than about anybody's readings, and because it must survive a
+     * restore: a phone that took its clock back from a backup would stamp its next edits behind
+     * everything it did between the backup and now.
+     */
+    suspend fun clockState(): Long = dataStore.data.first()[Keys.CLOCK_STATE] ?: 0
+
+    suspend fun setClockState(value: Long) = dataStore.edit { it[Keys.CLOCK_STATE] = value }
+
     suspend fun recordSync(atUtcMillis: Long, message: String?) = dataStore.edit {
         it[Keys.LAST_SYNC_AT] = atUtcMillis
         if (message == null) it.remove(Keys.LAST_MESSAGE) else it[Keys.LAST_MESSAGE] = message
@@ -208,5 +220,6 @@ class SyncPreferences @Inject constructor(
         val LAST_MESSAGE = stringPreferencesKey("sync_last_message")
         val BACKGROUND = booleanPreferencesKey("sync_background")
         val PENDING_SETTINGS = stringPreferencesKey("sync_pending_settings")
+        val CLOCK_STATE = longPreferencesKey("sync_clock_state")
     }
 }

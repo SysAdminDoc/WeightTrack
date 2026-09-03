@@ -1,5 +1,6 @@
 package com.weighttrack.data.io
 
+import com.weighttrack.data.sync.SyncClock
 import android.net.Uri
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
@@ -92,7 +93,7 @@ class ArchiveBackupTest {
         )
         return Rig(
             BackupService(
-                syncStore = SyncStore(database, database.syncDao(), database.deletionDao()),
+                syncStore = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory()),
                 context = context,
                 weightRepository = WeightRepository(database.weightEntryDao(), profiles, deletions),
                 measurementRepository = MeasurementRepository(

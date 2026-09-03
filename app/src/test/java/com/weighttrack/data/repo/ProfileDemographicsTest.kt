@@ -1,5 +1,6 @@
 package com.weighttrack.data.repo
 
+import com.weighttrack.data.sync.SyncClock
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.google.common.truth.Truth.assertThat
@@ -154,10 +155,10 @@ class ProfileDemographicsTest {
         ).allowMainThreadQueries().build()
 
         try {
-            val document = SyncStore(database, database.syncDao(), database.deletionDao())
+            val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
                 .snapshot("phone", System.currentTimeMillis())
             val encoded = SyncDocument.encode(document)
-            SyncStore(other, other.syncDao(), other.deletionDao())
+            SyncStore(other, other.syncDao(), other.deletionDao(), other.syncPeerDao(), SyncClock.inMemory())
                 .apply(checkNotNull(SyncDocument.decode(encoded)), System.currentTimeMillis())
 
             val there = other.syncDao().profiles().associateBy { it.syncId }
@@ -175,7 +176,7 @@ class ProfileDemographicsTest {
     fun `a device that does not carry a body does not wipe one`() = runTest {
         val (first, _) = household()
         val name = database.syncDao().profiles().single { it.id == first }.syncId
-        val store = SyncStore(database, database.syncDao(), database.deletionDao())
+        val store = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
         val now = System.currentTimeMillis()
 
         // What an older version writes: the profile, with none of the four fields on it.

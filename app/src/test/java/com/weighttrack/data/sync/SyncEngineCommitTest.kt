@@ -100,7 +100,7 @@ class SyncEngineCommitTest {
             context = context,
             strings = AppStrings(context),
             preferences = preferences,
-            store = SyncStore(database, dao, database.deletionDao()),
+            store = SyncStore(database, dao, database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory()),
             settingsRepository = settingsRepository,
             runtimeLog = RuntimeLog(File(temporary.newFolder(), "log.txt")),
             targets = object : SyncTargets(context, AppStrings(context), RuntimeLog(File(temporary.newFolder(), "log.txt"))) {

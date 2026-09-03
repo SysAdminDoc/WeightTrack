@@ -48,6 +48,8 @@ fun SyncCard(
     onAllowLocalNetwork: () -> Unit = {},
     onPickCertificate: () -> Unit = {},
     onForgetCertificate: () -> Unit = {},
+    devices: List<SyncDevice> = emptyList(),
+    onDeviceRetiredChange: (String, Boolean) -> Unit = { _, _ -> },
 ) {
     var editingWebDav by remember { mutableStateOf(false) }
 
@@ -117,6 +119,10 @@ fun SyncCard(
                 TextButton(onClick = { editingWebDav = true }) { Text(stringResource(R.string.settings_change_the_details)) }
             }
         }
+
+        if (settings.isOn && devices.isNotEmpty()) {
+            SyncDevices(devices, onDeviceRetiredChange)
+        }
     }
 
     if (editingWebDav) {
@@ -128,6 +134,84 @@ fun SyncCard(
                 onUseWebDav(url, user, password)
             },
         )
+    }
+}
+
+/**
+ * The devices sharing the folder, and which of them are still expected back.
+ *
+ * Here because a deletion is only forgotten once every device that is still expected has said it
+ * has seen it, so a phone that has been lost or sold holds every tombstone open forever. Saying
+ * it is gone is the only way to close them, and nobody can say that about a device they cannot
+ * see. It never touches that device's readings, which is why it needs no dialog: it is one tap,
+ * it says what it did, and the same tap puts it back.
+ */
+@Composable
+private fun SyncDevices(
+    devices: List<SyncDevice>,
+    onRetiredChange: (String, Boolean) -> Unit,
+) {
+    Spacer(Modifier.height(14.dp))
+    Text(
+        text = stringResource(R.string.sync_devices),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    Spacer(Modifier.height(4.dp))
+    Text(
+        text = stringResource(R.string.sync_devices_explained),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+    devices.forEach { device ->
+        Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+        ) {
+            androidx.compose.foundation.layout.Column(Modifier.weight(1f)) {
+                Text(
+                    text = if (device.isThisDevice) {
+                        stringResource(R.string.sync_device_this_one, device.deviceId)
+                    } else {
+                        device.deviceId
+                    },
+                    style = MaterialTheme.typography.bodyLarge,
+                )
+                Text(
+                    text = when {
+                        device.retired -> stringResource(R.string.sync_device_gone)
+                        device.lastSeenAtUtcMillis <= 0 ->
+                            stringResource(R.string.sync_device_never_seen)
+                        else -> stringResource(
+                            R.string.sync_device_last_seen,
+                            com.weighttrack.ui.format.DateFormatters.fullDate(
+                                java.time.Instant.ofEpochMilli(device.lastSeenAtUtcMillis)
+                                    .atZone(java.time.ZoneId.systemDefault())
+                                    .toLocalDate(),
+                            ),
+                        )
+                    },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // This device is never retired from itself: it is plainly here, and the tombstone
+            // rule would then be waiting on nobody at all.
+            if (!device.isThisDevice) {
+                TextButton(onClick = { onRetiredChange(device.deviceId, !device.retired) }) {
+                    Text(
+                        stringResource(
+                            if (device.retired) {
+                                R.string.sync_device_bring_back
+                            } else {
+                                R.string.sync_device_forget
+                            },
+                        ),
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -148,7 +232,9 @@ private fun SyncStatus(
         )
     }
     Spacer(Modifier.height(8.dp))
-    SyncToggleRow(
+    // The shared row, which names the switch for a screen reader. A private copy here did not,
+    // so the background switch was a control that announced nothing at all.
+    ToggleRow(
         label = stringResource(R.string.settings_sync_in_the_background),
         checked = settings.syncInBackground,
         onCheckedChange = onBackgroundChange,
@@ -227,16 +313,4 @@ private fun WebDavDialog(
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
-}
-
-@Composable
-private fun SyncToggleRow(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
-    Row(
-        Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
-    ) {
-        Text(label, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-        androidx.compose.material3.Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
 }
