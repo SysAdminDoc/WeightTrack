@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- Backups and sync no longer carry a height, sex, year of birth and activity level for the phone as a whole. Those moved onto each person a while ago, but the file kept a second copy taken from the old place, which nothing has written since, so every archive and every file sent to your other phone held a figure that might describe nobody in the house. Each person's body now travels on their own row and nowhere else. An older backup that only has the old copy is still read, and still lands on whoever is open, exactly as before.
+
 ## 0.5.0 (2026-09-03)
 
 - A backup or a spreadsheet of readings can be opened straight into WeightTrack. Tap one in Files, or send it from another app, and it goes down the same path the picker in Settings uses: a backup shows you what is in it before a single row changes, and a spreadsheet imports with the same report of anything it had to refuse. WeightTrack only offers itself for those two kinds of file, so it will not clutter the list for a photograph, and a file it cannot make sense of says so and changes nothing.

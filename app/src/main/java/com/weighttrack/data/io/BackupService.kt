@@ -145,6 +145,9 @@ class BackupService @Inject constructor(
             val measurements = measurementRepository.observeAll().first()
             val goals = goalRepository.observeAll().first()
             val settings = settingsRepository.settings.first()
+            // Only for the version-1 block below, which is the one shape that cannot carry a
+            // profile of its own.
+            val whoeverIsOpen = profileRepository.activeProfile.first()?.demographics
             // Everything comes from the same place sync reads it, so a backup and a sync carry
             // the same thing and there is one description of what that is. Every profile, not
             // just whoever is open, and the tombstones with it.
@@ -154,10 +157,8 @@ class BackupService @Inject constructor(
                     weightUnit = settings.weightUnit.name,
                     lengthUnit = settings.lengthUnit.name,
                     themeMode = settings.themeMode.name,
-                    heightMm = settings.profile.heightMm,
-                    sex = settings.profile.sex.name,
-                    birthYear = settings.profile.birthYear,
-                    activityLevel = settings.profile.activityLevel.name,
+                    // Demographics travel on the profile rows in the same document. See
+                    // SyncSettings.heightMm for why the fields are still declared here.
                     trendWindowDays = settings.trendWindowDays,
                     milestoneStepGrams = settings.milestoneStepGrams,
                     updatedAtUtcMillis = settings.updatedAtUtcMillis,
@@ -186,10 +187,14 @@ class BackupService @Inject constructor(
                     weightUnit = settings.weightUnit.name,
                     lengthUnit = settings.lengthUnit.name,
                     themeMode = settings.themeMode.name,
-                    heightMm = settings.profile.heightMm,
-                    sex = settings.profile.sex.name,
-                    birthYear = settings.profile.birthYear,
-                    activityLevel = settings.profile.activityLevel.name,
+                    // The one shape that still carries a body, because a build old enough to
+                    // read only this one has nowhere else to find it. Whoever is open, not the
+                    // app-level copy that stopped being written when profiles arrived: an old
+                    // build restoring this gets a real person rather than a stale figure.
+                    heightMm = whoeverIsOpen?.heightMm ?: 0,
+                    sex = whoeverIsOpen?.sex?.name.orEmpty(),
+                    birthYear = whoeverIsOpen?.birthYear ?: 0,
+                    activityLevel = whoeverIsOpen?.activityLevel?.name.orEmpty(),
                     trendWindowDays = settings.trendWindowDays,
                     milestoneStepGrams = settings.milestoneStepGrams,
                     smoothingMode = settings.smoothingMode.name,
@@ -585,14 +590,6 @@ class BackupService @Inject constructor(
                     weightUnit = decode(stored.weightUnit, WeightUnit.entries, current.weightUnit),
                     lengthUnit = decode(stored.lengthUnit, LengthUnit.entries, current.lengthUnit),
                     themeMode = decode(stored.themeMode, ThemeMode.entries, current.themeMode),
-                    heightMm = stored.heightMm,
-                    sex = decode(stored.sex, Sex.entries, current.profile.sex),
-                    birthYear = stored.birthYear,
-                    activityLevel = decode(
-                        stored.activityLevel,
-                        ActivityLevel.entries,
-                        current.profile.activityLevel,
-                    ),
                     trendWindowDays = stored.trendWindowDays,
                     milestoneStepGrams = stored.milestoneStepGrams,
                     smoothingMode = decode(stored.smoothingMode, SmoothingMode.entries, current.smoothingMode),
@@ -670,14 +667,6 @@ class BackupService @Inject constructor(
                 weightUnit = decode(stored.weightUnit, WeightUnit.entries, current.weightUnit),
                 lengthUnit = decode(stored.lengthUnit, LengthUnit.entries, current.lengthUnit),
                 themeMode = decode(stored.themeMode, ThemeMode.entries, current.themeMode),
-                heightMm = stored.heightMm,
-                sex = decode(stored.sex, Sex.entries, current.profile.sex),
-                birthYear = stored.birthYear,
-                activityLevel = decode(
-                    stored.activityLevel,
-                    ActivityLevel.entries,
-                    current.profile.activityLevel,
-                ),
                 trendWindowDays = stored.trendWindowDays,
                 milestoneStepGrams = stored.milestoneStepGrams,
                 smoothingMode = decode(stored.smoothingMode, SmoothingMode.entries, current.smoothingMode),

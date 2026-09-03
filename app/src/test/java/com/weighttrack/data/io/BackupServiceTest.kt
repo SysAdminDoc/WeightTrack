@@ -168,10 +168,18 @@ class BackupServiceTest {
 
     @Test
     fun `a restore brings the units and the rest of the settings with it`() = runTest {
+        // Every setting that describes the phone, not just the two that are easy to check. These
+        // were written on the way out from the first version and never read on the way back, so
+        // restoring onto a new phone quietly lost the lot. Demographics are deliberately not
+        // among them: they belong to a profile, and the tests below follow them there.
         seedTwoProfiles()
         val exporting = testSettingsRepository()
         exporting.setWeightUnit(WeightUnit.LB)
+        exporting.setLengthUnit(com.weighttrack.core.model.LengthUnit.IN)
+        exporting.setThemeMode(com.weighttrack.core.model.ThemeMode.LIGHT)
         exporting.setTrendWindowDays(21)
+        exporting.setMilestoneStepGrams(2_500)
+        exporting.setSmoothingMode(com.weighttrack.core.math.SmoothingMode.HOLT)
         val file = write(serviceFor(source, exporting).exportedJson().getOrThrow())
 
         val importing = testSettingsRepository()
@@ -179,7 +187,11 @@ class BackupServiceTest {
 
         val restored = importing.settings.first()
         assertThat(restored.weightUnit).isEqualTo(WeightUnit.LB)
+        assertThat(restored.lengthUnit).isEqualTo(com.weighttrack.core.model.LengthUnit.IN)
+        assertThat(restored.themeMode).isEqualTo(com.weighttrack.core.model.ThemeMode.LIGHT)
         assertThat(restored.trendWindowDays).isEqualTo(21)
+        assertThat(restored.milestoneStepGrams).isEqualTo(2_500)
+        assertThat(restored.smoothingMode).isEqualTo(com.weighttrack.core.math.SmoothingMode.HOLT)
     }
 
     @Test
@@ -354,6 +366,59 @@ class BackupServiceTest {
 
         assertThat(target.syncDao().profiles()).hasSize(3)
         assertThat(profiles.activeId()).isEqualTo(mine)
+    }
+
+    @Test
+    fun `a backup carries each body on its own profile and not once for the phone`() = runTest {
+        seedTwoProfiles()
+        val dao = source.syncDao()
+        source.profileDao().update(
+            dao.profiles().single { it.syncId == "p-me" }
+                .copy(heightMm = 1_803, birthYear = 1988),
+        )
+        source.profileDao().update(
+            dao.profiles().single { it.syncId == "p-them" }
+                .copy(heightMm = 1_640, birthYear = 1994),
+        )
+        // The app-level copy, deliberately matching neither of them. It is what a phone upgraded
+        // from before profiles still holds, and what the settings block used to be written from.
+        val settings = testSettingsRepository()
+        settings.setProfile(com.weighttrack.core.model.UserProfile(heightMm = 1_650, birthYear = 1975))
+
+        val text = serviceFor(source, settings).exportedJson().getOrThrow()
+        val backup = checkNotNull(BackupCodec.decode(text))
+
+        // Two people, two heights. The settings block carries neither: it used to carry the
+        // app-level copy, which stopped being written the day profiles arrived, so every archive
+        // and every peer file since has shipped a figure nobody typed.
+        val document = checkNotNull(backup.document)
+        assertThat(document.profiles.single { it.syncId == "p-me" }.heightMm).isEqualTo(1_803)
+        assertThat(document.profiles.single { it.syncId == "p-them" }.heightMm).isEqualTo(1_640)
+        assertThat(document.settings?.heightMm).isEqualTo(0)
+        assertThat(document.settings?.birthYear).isEqualTo(0)
+        assertThat(document.settings?.sex).isEmpty()
+        assertThat(document.settings?.activityLevel).isEmpty()
+    }
+
+    @Test
+    fun `each person's body comes back on their own row`() = runTest {
+        seedTwoProfiles()
+        val dao = source.syncDao()
+        source.profileDao().update(
+            dao.profiles().single { it.syncId == "p-me" }
+                .copy(heightMm = 1_803, birthYear = 1988),
+        )
+        source.profileDao().update(
+            dao.profiles().single { it.syncId == "p-them" }
+                .copy(heightMm = 1_640, birthYear = 1994),
+        )
+        val file = write(serviceFor(source).exportedJson().getOrThrow())
+
+        serviceFor(target).importJson(Uri.fromFile(file)).getOrThrow()
+
+        val restored = target.syncDao().profiles().associate { it.syncId to it.heightMm }
+        assertThat(restored["p-me"]).isEqualTo(1_803)
+        assertThat(restored["p-them"]).isEqualTo(1_640)
     }
 
     @Test

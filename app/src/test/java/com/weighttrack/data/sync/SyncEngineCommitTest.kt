@@ -264,6 +264,49 @@ class SyncEngineCommitTest {
     }
 
     @Test
+    fun `a body travels on the profile row and nowhere else`() = runTest {
+        // Whose body it is only has an answer on a profile. The settings block used to carry one
+        // height and one year of birth for the whole phone, and kept carrying whatever that copy
+        // held long after the screens stopped writing it: a stale figure sent to every device.
+        database.profileDao().update(
+            database.syncDao().profiles().single().copy(
+                heightMm = 1_803,
+                birthYear = 1988,
+                updatedAtUtcMillis = now - 5_000,
+            ),
+        )
+        // The app-level copy, deliberately different, standing in for what a phone upgraded from
+        // before profiles still holds. If the writer ever reads it again this is what would be
+        // published, and it describes nobody.
+        settings.setProfile(com.weighttrack.core.model.UserProfile(heightMm = 1_650, birthYear = 1975))
+        val engine = engineWith(peerDocument(emptyList()))
+
+        engine.syncNow(now)
+
+        val published = SyncDocument.decode(target.published!!)!!
+        assertThat(published.profiles.single { it.syncId == "p-me" }.heightMm).isEqualTo(1_803)
+        assertThat(published.settings?.heightMm).isEqualTo(0)
+        assertThat(published.settings?.birthYear).isEqualTo(0)
+        assertThat(published.settings?.sex).isEmpty()
+        assertThat(published.settings?.activityLevel).isEmpty()
+    }
+
+    @Test
+    fun `a body another device sent is not written over this phone's own`() = runTest {
+        // `theirs` carries the old shape, as a device that has not been updated still writes it.
+        // Reading it back into the app-level copy would refill the inbox that the one-time move
+        // onto profiles reads, with a figure nobody typed on this phone.
+        val engine = engineWith(peerDocument(emptyList(), settings = theirs))
+
+        engine.syncNow(now)
+
+        val local = settings.settings.first()
+        assertThat(local.weightUnit).isEqualTo(WeightUnit.LB)
+        assertThat(local.profile.heightMm).isEqualTo(0)
+        assertThat(local.profile.birthYear).isEqualTo(0)
+    }
+
+    @Test
     fun `settings that could not be written leave a note`() = runTest {
         // A preferences file whose writes are lost, standing in for the process dying between
         // the database commit and the settings landing on disk.

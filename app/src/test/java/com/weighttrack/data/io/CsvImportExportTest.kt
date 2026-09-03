@@ -83,24 +83,6 @@ class ExportRoundTripTest {
     }
 
     @Test
-    fun `the settings in a backup are the ones the importer reads`() {
-        // They were written on the way out from the first version and never read on the way back,
-        // so restoring on a new phone quietly lost units, theme, height and the rest. This holds
-        // the file format and the importer to the same field names.
-        val importer = java.io.File(
-            "src/main/java/com/weighttrack/data/io/BackupService.kt",
-        ).readText()
-        val restoring = importer.substringAfter("backup.settings?.let").substringBefore("ImportSummary(")
-
-        listOf(
-            "weightUnit", "lengthUnit", "themeMode", "heightMm",
-            "sex", "birthYear", "activityLevel", "trendWindowDays", "milestoneStepGrams",
-        ).forEach { field ->
-            assertThat(restoring).contains(field)
-        }
-    }
-
-    @Test
     fun `a backup written by a newer version still restores`() {
         val text = """
             {

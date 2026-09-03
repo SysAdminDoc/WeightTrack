@@ -128,13 +128,6 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
 
 #### P1
 
-- [ ] P1: Stop serialising the legacy app-level demographics block in backups and sync
-  Why: Settings writes height, sex, birth year and activity per profile, but the backup and sync writers still copy the app-level AppSettings.profile that only the schema-5 migration reads, so every archive and every peer file carries a stale block while the settings copy promises "each person's" values; a restore decodes it back.
-  Evidence: `app/src/main/java/com/weighttrack/data/io/BackupService.kt:157-160,189-192,589-594,674-679`; `app/src/main/java/com/weighttrack/data/repo/ProfileRepository.kt:341-351`; `app/src/main/res/values/strings.xml:321`; `app/src/main/java/com/weighttrack/ui/settings/PeopleSettingsController.kt:65-114`
-  Touches: data/io/Backup.kt, data/io/BackupService.kt, data/sync/SyncEngine.kt, data/prefs/SettingsRepository.kt, the backup and sync round-trip tests
-  Acceptance: the backup document and the sync document carry demographics only on profile rows; restoring a backup written after editing a profile reproduces the edited values on a fresh install; the legacy fields are read on import for old files and never written; a round-trip test per carrier (backup, sync) goes red if either writer regains the block.
-  Complexity: S
-
 - [ ] P1: Preview before archive restore and CSV import, with every rejected row listed
   Why: the JSON restore shows counts before it merges because it "reaches into every screen at once", yet the encrypted archive (a superset that carries photos) and the CSV import write on confirm with no preview, and the CSV result shows only the first rejected row plus a count.
   Evidence: `app/src/main/java/com/weighttrack/ui/settings/BackupSettingsController.kt:85-100,109-124`; `app/src/main/java/com/weighttrack/ui/settings/SettingsDialogs.kt:29-88`; https://github.com/QuantumPhysique/trale/issues/508 (silent import failures are the niche's chronic complaint)

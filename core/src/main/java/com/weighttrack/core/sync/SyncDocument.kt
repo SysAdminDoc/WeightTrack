@@ -440,21 +440,36 @@ data class SyncMacroTarget(
 )
 
 /**
- * The settings that describe the person rather than the phone.
+ * The settings that describe the phone rather than any one person.
  *
  * Whether this phone talks to Health Connect is left out on purpose. It is a fact about one
  * device's connection to one Health Connect, and copying it to a second phone would have both of
  * them writing the same weights into the same place.
+ *
+ * The four demographic fields below are the shape this had before a household could have more
+ * than one person in it. They are still here, and still written, but only ever as their defaults:
+ * a device on 0.4.0 declares them without one, so leaving them out entirely would make it refuse
+ * the whole document and stop syncing with this one. See [heightMm].
  */
 @Serializable
 data class SyncSettings(
     val weightUnit: String,
     val lengthUnit: String,
     val themeMode: String,
-    val heightMm: Int,
-    val sex: String,
-    val birthYear: Int,
-    val activityLevel: String,
+    /**
+     * Where a height used to travel, and no longer does.
+     *
+     * Demographics belong to a profile and travel on its row, because a household sharing one
+     * phone shares neither a height nor a birth year. What was left behind here was whatever the
+     * app-level copy happened to hold, which stopped being written the day profiles arrived: a
+     * stale figure, sent to every device and decoded back on every restore.
+     *
+     * Read on the way in, for a document old enough to predate profiles. Never written.
+     */
+    val heightMm: Int = 0,
+    val sex: String = "",
+    val birthYear: Int = 0,
+    val activityLevel: String = "",
     val trendWindowDays: Int,
     val milestoneStepGrams: Int,
     val updatedAtUtcMillis: Long,

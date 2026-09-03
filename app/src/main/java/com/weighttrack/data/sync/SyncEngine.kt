@@ -3,9 +3,7 @@ package com.weighttrack.data.sync
 import android.content.Context
 import android.net.Uri
 import com.weighttrack.core.math.SmoothingMode
-import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.LengthUnit
-import com.weighttrack.core.model.Sex
 import com.weighttrack.core.model.ThemeMode
 import com.weighttrack.core.model.WeightUnit
 import com.weighttrack.core.sync.SyncAddress
@@ -157,10 +155,9 @@ class SyncEngine @Inject constructor(
                 weightUnit = local.weightUnit.name,
                 lengthUnit = local.lengthUnit.name,
                 themeMode = local.themeMode.name,
-                heightMm = local.profile.heightMm,
-                sex = local.profile.sex.name,
-                birthYear = local.profile.birthYear,
-                activityLevel = local.profile.activityLevel.name,
+                // Height, sex, year of birth and activity are deliberately absent. They belong to
+                // a profile and travel on its row; the app-level copy they used to be read from
+                // has not been written since profiles arrived.
                 trendWindowDays = local.trendWindowDays,
                 milestoneStepGrams = local.milestoneStepGrams,
                 smoothingMode = local.smoothingMode.name,
@@ -217,10 +214,6 @@ class SyncEngine @Inject constructor(
             weightUnit = decode(remote.weightUnit, WeightUnit.entries, local.weightUnit),
             lengthUnit = decode(remote.lengthUnit, LengthUnit.entries, local.lengthUnit),
             themeMode = decode(remote.themeMode, ThemeMode.entries, local.themeMode),
-            heightMm = remote.heightMm,
-            sex = decode(remote.sex, Sex.entries, local.profile.sex),
-            birthYear = remote.birthYear,
-            activityLevel = decode(remote.activityLevel, ActivityLevel.entries, local.profile.activityLevel),
             trendWindowDays = remote.trendWindowDays,
             milestoneStepGrams = remote.milestoneStepGrams,
             smoothingMode = decode(remote.smoothingMode, SmoothingMode.entries, local.smoothingMode),

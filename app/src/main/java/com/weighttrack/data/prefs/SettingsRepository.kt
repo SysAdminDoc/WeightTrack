@@ -295,15 +295,19 @@ class SettingsRepository @Inject constructor(
         it[Keys.SETTINGS_UPDATED_AT] = System.currentTimeMillis()
     }
 
-    /** Writes settings that arrived from another device, keeping the time they were changed. */
+    /**
+     * Writes settings that arrived from another device, keeping the time they were changed.
+     *
+     * Height, sex, year of birth and activity are not among them. They belong to a profile and
+     * arrive on its row; the keys here are what a phone upgrading from before profiles still
+     * holds, and [com.weighttrack.data.repo.ProfileRepository.adoptLegacyDemographics] is the one
+     * thing that reads them. Writing another device's copy over them would refill that inbox with
+     * a figure nobody typed on this phone.
+     */
     suspend fun applySynced(
         weightUnit: WeightUnit,
         lengthUnit: LengthUnit,
         themeMode: ThemeMode,
-        heightMm: Int,
-        sex: Sex,
-        birthYear: Int,
-        activityLevel: ActivityLevel,
         trendWindowDays: Int,
         milestoneStepGrams: Int,
         smoothingMode: SmoothingMode,
@@ -312,10 +316,6 @@ class SettingsRepository @Inject constructor(
         it[Keys.WEIGHT_UNIT] = weightUnit.name
         it[Keys.LENGTH_UNIT] = lengthUnit.name
         it[Keys.THEME_MODE] = themeMode.name
-        it[Keys.HEIGHT_MM] = heightMm
-        it[Keys.SEX] = sex.name
-        it[Keys.BIRTH_YEAR] = birthYear
-        it[Keys.ACTIVITY_LEVEL] = activityLevel.name
         it[Keys.TREND_WINDOW_DAYS] = trendWindowDays
         it[Keys.MILESTONE_STEP_GRAMS] = milestoneStepGrams
         it[Keys.SMOOTHING_MODE] = smoothingMode.name
