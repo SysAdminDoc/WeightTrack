@@ -67,7 +67,23 @@ data class ActivityState(
 class ChartsViewModel @Inject constructor(
     progressCalculator: ProgressCalculator,
     private val healthConnect: HealthConnectSync,
+    medication: com.weighttrack.data.repo.MedicationRepository,
+    settingsRepository: com.weighttrack.data.prefs.SettingsRepository,
 ) : ViewModel() {
+
+    /**
+     * Days an injection went in, and days something was felt.
+     *
+     * Empty whenever the injection log is switched off, so the chart of somebody who has never
+     * heard of it is exactly the chart it always was.
+     */
+    val medicationDays: StateFlow<MedicationDays> = kotlinx.coroutines.flow.combine(
+        settingsRepository.settings,
+        medication.observeDoses(),
+        medication.observeSideEffects(),
+    ) { settings, doses, effects ->
+        medicationDaysFrom(settings.medicationEnabled, doses, effects)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MedicationDays())
 
     val snapshot: StateFlow<ProgressSnapshot> = progressCalculator.observe()
         .stateIn(
@@ -184,4 +200,33 @@ class ChartsViewModel @Inject constructor(
         /** The activity card itself still shows a month. */
         const val ACTIVITY_CARD_DAYS = 30
     }
+}
+
+/**
+ * What the chart is allowed to mark.
+ *
+ * Its own function so the promise can be a test: with the injection log switched off this is
+ * empty whatever is in the database, which is what makes the chart of somebody who has never
+ * heard of the feature exactly the chart it always was. Both sets are keyed on the row''s own
+ * local date, which is the same axis the trend is drawn on.
+ */
+internal fun medicationDaysFrom(
+    enabled: Boolean,
+    doses: List<com.weighttrack.data.repo.MedicationDose>,
+    effects: List<com.weighttrack.data.repo.SideEffect>,
+): MedicationDays = if (!enabled) {
+    MedicationDays()
+} else {
+    MedicationDays(
+        doses = doses.map { it.localDate }.toSet(),
+        sideEffects = effects.map { it.localDate }.toSet(),
+    )
+}
+
+/** Which days on the chart carry an injection, and which carry something somebody felt. */
+data class MedicationDays(
+    val doses: Set<LocalDate> = emptySet(),
+    val sideEffects: Set<LocalDate> = emptySet(),
+) {
+    val isEmpty: Boolean get() = doses.isEmpty() && sideEffects.isEmpty()
 }

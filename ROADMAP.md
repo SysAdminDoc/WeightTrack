@@ -103,13 +103,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 ### P2
 
 
-- [ ] P2: GLP-1 log: dose, site with rotation, side effects, protein target and a clinician PDF, off by default
-  Why: MyFitnessPal (free, 2026-04-28), Noom (free, 2026-06-24) and MyNetDiary (paid, 2026-05-05) all shipped this in 2026; no OSS tracker has it; the science says 1.2 to 1.6 g/kg protein and a lean-mass watch during the 10 to 13 percent loss these users see.
-  Evidence: https://finance.yahoo.com/sectors/healthcare/articles/myfitnesspal-launches-comprehensive-glp-1-130000875.html ; https://shotsyapp.com/glp-1-tracker/ (feature bar: site rotation, severity on the dose timeline, level between doses, PDF) ; https://www.ncbi.nlm.nih.gov/pmc/articles/PMC12673431/ ; https://www.clinicalnutritionreport.com/articles/preventing-lean-mass-loss-glp1/
-  Touches: new core/medication (dose schedule, site rotation, pharmacokinetic decay per drug from published half-lives), new data/db MedicationDose + SideEffect entities (Room v12, syncable with tombstones, added to DeletionCoverageTest), new ui/medication screen behind a Settings toggle, charts overlay of dose markers on the trend, PDF via android.graphics.pdf, protein target surfaced in the diary when the toggle is on
-  Note (2026-08-31 afternoon): demand confirmed this is table stakes. MyFitnessPal made GLP-1 dose, site and side-effect logging free on 2026-04-28 (https://blog.myfitnesspal.com/glp-1-support-medication-tracking/). Shotsy, Pep and Noyoyo are dedicated Android trackers, but none is local-first or exports a clinician report, so the niche below stands.
-  Acceptance: a dose logged with a site suggests the next site in rotation; a side effect appears on the same day axis as doses on the chart; the PDF lists doses, side effects and the weight trend for a chosen range with no other data; deleting a dose produces a tombstone; the feature is invisible while the toggle is off. Stays local: Health Connect Medical Records has no Play policy yet (https://developer.android.com/health-and-fitness/health-connect/medical-records).
-  Complexity: XL
 
 
 

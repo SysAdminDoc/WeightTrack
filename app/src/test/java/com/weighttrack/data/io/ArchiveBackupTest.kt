@@ -93,7 +93,7 @@ class ArchiveBackupTest {
         )
         return Rig(
             BackupService(
-                syncStore = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory()),
+                syncStore = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), database.medicationDoseDao(), database.sideEffectDao(), SyncClock.inMemory()),
                 context = context,
                 weightRepository = WeightRepository(database.weightEntryDao(), profiles, deletions),
                 measurementRepository = MeasurementRepository(

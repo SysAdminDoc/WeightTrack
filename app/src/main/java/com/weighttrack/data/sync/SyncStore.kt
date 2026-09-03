@@ -74,6 +74,8 @@ class SyncStore @Inject constructor(
     private val dao: SyncDao,
     private val deletions: DeletionDao,
     private val peers: com.weighttrack.data.db.SyncPeerDao,
+    private val medication: com.weighttrack.data.db.MedicationDoseDao,
+    private val effects: com.weighttrack.data.db.SideEffectDao,
     private val clock: SyncClock,
 ) {
 
@@ -118,6 +120,12 @@ class SyncStore @Inject constructor(
                 dao.foodLog().mapNotNull { row ->
                     nameOf[row.profileId]?.let { row.toSync(it, row.foodId?.let(foodNames::get)) }
                 }
+            },
+            medicationDoses = medication.all().mapNotNull { row ->
+                nameOf[row.profileId]?.let { row.toSync(it) }
+            },
+            sideEffects = effects.all().mapNotNull { row ->
+                nameOf[row.profileId]?.let { row.toSync(it) }
             },
             deletions = deletions.all().mapNotNull { it.toSync() },
             peers = known.map {
@@ -210,6 +218,16 @@ class SyncStore @Inject constructor(
             { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
             { dao.updateFoodLog(it) },
         )
+        restamp(
+            medication.all(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { medication.updateAll(it) },
+        )
+        restamp(
+            effects.all(), { it.updatedAtUtcMillis }, { it.stampMillis },
+            { row, at -> row.copy(updatedAtUtcMillis = at, stampMillis = at, stampDeviceId = deviceId) },
+            { effects.updateAll(it) },
+        )
         // A tombstone's stamp is the moment of the deletion, so it is never moved: doing that
         // would hold a delete against an edit made after it. Only the name of the device that
         // made it is filled in, and only when it is missing.
@@ -275,6 +293,7 @@ class SyncStore @Inject constructor(
         // After the foods and the recipes, because an ingredient points at both.
         changes += applyRecipeItems(merged)
         changes += applyFoodLog(merged, profileIdOf)
+        changes += applyMedication(merged, profileIdOf)
         changes += applyDeletions(merged)
 
         // The merged set replaces what is here rather than being added to it. Everybody else's
@@ -956,6 +975,8 @@ class SyncStore @Inject constructor(
             SyncKind.RECIPE to merged.recipes.map { it.syncId }.toSet(),
             SyncKind.RECIPE_ITEM to merged.recipeItems.map { it.syncId }.toSet(),
             SyncKind.FOOD_LOG to merged.foodLog.map { it.syncId }.toSet(),
+            SyncKind.MEDICATION_DOSE to merged.medicationDoses.map { it.syncId }.toSet(),
+            SyncKind.SIDE_EFFECT to merged.sideEffects.map { it.syncId }.toSet(),
         )
         // A tombstone naming a profile applies to that profile. One naming none applies
         // wherever the name is found, which is what a file written before deletions carried a
@@ -992,6 +1013,14 @@ class SyncStore @Inject constructor(
         gone(SyncKind.FOOD_LOG).ifNotEmpty {
             removed += it.size
             dao.deleteFoodLog(it.map { d -> d.syncId })
+        }
+        gone(SyncKind.MEDICATION_DOSE).ifNotEmpty {
+            removed += it.size
+            medication.deleteByNames(it.map { d -> d.syncId })
+        }
+        gone(SyncKind.SIDE_EFFECT).ifNotEmpty {
+            removed += it.size
+            effects.deleteByNames(it.map { d -> d.syncId })
         }
 
         val profilesGone = gone(SyncKind.PROFILE).map { it.syncId }
@@ -1050,6 +1079,103 @@ class SyncStore @Inject constructor(
 
     private inline fun <T> List<T>.ifNotEmpty(block: (List<T>) -> Unit) {
         if (isNotEmpty()) block(this)
+    }
+
+    // ---- the injection log, for anybody who has turned it on ----
+
+    /**
+     * Doses and side effects, the same way as everything else that belongs to a profile.
+     *
+     * Nothing here is conditional on the toggle. A phone with the feature switched off holds no
+     * rows and sends none, but it still carries what the other phone sent, so turning it on later
+     * does not find a hole where a month of injections should be.
+     */
+    private suspend fun applyMedication(
+        merged: SyncDocument,
+        profileIdOf: Map<String, Long>,
+    ): SyncChanges {
+        val localDoses = medication.all().associateBy { it.profileId to it.syncId }
+        val freshDoses = mutableListOf<com.weighttrack.data.db.MedicationDoseEntity>()
+        val revisedDoses = mutableListOf<com.weighttrack.data.db.MedicationDoseEntity>()
+        for (remote in merged.medicationDoses) {
+            val profileId = profileIdOf[remote.profileSyncId] ?: continue
+            val existing = localDoses[profileId to remote.syncId]
+            if (existing == null) {
+                freshDoses += com.weighttrack.data.db.MedicationDoseEntity(
+                    profileId = profileId,
+                    timestampUtcMillis = remote.timestampUtcMillis,
+                    localDate = remote.localDate,
+                    drug = remote.drug,
+                    milligrams = remote.milligrams,
+                    site = remote.site,
+                    note = remote.note,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
+                    syncId = remote.syncId,
+                )
+            } else {
+                val candidate = existing.copy(
+                    timestampUtcMillis = remote.timestampUtcMillis,
+                    localDate = remote.localDate,
+                    drug = remote.drug,
+                    milligrams = remote.milligrams,
+                    site = remote.site,
+                    note = remote.note,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
+                )
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
+                    revisedDoses += candidate
+                }
+            }
+        }
+        if (freshDoses.isNotEmpty()) medication.insertAll(freshDoses)
+        if (revisedDoses.isNotEmpty()) medication.updateAll(revisedDoses)
+
+        val localEffects = effects.all().associateBy { it.profileId to it.syncId }
+        val freshEffects = mutableListOf<com.weighttrack.data.db.SideEffectEntity>()
+        val revisedEffects = mutableListOf<com.weighttrack.data.db.SideEffectEntity>()
+        for (remote in merged.sideEffects) {
+            val profileId = profileIdOf[remote.profileSyncId] ?: continue
+            val existing = localEffects[profileId to remote.syncId]
+            if (existing == null) {
+                freshEffects += com.weighttrack.data.db.SideEffectEntity(
+                    profileId = profileId,
+                    timestampUtcMillis = remote.timestampUtcMillis,
+                    localDate = remote.localDate,
+                    kind = remote.kind,
+                    severity = remote.severity,
+                    note = remote.note,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
+                    syncId = remote.syncId,
+                )
+            } else {
+                val candidate = existing.copy(
+                    timestampUtcMillis = remote.timestampUtcMillis,
+                    localDate = remote.localDate,
+                    kind = remote.kind,
+                    severity = remote.severity,
+                    note = remote.note,
+                    updatedAtUtcMillis = remote.updatedAtUtcMillis,
+                    stampMillis = remote.updatedAtUtcMillis,
+                    stampDeviceId = remote.stampDeviceId,
+                )
+                if (remote.stamp() >= existing.stamp(merged.deviceId) && candidate != existing) {
+                    revisedEffects += candidate
+                }
+            }
+        }
+        if (freshEffects.isNotEmpty()) effects.insertAll(freshEffects)
+        if (revisedEffects.isNotEmpty()) effects.updateAll(revisedEffects)
+
+        return SyncChanges(
+            added = freshDoses.size + freshEffects.size,
+            updated = revisedDoses.size + revisedEffects.size,
+        )
     }
 
     // ---- mapping ----
@@ -1233,6 +1359,33 @@ class SyncStore @Inject constructor(
             stampDeviceId = stampDeviceId,
         )
 
+    private fun com.weighttrack.data.db.MedicationDoseEntity.toSync(profileSyncId: String) =
+        com.weighttrack.core.sync.SyncMedicationDose(
+            syncId = syncId,
+            profileSyncId = profileSyncId,
+            timestampUtcMillis = timestampUtcMillis,
+            localDate = localDate,
+            drug = drug,
+            milligrams = milligrams,
+            site = site,
+            note = note,
+            updatedAtUtcMillis = updatedAtUtcMillis,
+            stampDeviceId = stampDeviceId,
+        )
+
+    private fun com.weighttrack.data.db.SideEffectEntity.toSync(profileSyncId: String) =
+        com.weighttrack.core.sync.SyncSideEffect(
+            syncId = syncId,
+            profileSyncId = profileSyncId,
+            timestampUtcMillis = timestampUtcMillis,
+            localDate = localDate,
+            kind = kind,
+            severity = severity,
+            note = note,
+            updatedAtUtcMillis = updatedAtUtcMillis,
+            stampDeviceId = stampDeviceId,
+        )
+
     private fun DeletionEntity.toSync(): SyncDeletion? {
         val known = runCatching { SyncKind.valueOf(kind) }.getOrNull() ?: return null
         return SyncDeletion(
@@ -1288,4 +1441,10 @@ private fun RecipeEntity.stamp(localDeviceId: String) =
     stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
 
 private fun FoodLogEntryEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun com.weighttrack.data.db.MedicationDoseEntity.stamp(localDeviceId: String) =
+    stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)
+
+private fun com.weighttrack.data.db.SideEffectEntity.stamp(localDeviceId: String) =
     stampOf(updatedAtUtcMillis, stampMillis, stampDeviceId, localDeviceId)

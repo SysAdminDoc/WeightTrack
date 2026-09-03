@@ -319,6 +319,63 @@ class DeletionAtomicityTest {
     }
 
     @Test
+    fun `a dose survives a tombstone that cannot be written`() = runTest {
+        profiles.ensureDefault()
+        val log = MedicationRepository(
+            database.medicationDoseDao(),
+            database.sideEffectDao(),
+            profiles,
+            working,
+        )
+        log.addDose(
+            drug = com.weighttrack.core.medication.GlpDrug.SEMAGLUTIDE,
+            milligrams = 0.5,
+            site = com.weighttrack.core.medication.InjectionSite.ABDOMEN_LEFT,
+            timestamp = at,
+        )
+        val dose = log.observeDoses().first().single()
+        val brokenLog = MedicationRepository(
+            database.medicationDoseDao(),
+            database.sideEffectDao(),
+            profiles,
+            broken,
+        )
+
+        refused { brokenLog.deleteDose(dose.id) }
+
+        assertThat(database.medicationDoseDao().all()).hasSize(1)
+        assertThat(database.deletionDao().all()).isEmpty()
+    }
+
+    @Test
+    fun `a side effect survives a tombstone that cannot be written`() = runTest {
+        profiles.ensureDefault()
+        val log = MedicationRepository(
+            database.medicationDoseDao(),
+            database.sideEffectDao(),
+            profiles,
+            working,
+        )
+        log.addSideEffect(
+            kind = com.weighttrack.core.medication.SideEffectKind.NAUSEA,
+            severity = com.weighttrack.core.medication.SideEffectSeverity.MILD,
+            timestamp = at,
+        )
+        val effect = log.observeSideEffects().first().single()
+        val brokenLog = MedicationRepository(
+            database.medicationDoseDao(),
+            database.sideEffectDao(),
+            profiles,
+            broken,
+        )
+
+        refused { brokenLog.deleteSideEffect(effect.id) }
+
+        assertThat(database.sideEffectDao().all()).hasSize(1)
+        assertThat(database.deletionDao().all()).isEmpty()
+    }
+
+    @Test
     fun `every kind that can be deleted is covered here`() = runTest {
         // Named rather than counted, so adding a kind fails this until a case is written for it.
         val covered = setOf(
@@ -333,6 +390,8 @@ class DeletionAtomicityTest {
             SyncKind.RECIPE_ITEM,
             SyncKind.FOOD_LOG,
             SyncKind.PROFILE,
+            SyncKind.MEDICATION_DOSE,
+            SyncKind.SIDE_EFFECT,
         )
 
         assertThat(covered).containsExactlyElementsIn(SyncKind.entries)

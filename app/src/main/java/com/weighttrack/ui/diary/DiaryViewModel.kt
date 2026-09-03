@@ -34,6 +34,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.LocalDate
+import kotlin.math.roundToInt
 import java.time.LocalTime
 import javax.inject.Inject
 
@@ -75,6 +76,12 @@ data class DiaryUiState(
      * is an arithmetic result rather than a fact about somebody's metabolism.
      */
     val expenditureConfident: Boolean = false,
+    /**
+     * Protein to aim at, for anybody keeping an injection log.
+     *
+     * Null for everybody else, and null when the weight it would rest on is not believable.
+     */
+    val proteinGrams: IntRange? = null,
 ) {
     val isToday: Boolean get() = date == LocalDate.now()
 
@@ -184,7 +191,17 @@ class DiaryViewModel @Inject constructor(
                     ),
                 )
             }
-            Insight(message, estimate, recommendation)
+            // Only for somebody keeping an injection log, and worked out from the trend rather
+            // than the last reading, so one mistyped morning cannot move a target. Losing this
+            // fast takes muscle with it unless protein stays up, which is the one number worth
+            // putting in front of the day''s eating.
+            val protein = if (snapshot.settings.medicationEnabled) {
+                snapshot.series.latestTrendGrams
+                    ?.let { com.weighttrack.core.medication.ProteinTarget.dailyGrams(it.roundToInt()) }
+            } else {
+                null
+            }
+            Insight(message, estimate, recommendation, protein)
         },
     ) { dateAndTargets, day, recent, results, insight ->
         val (date, targets) = dateAndTargets
@@ -202,6 +219,7 @@ class DiaryViewModel @Inject constructor(
             recommendation = insight.recommendation,
             expenditureConfident = insight.expenditure
                 ?.let { AdaptiveExpenditure.isConfident(it) } == true,
+            proteinGrams = insight.proteinGrams,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), DiaryUiState())
 
@@ -352,6 +370,7 @@ class DiaryViewModel @Inject constructor(
         val message: String?,
         val expenditure: AdaptiveExpenditure.Estimate?,
         val recommendation: AdaptiveExpenditure.Recommendation?,
+        val proteinGrams: IntRange?,
     )
 
     /** Takes the recommendation as the target, which is the point of working it out. */

@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MonitorWeight
 import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material.icons.outlined.Vaccines
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Flag
 import androidx.compose.material.icons.outlined.LocalDrink
@@ -87,6 +88,8 @@ fun HomeScreen(
     onOpenDiary: () -> Unit,
     /** Food logging is off until somebody asks for it, so the weight-only app stays clean. */
     nutritionEnabled: Boolean,
+    medicationEnabled: Boolean = false,
+    onOpenMedication: () -> Unit = {},
     waterSummary: WaterSummary?,
     onShareProgress: () -> Unit = {},
     modifier: Modifier = Modifier,
@@ -146,6 +149,16 @@ fun HomeScreen(
                     title = stringResource(R.string.food_foods),
                     subtitle = stringResource(R.string.home_your_food_database_recipes_and_lookups),
                     onClick = onOpenFoods,
+                )
+            }
+        }
+        if (medicationEnabled) {
+            item {
+                HomeActionRow(
+                    icon = Icons.Outlined.Vaccines,
+                    title = stringResource(R.string.medication_title),
+                    subtitle = stringResource(R.string.medication_home_subtitle),
+                    onClick = onOpenMedication,
                 )
             }
         }

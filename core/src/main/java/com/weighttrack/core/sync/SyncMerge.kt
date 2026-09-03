@@ -89,6 +89,12 @@ object SyncMerge {
             foodLog = attributed
                 .newest({ it.foodLog }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
                 .filterNot { gone(SyncKind.FOOD_LOG, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
+            medicationDoses = attributed
+                .newest({ it.medicationDoses }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
+                .filterNot { gone(SyncKind.MEDICATION_DOSE, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
+            sideEffects = attributed
+                .newest({ it.sideEffects }, { owned(it.profileSyncId, it.syncId) }, { it.stamp() })
+                .filterNot { gone(SyncKind.SIDE_EFFECT, it.syncId, it.profileSyncId, it.updatedAtUtcMillis) },
             settings = newestSettings(attributed),
             deletions = deletions.map { (key, kept) ->
                 SyncDeletion(
@@ -121,6 +127,8 @@ object SyncMerge {
             fasts = merged.fasts.filterNot { it.profileSyncId in profiles },
             goals = merged.goals.filterNot { it.profileSyncId in profiles },
             macroTargets = merged.macroTargets.filterNot { it.profileSyncId in profiles },
+            medicationDoses = merged.medicationDoses.filterNot { it.profileSyncId in profiles },
+            sideEffects = merged.sideEffects.filterNot { it.profileSyncId in profiles },
         )
     }
 
@@ -132,14 +140,17 @@ object SyncMerge {
         val fasts: List<SyncFast>,
         val goals: List<SyncGoal>,
         val macroTargets: List<SyncMacroTarget>,
+        val medicationDoses: List<SyncMedicationDose>,
+        val sideEffects: List<SyncSideEffect>,
     ) {
         val isEmpty: Boolean
             get() = weights.isEmpty() && measurements.isEmpty() && water.isEmpty() &&
-                fasts.isEmpty() && goals.isEmpty() && macroTargets.isEmpty() && foodLog.isEmpty()
+                fasts.isEmpty() && goals.isEmpty() && macroTargets.isEmpty() && foodLog.isEmpty() &&
+                medicationDoses.isEmpty() && sideEffects.isEmpty()
 
         val count: Int
             get() = weights.size + measurements.size + water.size + fasts.size + goals.size +
-                macroTargets.size + foodLog.size
+                macroTargets.size + foodLog.size + medicationDoses.size + sideEffects.size
     }
 
     /** What names a deleted record: its kind, its own name, and whose it was. */

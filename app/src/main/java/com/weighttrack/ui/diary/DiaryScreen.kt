@@ -221,6 +221,25 @@ fun DiaryScreen(
                                 }
                             }
                         }
+                        // Only for somebody keeping an injection log. Losing weight this fast
+                        // takes muscle with it unless protein stays up, and the day''s eating is
+                        // the one place that number is any use.
+                        state.proteinGrams?.let { grams ->
+                            Spacer(Modifier.height(8.dp))
+                            Text(
+                                text = stringResource(
+                                    R.string.medication_protein_target,
+                                    grams.first,
+                                    grams.last,
+                                ),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = stringResource(R.string.medication_protein_explained),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }

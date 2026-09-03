@@ -708,7 +708,8 @@ class BackupService @Inject constructor(
         if (document.profiles.any { it.syncId == only.syncId }) return null
         val empty = local.weights.isEmpty() && local.measurements.isEmpty() &&
             local.water.isEmpty() && local.fasts.isEmpty() && local.goals.isEmpty() &&
-            local.macroTargets.isEmpty() && local.foodLog.isEmpty()
+            local.macroTargets.isEmpty() && local.foodLog.isEmpty() &&
+            local.medicationDoses.isEmpty() && local.sideEffects.isEmpty()
         if (!empty) return null
         val id = profileRepository.observeAll().first().singleOrNull()?.id ?: return null
         // Photographs are not in the sync document, so the emptiness above cannot see them. A

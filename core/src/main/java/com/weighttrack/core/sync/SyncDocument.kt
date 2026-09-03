@@ -44,6 +44,13 @@ data class SyncDocument(
     val recipes: List<SyncRecipe> = emptyList(),
     val recipeItems: List<SyncRecipeItem> = emptyList(),
     val foodLog: List<SyncFoodLogEntry> = emptyList(),
+    /**
+     * The injection log, for anybody who has turned it on.
+     *
+     * Empty for everybody else, and a document that carries none reads exactly as it always did.
+     */
+    val medicationDoses: List<SyncMedicationDose> = emptyList(),
+    val sideEffects: List<SyncSideEffect> = emptyList(),
     val settings: SyncSettings? = null,
     /**
      * What has been deleted, and when.
@@ -91,6 +98,8 @@ data class SyncDocument(
             recipes = recipes.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
             recipeItems = recipeItems.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
             foodLog = foodLog.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            medicationDoses = medicationDoses.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
+            sideEffects = sideEffects.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
             settings = settings?.let { it.copy(stampDeviceId = name(it.stampDeviceId)) },
             deletions = deletions.map { it.copy(stampDeviceId = name(it.stampDeviceId)) },
         )
@@ -114,6 +123,8 @@ data class SyncDocument(
         recipes.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
         recipeItems.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
         foodLog.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        medicationDoses.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
+        sideEffects.forEach { note(it.stampDeviceId, it.updatedAtUtcMillis) }
         settings?.let { note(it.stampDeviceId, it.updatedAtUtcMillis) }
         deletions.forEach { note(it.stampDeviceId, it.deletedAtUtcMillis) }
         return highest.filterKeys { it.isNotBlank() }
@@ -172,6 +183,9 @@ enum class SyncKind {
     // product and a household cooking together shares its recipes. Only the eating belongs to a
     // person.
     FOOD, RECIPE, RECIPE_ITEM, FOOD_LOG,
+
+    // The injection log, when somebody has turned it on.
+    MEDICATION_DOSE, SIDE_EFFECT,
 }
 
 /**
@@ -532,6 +546,42 @@ data class SyncFoodLogEntry(
     val carbsG: Double? = null,
     val fatG: Double? = null,
     val loggedAtUtcMillis: Long,
+    val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
+)
+
+/**
+ * One injection.
+ *
+ * Travels between somebody's own devices like everything else and goes nowhere else. The drug is
+ * carried by name rather than by number so a file stays readable, and an unknown name is read as
+ * "something else" rather than refusing the row.
+ */
+@Serializable
+data class SyncMedicationDose(
+    val syncId: String,
+    val profileSyncId: String,
+    val timestampUtcMillis: Long,
+    val localDate: String,
+    val drug: String,
+    val milligrams: Double,
+    val site: String,
+    val note: String? = null,
+    val updatedAtUtcMillis: Long,
+    /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
+    val stampDeviceId: String = "",
+)
+
+@Serializable
+data class SyncSideEffect(
+    val syncId: String,
+    val profileSyncId: String,
+    val timestampUtcMillis: Long,
+    val localDate: String,
+    val kind: String,
+    val severity: String,
+    val note: String? = null,
     val updatedAtUtcMillis: Long,
     /** Which device made this version. See [SyncStamp]. Blank means the file's own writer. */
     val stampDeviceId: String = "",

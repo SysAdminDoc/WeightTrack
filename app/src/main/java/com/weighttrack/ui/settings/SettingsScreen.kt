@@ -112,6 +112,7 @@ fun SettingsScreen(
             onAdd = { addingProfile = true },
         )
         foodLoggingSection(settings, viewModel)
+        medicationSection(settings, viewModel)
         item {
             ReminderCard(
                 profile = activeProfile,

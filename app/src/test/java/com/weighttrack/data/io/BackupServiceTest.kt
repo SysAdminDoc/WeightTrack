@@ -75,7 +75,7 @@ class BackupServiceTest {
         )
         val deletions = DeletionRecorder(database, database.deletionDao(), database.syncDao())
         return BackupService(
-            syncStore = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory()),
+            syncStore = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), database.medicationDoseDao(), database.sideEffectDao(), SyncClock.inMemory()),
             context = ApplicationProvider.getApplicationContext(),
             weightRepository = WeightRepository(database.weightEntryDao(), profiles, deletions),
             measurementRepository = MeasurementRepository(

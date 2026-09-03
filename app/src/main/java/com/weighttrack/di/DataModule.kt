@@ -164,4 +164,14 @@ object DataModule {
     @Provides
     fun provideSyncPeerDao(database: WeightTrackDatabase): com.weighttrack.data.db.SyncPeerDao =
         database.syncPeerDao()
+
+    @Provides
+    fun provideMedicationDoseDao(
+        database: WeightTrackDatabase,
+    ): com.weighttrack.data.db.MedicationDoseDao = database.medicationDoseDao()
+
+    @Provides
+    fun provideSideEffectDao(
+        database: WeightTrackDatabase,
+    ): com.weighttrack.data.db.SideEffectDao = database.sideEffectDao()
 }

@@ -45,6 +45,8 @@ class SyncStampingTest {
         database.syncDao(),
         database.deletionDao(),
         database.syncPeerDao(),
+        database.medicationDoseDao(),
+        database.sideEffectDao(),
         clock,
     )
 

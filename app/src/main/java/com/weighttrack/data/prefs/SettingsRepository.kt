@@ -62,6 +62,14 @@ data class AppSettings(
     val legacyDemographicsAdopted: Boolean = false,
     /** Food logging is off until somebody asks for it, so the weight-only app stays clean. */
     val nutritionEnabled: Boolean = false,
+    /**
+     * The injection log, off until somebody asks for it.
+     *
+     * Nothing about it appears anywhere while this is false: no screen, no marks on the chart, no
+     * protein line in the diary. Most people are not on one of these and should never see a word
+     * about it.
+     */
+    val medicationEnabled: Boolean = false,
     /** Whoever uses the app supplies their own, since this one will not ship a shared key. */
     val usdaApiKey: String? = null,
     /** Keep only the lowest weigh-in of each day when importing from Health Connect. */
@@ -334,6 +342,7 @@ class SettingsRepository @Inject constructor(
         legacyReminderAdopted = this[Keys.LEGACY_REMINDER_ADOPTED] ?: false,
         legacyDemographicsAdopted = this[Keys.LEGACY_DEMOGRAPHICS_ADOPTED] ?: false,
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
+        medicationEnabled = this[Keys.MEDICATION_ENABLED] ?: false,
         usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
         importLowestOfDay = this[Keys.IMPORT_LOWEST_OF_DAY] ?: false,
         healthDirection = HealthDirection.entries
@@ -356,6 +365,10 @@ class SettingsRepository @Inject constructor(
     }
 
     suspend fun setNutritionEnabled(enabled: Boolean) = edit { it[Keys.NUTRITION_ENABLED] = enabled }
+
+    suspend fun setMedicationEnabled(enabled: Boolean) = edit {
+        it[Keys.MEDICATION_ENABLED] = enabled
+    }
 
     suspend fun setImportLowestOfDay(only: Boolean) = edit {
         it[Keys.IMPORT_LOWEST_OF_DAY] = only
@@ -436,6 +449,7 @@ class SettingsRepository @Inject constructor(
         val LEGACY_DEMOGRAPHICS_ADOPTED =
             booleanPreferencesKey("legacy_demographics_adopted")
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
+        val MEDICATION_ENABLED = booleanPreferencesKey("medication_enabled")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
         val IMPORT_LOWEST_OF_DAY = booleanPreferencesKey("import_lowest_of_day")
         val HEALTH_DIRECTION = stringPreferencesKey("health_direction")

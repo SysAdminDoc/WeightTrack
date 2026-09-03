@@ -295,6 +295,10 @@ class SettingsViewModel @Inject constructor(
     fun forgetSyncCertificate() = sync.forgetCertificate()
     fun turnSyncOff() = sync.turnOff()
     fun setSyncInBackground(enabled: Boolean) = sync.setInBackground(enabled)
+    fun setMedicationEnabled(enabled: Boolean) {
+        viewModelScope.launch { settingsRepository.setMedicationEnabled(enabled) }
+    }
+
     fun syncNow() = sync.syncNow()
     fun setSyncDeviceRetired(deviceId: String, retired: Boolean) =
         sync.setDeviceRetired(deviceId, retired)

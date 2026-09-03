@@ -315,6 +315,66 @@ internal object ScreenFixtures {
                 today = TODAY,
             )
         },
+        ScreenFixture("MedicationScreen", "empty") {
+            com.weighttrack.ui.medication.MedicationScreen(
+                state = com.weighttrack.ui.medication.MedicationUiState(),
+                onAddDose = { _, _, _, _ -> },
+                onDeleteDose = {},
+                onAddSideEffect = { _, _ -> },
+                onDeleteSideEffect = {},
+                onExport = {},
+                onBack = {},
+            )
+        },
+        // A month of injections, something felt, and a protein target, which is the state that
+        // actually renders the level chart, the rows and the delete buttons.
+        ScreenFixture("MedicationScreen", "a month in") {
+            com.weighttrack.ui.medication.MedicationScreen(
+                state = com.weighttrack.ui.medication.MedicationUiState(
+                    doses = (0..3).map { week ->
+                        com.weighttrack.data.repo.MedicationDose(
+                            id = week + 1L,
+                            timestamp = NOON.minusSeconds(week * 7L * 86_400),
+                            localDate = TODAY.minusWeeks(week.toLong()),
+                            drug = com.weighttrack.core.medication.GlpDrug.SEMAGLUTIDE,
+                            milligrams = 0.5,
+                            site = com.weighttrack.core.medication.InjectionSite.entries[week],
+                            note = null,
+                        )
+                    },
+                    sideEffects = listOf(
+                        com.weighttrack.data.repo.SideEffect(
+                            id = 1,
+                            timestamp = NOON,
+                            localDate = TODAY,
+                            kind = com.weighttrack.core.medication.SideEffectKind.NAUSEA,
+                            severity = com.weighttrack.core.medication.SideEffectSeverity.MILD,
+                            note = null,
+                        ),
+                    ),
+                    suggestedSite = com.weighttrack.core.medication.InjectionSite.THIGH_LEFT,
+                    level = com.weighttrack.core.medication.MedicationLevel.curve(
+                        doses = (0..3).map { week ->
+                            com.weighttrack.core.medication.MedicationLevel.Dose(
+                                NOON.minusSeconds(week * 7L * 86_400).toEpochMilli(),
+                                0.5,
+                            )
+                        },
+                        fromUtcMillis = NOON.minusSeconds(28L * 86_400).toEpochMilli(),
+                        toUtcMillis = NOON.toEpochMilli(),
+                        halfLifeHours = 165.0,
+                        stepHours = 12.0,
+                    ),
+                    proteinGrams = 96..128,
+                ),
+                onAddDose = { _, _, _, _ -> },
+                onDeleteDose = {},
+                onAddSideEffect = { _, _ -> },
+                onDeleteSideEffect = {},
+                onExport = {},
+                onBack = {},
+            )
+        },
         ScreenFixture("FastingScreen", "error") {
             FastingScreen(
                 state = FastingUiState(),

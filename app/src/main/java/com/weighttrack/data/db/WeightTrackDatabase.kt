@@ -22,8 +22,10 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         MacroTargetEntity::class,
         DeletionEntity::class,
         SyncPeerEntity::class,
+        MedicationDoseEntity::class,
+        SideEffectEntity::class,
     ],
-    version = 20,
+    version = 21,
     exportSchema = true,
     // Each step up to 4 only adds a table (water at 2, fasts at 3, photos at 4). Step 5 adds
     // the profiles table and a profile column to everything that belongs to one, defaulting to
@@ -73,6 +75,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         // here, and adds the table of devices this one syncs with. Together they replace a
         // deletion rule that ran on the calendar with one that runs on evidence.
         AutoMigration(from = 19, to = 20),
+        // Twenty-one adds the injection log and the side effects beside it. Two new tables and
+        // nothing else, so nobody who never turns the feature on notices anything at all.
+        AutoMigration(from = 20, to = 21),
     ],
 )
 abstract class WeightTrackDatabase : RoomDatabase() {
@@ -89,6 +94,8 @@ abstract class WeightTrackDatabase : RoomDatabase() {
     abstract fun deletionDao(): DeletionDao
     abstract fun syncDao(): SyncDao
     abstract fun syncPeerDao(): SyncPeerDao
+    abstract fun medicationDoseDao(): MedicationDoseDao
+    abstract fun sideEffectDao(): SideEffectDao
 
     /**
      * Creates the profile every existing row was just handed to.

@@ -168,9 +168,9 @@ class BodyCompositionTest {
         ).allowMainThreadQueries().build()
 
         try {
-            val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
+            val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), database.medicationDoseDao(), database.sideEffectDao(), SyncClock.inMemory())
                 .snapshot("phone", System.currentTimeMillis())
-            SyncStore(other, other.syncDao(), other.deletionDao(), other.syncPeerDao(), SyncClock.inMemory()).apply(
+            SyncStore(other, other.syncDao(), other.deletionDao(), other.syncPeerDao(), other.medicationDoseDao(), other.sideEffectDao(), SyncClock.inMemory()).apply(
                 checkNotNull(SyncDocument.decode(SyncDocument.encode(document))),
                 System.currentTimeMillis(),
             )
@@ -196,7 +196,7 @@ class BodyCompositionTest {
     @Test
     fun `it survives the backup file`() = runTest {
         record(full)
-        val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
+        val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), database.medicationDoseDao(), database.sideEffectDao(), SyncClock.inMemory())
             .snapshot("backup", System.currentTimeMillis())
 
         val text = BackupCodec.encode(

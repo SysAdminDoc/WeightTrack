@@ -74,6 +74,10 @@ data class TrendChartColors(
     val markerText: Color,
     /** The shading behind days somebody is carrying water rather than tissue. */
     val waterBand: Color,
+    /** The tick under a day an injection went in. */
+    val doseMark: Color,
+    /** The dot above it for a day something was felt. */
+    val sideEffectMark: Color,
 )
 
 /**
@@ -101,6 +105,16 @@ fun TrendChart(
      * a few hundred grams of that week was water. Empty is the ordinary case and draws nothing.
      */
     waterDays: Set<LocalDate> = emptySet(),
+    /**
+     * Days an injection went in, marked along the bottom.
+     *
+     * Empty unless somebody keeps an injection log. On the same day axis as the trend on purpose:
+     * the whole question is what the weight did in the week after a dose, and a list of dates on
+     * another screen cannot answer it.
+     */
+    doseDays: Set<LocalDate> = emptySet(),
+    /** Days something was felt, marked just above the doses so the two read as one row. */
+    sideEffectDays: Set<LocalDate> = emptySet(),
     showRawReadings: Boolean = true,
     alwaysIncludeGoalInBounds: Boolean = false,
     dateAxisTicks: Int = 3,
@@ -243,6 +257,31 @@ fun TrendChart(
         }
 
         drawGrid(bounds, unit, plot, colors, textMeasurer, ::yFor)
+
+        // Along the bottom of the plot rather than at the weight, because a dose has no weight.
+        // Doses on the floor and anything felt just above them, so a bad week reads as one column
+        // and not as two things that happen to be near each other.
+        if (doseDays.isNotEmpty() || sideEffectDays.isNotEmpty()) {
+            val tick = 7.dp.toPx()
+            visible.forEach { point ->
+                val centre = xFor(point.date)
+                if (point.date in doseDays) {
+                    drawLine(
+                        color = colors.doseMark,
+                        start = Offset(centre, plot.bottom),
+                        end = Offset(centre, plot.bottom - tick),
+                        strokeWidth = 2.dp.toPx(),
+                    )
+                }
+                if (point.date in sideEffectDays) {
+                    drawCircle(
+                        color = colors.sideEffectMark,
+                        radius = 2.5f.dp.toPx(),
+                        center = Offset(centre, plot.bottom - tick - 4.dp.toPx()),
+                    )
+                }
+            }
+        }
 
         goalGrams?.let { goal ->
             val goalDouble = goal.toDouble()

@@ -325,12 +325,12 @@ class BackupRoundTripTest {
 
     /** Out through the file and back in, the same two calls the service makes. */
     private suspend fun roundTrip(): BackupFile {
-        val document = SyncStore(source, source.syncDao(), source.deletionDao(), source.syncPeerDao(), SyncClock.inMemory())
+        val document = SyncStore(source, source.syncDao(), source.deletionDao(), source.syncPeerDao(), source.medicationDoseDao(), source.sideEffectDao(), SyncClock.inMemory())
             .snapshot("backup", now)
             .copy(settings = settings)
         val text = BackupCodec.encode(BackupFile(exportedAtUtcMillis = now, document = document))
         val decoded = checkNotNull(BackupCodec.decode(text))
-        SyncStore(restored, restored.syncDao(), restored.deletionDao(), restored.syncPeerDao(), SyncClock.inMemory())
+        SyncStore(restored, restored.syncDao(), restored.deletionDao(), restored.syncPeerDao(), restored.medicationDoseDao(), restored.sideEffectDao(), SyncClock.inMemory())
             .apply(checkNotNull(decoded.document), now)
         return decoded
     }

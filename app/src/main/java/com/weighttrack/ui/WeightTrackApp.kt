@@ -118,7 +118,8 @@ fun WeightTrackApp(
         currentRoute == Routes.SCALE ||
         currentRoute == Routes.FOODS ||
         currentRoute == Routes.SCAN ||
-        currentRoute == Routes.DIARY
+        currentRoute == Routes.DIARY ||
+        currentRoute == Routes.MEDICATION
 
     // One undo snackbar for the whole app, above the navigation graph. Deletion is immediate
     // with an undo, never a confirmation dialog, and clearing a goal closes the screen it was
@@ -283,7 +284,9 @@ fun WeightTrackApp(
                     onOpenScale = { navController.navigate(Routes.SCALE) },
                     onOpenFoods = { navController.navigate(Routes.FOODS) },
                     onOpenDiary = { navController.navigate(Routes.DIARY) },
+                    onOpenMedication = { navController.navigate(Routes.MEDICATION) },
                     nutritionEnabled = snapshot.settings.nutritionEnabled,
+                    medicationEnabled = snapshot.settings.medicationEnabled,
                     waterSummary = waterSummary,
                     onShareProgress = shareState::open,
                 )
@@ -297,11 +300,13 @@ fun WeightTrackApp(
                 ResumeEffect { viewModel.onScreenResumed() }
                 val associations by viewModel.associations.collectAsStateWithLifecycle()
                 val cycleDays by viewModel.cycleDays.collectAsStateWithLifecycle()
+                val medicationDays by viewModel.medicationDays.collectAsStateWithLifecycle()
                 ChartsScreen(
                     snapshot = snapshot,
                     activity = activity,
                     associations = associations,
                     cycleDays = cycleDays,
+                    medicationDays = medicationDays,
                 )
             }
 
@@ -363,6 +368,32 @@ fun WeightTrackApp(
                     onNextDay = viewModel::showNextDay,
                     onSetTarget = viewModel::setTarget,
                     onSetServing = viewModel::setServing,
+                    onBack = { navController.popBackStack() },
+                )
+            }
+
+            composable(Routes.MEDICATION) {
+                val viewModel: com.weighttrack.ui.medication.MedicationViewModel = hiltViewModel()
+                val state by viewModel.state.collectAsStateWithLifecycle()
+                // A dose logged on the other phone changes where the next one should go, so the
+                // suggestion is read again on return rather than only when the screen was built.
+                ResumeEffect { viewModel.onScreenResumed() }
+                val exportLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                    androidx.activity.result.contract.ActivityResultContracts.CreateDocument(
+                        "application/pdf",
+                    ),
+                ) { uri -> uri?.let(viewModel::exportReport) }
+                com.weighttrack.ui.medication.MedicationScreen(
+                    state = state,
+                    onAddDose = { drug, mg, site, note ->
+                        viewModel.addDose(drug, mg, site, note = note)
+                    },
+                    onDeleteDose = viewModel::deleteDose,
+                    onAddSideEffect = { kind, severity ->
+                        viewModel.addSideEffect(kind, severity)
+                    },
+                    onDeleteSideEffect = viewModel::deleteSideEffect,
+                    onExport = { exportLauncher.launch("weighttrack-glp1.pdf") },
                     onBack = { navController.popBackStack() },
                 )
             }

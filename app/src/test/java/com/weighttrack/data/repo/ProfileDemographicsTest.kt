@@ -155,10 +155,10 @@ class ProfileDemographicsTest {
         ).allowMainThreadQueries().build()
 
         try {
-            val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
+            val document = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), database.medicationDoseDao(), database.sideEffectDao(), SyncClock.inMemory())
                 .snapshot("phone", System.currentTimeMillis())
             val encoded = SyncDocument.encode(document)
-            SyncStore(other, other.syncDao(), other.deletionDao(), other.syncPeerDao(), SyncClock.inMemory())
+            SyncStore(other, other.syncDao(), other.deletionDao(), other.syncPeerDao(), other.medicationDoseDao(), other.sideEffectDao(), SyncClock.inMemory())
                 .apply(checkNotNull(SyncDocument.decode(encoded)), System.currentTimeMillis())
 
             val there = other.syncDao().profiles().associateBy { it.syncId }
@@ -176,7 +176,7 @@ class ProfileDemographicsTest {
     fun `a device that does not carry a body does not wipe one`() = runTest {
         val (first, _) = household()
         val name = database.syncDao().profiles().single { it.id == first }.syncId
-        val store = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), SyncClock.inMemory())
+        val store = SyncStore(database, database.syncDao(), database.deletionDao(), database.syncPeerDao(), database.medicationDoseDao(), database.sideEffectDao(), SyncClock.inMemory())
         val now = System.currentTimeMillis()
 
         // What an older version writes: the profile, with none of the four fields on it.

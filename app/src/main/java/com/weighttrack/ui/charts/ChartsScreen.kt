@@ -79,6 +79,12 @@ fun ChartsScreen(
      * refusing it costs.
      */
     cycleDays: Set<LocalDate> = emptySet(),
+    /**
+     * Injections and how somebody felt, marked along the bottom of the trend.
+     *
+     * Empty unless the injection log is on, which is the whole of what leaving it off costs.
+     */
+    medicationDays: MedicationDays = MedicationDays(),
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -195,6 +201,22 @@ fun ChartsScreen(
                             MaterialTheme.colorScheme.tertiary,
                         )
                     }
+                    // Only when there is something marked, for the same reason: a key to an
+                    // injection nobody logs is a word about medication on a screen that has
+                    // nothing to do with it.
+                    if (medicationDays.doses.isNotEmpty()) {
+                        ChartLegend(
+                            stringResource(R.string.charts_dose_legend),
+                            MaterialTheme.colorScheme.secondary,
+                        )
+                    }
+                    if (medicationDays.sideEffects.isNotEmpty()) {
+                        ChartLegend(
+                            stringResource(R.string.charts_effect_legend),
+                            MaterialTheme.colorScheme.error,
+                            dot = true,
+                        )
+                    }
                 }
                 Spacer(Modifier.height(10.dp))
                 TrendChart(
@@ -205,6 +227,8 @@ fun ChartsScreen(
                     goalGrams = snapshot.goal?.targetGrams,
                     milestoneGrams = snapshot.milestones.map { it.grams },
                     waterDays = cycleDays,
+                    doseDays = medicationDays.doses,
+                    sideEffectDays = medicationDays.sideEffects,
                     today = today,
                     height = 250.dp,
                 )

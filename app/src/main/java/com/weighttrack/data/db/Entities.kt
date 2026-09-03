@@ -546,3 +546,68 @@ data class SyncPeerEntity(
  * merge them.
  */
 fun newSyncId(): String = java.util.UUID.randomUUID().toString().replace("-", "")
+
+/**
+ * One injection.
+ *
+ * Its own table rather than a note on a weigh-in, because the two are not the same event: an
+ * injection is a Tuesday evening and a weigh-in is Wednesday morning, and the whole reason
+ * somebody records the first is to see what it does to the second.
+ *
+ * Off by default. Nothing writes here until the medication toggle is on.
+ */
+@Entity(
+    tableName = "medication_doses",
+    indices = [
+        Index(value = ["profileId", "timestampUtcMillis"]),
+        Index(value = ["timestampUtcMillis"]),
+    ],
+)
+data class MedicationDoseEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    /** Whose row this is. One is the profile every upgrade lands in. */
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
+    val timestampUtcMillis: Long,
+    val localDate: String,
+    /** The molecule, by name. See `core/medication/GlpDrug`. */
+    val drug: String,
+    val milligrams: Double,
+    /** Where it went. See `core/medication/InjectionSite`. */
+    val site: String,
+    val note: String? = null,
+    val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
+    /** What this row is called on every device. See the note on the weight entry. */
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
+)
+
+/**
+ * Something somebody felt, on a day.
+ *
+ * Kept apart from the dose it probably followed rather than hung off it. Nausea on the Thursday
+ * of a bad week is a fact about the Thursday, and tying it to an injection would be the app
+ * deciding a cause on somebody's behalf.
+ */
+@Entity(
+    tableName = "side_effects",
+    indices = [
+        Index(value = ["profileId", "timestampUtcMillis"]),
+        Index(value = ["timestampUtcMillis"]),
+    ],
+)
+data class SideEffectEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @ColumnInfo(defaultValue = "1") val profileId: Long = 1,
+    val timestampUtcMillis: Long,
+    val localDate: String,
+    /** See `core/medication/SideEffectKind`. */
+    val kind: String,
+    /** See `core/medication/SideEffectSeverity`. */
+    val severity: String,
+    val note: String? = null,
+    val updatedAtUtcMillis: Long,
+    @ColumnInfo(defaultValue = "0") val stampMillis: Long = 0,
+    @ColumnInfo(defaultValue = "''") val stampDeviceId: String = "",
+    @ColumnInfo(defaultValue = "''") val syncId: String = newSyncId(),
+)

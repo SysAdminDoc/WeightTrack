@@ -225,6 +225,32 @@ private fun ProfileRow(
     }
 }
 
+/**
+ * The one switch that turns the injection log on.
+ *
+ * Off, and invisible everywhere else, until somebody asks for it. Most people are not on one of
+ * these and there is no reason for them to read a word about it.
+ */
+internal fun LazyListScope.medicationSection(
+    settings: AppSettings,
+    viewModel: SettingsViewModel,
+) = item {
+    SettingsSection {
+        SectionHeading(stringResource(R.string.medication_settings_heading))
+        Spacer(Modifier.height(4.dp))
+        ToggleRow(
+            label = stringResource(R.string.medication_settings_toggle),
+            checked = settings.medicationEnabled,
+            onCheckedChange = viewModel::setMedicationEnabled,
+        )
+        Text(
+            text = stringResource(R.string.medication_settings_explained),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** The one switch that turns the whole food half of the app on. */
 internal fun LazyListScope.foodLoggingSection(
     settings: AppSettings,

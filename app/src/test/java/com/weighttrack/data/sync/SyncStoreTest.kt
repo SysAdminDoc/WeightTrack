@@ -49,8 +49,8 @@ class SyncStoreTest {
     fun setUp() {
         phone = database()
         tablet = database()
-        phoneStore = SyncStore(phone, phone.syncDao(), phone.deletionDao(), phone.syncPeerDao(), SyncClock.inMemory())
-        tabletStore = SyncStore(tablet, tablet.syncDao(), tablet.deletionDao(), tablet.syncPeerDao(), SyncClock.inMemory())
+        phoneStore = SyncStore(phone, phone.syncDao(), phone.deletionDao(), phone.syncPeerDao(), phone.medicationDoseDao(), phone.sideEffectDao(), SyncClock.inMemory())
+        tabletStore = SyncStore(tablet, tablet.syncDao(), tablet.deletionDao(), tablet.syncPeerDao(), tablet.medicationDoseDao(), tablet.sideEffectDao(), SyncClock.inMemory())
     }
 
     @After

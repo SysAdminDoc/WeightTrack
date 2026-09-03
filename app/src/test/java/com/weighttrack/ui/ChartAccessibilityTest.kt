@@ -64,6 +64,8 @@ class ChartAccessibilityTest {
                         markerSurface = Color.Black,
                         markerText = Color.White,
                         waterBand = Color.Magenta,
+                        doseMark = Color.Cyan,
+                        sideEffectMark = Color.Red,
                     ),
                 )
             }
