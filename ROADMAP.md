@@ -126,15 +126,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 
 Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification and the watch are not researched or planned, by owner rule.
 
-#### P0
-
-- [ ] P0: Commit the open tree and cut v0.5.0
-  Why: 71 commits and about sixty changelog entries sit unreleased above v0.4.0 (2026-08-31), docs/SECURITY.md already promises SHA256SUMS.txt "from v0.4.1 onward", gradle.properties still says 0.4.0 and code 5, and 17 files (the second-review sync fixes plus the half-built open-file item) are uncommitted with lint and release assembly not yet re-run.
-  Evidence: `git log v0.4.0..HEAD`; `git status`; `docs/SECURITY.md:12`; `gradle.properties`; `CHANGELOG.md` Unreleased
-  Touches: gradle.properties, CHANGELOG.md, README.md badge and headline, docs/SECURITY.md, tools/prepare-release.ps1, tools/release-trust.json, the uncommitted files under app/, core/, wear/
-  Acceptance: lint and all three release assemblies green on the committed tree; the open-file item is either finished with its ROADMAP entry removed or reverted cleanly; version strings agree everywhere; tools/prepare-release.ps1 and tools/check-release-artifacts.ps1 pass; a v0.5.0 GitHub release carries the three APKs and SHA256SUMS.txt; the release page serves them.
-  Complexity: S
-
 #### P1
 
 - [ ] P1: Stop serialising the legacy app-level demographics block in backups and sync
