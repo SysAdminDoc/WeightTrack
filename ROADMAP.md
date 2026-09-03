@@ -90,9 +90,7 @@ v3 API. Rate limits are hard: 15 product reads and 10 searches per minute per IP
 
 Kept optional so the weight-only experience stays clean. Off by default, one toggle to enable.
 
-
 ## Phase 4: v0.4.x, sync and insights
-
 
 ## Research-Driven Additions
 
@@ -134,13 +132,6 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
   Touches: ui/settings/BackupSettingsController.kt, ui/settings/SettingsDialogs.kt, data/io/BackupService.kt (a dry-run for archives), core/io/WeightCsvImporter.kt result type, strings
   Acceptance: opening an archive shows per-type counts and the photo count before the password commit; a CSV import shows matched columns, row count, unit and every rejected row with its reason in a scrollable list before anything is written; cancelling either leaves the database byte-identical; the existing atomic-restore tests cover the new path.
   Complexity: M
-
-- [ ] P1: Widen the translation gate to every composable that takes a string, and localise the chart legend
-  Why: the chart legend is the English words Raw, Trend and Goal in every locale because NoHardcodedTextTest only inspects a fixed list of sinks (Text, SectionHeading, LabelledValue, error, showSnackbar), so any private composable with a positional string parameter is invisible to it.
-  Evidence: `app/src/main/java/com/weighttrack/ui/charts/ChartsScreen.kt:272-274`; `app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt:46-52`
-  Touches: ui/charts/ChartsScreen.kt, strings.xml, app/src/test/java/com/weighttrack/ui/NoHardcodedTextTest.kt
-  Acceptance: the legend reads from resources; the gate treats a string literal passed positionally or by any parameter name to a composable defined under ui/ as a sink; a planted `Legend("Raw")` in a scratch composable fails the gate; the pseudo-locale rendering of Charts shows decorated legend text.
-  Complexity: S
 
 - [ ] P1: Run the unit suite at the Robolectric SDK the app targets
   Why: robolectric.properties pins sdk=34 while compile and target are 37, so no unit test has ever executed API 35 or 36 behaviour (predictive back, local network permission checks, Bluetooth bond changes); Robolectric 4.16.1 supports 36 today and 4.17 adds 37 once it leaves beta.

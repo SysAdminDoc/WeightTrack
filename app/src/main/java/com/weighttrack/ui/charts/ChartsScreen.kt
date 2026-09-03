@@ -269,9 +269,19 @@ fun ChartsScreen(
                     horizontalArrangement = Arrangement.spacedBy(18.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ChartLegend("Raw", MaterialTheme.colorScheme.onSurfaceVariant, dot = true)
-                    ChartLegend("Trend", MaterialTheme.colorScheme.primary)
-                    ChartLegend("Goal", MaterialTheme.colorScheme.secondary)
+                    ChartLegend(
+                        stringResource(R.string.charts_raw_legend),
+                        MaterialTheme.colorScheme.onSurfaceVariant,
+                        dot = true,
+                    )
+                    ChartLegend(
+                        stringResource(R.string.charts_trend_legend),
+                        MaterialTheme.colorScheme.primary,
+                    )
+                    ChartLegend(
+                        stringResource(R.string.charts_goal_legend),
+                        MaterialTheme.colorScheme.secondary,
+                    )
                     // Only when there is something shaded. A key to a band nobody has is a line
                     // about periods on the screen of somebody who never asked for one.
                     if (cycleDays.isNotEmpty()) {

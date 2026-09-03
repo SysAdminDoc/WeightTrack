@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Three words on the chart, and two labels on the food screen, were English whatever language the phone is set to. The key underneath the chart said "Raw", "Trend" and "Goal", and the boxes for a food's name and your USDA key were labelled in English beside their translated neighbours. All five can be translated now, and the check that is supposed to catch this has been taught to look inside the app's own building blocks rather than only at the ones Android provides, which is how it missed them.
+
 - Backups and sync no longer carry a height, sex, year of birth and activity level for the phone as a whole. Those moved onto each person a while ago, but the file kept a second copy taken from the old place, which nothing has written since, so every archive and every file sent to your other phone held a figure that might describe nobody in the house. Each person's body now travels on their own row and nowhere else. An older backup that only has the old copy is still read, and still lands on whoever is open, exactly as before.
 
 ## 0.5.0 (2026-09-03)

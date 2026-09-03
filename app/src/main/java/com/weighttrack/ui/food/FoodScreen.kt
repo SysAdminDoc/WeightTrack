@@ -361,7 +361,7 @@ private fun AddFoodDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                NumberlessField(name, { name = it }, "Name")
+                NumberlessField(name, { name = it }, stringResource(R.string.foodscreen_name))
                 NumberlessField(brand, { brand = it }, stringResource(R.string.foodscreen_brand_optional))
                 NumberField(kcal, { kcal = it }, stringResource(R.string.foodscreen_calories_per_g))
                 NumberField(protein, { protein = it }, stringResource(R.string.foodscreen_protein_g_optional))
@@ -412,7 +412,7 @@ private fun UsdaKeyDialog(onCancel: () -> Unit, onSave: (String) -> Unit) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Spacer(Modifier.height(8.dp))
-                NumberlessField(key, { key = it }, "Key")
+                NumberlessField(key, { key = it }, stringResource(R.string.foodscreen_usda_key))
             }
         },
         confirmButton = { TextButton(onClick = { onSave(key) }) { Text(stringResource(R.string.common_save)) } },

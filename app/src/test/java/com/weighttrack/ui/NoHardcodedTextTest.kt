@@ -70,6 +70,57 @@ class NoHardcodedTextTest {
     private val interpolation = Regex("""\$\{(?:[^{}]|\{[^{}]*\})*\}|\$[A-Za-z_][A-Za-z0-9_.]*""")
 
     /**
+     * Every composable the app declares for itself, by name.
+     *
+     * The named sinks above are the ones the framework provides. They are not the whole story: a
+     * screen can put words on the glass through a helper of its own, and the chart legend did
+     * exactly that. `ChartLegend("Raw", ...)` was English in every locale for as long as this
+     * guard has existed, because the guard was watching for `Text(` and the helper called it one
+     * layer down.
+     *
+     * So the declarations are read out of the source and every one of them becomes a sink too.
+     * A helper added tomorrow is covered the day it is written rather than the day somebody
+     * remembers to add it to a list.
+     */
+    private val ownComposables: Set<String> by lazy {
+        val declaration = Regex("""^\s*(?:(?:private|internal|public|inline|expect|actual)\s+)*fun\s+([A-Z]\w*)\s*[(<]""")
+        val names = mutableSetOf<String>()
+        for (file in kotlinFiles()) {
+            var annotated = false
+            for (line in file.readLines()) {
+                val match = declaration.find(line)
+                if (match != null) {
+                    if (annotated) names += match.groupValues[1]
+                    annotated = false
+                    continue
+                }
+                // Composable, then any number of other annotations and modifiers, then the
+                // declaration. A blank line or a statement in between means it was not this one.
+                if ("@Composable" in line) annotated = true
+                else if (line.isNotBlank() && !line.trimStart().startsWith("@") &&
+                    !line.trimStart().startsWith("//") && !line.trimStart().startsWith("*")
+                ) {
+                    annotated = false
+                }
+            }
+        }
+        names
+    }
+
+    /**
+     * A literal handed to one of the app's own composables, in any position.
+     *
+     * Positional as well as named, because a helper written for one screen takes its label first
+     * and names nothing. Bounded by parentheses and quotes so it cannot reach out of the
+     * argument list it is looking at.
+     */
+    private val ownComposableSink: Regex by lazy {
+        Regex(
+            """(?<![\w.])(?:${ownComposables.joinToString("|")})\(\s*(?:[^()"]*[,=]\s*)?$""",
+        )
+    }
+
+    /**
      * The packages that put words in front of somebody.
      *
      * The sentence rule looks only here. Elsewhere the app is full of multi-word strings nobody
@@ -154,6 +205,26 @@ class NoHardcodedTextTest {
     }
 
     @Test
+    fun `the app's own composables are found and are treated as sinks`() {
+        // The two halves this rests on. If the declaration scanner ever stops finding them, the
+        // sink regex is built from an empty list and the whole widening silently watches nothing.
+        assertThat(ownComposables).containsAtLeast("ChartLegend", "NumberlessField", "ToggleRow")
+        assertThat(ownComposables.size).isGreaterThan(80)
+
+        // The chart legend, exactly as it was written: three English words in every locale,
+        // invisible because the guard was watching for Text( and the helper called it one layer
+        // down. Each shape a helper is called in has to be caught, not just the first argument.
+        listOf(
+            """ChartLegend("Raw", MaterialTheme.colorScheme.onSurfaceVariant, dot = true)""",
+            """NumberlessField(name, { name = it }, "Name")""",
+            """ToggleRow(label = "Sync in the background", checked = on)""",
+        ).forEach { call ->
+            val literal = kotlinStringLiterals(call).first { it.value.first().isUpperCase() }
+            assertThat(ownComposableSink.containsMatchIn(literal.before)).isTrue()
+        }
+    }
+
+    @Test
     fun `no screen shows text that cannot be translated`() {
         val offenders = mutableListOf<String>()
         for (file in kotlinFiles()) {
@@ -162,7 +233,8 @@ class NoHardcodedTextTest {
                 // wrapped by the formatter, and a literal on a line of its own then has nothing
                 // in front of it. Any one-word argument was invisible.
                 val shown = sink.containsMatchIn(literal.before) ||
-                    alternativeToResource.containsMatchIn(literal.before)
+                    alternativeToResource.containsMatchIn(literal.before) ||
+                    ownComposableSink.containsMatchIn(literal.before)
                 if (!shown) continue
                 // One letter is enough here. Something handed straight to a snackbar is text
                 // whatever its length, and requiring two let "x" through.

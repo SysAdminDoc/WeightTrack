@@ -887,6 +887,11 @@
     <string name="health_rationale_movement_body">Read only, for the card that shows how your movement lines up with the trend. Refusing it hides that card.</string>
     <string name="health_rationale_sleep_title">Sleep</string>
     <string name="health_rationale_sleep_body">Read only, and asked for separately, because plenty of people are happy to share step counts and not the hours they were in bed. Refusing it hides one card.</string>
+    <string name="foodscreen_name">Name</string>
+    <string name="foodscreen_usda_key">Key</string>
+    <string name="charts_raw_legend">Raw</string>
+    <string name="charts_trend_legend">Trend</string>
+    <string name="charts_goal_legend">Goal</string>
     <string name="charts_period_legend">Period</string>
     <string name="health_rationale_cycle_title">Periods</string>
     <string name="health_rationale_cycle_body">Read only, and asked for on its own because it is the most private thing here. A period puts on about half a kilogram of water and no fat at all, so the chart marks those days and the maths stops reading them as a gain. Refusing it changes nothing else.</string>
