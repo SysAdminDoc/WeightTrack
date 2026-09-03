@@ -5,8 +5,6 @@ import com.weighttrack.core.format.WeightFormatter
 import com.weighttrack.core.sync.WearSummary
 import kotlin.math.abs
 import kotlin.math.roundToInt
-import kotlin.math.abs
-import kotlin.math.roundToInt
 
 /**
  * The words the tile and the complication use.

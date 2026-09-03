@@ -49,6 +49,21 @@ class DeletionCoverageTest {
     private suspend fun tombstones(kind: SyncKind): List<String> =
         database.deletionDao().all().filter { it.kind == kind.name }.map { it.syncId }
 
+    /**
+     * Puts the one profile's recorded time an hour into the past, and answers with it.
+     *
+     * Making a profile now stamps the moment it was made, so an edit in the same millisecond
+     * carries the same number and "the edit is newer" cannot be told from "the edit did not
+     * stamp". Reading a real clock twice and hoping they differ is a test that fails on a fast
+     * morning; moving the row back first asks the same question and always gets an answer.
+     */
+    private suspend fun ageProfile(): Long {
+        val row = database.profileDao().all().single()
+        val aged = row.updatedAtUtcMillis - 3_600_000
+        database.profileDao().update(row.copy(updatedAtUtcMillis = aged))
+        return aged
+    }
+
     @Test
     fun `deleting one reading is remembered`() = runTest {
         profiles.ensureDefault()
@@ -119,6 +134,41 @@ class DeletionCoverageTest {
     }
 
     @Test
+    fun `deleting a profile is remembered for its injection log too`() = runTest {
+        // The per-row tombstones are the fallback for the case where the other phone keeps the
+        // profile itself. Without them a deleted person's doses go on being offered by it.
+        profiles.ensureDefault()
+        val id = profiles.add("Them")
+        profiles.setActive(id)
+        val medication = MedicationRepository(
+            database.medicationDoseDao(),
+            database.sideEffectDao(),
+            profiles,
+            deletions,
+        )
+        medication.addDose(
+            drug = com.weighttrack.core.medication.GlpDrug.SEMAGLUTIDE,
+            milligrams = 0.5,
+            site = com.weighttrack.core.medication.InjectionSite.ABDOMEN_LEFT,
+            timestamp = Instant.ofEpochMilli(1_800_000_000_000),
+        )
+        medication.addSideEffect(
+            kind = com.weighttrack.core.medication.SideEffectKind.NAUSEA,
+            severity = com.weighttrack.core.medication.SideEffectSeverity.MILD,
+            timestamp = Instant.ofEpochMilli(1_800_000_000_000),
+        )
+        val dose = medication.observeDoses().first().single()
+        val effect = medication.observeSideEffects().first().single()
+
+        profiles.delete(id)
+
+        assertThat(tombstones(SyncKind.MEDICATION_DOSE)).hasSize(1)
+        assertThat(tombstones(SyncKind.SIDE_EFFECT)).hasSize(1)
+        assertThat(dose.id).isGreaterThan(0L)
+        assertThat(effect.id).isGreaterThan(0L)
+    }
+
+    @Test
     fun `the last profile cannot be deleted and nothing is remembered about it`() = runTest {
         profiles.ensureDefault()
         val only = profiles.observeAll().first().single()
@@ -131,7 +181,7 @@ class DeletionCoverageTest {
     @Test
     fun `renaming a profile records when it happened`() = runTest {
         profiles.ensureDefault()
-        val before = database.syncDao().profiles().single().updatedAtUtcMillis
+        val before = ageProfile()
 
         profiles.rename(database.syncDao().profiles().single().id, "Alex")
 
@@ -146,7 +196,7 @@ class DeletionCoverageTest {
     fun `setting a reminder records when it happened`() = runTest {
         profiles.ensureDefault()
         val id = database.syncDao().profiles().single().id
-        val before = database.syncDao().profiles().single().updatedAtUtcMillis
+        val before = ageProfile()
 
         profiles.setReminder(id, enabled = true, hour = 6, minute = 15, days = emptySet())
 

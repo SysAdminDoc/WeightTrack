@@ -124,15 +124,29 @@ object Analytics {
         val days = (ChronoUnit.DAYS.between(first, last) + 1).toInt()
         fun changeAcross(start: LocalDate, end: LocalDate): Double? {
             val inside = series.points.filter { !it.date.isBefore(start) && !it.date.isAfter(end) }
-            if (inside.size < 2) return null
+            if (inside.isEmpty()) return null
             // Measured from the day before the window where there is one, so a month's change is
-            // the whole month rather than the month minus its first day.
-            val opening = series.trendOnOrBefore(start.minusDays(1)) ?: inside.first().trendGrams
+            // the whole month rather than the month minus its first day. A single day inside the
+            // window is still a change when there is a day in front of it to measure from, which
+            // is what somebody who picks today as the start is asking about.
+            val opening = series.trendOnOrBefore(start.minusDays(1))
+                ?: inside.takeIf { it.size >= 2 }?.first()?.trendGrams
+                ?: return null
             return inside.last().trendGrams - opening
         }
+        val previousStart = first.minusDays(days.toLong())
         return RangeComparison(
             changeGrams = changeAcross(first, last),
-            previousChangeGrams = changeAcross(first.minusDays(days.toLong()), first.minusDays(1)),
+            // Only when the history actually reaches back that far. A shorter stretch reported
+            // as the same length flatters whichever window is chosen, and every one of these is
+            // read as a comparison of like with like.
+            previousChangeGrams = if (
+                series.points.firstOrNull()?.date?.isBefore(previousStart) == true
+            ) {
+                changeAcross(previousStart, first.minusDays(1))
+            } else {
+                null
+            },
             days = days,
         )
     }

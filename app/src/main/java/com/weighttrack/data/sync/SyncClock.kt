@@ -76,7 +76,11 @@ class SyncClock(
      */
     suspend fun adopt(recorded: Long, physicalNow: Long): Long {
         val clock = clock()
-        if (recorded > 0 && recorded <= ceiling(physicalNow)) {
+        // Only a time in the future is refused. A zero is what a row written before anybody
+        // thought to record the time carries, and it means "older than everything", which is
+        // both true and the safe answer: replacing it with today makes the row beat a deletion
+        // another phone made last week, and the reading comes back.
+        if (recorded in 0..ceiling(physicalNow)) {
             clock.observe(recorded, physicalNow)
             return recorded
         }

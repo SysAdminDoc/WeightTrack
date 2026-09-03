@@ -114,8 +114,9 @@ fun ChartsScreen(
     val sinceDays = since?.let {
         (ChronoUnit.DAYS.between(it, newest) + 1).toInt().coerceAtLeast(2)
     }
-    val windowStart = since ?: sinceDays?.let { newest.minusDays(it - 1L) }
-        ?: range.days?.let { newest.minusDays(it - 1L) }
+    // The same window the chart draws, worked out once. Read separately, the header described a
+    // stretch a day longer than the one on screen whenever a chosen day was the newest reading.
+    val windowStart = (sinceDays ?: range.days)?.let { newest.minusDays(it - 1L) }
         ?: (snapshot.series.points.firstOrNull()?.date ?: today)
     val comparison = remember(snapshot.series, windowStart, newest) {
         Analytics.changeOverRange(snapshot.series, windowStart, newest)

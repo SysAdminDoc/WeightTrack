@@ -327,6 +327,75 @@ class SyncStampingTest {
     }
 
     @Test
+    fun `a row that has never carried a time keeps not carrying one`() = runTest {
+        // A profile nobody has renamed sits at zero, which every merge reads as "older than
+        // everything". Stamping it with today makes it beat a deletion another phone made last
+        // week, and the profile comes back with all its readings.
+        database.syncDao().insertProfile(
+            ProfileEntity(
+                name = "Me",
+                position = 0,
+                createdAtUtcMillis = now - 100_000,
+                syncId = "p1",
+                updatedAtUtcMillis = 0,
+            ),
+        )
+
+        val document = store().snapshot("aaa", now)
+
+        assertThat(document.profiles.single().updatedAtUtcMillis).isEqualTo(0)
+        assertThat(document.profiles.single().stampDeviceId).isEqualTo("aaa")
+    }
+
+    @Test
+    fun `a deletion still beats a profile that has never carried a time`() = runTest {
+        database.syncDao().insertProfile(
+            ProfileEntity(
+                name = "Them",
+                position = 0,
+                createdAtUtcMillis = now - 100_000,
+                syncId = "p1",
+                updatedAtUtcMillis = 0,
+            ),
+        )
+        val store = store()
+        val mine = store.snapshot("aaa", now)
+        val theirs = mine.copy(
+            deviceId = "bbb",
+            profiles = emptyList(),
+            deletions = listOf(
+                com.weighttrack.core.sync.SyncDeletion(
+                    kind = com.weighttrack.core.sync.SyncKind.PROFILE,
+                    syncId = "p1",
+                    deletedAtUtcMillis = now - 5_000_000,
+                    stampDeviceId = "bbb",
+                ),
+            ),
+        )
+
+        assertThat(SyncMerge.merge(listOf(mine, theirs), "aaa", now).profiles).isEmpty()
+    }
+
+    @Test
+    fun `a device known only as the maker of a row does not become one to wait for`() = runTest {
+        // A peer is a device that publishes a file. A name that only appears on a record, written
+        // down as a peer, is a device that can never acknowledge anything, and every deletion
+        // then waits on it forever.
+        seed(updatedAt = now - 10_000)
+        val store = store()
+        val mine = store.snapshot("aaa", now)
+        val relayed = mine.copy(
+            deviceId = "bbb",
+            weights = mine.weights.map { it.copy(stampDeviceId = "ghost", updatedAtUtcMillis = now) },
+        )
+
+        store.apply(SyncMerge.merge(listOf(mine, relayed), "aaa", now), now, replaceDeletions = true)
+
+        assertThat(store.snapshot("aaa", now).peers.map { it.deviceId })
+            .containsExactly("aaa", "bbb")
+    }
+
+    @Test
     fun `a device this one has synced with is remembered`() = runTest {
         seed(updatedAt = now - 10_000)
         val store = store()

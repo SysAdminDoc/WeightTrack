@@ -91,6 +91,10 @@ class ProfileRepository @Inject constructor(
                 name = trimmed,
                 position = dao.highestPosition() + 1,
                 createdAtUtcMillis = System.currentTimeMillis(),
+                // A profile made now was made now. Left at the column default of zero, it looks
+                // to every merge like the oldest row in existence, which is what a deletion made
+                // on another phone is compared against.
+                updatedAtUtcMillis = System.currentTimeMillis(),
             ),
         )
         settingsRepository.setActiveProfile(id)
@@ -191,6 +195,7 @@ class ProfileRepository @Inject constructor(
                     name = WeightTrackDatabase.DEFAULT_PROFILE_NAME,
                     position = 0,
                     createdAtUtcMillis = System.currentTimeMillis(),
+                    updatedAtUtcMillis = System.currentTimeMillis(),
                 ),
             )
         }

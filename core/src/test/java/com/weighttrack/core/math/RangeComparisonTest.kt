@@ -43,6 +43,25 @@ class RangeComparisonTest {
 
     @Test
     fun `the window before it is the same length and ends the day before`() {
+        // Ninety days of history, so the thirty before the chosen thirty have a day in front of
+        // them too and both stretches really are the same length.
+        val subject = series(days = 90)
+
+        val comparison = Analytics.changeOverRange(
+            subject,
+            from = start.plusDays(60),
+            to = start.plusDays(89),
+        )
+
+        assertThat(comparison.changeGrams).isWithin(0.001).of(-1_500.0)
+        assertThat(comparison.previousChangeGrams).isWithin(0.001).of(-1_500.0)
+    }
+
+    @Test
+    fun `a shorter stretch before the window is not offered as a comparison`() {
+        // The history starts inside the earlier window, so it covers twenty-nine days rather
+        // than thirty. Reported as "the 30 before" it would flatter whichever window was chosen,
+        // every time, at the point where somebody has least history to judge by.
         val subject = series(days = 60)
 
         val comparison = Analytics.changeOverRange(
@@ -51,19 +70,19 @@ class RangeComparisonTest {
             to = start.plusDays(59),
         )
 
-        // Twenty-nine days of movement rather than thirty: the window before this one starts at
-        // the first reading there is, so there is no day in front of it to measure from. The
-        // same thing the weekly bars do with the first week of a history.
-        assertThat(comparison.previousChangeGrams).isWithin(0.001).of(-1_450.0)
+        assertThat(comparison.changeGrams).isWithin(0.001).of(-1_500.0)
+        assertThat(comparison.previousChangeGrams).isNull()
     }
 
     @Test
     fun `a month that went better than the one before it says so`() {
-        // Fifty grams a day for the first thirty, two hundred for the next thirty.
-        val slow = (0..29).map { 90_000.0 - it * 50 }
+        // A month of history in front, then fifty grams a day for thirty days, then two hundred
+        // a day for thirty. The month in front is what makes the earlier window a whole one.
+        val before = (0..29).map { 90_000.0 }
+        val slow = (1..30).map { before.last() - it * 50 }
         val fast = (1..30).map { slow.last() - it * 200 }
         val subject = TrendSeries(
-            points = (slow + fast).mapIndexed { day, grams ->
+            points = (before + slow + fast).mapIndexed { day, grams ->
                 TrendPoint(start.plusDays(day.toLong()), grams, grams.toInt())
             },
             alpha = 0.1,
@@ -71,12 +90,12 @@ class RangeComparisonTest {
 
         val comparison = Analytics.changeOverRange(
             subject,
-            from = start.plusDays(30),
-            to = start.plusDays(59),
+            from = start.plusDays(60),
+            to = start.plusDays(89),
         )
 
         assertThat(comparison.changeGrams).isWithin(0.001).of(-6_000.0)
-        assertThat(comparison.previousChangeGrams).isWithin(0.001).of(-1_450.0)
+        assertThat(comparison.previousChangeGrams).isWithin(0.001).of(-1_500.0)
     }
 
     @Test
@@ -114,12 +133,26 @@ class RangeComparisonTest {
     }
 
     @Test
-    fun `a single day in the window is not a change`() {
+    fun `a single day with a day in front of it is a change`() {
+        // Somebody picking today as the start is asking what today did, and the day before it is
+        // right there to measure from. Answering "nothing recorded in this range" while the chart
+        // underneath draws the reading is the version of this that was wrong.
         val subject = series(days = 30)
 
         val comparison = Analytics.changeOverRange(subject, start.plusDays(10), start.plusDays(10))
 
-        assertThat(comparison.changeGrams).isNull()
         assertThat(comparison.days).isEqualTo(1)
+        assertThat(comparison.changeGrams).isWithin(0.001).of(-50.0)
+    }
+
+    @Test
+    fun `the very first day of a history is not a change`() {
+        // Nothing in front of it and nothing beside it. Zero would read as a day that held
+        // steady, which is not the same as a day with nothing to compare against.
+        val subject = series(days = 30)
+
+        val comparison = Analytics.changeOverRange(subject, start, start)
+
+        assertThat(comparison.changeGrams).isNull()
     }
 }

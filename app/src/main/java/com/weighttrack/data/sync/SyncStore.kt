@@ -360,18 +360,21 @@ class SyncStore @Inject constructor(
      */
     private suspend fun rememberPeers(merged: SyncDocument) {
         val observed = merged.observed.associate { it.deviceId to it.throughMillis }
-        val known = merged.peers.associateBy { it.deviceId }
-        val names = (known.keys + observed.keys).filter { it.isNotBlank() }
+        // Devices, not names on records. A name that appears only as the maker of a row, with no
+        // file of its own and nowhere in anybody's list, is not a device this one is waiting for:
+        // writing it down here would publish it as a peer, and a peer that never publishes a file
+        // stops every deletion being forgotten for good. What this device holds from it is worked
+        // out again from the stamps on the next pass either way.
+        val names = merged.peers.map { it.deviceId }.filter { it.isNotBlank() }
         if (names.isEmpty()) return
         peers.upsertAll(
-            names.map { name ->
-                val peer = known[name]
+            merged.peers.filter { it.deviceId.isNotBlank() }.map { peer ->
                 com.weighttrack.data.db.SyncPeerEntity(
-                    deviceId = name,
-                    lastSeenAtUtcMillis = peer?.lastSeenAtUtcMillis ?: 0,
-                    retiredAtUtcMillis = peer?.retiredAtUtcMillis ?: 0,
-                    retirementDecidedAtUtcMillis = peer?.decidedAtUtcMillis ?: 0,
-                    observedThroughMillis = observed[name] ?: 0,
+                    deviceId = peer.deviceId,
+                    lastSeenAtUtcMillis = peer.lastSeenAtUtcMillis,
+                    retiredAtUtcMillis = peer.retiredAtUtcMillis,
+                    retirementDecidedAtUtcMillis = peer.decidedAtUtcMillis,
+                    observedThroughMillis = observed[peer.deviceId] ?: 0,
                 )
             },
         )
