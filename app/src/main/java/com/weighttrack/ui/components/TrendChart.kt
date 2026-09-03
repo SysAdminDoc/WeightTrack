@@ -95,6 +95,13 @@ fun TrendChart(
     colors: TrendChartColors,
     modifier: Modifier = Modifier,
     range: ChartRange = ChartRange.MONTH,
+    /**
+     * A window in days chosen by the person rather than by a chip, when there is one.
+     *
+     * Takes the place of [range]'s own span. It exists because "since the day I started" is not
+     * any of the six fixed spans and is the one most people actually want.
+     */
+    sinceDays: Int? = null,
     goalGrams: Int? = null,
     milestoneGrams: List<Int> = emptyList(),
     /**
@@ -125,9 +132,9 @@ fun TrendChart(
     val density = LocalDensity.current
 
     // Pan and zoom are expressed in days so they survive a rotation or a range change.
-    var zoom by remember(range) { mutableFloatStateOf(1f) }
-    var panDays by remember(range) { mutableFloatStateOf(0f) }
-    var selected by remember(range) { mutableStateOf<Int?>(null) }
+    var zoom by remember(range, sinceDays) { mutableFloatStateOf(1f) }
+    var panDays by remember(range, sinceDays) { mutableFloatStateOf(0f) }
+    var selected by remember(range, sinceDays) { mutableStateOf<Int?>(null) }
 
     val allPoints = series.points
     if (allPoints.isEmpty()) {
@@ -138,7 +145,8 @@ fun TrendChart(
     val fullSpanDays = ChronoUnit.DAYS.between(allPoints.first().date, allPoints.last().date)
         .toInt()
         .coerceAtLeast(1)
-    val baseWindowDays = (range.days ?: (fullSpanDays + 1)).coerceAtMost(fullSpanDays + 1)
+    val baseWindowDays = (sinceDays ?: range.days ?: (fullSpanDays + 1))
+        .coerceAtMost(fullSpanDays + 1)
     val windowDays = (baseWindowDays / zoom).roundToInt().coerceIn(2, fullSpanDays + 1)
 
     // The window ends at the newest reading and pans backwards from there.
@@ -187,12 +195,12 @@ fun TrendChart(
             .fillMaxWidth()
             .height(height)
             .semantics { contentDescription = description }
-            .pointerInput(range, fullSpanDays) {
+            .pointerInput(range, sinceDays, fullSpanDays) {
                 detectTransformGestures { _, _, gestureZoom, _ ->
                     zoom = (zoom * gestureZoom).coerceIn(1f, 8f)
                 }
             }
-            .pointerInput(range, windowDays) {
+            .pointerInput(range, sinceDays, windowDays) {
                 detectHorizontalDragGestures { change, dragAmount ->
                     change.consume()
                     // Dragging right walks backwards in time, the way a scrollable list does.

@@ -2,6 +2,7 @@ package com.weighttrack.core.math
 
 import java.time.DayOfWeek
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 
 data class WeeklyChange(
     val weekStart: LocalDate,
@@ -87,6 +88,53 @@ object Analytics {
         if (newest.date < weekStart) return null
         val before = series.trendOnOrBefore(weekStart.minusDays(1)) ?: return null
         return newest.trendGrams - before
+    }
+
+    /**
+     * How far the trend moved across a window, and across the window of the same length before it.
+     *
+     * The second half is the part worth having. "Down 1.4 kg over the last month" is a fact
+     * nobody can place; "down 1.4 kg, against 0.4 the month before" is the difference between a
+     * month that worked and one that did not, and it is the question people open a chart to ask.
+     *
+     * Both are measured on the smoothed line rather than on the readings at either end, so a
+     * heavy Tuesday at one edge of the window cannot invent a result.
+     */
+    data class RangeComparison(
+        /** Null when the window holds nothing to measure across. */
+        val changeGrams: Double?,
+        /** Null when there is no history before the window, which is the ordinary case at first. */
+        val previousChangeGrams: Double?,
+        val days: Int,
+    )
+
+    /**
+     * The change across [from] to [to] inclusive, beside the same span immediately before it.
+     *
+     * A window with nothing recorded in it reports null rather than zero: no change and no
+     * readings look identical as a number and are not the same thing at all.
+     */
+    fun changeOverRange(
+        series: TrendSeries,
+        from: LocalDate,
+        to: LocalDate,
+    ): RangeComparison {
+        val first = minOf(from, to)
+        val last = maxOf(from, to)
+        val days = (ChronoUnit.DAYS.between(first, last) + 1).toInt()
+        fun changeAcross(start: LocalDate, end: LocalDate): Double? {
+            val inside = series.points.filter { !it.date.isBefore(start) && !it.date.isAfter(end) }
+            if (inside.size < 2) return null
+            // Measured from the day before the window where there is one, so a month's change is
+            // the whole month rather than the month minus its first day.
+            val opening = series.trendOnOrBefore(start.minusDays(1)) ?: inside.first().trendGrams
+            return inside.last().trendGrams - opening
+        }
+        return RangeComparison(
+            changeGrams = changeAcross(first, last),
+            previousChangeGrams = changeAcross(first.minusDays(days.toLong()), first.minusDays(1)),
+            days = days,
+        )
     }
 
     /**

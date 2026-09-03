@@ -24,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ShowChart
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -62,6 +63,7 @@ import com.weighttrack.ui.format.DateFormatters
 import com.weighttrack.ui.theme.LocalTrendColors
 import com.weighttrack.ui.theme.rememberTrendChartColors
 import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.time.format.TextStyle
 import kotlin.math.abs
 import kotlin.math.max
@@ -85,6 +87,12 @@ fun ChartsScreen(
      * Empty unless the injection log is on, which is the whole of what leaving it off costs.
      */
     medicationDays: MedicationDays = MedicationDays(),
+    /**
+     * A day the chart counts from, when somebody has picked one. Null leaves the fixed spans in
+     * charge, which is where everybody starts.
+     */
+    since: LocalDate? = null,
+    onSinceChange: (LocalDate?) -> Unit = {},
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
@@ -99,6 +107,19 @@ fun ChartsScreen(
     }
 
     var range by remember { mutableStateOf(ChartRange.MONTH) }
+    var pickingSince by remember { mutableStateOf(false) }
+    val newest = snapshot.series.points.lastOrNull()?.date ?: today
+    // A chosen day is a window in days, which is the only thing the chart understands. Bounded
+    // below at two, because a window of one day has nothing to draw a line between.
+    val sinceDays = since?.let {
+        (ChronoUnit.DAYS.between(it, newest) + 1).toInt().coerceAtLeast(2)
+    }
+    val windowStart = since ?: sinceDays?.let { newest.minusDays(it - 1L) }
+        ?: range.days?.let { newest.minusDays(it - 1L) }
+        ?: (snapshot.series.points.firstOrNull()?.date ?: today)
+    val comparison = remember(snapshot.series, windowStart, newest) {
+        Analytics.changeOverRange(snapshot.series, windowStart, newest)
+    }
     val unit = snapshot.settings.weightUnit
     val weekRule = snapshot.settings.weekRule
     val weekly = remember(snapshot.series, weekRule) {
@@ -123,7 +144,9 @@ fun ChartsScreen(
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp)),
             ) {
                 ChartRange.entries.forEachIndexed { index, option ->
-                    val selected = option == range
+                    // A chosen day wins over the chips while it is set, so nothing on the row
+                    // claims to be showing a span the chart is not showing.
+                    val selected = option == range && since == null
                     Box(
                         modifier = Modifier
                             .weight(1f)
@@ -144,7 +167,10 @@ fun ChartsScreen(
                             )
                             .selectable(
                                 selected = selected,
-                                onClick = { range = option },
+                                onClick = {
+                                    range = option
+                                    onSinceChange(null)
+                                },
                                 role = Role.RadioButton,
                             ),
                         contentAlignment = Alignment.Center,
@@ -169,6 +195,58 @@ fun ChartsScreen(
                     }
                 }
             }
+        }
+
+        // Its own line rather than a seventh chip. Seven of them on a phone leaves a label a few
+        // characters wide, and at twice the font size there is nothing left to read at all.
+        item {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { pickingSince = true }) {
+                    Text(
+                        text = if (since == null) {
+                            stringResource(R.string.charts_since_a_date)
+                        } else {
+                            stringResource(
+                                R.string.charts_since,
+                                DateFormatters.fullDate(since),
+                            )
+                        },
+                    )
+                }
+                if (since != null) {
+                    TextButton(onClick = { onSinceChange(null) }) {
+                        Text(stringResource(R.string.charts_since_clear))
+                    }
+                }
+            }
+        }
+
+        // What the window actually did, beside the same length of time before it. A change on
+        // its own is a number nobody can place.
+        item {
+            val change = comparison.changeGrams
+            Text(
+                text = when {
+                    change == null -> stringResource(R.string.charts_range_nothing)
+                    comparison.previousChangeGrams == null -> stringResource(
+                        R.string.charts_range_change,
+                        WeightFormatter.delta(change, unit),
+                        comparison.days,
+                    )
+                    else -> stringResource(
+                        R.string.charts_range_change_against,
+                        WeightFormatter.delta(change, unit),
+                        comparison.days,
+                        WeightFormatter.delta(comparison.previousChangeGrams!!, unit),
+                    )
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
 
         item {
@@ -224,6 +302,7 @@ fun ChartsScreen(
                     unit = unit,
                     colors = rememberTrendChartColors(),
                     range = range,
+                    sinceDays = sinceDays,
                     goalGrams = snapshot.goal?.targetGrams,
                     milestoneGrams = snapshot.milestones.map { it.grams },
                     waterDays = cycleDays,
@@ -253,6 +332,40 @@ fun ChartsScreen(
         item { AssociationCard(associations) }
 
         item { ConsistencyCard(snapshot) }
+    }
+
+    if (pickingSince) {
+        // The picker works in UTC milliseconds wherever somebody is, so the day goes through UTC
+        // midnight rather than through the device zone, which would move it by one.
+        val state = androidx.compose.material3.rememberDatePickerState(
+            initialSelectedDateMillis = (since ?: today)
+                .atStartOfDay(java.time.ZoneOffset.UTC)
+                .toInstant()
+                .toEpochMilli(),
+        )
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { pickingSince = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    state.selectedDateMillis?.let { millis ->
+                        val picked = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneOffset.UTC)
+                            .toLocalDate()
+                        // A day in the future leaves nothing to draw. Taken as today instead of
+                        // refused, which is what somebody who scrolled one month too far meant.
+                        onSinceChange(minOf(picked, today))
+                    }
+                    pickingSince = false
+                }) { Text(stringResource(R.string.common_set)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { pickingSince = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        ) {
+            androidx.compose.material3.DatePicker(state = state, showModeToggle = false)
+        }
     }
 }
 

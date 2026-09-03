@@ -437,6 +437,12 @@
     <string name="medication_dose_row">%1$s, %2$s mg, %3$s</string>
     <string name="medication_effect_row">%1$s, %2$s</string>
     <string name="charts_dose_legend">Dose</string>
+    <string name="charts_since_a_date">Since a date…</string>
+    <string name="charts_since">Since %1$s</string>
+    <string name="charts_since_clear">Clear</string>
+    <string name="charts_range_change">%1$s over %2$d days</string>
+    <string name="charts_range_change_against">%1$s over %2$d days, against %3$s the %2$d before</string>
+    <string name="charts_range_nothing">Nothing recorded in this range.</string>
     <string name="charts_effect_legend">Side effect</string>
     <string name="sync_devices">Your devices</string>
     <string name="sync_devices_explained">Something you delete is remembered until every device here has seen that it is gone, so a phone you have sold or lost keeps those notes open for good. Say it is gone and the others stop waiting for it. Nothing it sent is removed, and you can bring it back.</string>

@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import java.time.DayOfWeek
+import java.time.LocalDate
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -79,6 +80,15 @@ data class AppSettings(
      * being readable by whoever is standing next to them.
      */
     val glanceOnlySurfaces: Boolean = false,
+    /**
+     * A day the chart counts from, when somebody has picked one.
+     *
+     * Null is the ordinary case and leaves the six fixed spans alone. Kept because the reason
+     * for picking one is usually a date that means something (an operation, a holiday, the day
+     * they started), and having to pick it again on every launch is what makes a feature like
+     * this not worth using.
+     */
+    val chartSince: LocalDate? = null,
     /** Whoever uses the app supplies their own, since this one will not ship a shared key. */
     val usdaApiKey: String? = null,
     /** Keep only the lowest weigh-in of each day when importing from Health Connect. */
@@ -353,6 +363,10 @@ class SettingsRepository @Inject constructor(
         nutritionEnabled = this[Keys.NUTRITION_ENABLED] ?: false,
         medicationEnabled = this[Keys.MEDICATION_ENABLED] ?: false,
         glanceOnlySurfaces = this[Keys.GLANCE_ONLY_SURFACES] ?: false,
+        // Anything unreadable is treated as not set, rather than throwing on a screen somebody
+        // just opened.
+        chartSince = this[Keys.CHART_SINCE]
+            ?.let { runCatching { LocalDate.parse(it) }.getOrNull() },
         usdaApiKey = this[Keys.USDA_API_KEY]?.let(secrets::reveal),
         importLowestOfDay = this[Keys.IMPORT_LOWEST_OF_DAY] ?: false,
         healthDirection = HealthDirection.entries
@@ -382,6 +396,11 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setGlanceOnlySurfaces(enabled: Boolean) = edit {
         it[Keys.GLANCE_ONLY_SURFACES] = enabled
+    }
+
+    /** Null clears it and puts the chart back on whichever fixed span is chosen. */
+    suspend fun setChartSince(date: LocalDate?) = edit {
+        if (date == null) it.remove(Keys.CHART_SINCE) else it[Keys.CHART_SINCE] = date.toString()
     }
 
     suspend fun setImportLowestOfDay(only: Boolean) = edit {
@@ -465,6 +484,7 @@ class SettingsRepository @Inject constructor(
         val NUTRITION_ENABLED = booleanPreferencesKey("nutrition_enabled")
         val MEDICATION_ENABLED = booleanPreferencesKey("medication_enabled")
         val GLANCE_ONLY_SURFACES = booleanPreferencesKey("glance_only_surfaces")
+        val CHART_SINCE = stringPreferencesKey("chart_since")
         val USDA_API_KEY = stringPreferencesKey("usda_api_key")
         val IMPORT_LOWEST_OF_DAY = booleanPreferencesKey("import_lowest_of_day")
         val HEALTH_DIRECTION = stringPreferencesKey("health_direction")

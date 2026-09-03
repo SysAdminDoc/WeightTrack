@@ -103,6 +103,36 @@ class SettingsRepositoryTest {
     }
 
     @Test
+    fun `a chosen chart start date is remembered, and clearing it puts the spans back`() = runTest {
+        // The reason for picking one is usually a date that means something, so having to pick
+        // it again on every launch is what makes the feature not worth using.
+        val repository = testSettingsRepository()
+        assertThat(repository.settings.first().chartSince).isNull()
+
+        repository.setChartSince(java.time.LocalDate.of(2026, 1, 1))
+        assertThat(repository.settings.first().chartSince)
+            .isEqualTo(java.time.LocalDate.of(2026, 1, 1))
+
+        repository.setChartSince(null)
+        assertThat(repository.settings.first().chartSince).isNull()
+    }
+
+    @Test
+    fun `a stored chart start date that no longer parses is read as none`() = runTest {
+        // A file written by a build that stored it differently, or one that has been edited by
+        // hand. Nobody should meet a crash on a screen they just opened because of it.
+        val store = com.weighttrack.data.InMemoryPreferences()
+        store.updateData {
+            it.toMutablePreferences().apply {
+                set(androidx.datastore.preferences.core.stringPreferencesKey("chart_since"), "not a date")
+            }
+        }
+        val repository = SettingsRepository(store, com.weighttrack.data.testSecretStore())
+
+        assertThat(repository.settings.first().chartSince).isNull()
+    }
+
+    @Test
     fun `the active profile is remembered`() = runTest {
         val repository = testSettingsRepository()
 

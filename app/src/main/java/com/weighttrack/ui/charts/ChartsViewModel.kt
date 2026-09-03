@@ -68,8 +68,13 @@ class ChartsViewModel @Inject constructor(
     progressCalculator: ProgressCalculator,
     private val healthConnect: HealthConnectSync,
     medication: com.weighttrack.data.repo.MedicationRepository,
-    settingsRepository: com.weighttrack.data.prefs.SettingsRepository,
+    private val settingsRepository: com.weighttrack.data.prefs.SettingsRepository,
 ) : ViewModel() {
+
+    /** Null puts the chart back on whichever fixed span is chosen. */
+    fun setChartSince(date: LocalDate?) {
+        viewModelScope.launch { settingsRepository.setChartSince(date) }
+    }
 
     /**
      * Days an injection went in, and days something was felt.

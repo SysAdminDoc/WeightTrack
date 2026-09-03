@@ -103,13 +103,6 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 ### P2
 
 
-
-
-
-
-### P3
-- [ ] P3: Editable chart date shortcuts and week-over-week comparison
-  Why: Happy Scale 2026.5.3 made the shortcut row editable (last X days, since date, custom range); Withings users' loudest chart complaint is losing the period delta and week-over-week view.
   Evidence: https://apps.apple.com/bw/app/happy-scale/id532430574 ; https://support.withings.com/hc/en-us/community/posts/11251967828497 ; ui/charts/ChartsScreen.kt
   Touches: ui/charts/ChartsScreen.kt (range chips become editable, "since" picker), core/math/Analytics.kt (this week vs last week delta already derivable from weekly bars)
   Acceptance: a custom "since 2026-01-01" chip persists across launches; the header shows the change over the chosen range and versus the previous equal range.

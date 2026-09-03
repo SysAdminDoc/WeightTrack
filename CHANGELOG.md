@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The chart can count from a day you pick. Under the week, month and year buttons there is now a date: choose the day you started, or your operation, or the first of the year, and the chart shows everything since. It is remembered, so you pick it once rather than every time you open the screen. Underneath, the chart says what the shown stretch actually did and how that compares with the same length of time before it, which is the question you opened it to ask. "Down 1.4 kg over 30 days" tells you nothing on its own; "down 1.4 kg, against 0.4 the 30 before" tells you whether the month worked.
+
 - The home screen widget, the watch tile and the watch complication can show a direction instead of a weight. Turn it on in Settings and they say whether this morning was above or below your trend and by how much, with the weight itself nowhere on them. It is for anyone who wants the one thing worth knowing at a glance without it being readable by whoever is standing next to them. The app is unchanged.
 
 - Corrections to the sync work above, before anybody has it. The first sync after this update was going to re-date every reading older than the most recently touched row to today, which would have brought back anything the other phone had deleted; taking a backup was going to stamp your rows with the name of a device called "backup" that does not exist, which then stopped any deletion being forgotten ever again; and a reading recorded while the phone's clock was days fast could never be corrected, because nothing you did afterwards could sort above it. Deleting someone from a household also left their injection log on the phone, invisible and unreachable, and the undo could not bring it back.

@@ -307,6 +307,8 @@ fun WeightTrackApp(
                     associations = associations,
                     cycleDays = cycleDays,
                     medicationDays = medicationDays,
+                    since = snapshot.settings.chartSince,
+                    onSinceChange = viewModel::setChartSince,
                 )
             }
 

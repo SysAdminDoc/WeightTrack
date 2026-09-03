@@ -244,6 +244,16 @@ internal object ScreenFixtures {
                 today = TODAY,
             )
         },
+        // The chosen start date and the line comparing this window with the one before it, which
+        // only appear once somebody has picked a day.
+        ScreenFixture("ChartsScreen", "counting from a chosen day") {
+            ChartsScreen(
+                snapshot = filledSnapshot(),
+                activity = ActivityState(status = ActivityStatus.NOT_PERMITTED),
+                since = TODAY.minusDays(20),
+                today = TODAY,
+            )
+        },
         ScreenFixture("ChartsScreen", "loading") {
             ChartsScreen(
                 snapshot = filledSnapshot(),
