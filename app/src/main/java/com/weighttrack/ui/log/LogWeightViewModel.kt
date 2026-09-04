@@ -126,6 +126,10 @@ class LogWeightViewModel @Inject constructor(
     fun save() {
         val current = _state.value
         if (!current.canSave) return
+        // Once is enough. The screen closes itself on this flag, so a second press can only
+        // happen where that close did not take, and filing the same weigh-in twice because a
+        // screen would not shut is not something the person asked for.
+        if (current.saved) return
         viewModelScope.launch {
             val zone = ZoneId.systemDefault()
             val instant = current.date.atTime(current.time).atZone(zone).toInstant()

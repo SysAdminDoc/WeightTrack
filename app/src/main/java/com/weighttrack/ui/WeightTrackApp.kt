@@ -125,9 +125,10 @@ fun WeightTrackApp(
         return
     }
 
-    // Seeded with what is on screen already: the first request is the start destination below,
-    // and navigating to it again would put a second copy of it on the back stack.
-    var answered by remember { mutableIntStateOf(openRequests) }
+    // Nothing has been answered yet, deliberately. The graph always starts at Home, so even the
+    // very first request has to be navigated to; seeding this with openRequests instead would
+    // leave a cold start from a shortcut on Home, because the count is still zero at that point.
+    var answered by remember { mutableIntStateOf(-1) }
     LaunchedEffect(openRequests, openAt) {
         if (openAt != null && openRequests != answered) {
             navController.navigate(openAt) { launchSingleTop = true }
@@ -261,10 +262,12 @@ fun WeightTrackApp(
     ) { padding ->
         NavHost(
             navController = navController,
-            // Home unless something outside the app asked for a screen. Health Connect sends
-            // people to the rationale from its own settings, and answering that with the home
-            // screen answers nothing.
-            startDestination = openAt ?: Routes.HOME,
+            // Always Home, whatever asked for the app. A screen somebody was sent to is
+            // navigated to above this one by the effect further up, so it has something to go
+            // back to: made the root instead, its close button pops the only entry there is,
+            // and the screen sits there refusing to shut while every further press of Save
+            // files another copy of the same weigh-in.
+            startDestination = Routes.HOME,
             modifier = Modifier.padding(padding),
         ) {
             composable(Routes.HOME) {
