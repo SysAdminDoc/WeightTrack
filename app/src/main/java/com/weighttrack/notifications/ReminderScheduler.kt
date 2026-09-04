@@ -98,6 +98,24 @@ object Notifications {
     const val REMINDER_NOTIFICATION_ID = 4202
 
     /**
+     * The identifier one person's reminder is posted under.
+     *
+     * One each, or the later reminder replaces the earlier one in the shade and whoever is
+     * reminded first never sees theirs.
+     */
+    fun reminderIdFor(profileId: Long): Int = REMINDER_NOTIFICATION_ID + profileId.toInt()
+
+    /**
+     * The identifier the test notification uses, which is nobody's.
+     *
+     * Below the band above rather than inside it. Posted at the base plus one, it landed on the
+     * identifier the first profile's reminder uses, so pressing "send a test notification" while
+     * that reminder was showing quietly replaced it: the person was answering a question about
+     * whether reminders arrive by making the one that had arrived disappear.
+     */
+    const val TEST_NOTIFICATION_ID = REMINDER_NOTIFICATION_ID - 1
+
+    /**
      * Creates the channel. Safe to call repeatedly; the system ignores a channel that already
      * exists, and any importance the user has changed is preserved.
      */

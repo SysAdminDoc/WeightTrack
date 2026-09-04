@@ -99,10 +99,7 @@ class ReminderReceiver : BroadcastReceiver() {
 
         runCatching {
             NotificationManagerCompat.from(context)
-                // One identifier per person. A single one means the later reminder quietly
-            // replaces the earlier one in the shade, so whoever is reminded first never
-            // sees theirs.
-            .notify(Notifications.REMINDER_NOTIFICATION_ID + profileId.toInt(), notification)
+                .notify(Notifications.reminderIdFor(profileId), notification)
         }
     }
 
@@ -138,7 +135,7 @@ class ReminderReceiver : BroadcastReceiver() {
                 .build()
             return runCatching {
                 NotificationManagerCompat.from(context)
-                    .notify(Notifications.REMINDER_NOTIFICATION_ID + 1, notification)
+                    .notify(Notifications.TEST_NOTIFICATION_ID, notification)
                 true
             }.getOrDefault(false)
         }

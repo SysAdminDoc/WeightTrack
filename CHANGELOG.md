@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Sending yourself a test notification no longer wipes out the reminder you were checking on. It was posted under the same number the first person's weigh-in reminder uses, so it replaced it in the shade: the answer to "do reminders arrive?" was to make the one that had arrived disappear.
+
 - Two faults in the daily target dialog. Editing a target that belonged to one weekday wrote the change into the everyday target instead, so the other six days lost theirs while the day you were looking at stayed exactly as it was and the message said it had been set. And switching the macros between grams and shares left the numbers where they were, so 150 grams of protein was read as 150 per cent of the day and stored as 750 grams. The switch now starts where the day actually is, and the numbers move with the chip.
 
 - More corrections to the sync size checks and the Health Connect gate above, before anybody has them. A file could still sign itself with a name of any length, and every ordinary row could carry one too, which is the same hole by a different door. And the new check on who may publish a meal was asking a question that answers itself: on a phone where nobody had connected yet, logging lunch would have quietly made whoever was on screen the owner of Health Connect for good.

@@ -168,13 +168,6 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
   Acceptance: every user-visible sentence about where data goes names the four exits (export, sync, Health Connect, food lookups) or is scoped to "on its own"; the USDA copy says the key is sent to USDA with each search; a test lists the privacy strings by name and fails if a new string containing "never" or "stays on" is added without the qualifier.
   Complexity: S
 
-- [ ] P1: Stop the test notification replacing profile 1's reminder
-  Why: the test notification posts under REMINDER_NOTIFICATION_ID + 1, which is the id the real reminder for profile 1 uses, so pressing "send a test notification" while that reminder is showing silently replaces it.
-  Evidence: `app/src/main/java/com/weighttrack/notifications/ReminderReceiver.kt:105,141`
-  Touches: notifications/Notifications.kt, notifications/ReminderReceiver.kt, ReminderScheduleTest
-  Acceptance: the test notification has an id outside the profile band; a test posts a profile-1 reminder, then a test notification, and asserts both are present in the shadow notification manager.
-  Complexity: S
-
 #### P2
 
 - [ ] P2: Show the calorie estimate's uncertainty and refuse the 7,700 kcal/kg density on short windows
