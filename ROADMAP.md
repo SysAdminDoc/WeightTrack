@@ -154,12 +154,14 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
   Acceptance: a device advertising a vendor name but serving only 0x181D or 0x181B is routed to the standard parser; a device serving a vendor service is routed to that vendor regardless of name; the scale screen offers "Try a different protocol" listing the catalogue when a connection sits idle past a timeout; a test feeds a MI SCALE2 name with a 0x181D-only service table and asserts a reading lands.
   Complexity: M
 
-- [ ] P1: Give the photo delete control a real label, size and description
-  Why: the delete on every photo tile is a TextButton whose entire label is the letter x at 11 sp with no content description, overlaid on the tile that selects the photo; the accessibility gate passes it because a single character counts as a label.
-  Evidence: `app/src/main/java/com/weighttrack/ui/photos/PhotosScreen.kt:257,298-303`; `app/src/main/res/values/strings.xml` `photos_remove`; `app/src/test/java/com/weighttrack/ui/a11y/ScreenStateCoverageTest.kt`
-  Touches: ui/photos/PhotosScreen.kt, strings.xml, ui/a11y/ScreenStateCoverageTest.kt
-  Acceptance: the control is an IconButton with a localised content description and a 48 dp target, separated from the selection tap; the gate refuses any clickable whose only label is a single character; the tile selection carries Role.Checkbox.
-  Complexity: S
+- [ ] P2: Name the keypad's clear key, then make the gate refuse a one-character label
+  Category: a11y
+  Where: `app/src/main/java/com/weighttrack/ui/components/WeightKeypad.kt:103,113,120` (the digit keys and the clear key carry only their visible text; only backspace at `:125` has a content description); `app/src/test/java/com/weighttrack/ui/a11y/ScreenStateCoverageTest.kt` `saysWhatItIs`.
+  Problem: the photo remove control was found by an audit rather than by the gate, because the gate counts any non-blank text as a label and the whole label was the letter x. The obvious hardening, refusing a pressable whose only label is one character, cannot be turned on as things stand: it would also flag the ten digit keys, where a single character is genuinely the right label, and the clear key, where "C" genuinely is not. So the rule has to be about meaning, not length.
+  Fix: give the clear key a content description ("Clear"), leave the digits as they are, then add the gate rule refusing a one-character label unless the character is a digit. Plant the old photo control as a self-test and watch it fail.
+  Acceptance: the clear key announces a word; the gate refuses a pressable labelled only "x" and accepts one labelled only "7"; the self-test goes red when the rule is removed.
+  Confidence: Verified
+  Effort: S
 
 - [ ] P1: Keep every privacy claim truthful, including the three that lost their qualifier
   Why: the audit corrected most absolute claims, but "Stored on this device", "It stays on this phone" for the USDA key, and the persistent "Privacy first" badge remain unqualified, and the about text lists backups, sync and Health Connect as the only ways data leaves while every food search, barcode lookup and USDA query sends the query or the key off the phone.

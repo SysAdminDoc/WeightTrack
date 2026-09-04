@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The control that removes a progress photo is a proper button now. It used to be the letter x in small text, sitting on top of the tile that picks the photo for a comparison, so it was easy to miss, easy to hit by accident, and a screen reader could only read it out as "x". It has a name, a full-sized target of its own, and picking a tile is announced as something you can tick rather than a plain button.
+
 - Sending yourself a test notification no longer wipes out the reminder you were checking on. It was posted under the same number the first person's weigh-in reminder uses, so it replaced it in the shade: the answer to "do reminders arrive?" was to make the one that had arrived disappear.
 
 - Two faults in the daily target dialog. Editing a target that belonged to one weekday wrote the change into the everyday target instead, so the other six days lost theirs while the day you were looking at stayed exactly as it was and the message said it had been set. And switching the macros between grams and shares left the numbers where they were, so 150 grams of protein was read as 150 per cent of the day and stored as 750 grams. The switch now starts where the day actually is, and the numbers move with the chip.

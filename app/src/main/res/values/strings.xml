@@ -941,7 +941,7 @@
     <string name="onboardingscreen_female">Female</string>
     <string name="scalescreen_weight">Weight</string>
     <string name="synccard_chosen">Chosen</string>
-    <string name="photos_remove">x</string>
+    <string name="photos_remove">Remove this photo</string>
     <string name="keypad_clear">C</string>
     <string name="summary_milestone">Milestone reached: %1$s</string>
     <string name="summary_steady">Steady week</string>

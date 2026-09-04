@@ -9,6 +9,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -33,6 +34,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +54,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.weighttrack.R
@@ -254,7 +257,13 @@ private fun PhotoTile(
             .aspectRatio(0.75f)
             .clip(RoundedCornerShape(12.dp))
             .background(MaterialTheme.colorScheme.surfaceContainer)
-            .clickable(onClick = onClick),
+            // Tapping a tile picks it for the comparison, so it is a checkbox rather than a
+            // button, and a screen reader should say whether it is already picked.
+            .toggleable(
+                value = selected,
+                role = Role.Checkbox,
+                onValueChange = { onClick() },
+            ),
     ) {
         PhotoImage(file = photo.file, modifier = Modifier.fillMaxSize())
         Column(
@@ -295,11 +304,26 @@ private fun PhotoTile(
                 )
             }
         }
-        TextButton(
+        // Its own control with its own name. It used to be a text button whose whole label was
+        // the letter x at eleven points, sitting on top of the tile that selects the photo, so
+        // it was neither describable to a screen reader nor reliably hittable, and the check
+        // that is supposed to catch an unlabelled control counted the single letter as a label.
+        IconButton(
             onClick = onLongClick,
             modifier = Modifier.align(Alignment.TopStart),
         ) {
-            Text(stringResource(R.string.photos_remove), style = MaterialTheme.typography.labelSmall)
+            Icon(
+                imageVector = Icons.Filled.Close,
+                contentDescription = stringResource(R.string.photos_remove),
+                tint = MaterialTheme.colorScheme.inverseOnSurface,
+                modifier = Modifier
+                    .size(20.dp)
+                    .background(
+                        MaterialTheme.colorScheme.scrim.copy(alpha = 0.55f),
+                        CircleShape,
+                    )
+                    .padding(2.dp),
+            )
         }
     }
 }
