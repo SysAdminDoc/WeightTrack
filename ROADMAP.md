@@ -864,6 +864,16 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
 
 #### P3
 
+- [ ] P3: The Health Connect rationale still stacks a second activity on Android 14 and later
+  Category: reliability
+  Where: `app/src/main/AndroidManifest.xml` (`<activity-alias android:name="ViewPermissionUsageActivity">`, targeting `.MainActivity`); `app/src/main/java/com/weighttrack/MainActivity.kt` `openAt`.
+  Problem: `android:launchMode="singleTop"` on `MainActivity` fixed the shortcuts, both notifications and the file filter, but the Android 14 and later route into the rationale arrives on the alias, which is a different component name. The top-of-task match is against that name, so a running `MainActivity` is not matched and a second instance is started. Tapping through from Health Connect's own settings while WeightTrack is open therefore still discards whatever was on screen.
+  Evidence: found by the fresh-context review of commit `338573a`, which confirmed the alias is a distinct component for launch-mode matching. `LauncherShortcutsTest > the activity every reopening aims at is single top` asserts the launch mode on `MainActivity` only, so it does not cover the alias.
+  Fix: check whether `android:launchMode` on an `activity-alias` is honoured on the minimum supported release; if it is not, have the alias target a thin trampoline that forwards to `MainActivity` with `SINGLE_TOP` set, or set the flag on the intent Health Connect is answered with.
+  Acceptance: with the app open on Foods, entering the rationale from Health Connect's settings and pressing back returns to Foods with its state intact; the manifest test covers the alias as well as the activity.
+  Confidence: Likely
+  Effort: S
+
 - [ ] P3: Stat values clip at large font sizes
   Category: a11y
   Where: `app/src/main/java/com/weighttrack/ui/components/Common.kt:136` (`StatTile` value `maxLines = 1` with the default `TextOverflow.Clip`), `:138-142` (caption `maxLines = 2`, clip); `ui/home/HomeScreen.kt:349-372` (two tiles side by side at 22 sp).

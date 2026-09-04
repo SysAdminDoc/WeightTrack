@@ -110,6 +110,10 @@
           standard-mode activity that means finish and start again rather than deliver, which
           throws away a half-typed weight, drops a live scale connection, empties the back stack
           and asks a locked app for a fingerprint again.
+
+          It does not cover the alias below. Android 14 and later reach the Health Connect
+          rationale through that component name rather than through this one, so a running
+          instance is not matched and a second one is still started.
         -->
         <activity
             android:name=".MainActivity"

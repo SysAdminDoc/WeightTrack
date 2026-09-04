@@ -113,6 +113,23 @@ class LogWeightViewModelTest {
     }
 
     @Test
+    fun `two presses in the same moment file one reading`() = runTest(dispatcher) {
+        val viewModel = viewModel()
+        advanceUntilIdle()
+
+        viewModel.type("800")
+        // Both land before the first write has finished. The saved flag cannot cover this
+        // window, because it is only set once the widgets and the watch have been refreshed,
+        // and the screen is visibly still open the whole time.
+        viewModel.save()
+        viewModel.save()
+        viewModel.state.first { it.saved }
+        advanceUntilIdle()
+
+        assertThat(weightRepository.observeCount().first()).isEqualTo(1)
+    }
+
+    @Test
     fun `pressing save again does not file the same weigh-in twice`() = runTest(dispatcher) {
         val viewModel = viewModel()
         advanceUntilIdle()

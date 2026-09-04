@@ -13,7 +13,6 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -82,23 +81,27 @@ class MainActivity : FragmentActivity() {
      */
     private var takenFile: android.net.Uri? = null
 
+    /** Whether the screen this launch asked for has already been opened. See [openRoute]. */
+    private var routeAnswered = false
+
     /**
      * The screen asked for, and how many times it has been asked for.
      *
-     * A launcher shortcut tapped while the app is already open arrives as a new intent rather
-     * than as a fresh start, so reading the intent once at composition would leave the second
-     * tap doing nothing at all. The count is what tells the difference between the same request
-     * still standing and the same request made again.
+     * Cleared the moment the graph has been sent there, and that fact is kept across a
+     * configuration change. The intent behind it is never consumed, so anything that builds the
+     * activity again reads the same request off it: left standing, a rotation, an unlock or a
+     * theme change would drag somebody back onto a screen they had already left.
      */
     private var openRoute by mutableStateOf<String?>(null)
-    private var openRequests by mutableIntStateOf(0)
 
     override fun onNewIntent(intent: android.content.Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        // Somebody asking again, deliberately. A fresh request is not the old one coming back
+        // round, so a route already answered does not silence it.
         openAt(intent)?.let { route ->
+            routeAnswered = false
             openRoute = route
-            openRequests += 1
         }
         // Somebody asking again, deliberately, even for the same file. A fresh request is not
         // the old one coming back round, so what was taken before does not silence it.
@@ -113,7 +116,13 @@ class MainActivity : FragmentActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        takenFile?.let { outState.putString(TAKEN_FILE, it.toString()) }
+        outState.putBoolean(ROUTE_ANSWERED, routeAnswered)
+        // Only across a configuration change. Once the process has been killed, the screen that
+        // was holding the file has gone with it, so a restore nobody had answered yet has to be
+        // offered again rather than quietly dropped.
+        if (isChangingConfigurations) {
+            takenFile?.let { outState.putString(TAKEN_FILE, it.toString()) }
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -123,7 +132,8 @@ class MainActivity : FragmentActivity() {
         // Published on every start rather than once: a label changes when the app is translated,
         // and a shortcut left by an older version would otherwise keep its old wording.
         com.weighttrack.shortcuts.LauncherShortcuts.publish(this)
-        openRoute = openAt(intent)
+        routeAnswered = savedInstanceState?.getBoolean(ROUTE_ANSWERED) == true
+        openRoute = if (routeAnswered) null else openAt(intent)
         takenFile = savedInstanceState?.getString(TAKEN_FILE)?.let(android.net.Uri::parse)
         openedFile = fileStillToShow(fileFrom(intent), takenFile)
 
@@ -200,7 +210,12 @@ class MainActivity : FragmentActivity() {
                         else -> WeightTrackApp(
                             onboardingComplete = loaded.onboardingComplete,
                             openAt = openRoute,
-                            openRequests = openRequests,
+                            // Forgotten as soon as the graph has been sent there, so nothing
+                            // that builds this screen again goes back a second time.
+                            onOpenAtTaken = {
+                                routeAnswered = true
+                                openRoute = null
+                            },
                             openedFile = openedFile,
                             // Forgotten the moment the screen has taken it, so a rotation does
                             // not offer to restore the same file all over again.
@@ -225,6 +240,7 @@ class MainActivity : FragmentActivity() {
 
     private companion object {
         const val TAKEN_FILE = "openedFileTaken"
+        const val ROUTE_ANSWERED = "openRouteAnswered"
     }
 }
 

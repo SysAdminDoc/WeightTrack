@@ -97,14 +97,13 @@ fun WeightTrackApp(
      */
     openAt: String? = null,
     /**
-     * How many times [openAt] has been asked for.
+     * Called once the graph has been sent to [openAt], so the caller can drop the request.
      *
-     * A launcher shortcut tapped while the app is already open cannot change the graph's start
-     * destination, because the graph was built long ago. Counting the requests is what tells a
-     * second tap from the first one still standing, so the second one moves and a recomposition
-     * for any other reason does not.
+     * A launcher shortcut tapped while the app is already open arrives as a new intent, and the
+     * intent it came from is never consumed. Something has to say the request has been dealt
+     * with, or every later rebuild of this screen answers it again.
      */
-    openRequests: Int = 0,
+    onOpenAtTaken: () -> Unit = {},
     /**
      * A file the phone asked the app to open, if it did.
      *
@@ -125,15 +124,15 @@ fun WeightTrackApp(
         return
     }
 
-    // Nothing has been answered yet, deliberately. The graph always starts at Home, so even the
-    // very first request has to be navigated to; seeding this with openRequests instead would
-    // leave a cold start from a shortcut on Home, because the count is still zero at that point.
-    var answered by remember { mutableIntStateOf(-1) }
-    LaunchedEffect(openRequests, openAt) {
-        if (openAt != null && openRequests != answered) {
+    // The graph always starts at Home, so a screen somebody was sent to is navigated to above
+    // it. Whoever owns the request is told the moment that happens and drops it, which is what
+    // stops a rotation, an unlock or a theme change sending them back to it all over again: the
+    // intent it came from is never consumed, so it is still there to be read every time.
+    LaunchedEffect(openAt) {
+        if (openAt != null) {
             navController.navigate(openAt) { launchSingleTop = true }
+            onOpenAtTaken()
         }
-        answered = openRequests
     }
 
     val backStackEntry by navController.currentBackStackEntryAsState()

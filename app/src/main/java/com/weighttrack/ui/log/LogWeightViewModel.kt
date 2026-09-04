@@ -57,6 +57,9 @@ class LogWeightViewModel @Inject constructor(
 
     private var existing: WeightEntry? = null
 
+    /** A write already on its way, so a second press cannot start another one behind it. */
+    private var saving = false
+
     init {
         viewModelScope.launch {
             val unit = settingsRepository.settings.first().weightUnit
@@ -126,10 +129,12 @@ class LogWeightViewModel @Inject constructor(
     fun save() {
         val current = _state.value
         if (!current.canSave) return
-        // Once is enough. The screen closes itself on this flag, so a second press can only
-        // happen where that close did not take, and filing the same weigh-in twice because a
-        // screen would not shut is not something the person asked for.
-        if (current.saved) return
+        // Once is enough. The screen closes itself on the saved flag, but that is set at the end
+        // of the write, after the widgets and the watch have been refreshed, so two presses
+        // inside that window both used to get through and file the morning twice. This one is
+        // set here, before anything is launched, and save() is only ever called from the screen.
+        if (current.saved || saving) return
+        saving = true
         viewModelScope.launch {
             val zone = ZoneId.systemDefault()
             val instant = current.date.atTime(current.time).atZone(zone).toInstant()
