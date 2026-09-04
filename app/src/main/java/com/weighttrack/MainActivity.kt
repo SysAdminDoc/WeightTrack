@@ -72,6 +72,17 @@ class MainActivity : FragmentActivity() {
     private var openedFile by mutableStateOf<android.net.Uri?>(null)
 
     /**
+     * The address a screen has already taken, kept across a recreation.
+     *
+     * The intent that carried it is never consumed: it is still there on the next `onCreate`,
+     * and a rotation, a change of theme or a restore after the app was killed all run one. Held
+     * only in the field beside this, the fact that somebody had already been shown the file was
+     * the one thing that did not survive, so a spreadsheet imported itself again and a backup
+     * asked to be restored a second time, after the answer had been given.
+     */
+    private var takenFile: android.net.Uri? = null
+
+    /**
      * The screen asked for, and how many times it has been asked for.
      *
      * A launcher shortcut tapped while the app is already open arrives as a new intent rather
@@ -89,11 +100,21 @@ class MainActivity : FragmentActivity() {
             openRoute = route
             openRequests += 1
         }
-        fileFrom(intent)?.let { openedFile = it }
+        // Somebody asking again, deliberately, even for the same file. A fresh request is not
+        // the old one coming back round, so what was taken before does not silence it.
+        fileFrom(intent)?.let {
+            takenFile = null
+            openedFile = it
+        }
     }
 
     private fun fileFrom(intent: android.content.Intent?): android.net.Uri? =
         intent?.takeIf { it.action == android.content.Intent.ACTION_VIEW }?.data
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        takenFile?.let { outState.putString(TAKEN_FILE, it.toString()) }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -103,7 +124,8 @@ class MainActivity : FragmentActivity() {
         // and a shortcut left by an older version would otherwise keep its old wording.
         com.weighttrack.shortcuts.LauncherShortcuts.publish(this)
         openRoute = openAt(intent)
-        openedFile = fileFrom(intent)
+        takenFile = savedInstanceState?.getString(TAKEN_FILE)?.let(android.net.Uri::parse)
+        openedFile = fileStillToShow(fileFrom(intent), takenFile)
 
         setContent {
             val viewModel: AppViewModel = hiltViewModel()
@@ -182,7 +204,10 @@ class MainActivity : FragmentActivity() {
                             openedFile = openedFile,
                             // Forgotten the moment the screen has taken it, so a rotation does
                             // not offer to restore the same file all over again.
-                            onOpenedFileTaken = { openedFile = null },
+                            onOpenedFileTaken = {
+                                takenFile = openedFile
+                                openedFile = null
+                            },
                         )
                     }
                 }
@@ -197,4 +222,20 @@ class MainActivity : FragmentActivity() {
             onFailure = viewModel::onUnlockFailed,
         )
     }
+
+    private companion object {
+        const val TAKEN_FILE = "openedFileTaken"
+    }
 }
+
+/**
+ * Whether a file the phone handed over still needs putting in front of somebody.
+ *
+ * Its own function so the rule can be checked without a screen: the intent is still on the
+ * activity after it is recreated, so the only thing separating "opened this" from "opened this
+ * again" is whether the same address has already been shown.
+ */
+internal fun fileStillToShow(
+    handedOver: android.net.Uri?,
+    alreadyShown: android.net.Uri?,
+): android.net.Uri? = handedOver?.takeIf { it != alreadyShown }
