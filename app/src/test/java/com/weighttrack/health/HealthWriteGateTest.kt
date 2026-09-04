@@ -152,6 +152,24 @@ class HealthWriteGateTest {
     }
 
     @Test
+    fun `logging a meal never decides whose Health Connect this is`() = runTest {
+        profiles.ensureDefault()
+        val other = profiles.add("Them")
+        profiles.setActive(other)
+        val fake = granting(HealthDirection.TWO_WAY)
+        val sync = syncWith(fake)
+        // Nobody has connected, so nobody holds it. A meal must not settle that question:
+        // claiming here would make the person who happened to be on screen the owner for good
+        // and clear the other one's links, with nothing on screen saying so.
+        assertThat(profiles.healthConnectId()).isNull()
+
+        assertThat(sync.logAMeal()).isFalse()
+
+        assertThat(profiles.healthConnectId()).isNull()
+        assertThat(meals(fake)).isEmpty()
+    }
+
+    @Test
     fun `read only publishes no meals and no water`() = runTest {
         profiles.ensureDefault()
         // Granted while the exchange was two-way, which is how it happens: the grant from the

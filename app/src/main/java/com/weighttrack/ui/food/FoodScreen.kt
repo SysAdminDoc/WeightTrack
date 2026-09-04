@@ -488,8 +488,12 @@ internal fun foodKey(food: Food): String =
  * Nothing about a food that came back from a lookup is reliably unique. USDA's own datasets ship
  * the same description more than once and carry no barcode for anything unbranded, so "cheddar
  * cheese" really does come back twice, identical, and a lazy list handed the same key twice
- * throws rather than degrading. The position is what separates them: a result list is replaced
- * whole on every search, so there is no identity across searches to preserve anyway.
+ * throws rather than degrading. The position is what separates them.
+ *
+ * Keeping one removes it from the list, so the rows below it are re-keyed and rebuilt. That is
+ * affordable only because a row here holds nothing of its own: no text box, no remembered state,
+ * and the button captures the food rather than the position. Anything with state in it would
+ * need a real identity, which means carrying the source's own identifier on the food.
  */
 internal fun onlineFoodKey(index: Int, food: Food): String =
     "online-" + index + "-" + foodKey(food)

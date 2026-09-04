@@ -314,7 +314,11 @@ class HealthConnectSync @Inject constructor(
      */
     private suspend fun mayPublishActiveProfile(): Boolean {
         if (!direction().writes) return false
-        val holder = syncProfileId() ?: return false
+        // Asked, never claimed. Deciding whose Health Connect this is belongs to connecting, to
+        // the settings screen and to the weight exchange; letting a meal decide it would mean
+        // that on a phone where nobody has answered yet, logging lunch quietly makes whoever is
+        // on screen the owner for good and clears the other person's links.
+        val holder = profileRepository.healthConnectId() ?: return false
         return holder == profileRepository.activeId()
     }
 

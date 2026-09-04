@@ -60,6 +60,23 @@ class SyncBudgetTest {
     }
 
     @Test
+    fun `the name a file signs itself with is measured too`() {
+        // It is on no row, and it reaches the peer table by its own door: the merge notes a peer
+        // for every document it accepts. Left unmeasured, this phone persists the name, puts it
+        // in its own list, and every other device then refuses this phone's file for good.
+        val shouting = document().copy(deviceId = "d".repeat(SyncBudget.MAX_STRING + 1))
+
+        assertThat(SyncBudget.problemWith(shouting)).isNotNull()
+    }
+
+    @Test
+    fun `the device stamped on an ordinary row is measured too`() {
+        val stamped = weight("w-1").copy(stampDeviceId = "d".repeat(SyncBudget.MAX_STRING + 1))
+
+        assertThat(SyncBudget.problemWith(document(weights = listOf(stamped)))).isNotNull()
+    }
+
+    @Test
     fun `a device name nobody could have typed is refused`() {
         val shouting = SyncPeer(deviceId = "d".repeat(SyncBudget.MAX_STRING + 1))
 

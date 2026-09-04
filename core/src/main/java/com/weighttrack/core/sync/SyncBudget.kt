@@ -128,7 +128,15 @@ object SyncBudget {
      * per-collection limits.
      */
     private fun allStrings(document: SyncDocument): List<String> = buildList {
-        document.profiles.forEach { add(it.name); add(it.syncId); add(it.reminderDays) }
+        // The writer's own name, which is not on any row and reaches the peer table by its own
+        // door: the merge notes a peer for every document it accepts, so a file whose deviceId
+        // is five million characters is persisted and then republished by this phone in its own
+        // list, and every other device refuses this phone's file for good.
+        add(document.deviceId)
+        document.profiles.forEach {
+            add(it.name); add(it.syncId); add(it.reminderDays)
+            add(it.sex); add(it.activityLevel); add(it.stampDeviceId)
+        }
         document.weights.forEach {
             add(it.syncId)
             add(it.profileSyncId)
@@ -141,27 +149,41 @@ object SyncBudget {
             it.compositionQuality?.let(::add)
             it.originPackage?.let(::add)
             it.originDevice?.let(::add)
+            add(it.stampDeviceId)
         }
         document.measurements.forEach {
-            add(it.syncId); add(it.type); add(it.localDate); it.note?.let(::add)
+            add(it.syncId); add(it.profileSyncId); add(it.type); add(it.localDate)
+            it.note?.let(::add); add(it.stampDeviceId)
         }
-        document.water.forEach { add(it.syncId); add(it.localDate) }
-        document.fasts.forEach { add(it.syncId); it.note?.let(::add) }
+        document.water.forEach {
+            add(it.syncId); add(it.profileSyncId); add(it.localDate); add(it.stampDeviceId)
+        }
+        document.fasts.forEach {
+            add(it.syncId); add(it.profileSyncId); it.note?.let(::add); add(it.stampDeviceId)
+        }
         document.goals.forEach {
-            add(it.syncId); add(it.direction); add(it.startDate); it.targetDate?.let(::add)
+            add(it.syncId); add(it.profileSyncId); add(it.direction); add(it.startDate)
+            it.targetDate?.let(::add); add(it.stampDeviceId)
         }
-        document.macroTargets.forEach { add(it.syncId); add(it.basis); it.dayOfWeek?.let(::add) }
+        document.macroTargets.forEach {
+            add(it.syncId); add(it.profileSyncId); add(it.basis)
+            it.dayOfWeek?.let(::add); add(it.stampDeviceId)
+        }
         document.foods.forEach {
             add(it.syncId); add(it.name); add(it.origin)
-            it.brand?.let(::add); it.barcode?.let(::add)
+            it.brand?.let(::add); it.barcode?.let(::add); add(it.stampDeviceId)
         }
-        document.recipes.forEach { add(it.syncId); add(it.name) }
-        document.recipeItems.forEach { add(it.syncId); add(it.recipeSyncId); add(it.foodSyncId) }
+        document.recipes.forEach { add(it.syncId); add(it.name); add(it.stampDeviceId) }
+        document.recipeItems.forEach {
+            add(it.syncId); add(it.recipeSyncId); add(it.foodSyncId); add(it.stampDeviceId)
+        }
         document.foodLog.forEach {
-            add(it.syncId); add(it.name); add(it.meal); add(it.localDate)
-            it.foodSyncId?.let(::add)
+            add(it.syncId); add(it.profileSyncId); add(it.name); add(it.meal); add(it.localDate)
+            it.foodSyncId?.let(::add); add(it.stampDeviceId)
         }
-        document.deletions.forEach { add(it.syncId); add(it.profileSyncId) }
+        document.deletions.forEach {
+            add(it.syncId); add(it.profileSyncId); add(it.stampDeviceId)
+        }
         document.medicationDoses.forEach {
             add(it.syncId); add(it.profileSyncId); add(it.localDate)
             add(it.drug); add(it.site); it.note?.let(::add); add(it.stampDeviceId)
@@ -172,7 +194,10 @@ object SyncBudget {
         }
         document.peers.forEach { add(it.deviceId) }
         document.observed.forEach { add(it.deviceId) }
-        document.settings?.let { add(it.weightUnit); add(it.lengthUnit); add(it.themeMode) }
+        document.settings?.let {
+            add(it.weightUnit); add(it.lengthUnit); add(it.themeMode)
+            add(it.sex); add(it.activityLevel); add(it.smoothingMode); add(it.stampDeviceId)
+        }
     }
 
     private const val BUFFER_BYTES = 64 * 1024
