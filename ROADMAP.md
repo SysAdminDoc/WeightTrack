@@ -661,14 +661,13 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
 
 #### From the secondary-screens deep read, 2026-09-04
 
-- [ ] P1: An online food search can crash the Foods screen on a duplicate key
+- [ ] P3: The bundled food shelf can still collide on a list key
   Category: correctness
-  Where: `app/src/main/java/com/weighttrack/ui/food/FoodScreen.kt:148` (`items(state.online, key = { it.name + it.barcode.orEmpty() })`) against `:181`, which correctly uses `foodKey(it)`; `core/src/main/java/com/weighttrack/core/nutrition/UsdaFoodData.kt:66-82` (name is `description`, barcode is `gtinUpc` and is null for every non-branded food); `ui/food/FoodViewModel.kt:139` concatenates the Open Food Facts and USDA hits into one list.
-  Problem: USDA's SR Legacy and Foundation datasets ship identical `description` values with no GTIN, so an ordinary ingredient search ("cheddar cheese", "banana") returns two rows whose key is the same string. A lazy list given a duplicate key throws rather than degrading, so the screen crashes. This is the trap already recorded in the repo's notes, and the helper written for it is used on the local list thirty lines below and not here.
-  Evidence: adversarial read. `FoodKeyTest` proves `foodKey` is collision-free but nothing asserts the online list uses it; `UsdaFoodDataClientTest` never returns two foods sharing a description.
-  Fix: key the online list with `foodKey(it)` as the local list does, and add the missing case to `UsdaFoodDataClientTest`.
-  Acceptance: a fixture with two USDA hits sharing a description renders without throwing; a test asserts it.
-  Confidence: Verified
+  Where: `app/src/main/java/com/weighttrack/ui/food/FoodScreen.kt` `foodKey`, used for `state.local`; the shelf is built by `tools/build_offline_foods.py` into `app/src/main/assets/offline_foods.db`.
+  Problem: `foodKey` falls back to the barcode plus the name for anything off the shelf, both of which carry a zero identifier. Two shelf rows sharing a name with no barcode would produce the same key and throw, the same way the online list did before it was keyed by position. The online list is fixed; this one rests on the shelf builder never emitting such a pair, which nothing checks.
+  Fix: either make the shelf's own identifier travel on `Food` so a real key exists, or assert uniqueness of `(barcode, name)` when the shelf is built and fail the build on a duplicate.
+  Acceptance: a test loads the shipped shelf and asserts every row produces a distinct `foodKey`; the builder refuses a duplicate.
+  Confidence: Likely
   Effort: S
 
 - [ ] P1: Editing a day's own calorie target silently overwrites the everyday one

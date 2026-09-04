@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Star
@@ -145,7 +146,10 @@ fun FoodScreen(
                         )
                     }
                 }
-                items(state.online, key = { it.name + it.barcode.orEmpty() }) { food ->
+                itemsIndexed(
+                    state.online,
+                    key = { index, food -> onlineFoodKey(index, food) },
+                ) { _, food ->
                     FoodRow(
                         food = food,
                         trailing = {
@@ -477,6 +481,18 @@ internal fun keepNumeric(text: String): String {
  */
 internal fun foodKey(food: Food): String =
     if (food.id != 0L) "food-" + food.id else "shelf-" + food.barcode.orEmpty() + "-" + food.name
+
+/**
+ * What tells one row of a search result from another.
+ *
+ * Nothing about a food that came back from a lookup is reliably unique. USDA's own datasets ship
+ * the same description more than once and carry no barcode for anything unbranded, so "cheddar
+ * cheese" really does come back twice, identical, and a lazy list handed the same key twice
+ * throws rather than degrading. The position is what separates them: a result list is replaced
+ * whole on every search, so there is no identity across searches to preserve anyway.
+ */
+internal fun onlineFoodKey(index: Int, food: Food): String =
+    "online-" + index + "-" + foodKey(food)
 
 /**
  * Whether a list of foods carries Open Food Facts data and so has to credit it.

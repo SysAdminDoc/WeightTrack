@@ -54,6 +54,19 @@ class FoodKeyTest {
     }
 
     @Test
+    fun `two search results that are identical still get distinct keys`() {
+        // USDA's own datasets ship the same description twice and carry no barcode for anything
+        // unbranded, so an ordinary ingredient search really does come back with two rows that
+        // are the same in every field the app can see.
+        val cheddar = shelf(null, "Cheese, cheddar")
+        val list = listOf(cheddar, cheddar.copy(), shelf(null, "Cheese, mozzarella"))
+
+        val keys = list.mapIndexed { index, food -> onlineFoodKey(index, food) }
+
+        assertThat(keys.toSet()).hasSize(3)
+    }
+
+    @Test
     fun `the key does not change between draws`() {
         val food = shelf("5000108001111", "Oats")
         assertThat(foodKey(food)).isEqualTo(foodKey(food.copy()))

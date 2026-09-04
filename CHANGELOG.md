@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Searching the USDA database for an ordinary ingredient no longer crashes the Foods screen. Its own data ships the same description more than once and carries no barcode for anything unbranded, so a search for something like cheddar came back with two rows the app could not tell apart, and the list refused to draw at all.
+
 - Meals and glasses of water now go to Health Connect under the same two rules your weight already followed. In a household they were written for whoever was on screen, so the second person's lunch landed in the first person's health record, which every other app reads as the phone owner's. And setting the exchange to read only did not stop them, because the permission Android granted you outlives changing your mind here. Both are fixed. Nothing already written is touched.
 
 - Switching off one app in Health Connect no longer costs you the whole morning. With "keep only the lowest reading each day" also on, the reading from the app you had switched off still went into the comparison, won the day for being lower, and was only then thrown away, taking the reading you did want with it. That day imported nothing at all. Both reasons to refuse a reading are now settled before the day's lowest is picked.
