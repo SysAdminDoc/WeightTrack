@@ -318,6 +318,7 @@ fun DiaryScreen(
         TargetDialog(
             current = state.target,
             day = state.date.dayOfWeek,
+            dayHasItsOwn = state.targetIsForThisDay,
             onCancel = { editingTarget = false },
             onSave = { kcal, protein, carbs, fat, basis, day ->
                 onSetTarget(kcal, protein, carbs, fat, basis, day)
@@ -525,6 +526,14 @@ private fun QuickAddDialog(meal: Meal, onCancel: () -> Unit, onAdd: (Double, Str
 private fun TargetDialog(
     current: MacroTarget?,
     day: java.time.DayOfWeek,
+    /**
+     * Whether the target on screen is this weekday's own rather than the everyday one.
+     *
+     * Seeds the switch below. Started at false, editing a Saturday target wrote the answer into
+     * the everyday row instead: the other six days lost theirs, Saturday looked exactly as it
+     * had, and the message said the target was set.
+     */
+    dayHasItsOwn: Boolean,
     onCancel: () -> Unit,
     onSave: (Double, Double?, Double?, Double?, MacroBasis, java.time.DayOfWeek?) -> Unit,
 ) {
@@ -533,7 +542,7 @@ private fun TargetDialog(
     var protein by remember { mutableStateOf(fieldFor(current?.proteinG, current?.proteinPercent, basis)) }
     var carbs by remember { mutableStateOf(fieldFor(current?.carbsG, current?.carbsPercent, basis)) }
     var fat by remember { mutableStateOf(fieldFor(current?.fatG, current?.fatPercent, basis)) }
-    var justThisDay by remember { mutableStateOf(false) }
+    var justThisDay by remember { mutableStateOf(dayHasItsOwn) }
 
     val kcalValue = LocaleNumbers.decimal(kcal)
     val valid = kcalValue != null && kcalValue > 0
@@ -571,7 +580,27 @@ private fun TargetDialog(
                                 },
                             ),
                             selected = basis == option,
-                            onClick = { basis = option },
+                            onClick = {
+                                if (option != basis) {
+                                    // The numbers move with the chip. Left where they were, 150
+                                    // grams of protein becomes 150 per cent of the day, and what
+                                    // gets stored is 750 grams.
+                                    val total = LocaleNumbers.decimal(kcal)
+                                    protein = TargetRevision.movedTo(
+                                        protein, option, total,
+                                        MacroTarget.KCAL_PER_GRAM_PROTEIN, LocaleNumbers::decimal,
+                                    )
+                                    carbs = TargetRevision.movedTo(
+                                        carbs, option, total,
+                                        MacroTarget.KCAL_PER_GRAM_CARBS, LocaleNumbers::decimal,
+                                    )
+                                    fat = TargetRevision.movedTo(
+                                        fat, option, total,
+                                        MacroTarget.KCAL_PER_GRAM_FAT, LocaleNumbers::decimal,
+                                    )
+                                    basis = option
+                                }
+                            },
                         )
                     }
                 }
@@ -626,7 +655,7 @@ private fun TargetDialog(
                         grams(carbs, MacroTarget.KCAL_PER_GRAM_CARBS),
                         grams(fat, MacroTarget.KCAL_PER_GRAM_FAT),
                         basis,
-                        day.takeIf { justThisDay },
+                        TargetRevision.rowFor(day, justThisDay),
                     )
                 },
             ) { Text(stringResource(R.string.common_save)) }

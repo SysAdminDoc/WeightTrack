@@ -16,6 +16,62 @@ class TargetRevisionTest {
         basis = MacroBasis.GRAMS,
     )
 
+    private fun read(text: String): Double? = text.trim().toDoubleOrNull()
+
+    @Test
+    fun `moving the editor to shares converts what is in it`() {
+        // 150 g of protein against 2,000 kcal is 30 per cent of the day. Left where it was, the
+        // same digits are read as 150 per cent and 750 g is what gets stored.
+        val moved = TargetRevision.movedTo(
+            "150", MacroBasis.PERCENT, 2_000.0, MacroTarget.KCAL_PER_GRAM_PROTEIN, ::read,
+        )
+
+        assertThat(moved).isEqualTo("30")
+    }
+
+    @Test
+    fun `moving the editor back to grams undoes it`() {
+        val there = TargetRevision.movedTo(
+            "150", MacroBasis.PERCENT, 2_000.0, MacroTarget.KCAL_PER_GRAM_PROTEIN, ::read,
+        )
+        val back = TargetRevision.movedTo(
+            there, MacroBasis.GRAMS, 2_000.0, MacroTarget.KCAL_PER_GRAM_PROTEIN, ::read,
+        )
+
+        assertThat(back).isEqualTo("150")
+    }
+
+    @Test
+    fun `fat converts on its own energy, not protein's`() {
+        // 67 g of fat is 603 kcal, a little over 30 per cent of 2,000. Read at four calories a
+        // gram it would come out at 13.
+        val moved = TargetRevision.movedTo(
+            "67", MacroBasis.PERCENT, 2_000.0, MacroTarget.KCAL_PER_GRAM_FAT, ::read,
+        )
+
+        assertThat(moved).isEqualTo("30")
+    }
+
+    @Test
+    fun `a field nobody can read is left exactly as it was`() {
+        // Half-typed, or empty. Throwing away what somebody is in the middle of typing because
+        // they tapped a chip would be worse than the thing this is fixing.
+        val kept = TargetRevision.movedTo(
+            "", MacroBasis.PERCENT, 2_000.0, MacroTarget.KCAL_PER_GRAM_PROTEIN, ::read,
+        )
+
+        assertThat(kept).isEmpty()
+    }
+
+    @Test
+    fun `with no calorie figure yet there is nothing to convert against`() {
+        val kept = TargetRevision.movedTo(
+            "150", MacroBasis.PERCENT, null, MacroTarget.KCAL_PER_GRAM_PROTEIN, ::read,
+        )
+
+        assertThat(kept).isEqualTo("150")
+    }
+
     @Test
     fun `a day with its own target keeps the change to itself`() {
         // The long-run Saturday. Writing this into the everyday row would replace the target the

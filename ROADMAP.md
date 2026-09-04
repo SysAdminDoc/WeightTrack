@@ -650,26 +650,6 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
   Confidence: Likely
   Effort: S
 
-- [ ] P1: Editing a day's own calorie target silently overwrites the everyday one
-  Category: correctness
-  Where: `app/src/main/java/com/weighttrack/ui/diary/DiaryScreen.kt:536` (`var justThisDay by remember { mutableStateOf(false) }`, always starting false), `:629` (`day.takeIf { justThisDay }`), `:317-321` (the dialog is never told `state.targetIsForThisDay`); `ui/diary/DiaryViewModel.kt:337-345`; `data/repo/MacroTargetRepository.kt:37-56`. The helper written for exactly this is `ui/diary/TargetRevision.kt`, wired only to the recommendation button.
-  Problem: set an everyday target, then a Saturday-only target. Come back the next Saturday, open Target (it prefills the Saturday figure), change it and save. Because the toggle reset to false, the write lands on the everyday row: the other six days lose their target, the Saturday row is unchanged, the screen looks the same and the snackbar says the target was set. `TargetRevision` exists because "the button would appear to do nothing at all", and the dialog people actually use bypasses it.
-  Evidence: adversarial read. `TargetRevisionTest` covers the pure function, not the dialog.
-  Fix: seed `justThisDay` from `state.targetIsForThisDay` and route the save through `TargetRevision.rowFor`.
-  Acceptance: the sequence above leaves the everyday target untouched and updates the Saturday row; a test asserts both rows.
-  Confidence: Verified
-  Effort: S
-
-- [ ] P1: Switching the target dialog between grams and percent reinterprets the numbers
-  Category: correctness
-  Where: `app/src/main/java/com/weighttrack/ui/diary/DiaryScreen.kt:531-535` (the three fields are seeded once by `fieldFor(..., basis)` under a `remember` with no key), `:541-548` (`grams()` reads the live `basis`), `:563-577` (the chips only mutate `basis`).
-  Problem: with a target of 2,000 kcal and 150 g of protein, tapping the percent chip to look at the split leaves "150" in the box and now reads it as 150 percent, so saving stores 750 g of protein. The same happens to carbohydrate and fat. Nothing on screen changed except which chip is lit.
-  Evidence: adversarial read. No test exists for the dialog; `MacroTargetTest` covers `gramsFromPercent` in isolation.
-  Fix: convert the three field values when the basis changes, so the numbers on screen keep meaning the same thing.
-  Acceptance: switching basis and saving without editing leaves the stored grams unchanged; a test asserts a round trip through both bases.
-  Confidence: Verified
-  Effort: S
-
 - [ ] P2: Two measurement paths discard a value in silence
   Category: ux
   Where: `app/src/main/java/com/weighttrack/ui/measurements/MeasurementsScreen.kt:176` (Save has no `enabled`) with `ui/measurements/MeasurementsViewModel.kt:181-187` (`if (value == null || value <= 0) { _editor.value = null; return }`); and `MeasurementsViewModel.kt:128-135,138` with `:110`, where a non-blank but unreadable entry enters `changed` and is then dropped by `mapNotNull`, so the site is neither measured nor carried forward.

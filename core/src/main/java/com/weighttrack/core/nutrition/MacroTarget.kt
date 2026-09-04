@@ -30,10 +30,8 @@ data class MacroTarget(
     val day: DayOfWeek? = null,
 ) {
     /** The share of the day's calories each macro accounts for. */
-    fun percentOf(grams: Double?, kcalPerGram: Double): Double? {
-        if (grams == null || kcal <= 0) return null
-        return grams * kcalPerGram / kcal * 100.0
-    }
+    fun percentOf(grams: Double?, kcalPerGram: Double): Double? =
+        percentFromGrams(kcal, grams, kcalPerGram)
 
     val proteinPercent: Double? get() = percentOf(proteinG, KCAL_PER_GRAM_PROTEIN)
     val carbsPercent: Double? get() = percentOf(carbsG, KCAL_PER_GRAM_CARBS)
@@ -69,6 +67,18 @@ data class MacroTarget(
         fun gramsFromPercent(kcal: Double, percent: Double?, kcalPerGram: Double): Double? {
             if (percent == null || kcal <= 0) return null
             return kcal * percent / 100.0 / kcalPerGram
+        }
+
+        /**
+         * The other direction, for moving an editor between the two ways of saying it.
+         *
+         * The pair matters more than either half. Switching the editor from grams to shares and
+         * leaving the numbers where they were reads 150 grams of protein as 150 per cent of the
+         * day, which is 750 grams once it is stored.
+         */
+        fun percentFromGrams(kcal: Double, grams: Double?, kcalPerGram: Double): Double? {
+            if (grams == null || kcal <= 0) return null
+            return grams * kcalPerGram / kcal * 100.0
         }
 
         /**

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Two faults in the daily target dialog. Editing a target that belonged to one weekday wrote the change into the everyday target instead, so the other six days lost theirs while the day you were looking at stayed exactly as it was and the message said it had been set. And switching the macros between grams and shares left the numbers where they were, so 150 grams of protein was read as 150 per cent of the day and stored as 750 grams. The switch now starts where the day actually is, and the numbers move with the chip.
+
 - More corrections to the sync size checks and the Health Connect gate above, before anybody has them. A file could still sign itself with a name of any length, and every ordinary row could carry one too, which is the same hole by a different door. And the new check on who may publish a meal was asking a question that answers itself: on a phone where nobody had connected yet, logging lunch would have quietly made whoever was on screen the owner of Health Connect for good.
 
 - Deleting the person a fresh install starts with now reaches your other phone. That first profile was created without the hidden name sync uses to tell people apart, so removing them told the other device nothing and it handed them straight back as an empty profile you could not get rid of. Every install made since households were added has one, and it is filled in on the next start.
