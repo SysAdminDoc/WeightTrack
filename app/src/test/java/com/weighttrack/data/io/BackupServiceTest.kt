@@ -422,6 +422,28 @@ class BackupServiceTest {
     }
 
     @Test
+    fun `one person's body is not handed to another on restore`() = runTest {
+        // The version-one block carries whoever was open when the file was written, because a
+        // build old enough to read only that shape has nowhere else to find a body. Adopting it
+        // onto whoever is open on the restoring phone gives one person's height and year of
+        // birth to somebody else, and the BMI and daily burn that follow from them.
+        seedTwoProfiles()
+        val dao = source.syncDao()
+        val them = dao.profiles().single { it.syncId == "p-them" }
+        source.profileDao().update(them.copy(heightMm = 1_640, birthYear = 1994))
+        val exporting = testSettingsRepository()
+        exporting.setActiveProfile(them.id)
+        val file = write(serviceFor(source, exporting).exportedJson().getOrThrow())
+
+        serviceFor(target).importJson(Uri.fromFile(file)).getOrThrow()
+
+        val restored = target.syncDao().profiles()
+            .associate { it.syncId to (it.heightMm to it.birthYear) }
+        assertThat(restored["p-them"]).isEqualTo(1_640 to 1_994)
+        assertThat(restored["p-me"]).isEqualTo(0 to 0)
+    }
+
+    @Test
     fun `an older backup brings its height and its year of birth back`() = runTest {
         val settings = testSettingsRepository()
         val profiles = ProfileRepository(

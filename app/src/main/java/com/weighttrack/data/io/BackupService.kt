@@ -675,7 +675,16 @@ class BackupService @Inject constructor(
         }
         // A document written before the demographics moved onto the profile carries them in its
         // settings instead, where nothing reads them any more.
-        adoptDemographics(backup)
+        //
+        // Only when no profile in it carries a body of its own. The single figure beside the
+        // settings describes whoever was open on the phone that wrote the file, and adopting it
+        // onto whoever is open on this one hands one person's height and year of birth to
+        // somebody else: a household of two restores, and the person who had filled nothing in
+        // silently acquires the other's body, along with the BMI and the daily burn worked out
+        // from it.
+        if (document.profiles.none { it.heightMm > 0 || it.birthYear > 0 }) {
+            adoptDemographics(backup)
+        }
         return ImportSummary(
             imported = document.weights.size,
             skipped = 0,
