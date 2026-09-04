@@ -547,26 +547,6 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
   Confidence: Verified
   Effort: M
 
-- [ ] P1: Meals and water are written to Health Connect for whoever is on screen, ignoring the claim
-  Category: correctness
-  Where: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:233-271` (`writeNutrition`) and `:963-991` (`writeHydration`), both gated on the OS grant alone; callers `ui/diary/DiaryViewModel.kt:270-283` and `ui/water/WaterLogger.kt:45`, which write local rows under `profiles.activeId()`; the exclusivity these bypass is `data/repo/ProfileRepository.kt:264-286`.
-  Problem: in a household, Health Connect belongs to exactly one profile, and weights honour that. Nutrition and hydration do not: switch to the second person, log a meal or tap the water widget, and their calories and drinks land in the health record the first person owns and every other app reads as the phone owner's. This is the precise failure `claimHealthConnect` was written to prevent, left open on two of the three write paths.
-  Evidence: adversarial read. `HealthConnectClaimTest` drives `sync()` and never the two direct write paths; `NutritionInstantTest` covers timestamp arithmetic only.
-  Fix: both writers take the profile the row belongs to and return early unless it holds the claim, the same test `sync()` applies.
-  Acceptance: a test with two profiles logs a meal and a drink under the profile that does not hold the claim and asserts the fake client received nothing; the holder's meal still goes across.
-  Confidence: Verified
-  Effort: S
-
-- [ ] P1: "Read only" still publishes meals and water
-  Category: security
-  Where: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:247` and `:972` check only `hasNutritionPermission()` / `hasHydrationPermission()`; compare `sync()` at `:590`, which honours `if (way.writes)`.
-  Problem: setting Health Connect to read-only in Settings does not revoke the OS grant, so meals and drinks keep being written into a health record the person has explicitly told the app not to publish to. The direction control is the app's own promise about where data goes, and two of its three write paths ignore it.
-  Evidence: adversarial read. `HealthOriginTest > read only publishes nothing` asserts on `sync().exported` for weights and never calls the nutrition or hydration writers.
-  Fix: read `direction()` in both writers and return early unless it writes.
-  Acceptance: with read-only set and both grants held, a logged meal and a logged drink reach the database and not the fake client; a test asserts both.
-  Confidence: Verified
-  Effort: S
-
 - [ ] P1: A fresh install's first profile has no travelling name, so deleting it leaves no tombstone
   Category: correctness
   Where: `app/src/main/java/com/weighttrack/di/DataModule.kt:62-73` (the create callback inserts profile 1 naming only id, name, position and created time, leaving `syncId` at its `defaultValue = ''`); `data/db/Entities.kt:68`; `data/repo/ProfileRepository.kt:189-190` (`ensureDefault` returns early because a row exists); `data/db/WeightTrackDatabase.kt:124-134` (`AddSyncIds.onPostMigrate` runs only on the 8 to 9 migration, never on a fresh create); the drop happens at `data/repo/DeletionRecorder.kt:82`, called from `ProfileRepository.kt:156`.

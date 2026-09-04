@@ -245,6 +245,7 @@ class HealthConnectSync @Inject constructor(
             // Only the nutrition grant matters here. Gating on the whole set would drop meals
             // for somebody who allowed food but not, say, the height read.
             if (!hasNutritionPermission()) return@runCatching false
+            if (!mayPublishActiveProfile()) return@runCatching false
             val zone = ZoneId.systemDefault()
             client.insertRecords(
                 listOf(
@@ -300,6 +301,22 @@ class HealthConnectSync @Inject constructor(
 
     /** Which way readings are allowed to move, as it stands. */
     suspend fun direction(): HealthDirection = settingsRepository.settings.first().healthDirection
+
+    /**
+     * Whether what the person on screen records may be published to Health Connect.
+     *
+     * Two questions the weight exchange has always asked and the meal and drink writers never
+     * did. Health Connect holds one person's records, so a household picks who: writing the
+     * second person's calories and glasses of water into the first person's health record, which
+     * every other app reads as the phone owner's, is exactly what the claim exists to stop. And
+     * a grant from the operating system outlives a change of mind, so somebody who has since set
+     * the exchange to read only had their meals published anyway.
+     */
+    private suspend fun mayPublishActiveProfile(): Boolean {
+        if (!direction().writes) return false
+        val holder = syncProfileId() ?: return false
+        return holder == profileRepository.activeId()
+    }
 
     /**
      * Whether everything the app can use has been allowed.
@@ -981,6 +998,7 @@ class HealthConnectSync @Inject constructor(
             // Only the hydration grant matters here. Gating on the whole set would drop water
             // records for someone who allowed water but not, say, the height read.
             if (!hasHydrationPermission()) return@runCatching false
+            if (!mayPublishActiveProfile()) return@runCatching false
             val zone = ZoneId.systemDefault()
             client.insertRecords(
                 listOf(
