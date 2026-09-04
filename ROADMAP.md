@@ -460,13 +460,12 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
 
 #### From the sync deep read, 2026-09-04
 
-- [ ] P1: A peer file can stop every device in the household ever forgetting a deletion, permanently
-  Category: correctness
-  Where: `core/src/main/java/com/weighttrack/core/sync/SyncBudget.kt:159-172` (the twelve counted collections) and `:203-239` (`allStrings`), neither of which includes `peers` or `observed`; `core/src/main/java/com/weighttrack/core/sync/SyncDocument.kt` (`peers`, `observed`); `core/sync/SyncMerge.kt:203-210` (`mergePeers`) and `:275-296` (`waiting`); `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:361-381` (`rememberPeers`).
-  Problem: `problemWith` measures twelve collections and the strings inside them, but the peer lists are not among them, so a 30 MB document full of invented device names passes every check. `mergePeers` keeps them all, `rememberPeers` writes them all into `sync_peers`, and `mergeDeletions` then waits on every non-retired peer that has no file in this round. From that point **no tombstone is ever pruned on any device in the household**, the Settings device list is thousands of rows retirable one tap at a time, and this phone republishes the whole list to every other device on its next sync. There is no recovery short of erasing all data: `SyncPeerDao.deleteAll` has no other caller.
-  Evidence: found by an adversarial read of the whole sync stack. `SyncBudgetTest` builds documents through a helper that fills weights, profiles and foods only, and its "a name nobody typed is refused wherever it appears" case reaches `reminderDays` and `source`; nothing exercises `peers`. `SyncStampingTest > a device known only as the maker of a row does not become one to wait for` guards the opposite direction.
-  Fix: count `peers` and `observed` in `problemWith` and feed their `deviceId` strings through `allStrings`, with a ceiling on the peer count (a household is single digits; a hundred is already absurd). Separately, give the Settings device list a way to forget every peer that has not published a file in, say, ninety days, so an install already poisoned can recover.
-  Acceptance: a document carrying 100,000 peers is refused with the existing too-large path and nothing is written to `sync_peers`; a `SyncBudgetTest` case covers it, and a second case covers a single peer whose `deviceId` is a megabyte of text.
+- [ ] P2: Give the device list a way to forget a peer that never publishes
+  Category: reliability
+  Where: `app/src/main/java/com/weighttrack/ui/settings/SyncCard.kt` (the device list); `app/src/main/java/com/weighttrack/data/db/SyncPeerDao.kt` (`deleteAll` has no caller but a full erase).
+  Problem: the budget now refuses a file that names a crowd of devices, so no new install can be jammed. An install that already holds a poisoned `sync_peers` table has no way back: every name in it is waited for before a deletion may be forgotten, and they can only be retired one tap at a time.
+  Fix: offer a way to forget every peer that has not published a file in ninety days, and say what it does. Retiring already exists and is the right verb; this is the bulk version of it.
+  Acceptance: a table holding two hundred peers, none of which has published, can be cleared down to the devices actually seen this round in one action; a test asserts the tombstone rule starts pruning again afterwards.
   Confidence: Verified
   Effort: S
 
@@ -479,15 +478,6 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
   Acceptance: the sequence above leaves the reading deleted; the strings no longer promise a lossless return; the new test fails against today's code.
   Confidence: Verified
   Effort: M
-
-- [ ] P2: The medication tables are invisible to the sync budget
-  Category: security
-  Where: `core/src/main/java/com/weighttrack/core/sync/SyncBudget.kt:159-172,203-239`; the collections at `core/sync/SyncDocument.kt:52-53` (`medicationDoses`, `sideEffects`); applied at `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt:1136-1163`.
-  Problem: same hole as the peer lists and the same consequence the class was rewritten to close. A peer file with 240,000 doses, or one dose whose note is twenty million characters, passes `problemWith`, is written to the database, and is republished to every other device.
-  Fix: add both collections to the counted set and their text fields to `allStrings`.
-  Acceptance: a `SyncBudgetTest` case with an over-long dose note is refused; the fix is proved by removing the new lines and watching it go green again.
-  Confidence: Verified
-  Effort: S
 
 - [ ] P2: A sync that lands never refreshes the widget or the watch
   Category: reliability

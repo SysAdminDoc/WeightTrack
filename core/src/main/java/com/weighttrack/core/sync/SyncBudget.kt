@@ -35,6 +35,16 @@ object SyncBudget {
     const val MAX_TAGS = 100
 
     /**
+     * How many devices one household's file may name.
+     *
+     * Nothing like the record ceiling, because a name in these lists is not a row: it is
+     * something every phone then waits for before it will forget a deletion, for ever if that
+     * device never publishes. Two hundred is already far past a house with phones, watches and a
+     * tablet in it, and it is small enough that a file trying to jam the rule is refused.
+     */
+    const val MAX_PEERS = 200
+
+    /**
      * Reads at most [limit] bytes, or answers null when there are more.
      *
      * Checked while reading rather than from a length the other side reported. A content provider
@@ -73,8 +83,21 @@ object SyncBudget {
             "recipe items" to document.recipeItems.size,
             "diary entries" to document.foodLog.size,
             "deletions" to document.deletions.size,
+            "doses" to document.medicationDoses.size,
+            "side effects" to document.sideEffects.size,
         ).firstOrNull { (_, count) -> count > MAX_RECORDS }
         if (tooMany != null) return "${tooMany.first}: ${tooMany.second}"
+
+        // The device lists get a ceiling of their own, far below the one above. Every name in
+        // them is something the tombstone rule then waits for before it will forget anything,
+        // and a device that never publishes a file is waited for for ever, so a file full of
+        // invented names stops every phone in the house forgetting any deletion at all. There is
+        // no way back from that short of erasing everything. A household is single digits.
+        val crowded = listOf(
+            "devices" to document.peers.size,
+            "device positions" to document.observed.size,
+        ).firstOrNull { (_, count) -> count > MAX_PEERS }
+        if (crowded != null) return "${crowded.first}: ${crowded.second}"
 
         // A list inside a row is a collection too. One weigh-in carrying a hundred thousand tags
         // is joined into a single database cell on arrival and counts against nothing above.
@@ -139,6 +162,16 @@ object SyncBudget {
             it.foodSyncId?.let(::add)
         }
         document.deletions.forEach { add(it.syncId); add(it.profileSyncId) }
+        document.medicationDoses.forEach {
+            add(it.syncId); add(it.profileSyncId); add(it.localDate)
+            add(it.drug); add(it.site); it.note?.let(::add); add(it.stampDeviceId)
+        }
+        document.sideEffects.forEach {
+            add(it.syncId); add(it.profileSyncId); add(it.localDate)
+            add(it.kind); add(it.severity); it.note?.let(::add); add(it.stampDeviceId)
+        }
+        document.peers.forEach { add(it.deviceId) }
+        document.observed.forEach { add(it.deviceId) }
         document.settings?.let { add(it.weightUnit); add(it.lengthUnit); add(it.themeMode) }
     }
 

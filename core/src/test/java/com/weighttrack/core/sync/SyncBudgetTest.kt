@@ -29,6 +29,63 @@ class SyncBudgetTest {
         foods = foods,
     )
 
+    @Test
+    fun `a file naming a crowd of devices is refused`() {
+        // Every name here is something the tombstone rule then waits for before it will forget
+        // a deletion, and a device that never publishes a file is waited for for ever. A file
+        // full of invented names therefore stops every phone in the house forgetting anything,
+        // with no way back short of erasing all the data.
+        val crowd = (0..SyncBudget.MAX_PEERS).map { SyncPeer(deviceId = "device-" + it) }
+
+        val problem = SyncBudget.problemWith(document().copy(peers = crowd))
+
+        assertThat(problem).isNotNull()
+        assertThat(problem).contains("devices")
+    }
+
+    @Test
+    fun `a file naming a crowd of device positions is refused`() {
+        val crowd = (0..SyncBudget.MAX_PEERS).map {
+            SyncObservation(deviceId = "device-" + it, throughMillis = 1_800_000_000_000)
+        }
+
+        assertThat(SyncBudget.problemWith(document().copy(observed = crowd))).isNotNull()
+    }
+
+    @Test
+    fun `a household's worth of devices is fine`() {
+        val house = (1..8).map { SyncPeer(deviceId = "device-" + it) }
+
+        assertThat(SyncBudget.problemWith(document().copy(peers = house))).isNull()
+    }
+
+    @Test
+    fun `a device name nobody could have typed is refused`() {
+        val shouting = SyncPeer(deviceId = "d".repeat(SyncBudget.MAX_STRING + 1))
+
+        assertThat(SyncBudget.problemWith(document().copy(peers = listOf(shouting)))).isNotNull()
+    }
+
+    @Test
+    fun `an injection note nobody could have typed is refused`() {
+        // The injection log arrived after this budget was written and was never added to it, so
+        // one dose carrying twenty million characters passed every check there was.
+        val dose = SyncMedicationDose(
+            syncId = "d-1",
+            profileSyncId = "p",
+            timestampUtcMillis = 1_800_000_000_000,
+            localDate = "2026-09-04",
+            drug = "TIRZEPATIDE",
+            milligrams = 5.0,
+            site = "ABDOMEN_LEFT",
+            note = "n".repeat(SyncBudget.MAX_STRING + 1),
+            updatedAtUtcMillis = 1_800_000_000_000,
+        )
+
+        assertThat(SyncBudget.problemWith(document().copy(medicationDoses = listOf(dose))))
+            .isNotNull()
+    }
+
     private fun profile() = SyncProfile(
         syncId = "p",
         name = "Me",
