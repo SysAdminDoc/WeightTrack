@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.1 (2026-09-04)
 
 - The control that removes a progress photo is a proper button now. It used to be the letter x in small text, sitting on top of the tile that picks the photo for a comparison, so it was easy to miss, easy to hit by accident, and a screen reader could only read it out as "x". It has a name, a full-sized target of its own, and picking a tile is announced as something you can tick rather than a plain button.
 

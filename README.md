@@ -1,15 +1,17 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.5.0-35D6A0?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.5.1-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
-# WeightTrack v0.5.0
+# WeightTrack v0.5.1
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. There is no server behind it: your readings go only where you send them, in an export you take or a folder you point sync at.
 
-Version 0.5.0 is the big one for anyone syncing between two phones or taking a GLP-1. Sync no longer trusts either device's clock and remembers a deletion until every device has seen it. There's an optional injection log with dose, site rotation, side effects and a one-page report for an appointment. The app reads your periods if you let it, so half a kilogram of water stops reading as a gain. The chart counts from a day you pick and says what that stretch did against the one before it. And the widget, tile and complication can show a direction instead of a weight.
+Version 0.5.1 is a correction release, and worth taking if you use a household, a launcher shortcut or Health Connect. Saving a weight from the icon's long-press could file the same reading three times. In a household, meals and glasses of water were written to Health Connect for whoever was on screen rather than the person it belongs to, and deleting the first person the app ever made never reached your other phone. Switching off one app in Health Connect could cost you the whole morning's reading. Editing a target that belonged to one weekday quietly replaced the one every other day was using. Searching the USDA database for an ordinary ingredient could take the Foods screen down.
+
+Version 0.5.0 before it is the big one for anyone syncing between two phones or taking a GLP-1. Sync no longer trusts either device's clock and remembers a deletion until every device has seen it. There's an optional injection log with dose, site rotation, side effects and a one-page report for an appointment. The app reads your periods if you let it, so half a kilogram of water stops reading as a gain. The chart counts from a day you pick and says what that stretch did against the one before it. And the widget, tile and complication can show a direction instead of a weight.
 
 Most weight apps hide the trend line, the goal projection, body measurements or a working export behind a monthly plan. MyFitnessPal even took the barcode scanner away from people who had used it free for a decade. WeightTrack ships the lot for nothing, and the MIT licence means it cannot be taken back later.
 
@@ -74,7 +76,7 @@ signing certificate before you install:
 
 ```sh
 sha256sum -c SHA256SUMS.txt
-apksigner verify --verbose --print-certs WeightTrack-v0.5.0-play-release.apk
+apksigner verify --verbose --print-certs WeightTrack-v0.5.1-play-release.apk
 ```
 
 The fingerprint that comes back has to match the one published in

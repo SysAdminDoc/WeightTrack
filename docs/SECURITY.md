@@ -24,7 +24,7 @@ sha256sum -c SHA256SUMS.txt
 Windows PowerShell:
 
 ```powershell
-Get-FileHash -Algorithm SHA256 .\WeightTrack-v0.5.0-play-release.apk
+Get-FileHash -Algorithm SHA256 .\WeightTrack-v0.5.1-play-release.apk
 ```
 
 Compare the hash against the matching line in `SHA256SUMS.txt`. Case doesn't matter; the digits do.
@@ -35,7 +35,7 @@ A checksum only proves the file arrived intact. The signature proves we built it
 from the Android SDK build tools:
 
 ```sh
-apksigner verify --verbose --print-certs WeightTrack-v0.5.0-play-release.apk
+apksigner verify --verbose --print-certs WeightTrack-v0.5.1-play-release.apk
 ```
 
 Two things in that output matter. `Verified using v2 scheme` (or v3) has to say `true`, and the

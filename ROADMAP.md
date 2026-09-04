@@ -6,7 +6,7 @@ Single task tracker for the project. Research was refreshed 2026-08-31; prices a
 
 Happy Scale quality, on Android, free forever. No account, no ads, no subscription, no cloud you don't control. Your data lives on your phone and leaves only when you export it.
 
-Current release: v0.5.0.
+Current release: v0.5.1.
 
 Every feature the paid apps lock up is either client-side math or a free API call. WeightTrack ships all of it in the open.
 
