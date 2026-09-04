@@ -90,6 +90,9 @@ enum class LogEvent {
      */
     GOAL_DATE_REPAIRED,
 
+    /** How many profiles were given a travelling name they had been created without. */
+    PROFILE_NAMED,
+
     /**
      * A progress photo could not be kept.
      *

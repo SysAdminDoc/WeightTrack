@@ -62,11 +62,15 @@ object DataModule {
             .addCallback(
                 object : RoomDatabase.Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
+                        // With a travelling name, because the column's default is blank and a
+                        // profile with no name is invisible to sync: deleting that person
+                        // records no tombstone, so the other phone hands them straight back.
                         db.execSQL(
                             "INSERT OR IGNORE INTO profiles " +
-                                "(id, name, position, createdAtUtcMillis) VALUES (" +
+                                "(id, name, position, createdAtUtcMillis, syncId) VALUES (" +
                                 WeightTrackDatabase.DEFAULT_PROFILE_ID + ", '" +
-                                WeightTrackDatabase.DEFAULT_PROFILE_NAME + "', 0, 0)",
+                                WeightTrackDatabase.DEFAULT_PROFILE_NAME + "', 0, 0, " +
+                                "lower(hex(randomblob(16))))",
                         )
                     }
                 },

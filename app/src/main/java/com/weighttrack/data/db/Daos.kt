@@ -567,6 +567,20 @@ interface ProfileDao {
     @Query("SELECT COALESCE(MAX(position), -1) FROM profiles")
     suspend fun highestPosition(): Int
 
+    /**
+     * Gives a travelling name to any profile that has none, and says how many needed one.
+     *
+     * randomblob is per row, so each gets its own; a shared name would make the merge treat two
+     * people as one. The same statement the schema-9 migration runs, because the row a fresh
+     * install creates was written by hand and never went through it: without a name a deletion
+     * of that person cannot travel, so the other phone hands them straight back.
+     */
+    @Query(
+        "UPDATE profiles SET syncId = lower(hex(randomblob(16))) " +
+            "WHERE syncId IS NULL OR syncId = ''",
+    )
+    suspend fun nameTheUnnamed(): Int
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insert(profile: ProfileEntity): Long
 

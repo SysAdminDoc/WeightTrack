@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Deleting the person a fresh install starts with now reaches your other phone. That first profile was created without the hidden name sync uses to tell people apart, so removing them told the other device nothing and it handed them straight back as an empty profile you could not get rid of. Every install made since households were added has one, and it is filled in on the next start.
+
 - A file arriving from another device is checked more thoroughly before any of it is kept. It could name any number of devices, and every name is one your phone then waits for before it will forget something you deleted, so a file full of invented ones would have stopped every phone in the house forgetting anything, permanently. The injection log had also arrived after these checks were written and was never added to them. Both are covered now, along with the device names themselves.
 
 - Searching the USDA database for an ordinary ingredient no longer crashes the Foods screen. Its own data ships the same description more than once and carries no barcode for anything unbranded, so a search for something like cheddar came back with two rows the app could not tell apart, and the list refused to draw at all.

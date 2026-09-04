@@ -537,16 +537,6 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
   Confidence: Verified
   Effort: M
 
-- [ ] P1: A fresh install's first profile has no travelling name, so deleting it leaves no tombstone
-  Category: correctness
-  Where: `app/src/main/java/com/weighttrack/di/DataModule.kt:62-73` (the create callback inserts profile 1 naming only id, name, position and created time, leaving `syncId` at its `defaultValue = ''`); `data/db/Entities.kt:68`; `data/repo/ProfileRepository.kt:189-190` (`ensureDefault` returns early because a row exists); `data/db/WeightTrackDatabase.kt:124-134` (`AddSyncIds.onPostMigrate` runs only on the 8 to 9 migration, never on a fresh create); the drop happens at `data/repo/DeletionRecorder.kt:82`, called from `ProfileRepository.kt:156`.
-  Problem: on every install since schema 9 the default profile carries a blank `syncId`. Deleting that person records no PROFILE tombstone, because `DeletionRecorder.record` returns on a blank name, so the other phone has no reason to drop them and hands the profile straight back. Their row tombstones do travel, under `profileSyncId = ""`, so the person reappears as an empty profile that cannot be removed.
-  Evidence: adversarial read. `DeletionCoverageTest > deleting a profile is remembered, and so is everything it owned` builds the database with `inMemoryDatabaseBuilder`, which does not run the `DataModule` callback, so `ensureDefault` really does insert a row with `newSyncId()`; the test then deletes a profile it added rather than profile 1. The fixture differs from the app in exactly the field under test.
-  Fix: give profile 1 a real `syncId` in the create callback, and add a one-off repair that fills any blank profile `syncId` on start, since existing installs already have one. Make the coverage test build the database the way `DataModule` does.
-  Acceptance: a fresh database has a non-blank `syncId` on profile 1; deleting it records a PROFILE tombstone; a second store syncing the tombstone drops the profile and it does not return.
-  Confidence: Verified
-  Effort: S
-
 - [ ] P2: A watch reading is filed against whoever is on screen when it arrives, and can duplicate
   Category: correctness
   Where: `app/src/play/java/com/weighttrack/wear/PhoneWearListenerService.kt:78-88` (calls `weightRepository.add`, which uses `profiles.activeId()` at `data/repo/WeightRepository.kt:209`); `core/src/main/java/com/weighttrack/core/sync/WearSync.kt` (`WearWeightLog` carries no owner); `data/db/Daos.kt:241-243` (`upsertByIdentity` keys on profile plus record id).

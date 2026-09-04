@@ -73,6 +73,13 @@ class AppViewModel @Inject constructor(
                 // A fresh install has no profile until something makes one, and anyone who had a
                 // daily reminder set before profiles existed would otherwise lose it silently.
                 profileRepository.ensureDefault()
+                // The row a fresh install starts with was written without a travelling name, so
+                // deleting that person told the other phone nothing and they came back. Named
+                // once, here, because every install made since profiles arrived has one.
+                val named = profileRepository.nameTheUnnamed()
+                if (named > 0) {
+                    runtimeLog.write(LogArea.DATA, LogEvent.PROFILE_NAMED, code = named)
+                }
                 profileRepository.adoptLegacyReminder()
                 // The height, sex, year of birth and activity level that used to belong to the
                 // phone go to whoever was using it, once. Handing them to every profile would

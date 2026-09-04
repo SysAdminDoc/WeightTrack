@@ -186,6 +186,17 @@ class ProfileRepository @Inject constructor(
      * A database created fresh rather than migrated has no rows at all, and the migration only
      * seeds one for an upgrade.
      */
+    /**
+     * Gives a travelling name to anybody created without one, and says how many needed it.
+     *
+     * The row a fresh install starts with is written straight into the table by the database's
+     * own create step, which cannot give each row a different name and so left it blank. A
+     * profile with no name is invisible to sync: deleting that person records no tombstone, so
+     * the other phone has no reason to drop them and hands them back as an empty profile that
+     * cannot be removed. Every install since profiles arrived has one.
+     */
+    suspend fun nameTheUnnamed(): Int = dao.nameTheUnnamed()
+
     suspend fun ensureDefault() {
         if (dao.count() > 0) return
         runCatching {
