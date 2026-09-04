@@ -175,6 +175,25 @@ class HealthOriginTest {
     }
 
     @Test
+    fun `an excluded app does not take the day's reading down with it`() = runTest {
+        // Both rules on at once, which is the case that used to lose the morning entirely: the
+        // excluded app's record was the lower of the two, so it won the day's comparison and was
+        // only then refused, and the reading that should have been kept had already been dropped.
+        settings.setHealthOriginExcluded(RENPHO, excluded = true)
+        settings.setImportLowestOfDay(true)
+
+        val (result, _) = syncWith(
+            WITHINGS to listOf(record("w-1", kilograms = 82.0)),
+            RENPHO to listOf(record("w-2", kilograms = 78.0, at = MORNING.plusSeconds(60))),
+        )
+
+        assertThat(result.imported).isEqualTo(1)
+        val kept = weights.entriesFor(profiles.activeId()).single()
+        assertThat(kept.origin?.packageName).isEqualTo(WITHINGS)
+        assertThat(kept.grams).isEqualTo(82_000)
+    }
+
+    @Test
     fun `turning one off again lets it back in`() = runTest {
         settings.setHealthOriginExcluded(RENPHO, excluded = true)
         settings.setHealthOriginExcluded(RENPHO, excluded = false)

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Switching off one app in Health Connect no longer costs you the whole morning. With "keep only the lowest reading each day" also on, the reading from the app you had switched off still went into the comparison, won the day for being lower, and was only then thrown away, taking the reading you did want with it. That day imported nothing at all. Both reasons to refuse a reading are now settled before the day's lowest is picked.
+
 - A backup or spreadsheet opened from Files is only offered once. Turning the phone, changing to dark mode, or coming back to an app Android had closed all rebuilt the screen from the same request, so a spreadsheet imported itself a second time and a backup asked to be restored again after you had already answered. Opening the same file again yourself still works, because that is you asking rather than the app repeating itself.
 
 - Reopening the app no longer throws away what you were doing. A launcher shortcut, a weigh-in reminder, the weekly summary and a file opened from Files all aim at the app while it may already be running, and every one of them was closing it and starting it again instead of just bringing it forward. A half-typed weight went, a scale you were connected to dropped, and an app with the lock on asked for your fingerprint a second time. They now land on the app that is already open.

@@ -730,8 +730,10 @@ class HealthConnectSync @Inject constructor(
         }
         var imported = 0
         var skipped = 0
-        // Refuse corrupt readings before choosing the day's lowest. Otherwise a 5 g record wins
-        // the comparison, is refused later, and hides the valid reading beside it.
+        // Everything the app would refuse anyway goes before the day's lowest is chosen. A 5 g
+        // record, or one from an app somebody has switched off, otherwise wins the comparison,
+        // is refused afterwards, and takes the valid reading beside it down with it: the day
+        // ends up importing nothing at all.
         val plausible = records.filter { record ->
             val accepted = accepts(session, record)
             if (!accepted) skipped++
@@ -745,7 +747,7 @@ class HealthConnectSync @Inject constructor(
             plausible
         }
         wanted.forEach { record ->
-            if (take(session, record, checkPlausibility = false)) imported++ else skipped++
+            if (take(session, record, checkAcceptable = false)) imported++ else skipped++
         }
         return Triple(imported, skipped, 0)
     }
@@ -764,6 +766,14 @@ class HealthConnectSync @Inject constructor(
             .values
             .mapNotNull { sameDay -> sameDay.minByOrNull { it.weight.inKilograms } }
 
+    /**
+     * Whether this reading is one the app would keep at all.
+     *
+     * Both reasons to refuse live here together on purpose, because both have to be settled
+     * before the day's lowest is picked. A reading from an app somebody has switched off is as
+     * unwanted as a corrupt one, and letting it into the comparison means it wins the day and is
+     * then thrown away, leaving the day with nothing.
+     */
     private fun accepts(session: Session, record: WeightRecord): Boolean {
         val grams = (record.weight.inKilograms * 1000).toInt()
         val plausibility = WeightPlausibility.problem(grams, record.time, session.now)
@@ -775,6 +785,10 @@ class HealthConnectSync @Inject constructor(
             )
             return false
         }
+        // A phone that also syncs a watch and a fitness tracker gets the same morning three
+        // times from three writers. Saying so once is the only way to stop it.
+        val origin = originOf(record)
+        if (origin != null && origin.packageName in session.excludedOrigins) return false
         return true
     }
 
@@ -787,14 +801,11 @@ class HealthConnectSync @Inject constructor(
     private suspend fun take(
         session: Session,
         record: WeightRecord,
-        checkPlausibility: Boolean = true,
+        checkAcceptable: Boolean = true,
     ): Boolean {
-        if (checkPlausibility && !accepts(session, record)) return false
+        if (checkAcceptable && !accepts(session, record)) return false
         val grams = (record.weight.inKilograms * 1000).toInt()
         val origin = originOf(record)
-        // A phone that also syncs a watch and a fitness tracker gets the same morning three
-        // times from three writers. Saying so once is the only way to stop it.
-        if (origin != null && origin.packageName in session.excludedOrigins) return false
         // A record we wrote comes back carrying our own client id. Re-importing it would be
         // harmless thanks to the upsert, but skipping keeps the counts honest.
         val ourClientId = record.metadata.clientRecordId
