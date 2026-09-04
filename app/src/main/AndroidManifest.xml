@@ -103,10 +103,19 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.WeightTrack">
 
+        <!--
+          singleTop, because everything that reopens the app aims at this activity while it may
+          already be running: the two launcher shortcuts, the weigh-in reminder, the weekly
+          summary, and a file handed over from Files. All of them carry CLEAR_TOP, and on a
+          standard-mode activity that means finish and start again rather than deliver, which
+          throws away a half-typed weight, drops a live scale connection, empties the back stack
+          and asks a locked app for a fingerprint again.
+        -->
         <activity
             android:name=".MainActivity"
             android:exported="true"
             android:label="@string/app_name"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.WeightTrack"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>

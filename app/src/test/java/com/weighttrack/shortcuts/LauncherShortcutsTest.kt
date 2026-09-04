@@ -67,6 +67,19 @@ class LauncherShortcutsTest {
     }
 
     @Test
+    fun `the activity every reopening aims at is single top`() {
+        // CLEAR_TOP on a standard-mode activity means finish and start again rather than
+        // deliver, which throws away whatever was on screen. The shortcuts, the reminder, the
+        // weekly summary and a file opened from Files all carry that flag, so the launch mode
+        // is what decides whether any of them can interrupt a half-finished weigh-in.
+        val info = context.packageManager.getActivityInfo(
+            android.content.ComponentName(context, com.weighttrack.MainActivity::class.java),
+            0,
+        )
+        assertThat(info.launchMode).isEqualTo(android.content.pm.ActivityInfo.LAUNCH_SINGLE_TOP)
+    }
+
+    @Test
     fun `a shortcut brings the app forward rather than stacking a second copy`() {
         LauncherShortcuts.publish(context)
 

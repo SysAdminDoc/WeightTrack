@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Reopening the app no longer throws away what you were doing. A launcher shortcut, a weigh-in reminder, the weekly summary and a file opened from Files all aim at the app while it may already be running, and every one of them was closing it and starting it again instead of just bringing it forward. A half-typed weight went, a scale you were connected to dropped, and an app with the lock on asked for your fingerprint a second time. They now land on the app that is already open.
+
 - Saving a weight opened from the icon's long-press shortcut works properly. It used to make that screen the only one there was, so pressing Save filed the reading and then left the screen sitting there looking like nothing had happened, and pressing it again filed another copy. Three presses, three readings. Now the screen closes onto your home page the way it does everywhere else, back from a shortcut goes home rather than out of the app, and Save cannot file the same weigh-in twice whatever happens to the screen.
 
 - Three words on the chart, and two labels on the food screen, were English whatever language the phone is set to. The key underneath the chart said "Raw", "Trend" and "Goal", and the boxes for a food's name and your USDA key were labelled in English beside their translated neighbours. All five can be translated now, and the check that is supposed to catch this has been taught to look inside the app's own building blocks rather than only at the ones Android provides, which is how it missed them.
