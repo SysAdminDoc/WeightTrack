@@ -133,13 +133,6 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
   Acceptance: opening an archive shows per-type counts and the photo count before the password commit; a CSV import shows matched columns, row count, unit and every rejected row with its reason in a scrollable list before anything is written; cancelling either leaves the database byte-identical; the existing atomic-restore tests cover the new path.
   Complexity: M
 
-- [ ] P1: Run the unit suite at the Robolectric SDK the app targets
-  Why: robolectric.properties pins sdk=34 while compile and target are 37, so no unit test has ever executed API 35 or 36 behaviour (predictive back, local network permission checks, Bluetooth bond changes); Robolectric 4.16.1 supports 36 today and 4.17 adds 37 once it leaves beta.
-  Evidence: `app/src/test/resources/robolectric.properties`; `app/build.gradle.kts` target 37; https://github.com/robolectric/robolectric/releases
-  Touches: app/src/test/resources/robolectric.properties, any test that fails on 36, gradle/libs.versions.toml when 4.17 is stable
-  Acceptance: all four unit suites pass at sdk=36 with the same counts; a follow-up note in the item records which tests needed changes and why; when Robolectric 4.17 ships stable the pin moves to 37 in the same way.
-  Complexity: S
-
 - [ ] P1: Say so when Health Connect capped an import at 30 days
   Why: Health Connect returns only the 30 days before the grant unless the history permission is held; the app requests it, but a refusal produces a silent short import that reads as data loss, which is exactly the bug trale fixed on 2026-09-03 after a user imported zero rows of Garmin history.
   Evidence: https://github.com/QuantumPhysique/trale/issues/508 ; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:209,1119`; `app/src/main/res/values/strings.xml:881` (the only mention of the cap)
