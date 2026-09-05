@@ -169,6 +169,15 @@ class WeightRepository @Inject constructor(
     suspend fun byClientRecordIdFor(profileId: Long, clientRecordId: String): WeightEntry? =
         dao.byClientRecordId(profileId, clientRecordId)?.toDomain()
 
+    /**
+     * Everything one person already holds for a single local day.
+     *
+     * The incremental Health Connect import asks this. A change set carries the record that
+     * moved and nothing else, so the day's other readings are only knowable from here.
+     */
+    suspend fun entriesOnDayFor(profileId: Long, date: LocalDate): List<WeightEntry> =
+        dao.onLocalDate(profileId, date.toString()).map { it.toDomain() }
+
     suspend fun latestBodyFatPercent(): Double? =
         dao.latestWithBodyFat(profiles.activeId())?.bodyFatPercent
 

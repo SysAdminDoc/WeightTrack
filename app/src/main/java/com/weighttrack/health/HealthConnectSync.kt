@@ -684,7 +684,9 @@ class HealthConnectSync @Inject constructor(
                 when (change) {
                     is UpsertionChange -> {
                         val record = change.record as? WeightRecord ?: continue
-                        if (take(session, record)) imported++ else skipped++
+                        val (taken, displaced) = takeChanged(session, record)
+                        if (taken) imported++ else skipped++
+                        removed += displaced
                     }
                     is DeletionChange -> gone += change.recordId
                     else -> Unit
@@ -811,6 +813,41 @@ class HealthConnectSync @Inject constructor(
         val origin = originOf(record)
         if (origin != null && origin.packageName in session.excludedOrigins) return false
         return true
+    }
+
+    /**
+     * Files one changed reading, honouring the day's-lowest rule.
+     *
+     * The full read settles that rule inside the batch, because a query for a window carries
+     * every reading in it. A change set carries only what moved, so there is no batch to compare
+     * against and the rule has to be settled against what this phone already holds for the day.
+     * Without this the option worked for the first import and silently never again, and the
+     * trend it exists to protect got dragged by second and third weigh-ins exactly as before.
+     *
+     * Answers whether the record was filed, and how many readings it displaced.
+     */
+    private suspend fun takeChanged(
+        session: Session,
+        record: WeightRecord,
+    ): Pair<Boolean, Int> {
+        if (!session.lowestOfDayOnly) return take(session, record) to 0
+        // Refused before the comparison, exactly as the full read does it: a corrupt record or
+        // one from an app somebody switched off must not win the day and then be thrown away.
+        if (!accepts(session, record)) return false to 0
+        val grams = (record.weight.inKilograms * 1000).toInt()
+        val day = record.time.atZone(session.zone).toLocalDate()
+        // Its own earlier self gets no vote. A reading edited in the other app arrives here as
+        // an upsert of the row that import already wrote.
+        val others = weightRepository.entriesOnDayFor(session.profileId, day)
+            .filterNot { it.healthConnectId == record.metadata.id }
+        if (others.any { it.grams <= grams }) return false to 0
+        if (!take(session, record, checkAcceptable = false)) return false to 0
+        // What this one beats has to go, or a day the person asked to hold one reading holds
+        // two. Only readings that came from Health Connect: a weight typed in here is theirs.
+        val beaten = others
+            .filter { it.source == EntrySource.HEALTH_CONNECT }
+            .mapNotNull { it.healthConnectId }
+        return true to weightRepository.deleteByHealthConnectIds(session.profileId, beaten)
     }
 
     /**

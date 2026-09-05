@@ -517,16 +517,6 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
 
 #### From the Health Connect, alarms and widgets deep read, 2026-09-04
 
-- [ ] P1: The daily-lowest setting stops working after the first sync
-  Category: correctness
-  Where: `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:740-746` (the rule lives only in `importWeights`, the full-read path) against `:662-671` (`importChanges` calls `take` per record) reached from `:578`.
-  Problem: once a changes token is stored, every later sync goes down the incremental path, which never applies the rule. So the option works for the first import and silently never again, and the trend it exists to protect gets dragged by second and third weigh-ins exactly as before. Nothing on screen says the setting has stopped applying.
-  Evidence: adversarial read. Every lowest-of-day test builds a fresh `HealthConnectSync` and calls `sync()` once with no stored token, so only the `token == null` branch has ever run. `HealthChangesTest > a reading added in the other app arrives on the next sync` does not set the option.
-  Fix: apply the rule in `importChanges` too, comparing each incoming record against what is already stored for that day rather than against the batch, since a change set does not carry the whole day.
-  Acceptance: a test syncs once, stores a token, then delivers two readings for one day through the changes path and asserts only the lower one is kept.
-  Confidence: Verified
-  Effort: M
-
 - [ ] P2: A watch reading is filed against whoever is on screen when it arrives, and can duplicate
   Category: correctness
   Where: `app/src/play/java/com/weighttrack/wear/PhoneWearListenerService.kt:78-88` (calls `weightRepository.add`, which uses `profiles.activeId()` at `data/repo/WeightRepository.kt:209`); `core/src/main/java/com/weighttrack/core/sync/WearSync.kt` (`WearWeightLog` carries no owner); `data/db/Daos.kt:241-243` (`upsertByIdentity` keys on profile plus record id).

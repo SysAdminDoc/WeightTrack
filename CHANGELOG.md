@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- "Keep only the lowest reading each day" now keeps working. It was applied only on the first import from Health Connect: every sync after that asks what has changed rather than reading the whole window, and the rule was not there. So the option worked once, on the day you turned it on, and then quietly stopped, and a second weigh-in after breakfast dragged the trend around exactly as it would have with the setting off. The rule now settles each arriving reading against what that day already holds, which also means a lower reading arriving late replaces the heavier one rather than sitting beside it. A weight you typed in yourself is never displaced.
+
 ## 0.5.1 (2026-09-04)
 
 - The control that removes a progress photo is a proper button now. It used to be the letter x in small text, sitting on top of the tile that picks the photo for a comparison, so it was easy to miss, easy to hit by accident, and a screen reader could only read it out as "x". It has a name, a full-sized target of its own, and picking a tile is announced as something you can tick rather than a plain button.

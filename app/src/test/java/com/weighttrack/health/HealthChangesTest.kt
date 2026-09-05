@@ -276,4 +276,77 @@ class HealthChangesTest {
         assertThat(settings.healthChangesToken(profiles.activeId())).isNotEqualTo("stale-token")
         assertThat(settings.healthChangesToken(profiles.activeId())).isNotNull()
     }
+
+    @Test
+    fun `the day's lowest still applies once the import has gone incremental`() = runTest {
+        // The rule used to live only in the full read, so it worked for the first import and
+        // silently never again: every sync after that goes down the changes path.
+        settings.setImportLowestOfDay(true)
+        val now = Instant.parse("2026-08-29T12:00:00Z")
+        val client = client()
+        profiles.ensureDefault()
+        // A first sync with nothing to read still takes a token, which is what makes every
+        // sync after it incremental.
+        sync(client).sync(now = now).getOrThrow()
+        assertThat(settings.healthChangesToken(profiles.activeId())).isNotNull()
+
+        // The heavier weigh-in arrives first, which is the case that needs the one already
+        // filed to go rather than the new one to be refused.
+        client.insertRecords(
+            listOf(
+                WeightRecord(
+                    time = now.minusSeconds(3600),
+                    zoneOffset = null,
+                    weight = Mass.kilograms(81.2),
+                    metadata = Metadata.manualEntry(clientRecordId = "after-breakfast"),
+                ),
+            ),
+        )
+        client.insertRecords(
+            listOf(
+                WeightRecord(
+                    time = now.minusSeconds(1800),
+                    zoneOffset = null,
+                    weight = Mass.kilograms(80.4),
+                    metadata = Metadata.manualEntry(clientRecordId = "first-thing"),
+                ),
+            ),
+        )
+
+        sync(client).sync(now = now).getOrThrow()
+
+        val kept = weights.entriesFor(profiles.activeId())
+        assertThat(kept.map { it.grams }).containsExactly(80_400)
+    }
+
+    @Test
+    fun `the day's lowest never removes a weight somebody typed in`() = runTest {
+        // The rule is about a scale writing twice, not about overruling the person. A reading
+        // entered here is theirs and stays whatever Health Connect says later.
+        settings.setImportLowestOfDay(true)
+        val now = Instant.parse("2026-08-29T12:00:00Z")
+        val client = client()
+        profiles.ensureDefault()
+        weights.addFor(
+            profileId = profiles.activeId(),
+            grams = 82_000,
+            timestamp = now.minusSeconds(7200),
+        )
+        sync(client).sync(now = now).getOrThrow()
+
+        client.insertRecords(
+            listOf(
+                WeightRecord(
+                    time = now.minusSeconds(1800),
+                    zoneOffset = null,
+                    weight = Mass.kilograms(80.4),
+                    metadata = Metadata.manualEntry(clientRecordId = "first-thing"),
+                ),
+            ),
+        )
+        sync(client).sync(now = now).getOrThrow()
+
+        val kept = weights.entriesFor(profiles.activeId())
+        assertThat(kept.map { it.grams }).containsExactly(82_000, 80_400)
+    }
 }

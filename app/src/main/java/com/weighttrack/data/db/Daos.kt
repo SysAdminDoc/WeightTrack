@@ -155,6 +155,18 @@ interface WeightEntryDao {
     suspend fun byHealthConnectId(profileId: Long, healthConnectId: String): WeightEntryEntity?
 
     /**
+     * Everything one person already holds for a single local day.
+     *
+     * The incremental Health Connect import needs it: a change set carries the record that
+     * moved and nothing else, so the only way to know whether it is the lowest of its day is to
+     * ask what is already here.
+     */
+    @Query(
+        "SELECT * FROM weight_entries WHERE profileId = :profileId AND localDate = :localDate",
+    )
+    suspend fun onLocalDate(profileId: Long, localDate: String): List<WeightEntryEntity>
+
+    /**
      * Cuts the link to Health Connect for one person's readings.
      *
      * Used when the household moves the claim to somebody else. Their readings stay exactly as
