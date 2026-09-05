@@ -15,6 +15,7 @@ local.properties
 /benchmark/build/
 /buildSrc/build/
 /.kotlin/
+/.tmp/
 *.apk
 *.aab
 *.jks

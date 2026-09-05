@@ -459,16 +459,6 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
   Confidence: Verified
   Effort: S
 
-- [ ] P1: Retiring a device is irreversible in effect while the app promises it is reversible
-  Category: correctness
-  Where: `core/src/main/java/com/weighttrack/core/sync/SyncMerge.kt:275-296` (`waiting = peers.filterNot { it.isRetired }`); `core/sync/SyncDocument.kt:224-227` (the comment "retiring one by mistake loses nothing"); `app/src/main/res/values/strings.xml` `sync_devices_explained` and `sync_device_forget` ("Nothing it sent is removed, and you can bring it back"); `ui/settings/SyncCard.kt:140-147,199-211`; `ui/settings/SyncSettingsController.kt:83-99`.
-  Problem: retiring a device removes it from the set the tombstone rule waits for. If a tombstone is then dropped past the 30-day floor while that device is away, and the device is later un-retired and switched on, it still holds the deleted row, nothing survives to contradict it, and `SyncMerge.newest` puts the row back on every device. Deleted readings return for good. The control is a one-tap toggle with no confirmation and copy that explicitly says it is reversible and lossless, which is true only until the floor passes.
-  Evidence: adversarial read. `SyncTombstoneAcknowledgementTest > bringing a retired device back makes the others wait for it again` un-retires within the same merge in which the tombstone still exists (`merged.deletions` has size 1), so it never runs the drop first and then the un-retire.
-  Fix: record `retiredAtUtcMillis` and refuse to un-retire a device that has been retired longer than `TOMBSTONE_RETENTION_FLOOR_MILLIS`, offering instead "set this device up again", which clears its local data before it syncs. Change the copy to say what retiring actually costs after a month. Add the missing test: retire, delete, advance past the floor, merge until the tombstone drops, un-retire, merge the old document, assert the row stays deleted.
-  Acceptance: the sequence above leaves the reading deleted; the strings no longer promise a lossless return; the new test fails against today's code.
-  Confidence: Verified
-  Effort: M
-
 - [ ] P2: A sync that lands never refreshes the widget or the watch
   Category: reliability
   Where: `app/src/main/java/com/weighttrack/sync/SyncWork.kt:196-206` (the Health Connect path calls `surfaces.refresh()`) against `:209-222` (the folder and WebDAV path calls nothing); `data/sync/SyncEngine.kt:60-149` never touches `SurfaceUpdater`; `widget/SurfaceUpdater.kt:10-29`.

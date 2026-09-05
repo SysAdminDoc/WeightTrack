@@ -520,18 +520,30 @@ internal object ScreenFixtures {
                                 deviceId = "aaaa1111bbbb",
                                 lastSeenAtUtcMillis = NOON.toEpochMilli(),
                                 retired = false,
+                                canBringBack = true,
                                 isThisDevice = true,
                             ),
                             com.weighttrack.ui.settings.SyncDevice(
                                 deviceId = "cccc2222dddd",
                                 lastSeenAtUtcMillis = NOON.toEpochMilli() - 270L * 86_400_000,
                                 retired = false,
+                                canBringBack = true,
                                 isThisDevice = false,
                             ),
                             com.weighttrack.ui.settings.SyncDevice(
                                 deviceId = "eeee3333ffff",
                                 lastSeenAtUtcMillis = 0,
                                 retired = true,
+                                canBringBack = true,
+                                isThisDevice = false,
+                            ),
+                            // Retired longer than the tombstone floor: the row offers no button
+                            // and says why, which the gate has to see and read out.
+                            com.weighttrack.ui.settings.SyncDevice(
+                                deviceId = "gggg4444hhhh",
+                                lastSeenAtUtcMillis = 0,
+                                retired = true,
+                                canBringBack = false,
                                 isThisDevice = false,
                             ),
                         ),

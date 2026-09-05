@@ -6,6 +6,7 @@ import android.util.Base64
 import com.weighttrack.R
 import com.weighttrack.core.sync.AddressProblem
 import com.weighttrack.core.sync.SyncAddress
+import com.weighttrack.core.sync.SyncMerge
 import com.weighttrack.data.sync.PinnedTrust
 import com.weighttrack.data.sync.SyncEngine
 import com.weighttrack.data.sync.SyncPreferences
@@ -33,6 +34,13 @@ data class SyncDevice(
     val deviceId: String,
     val lastSeenAtUtcMillis: Long,
     val retired: Boolean,
+    /**
+     * Whether saying it is gone can still be undone.
+     *
+     * False once the deletions that device never saw have been forgotten, because switching it
+     * back on would hand every one of them back. See [SyncMerge.canReturn].
+     */
+    val canBringBack: Boolean,
     val isThisDevice: Boolean,
 )
 
@@ -69,11 +77,13 @@ internal class SyncSettingsController(
     val devices: StateFlow<List<SyncDevice>> = peers.observeAll()
         .map { rows ->
             val self = preferences.deviceId()
+            val now = System.currentTimeMillis()
             rows.map {
                 SyncDevice(
                     deviceId = it.deviceId,
                     lastSeenAtUtcMillis = it.lastSeenAtUtcMillis,
                     retired = it.retiredAtUtcMillis > 0,
+                    canBringBack = SyncMerge.canReturn(it.retiredAtUtcMillis, now),
                     isThisDevice = it.deviceId == self,
                 )
             }
@@ -83,12 +93,21 @@ internal class SyncSettingsController(
     /**
      * Says a device is gone, or takes it back.
      *
-     * Immediate either way, and reversible, so nothing here needs a dialog asking whether
-     * somebody meant it. Retiring never touches that device's readings.
+     * Retiring never touches that device's readings, and inside the first month it can be undone,
+     * which is why it needs no dialog. After that it cannot: the deletions that device never saw
+     * have been forgotten, so switching it back on would hand every one of them back and put them
+     * on every device for good. Refused rather than done, with a line saying why.
      */
     fun setDeviceRetired(deviceId: String, retired: Boolean) {
         scope.launch {
             val now = System.currentTimeMillis()
+            if (!retired) {
+                val retiredAt = peers.byDeviceId(deviceId)?.retiredAtUtcMillis ?: 0
+                if (!SyncMerge.canReturn(retiredAt, now)) {
+                    onMessage(strings[R.string.sync_device_gone_too_long_to_return])
+                    return@launch
+                }
+            }
             peers.setRetired(deviceId, retiredAt = if (retired) now else 0, decidedAt = now)
             onMessage(
                 strings[

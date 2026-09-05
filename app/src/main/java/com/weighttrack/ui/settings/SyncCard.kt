@@ -180,6 +180,8 @@ private fun SyncDevices(
                 )
                 Text(
                     text = when {
+                        device.retired && !device.canBringBack ->
+                            stringResource(R.string.sync_device_gone_too_long)
                         device.retired -> stringResource(R.string.sync_device_gone)
                         device.lastSeenAtUtcMillis <= 0 ->
                             stringResource(R.string.sync_device_never_seen)
@@ -197,8 +199,10 @@ private fun SyncDevices(
                 )
             }
             // This device is never retired from itself: it is plainly here, and the tombstone
-            // rule would then be waiting on nobody at all.
-            if (!device.isThisDevice) {
+            // rule would then be waiting on nobody at all. A device retired longer than the
+            // tombstone floor is offered nothing either, because bringing it back would hand
+            // every forgotten deletion straight back; the line above says so.
+            if (!device.isThisDevice && (!device.retired || device.canBringBack)) {
                 TextButton(onClick = { onRetiredChange(device.deviceId, !device.retired) }) {
                     Text(
                         stringResource(

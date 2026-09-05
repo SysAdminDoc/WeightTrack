@@ -129,6 +129,56 @@ class SyncTombstoneAcknowledgementTest {
     }
 
     @Test
+    fun `a device retired past the floor cannot be brought back`() {
+        // Inside the floor the tombstones are all still here, so the decision costs nothing.
+        assertThat(SyncMerge.canReturn(retiredAtUtcMillis = now - 1000, nowUtcMillis = now)).isTrue()
+        assertThat(
+            SyncMerge.canReturn(
+                retiredAtUtcMillis = now - SyncMerge.TOMBSTONE_RETENTION_FLOOR_MILLIS,
+                nowUtcMillis = now,
+            ),
+        ).isTrue()
+        // One millisecond past it, the deletions that device never saw may already be gone.
+        assertThat(
+            SyncMerge.canReturn(
+                retiredAtUtcMillis = now - SyncMerge.TOMBSTONE_RETENTION_FLOOR_MILLIS - 1,
+                nowUtcMillis = now,
+            ),
+        ).isFalse()
+        // A device that was never retired is not a question about returning at all.
+        assertThat(SyncMerge.canReturn(retiredAtUtcMillis = 0, nowUtcMillis = now)).isTrue()
+    }
+
+    @Test
+    fun `a reading deleted while a device was retired comes back if it is un-retired later`() {
+        // The sequence the guard exists to prevent, written down so nobody removes the guard
+        // without seeing what it costs. Retire the missing device, delete a reading, let the
+        // tombstone be forgotten because nobody is waiting for it any more, then bring the
+        // device back still holding the row.
+        val retiredPeers = listOf(
+            SyncPeer("aaa", lastSeenAtUtcMillis = now),
+            SyncPeer("bbb", retiredAtUtcMillis = deletedAt, retirementDecidedAtUtcMillis = deletedAt),
+        )
+        val deleter = document(
+            "aaa",
+            deletions = listOf(tombstone),
+            peers = retiredPeers,
+            observed = listOf(SyncObservation("aaa", deletedAt)),
+        )
+
+        val forgotten = SyncMerge.merge(listOf(deleter), "aaa", now)
+        assertThat(forgotten.deletions).isEmpty()
+
+        // Nothing survives to contradict the row, so it lands on every device again.
+        val returning = document("bbb", weights = listOf(weight("w1", 80_000, deletedAt - 1000, "bbb")))
+        val merged = SyncMerge.merge(listOf(forgotten, returning), "aaa", now)
+
+        assertThat(merged.weights).hasSize(1)
+        // Which is exactly why the settings screen refuses to un-retire past the floor.
+        assertThat(SyncMerge.canReturn(deletedAt, now)).isFalse()
+    }
+
+    @Test
     fun `bringing a retired device back makes the others wait for it again`() {
         val peers = listOf(
             SyncPeer("aaa", lastSeenAtUtcMillis = now),

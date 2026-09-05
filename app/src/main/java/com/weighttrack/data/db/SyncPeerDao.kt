@@ -15,6 +15,9 @@ interface SyncPeerDao {
     @Query("SELECT * FROM sync_peers ORDER BY lastSeenAtUtcMillis DESC")
     fun observeAll(): Flow<List<SyncPeerEntity>>
 
+    @Query("SELECT * FROM sync_peers WHERE deviceId = :deviceId")
+    suspend fun byDeviceId(deviceId: String): SyncPeerEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertAll(peers: List<SyncPeerEntity>)
 

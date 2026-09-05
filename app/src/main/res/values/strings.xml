@@ -451,11 +451,13 @@
     <string name="charts_range_nothing">Nothing recorded in this range.</string>
     <string name="charts_effect_legend">Side effect</string>
     <string name="sync_devices">Your devices</string>
-    <string name="sync_devices_explained">Something you delete is remembered until every device here has seen that it is gone, so a phone you have sold or lost keeps those notes open for good. Say it is gone and the others stop waiting for it. Nothing it sent is removed, and you can bring it back.</string>
+    <string name="sync_devices_explained">Something you delete is remembered until every device here has seen that it is gone, so a phone you have sold or lost keeps those notes open for good. Say it is gone and the others stop waiting for it. Nothing it sent is removed. You have a month to change your mind; after that the notes it never saw have been forgotten, and switching it on again would bring back everything it still holds, so it has to be set up as a new device instead.</string>
     <string name="sync_device_this_one">%1$s (this phone)</string>
     <string name="sync_device_last_seen">Last seen %1$s</string>
     <string name="sync_device_never_seen">Not seen yet</string>
     <string name="sync_device_gone">Gone</string>
+    <string name="sync_device_gone_too_long">Gone. Too long ago to bring back here.</string>
+    <string name="sync_device_gone_too_long_to_return">That device has been gone more than a month, so the notes about what you deleted have been forgotten. Bringing it back would hand all of them back. Set it up again as a new device instead.</string>
     <string name="sync_device_forget">It is gone</string>
     <string name="sync_device_bring_back">Bring it back</string>
     <string name="sync_device_retired">The others will stop waiting for that device. Nothing it sent was removed.</string>

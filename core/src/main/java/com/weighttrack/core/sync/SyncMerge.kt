@@ -26,6 +26,23 @@ object SyncMerge {
     const val TOMBSTONE_RETENTION_FLOOR_MILLIS: Long = 30L * 24 * 60 * 60 * 1000
 
     /**
+     * Whether a retired device can still be brought back without losing what was deleted.
+     *
+     * Retiring a device takes it out of the set the tombstone rule waits for, which is the whole
+     * point: the others can stop holding a deletion open for a phone that was sold. The cost is
+     * only visible later. Once the deletions that device never saw have passed the floor and been
+     * forgotten, nothing is left to contradict the rows it still holds, so switching it back on
+     * hands every one of them back and [merge] puts them on every device for good.
+     *
+     * Inside the floor there is no such cost, because the tombstones are all still here. So this
+     * is the line between a decision that can be undone and one that cannot, and it is why the
+     * settings screen offers to set the device up again rather than to bring it back.
+     */
+    fun canReturn(retiredAtUtcMillis: Long, nowUtcMillis: Long): Boolean =
+        retiredAtUtcMillis <= 0 ||
+            nowUtcMillis - retiredAtUtcMillis <= TOMBSTONE_RETENTION_FLOOR_MILLIS
+
+    /**
      * The merged state of every document handed in.
      *
      * [documents] should include this device's own file. Order does not matter: the answer is
