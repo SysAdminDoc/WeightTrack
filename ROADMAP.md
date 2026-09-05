@@ -101,8 +101,8 @@ Added 2026-08-29 from RESEARCH.md. Every item cites what it rests on.
 ### P2
 
 - [ ] P3: Bump Compose BOM to 2026.08.00, Material3 1.4.0, OkHttp 5.5.0
-  Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and the 5.4.0 response-header cap, and 5.5.0 rotated its signing key. (2026-08-31: everything else in the catalog verified current; Kotlin 2.4.20 with the KAPT CVE fix is due September 2026 and can ride along when stable.) (2026-09-03: widen to AGP 9.3.1 to 9.4.0 (shipped 2026-09-01, Gradle 9.7.1 already meets its 9.6 floor), Navigation 2.9.8 to 2.10.0 (predictive pop transitions, hardened handleDeepLink), Truth 1.4.4 to 1.4.5; BOM 2026.09.00 and Material3 1.5 are not out; Kotlin 2.4.20 is still RC3 on 2026-09-02 and its GHSA-r937-wjx7-w2jp range does include 2.4.10; record the OkHttp Commonhaus key with Gradle 9.7's origin and reason attributes in verification-metadata.xml; replace Modifier.onFirstVisible with onVisibilityChanged after the bump.)
-  Evidence: https://developer.android.com/jetpack/androidx/releases/compose-ui ; https://developer.android.com/jetpack/androidx/releases/compose-material3 ; https://github.com/square/okhttp/blob/master/CHANGELOG.md ; https://developer.android.com/build/releases/agp-9-4-0-release-notes ; https://developer.android.com/jetpack/androidx/releases/navigation ; https://github.com/google/truth/releases ; https://docs.gradle.org/9.7.1/release-notes.html ; gradle/libs.versions.toml
+  Why: compose-ui 1.12.0 (2026-08-12) and Material3 1.4.0 (2026-08-26) are stable and the toolchain already meets their AGP 9.2 floor; OkHttp 5.2.1 predates the 5.3.2 timeout-regression fix and the 5.4.0 response-header cap, and 5.5.0 rotated its signing key. (2026-08-31: everything else in the catalog verified current; Kotlin 2.4.20 with the KAPT CVE fix is due September 2026 and can ride along when stable.) (2026-09-03: widen to AGP 9.3.1 to 9.4.0 (shipped 2026-09-01, Gradle 9.7.1 already meets its 9.6 floor), Navigation 2.9.8 to 2.10.0 (predictive pop transitions, hardened handleDeepLink), Truth 1.4.4 to 1.4.5; BOM 2026.09.00 and Material3 1.5 are not out; Kotlin 2.4.20 is still RC3 on 2026-09-02 and its GHSA-r937-wjx7-w2jp range does include 2.4.10; record the OkHttp Commonhaus key with Gradle 9.7's origin and reason attributes in verification-metadata.xml; replace Modifier.onFirstVisible with onVisibilityChanged after the bump.) (2026-09-04 correction: AGP 9.4.0 is NOT shipped, its release notes list only alpha01 to alpha04 and it would raise the Gradle floor to 9.6.0, so hold at 9.3.1. Kotlin 2.4.10 is the latest stable, released 2026-07-14; 2.4.20 is a planned September tooling release and is not out, so it is not "RC3" and there is nothing to bump to yet. androidx.biometric 1.1.0 is the newest stable and has been since 2021-01-27, with 1.2.0 never stable and 1.4.0 at alpha07, so that pin is not stale. Compose BOM 2026.08.00 is still the newest and remains the target of this item.)
+  Evidence: https://kotlinlang.org/docs/releases.html ; https://developer.android.com/build/releases/gradle-plugin ; https://developer.android.com/jetpack/androidx/releases/biometric ; https://developer.android.com/jetpack/androidx/releases/compose-ui ; https://developer.android.com/jetpack/androidx/releases/compose-material3 ; https://github.com/square/okhttp/blob/master/CHANGELOG.md ; https://developer.android.com/build/releases/agp-9-4-0-release-notes ; https://developer.android.com/jetpack/androidx/releases/navigation ; https://github.com/google/truth/releases ; https://docs.gradle.org/9.7.1/release-notes.html ; gradle/libs.versions.toml
   Touches: gradle/libs.versions.toml, gradle/verification-metadata.xml, settings-gradle.lockfile, tools/update-dependency-trust.ps1 run
   Acceptance: all four unit suites and both lint tasks green; both release APKs assemble; WebDAV PROPFIND round trip against the recorded-reply test passes; tools/test-dependency-verification.ps1 still refuses lock drift and a tampered jar.
   Complexity: S
@@ -135,7 +135,8 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
 
 - [ ] P1: Say so when Health Connect capped an import at 30 days
   Why: Health Connect returns only the 30 days before the grant unless the history permission is held; the app requests it, but a refusal produces a silent short import that reads as data loss, which is exactly the bug trale fixed on 2026-09-03 after a user imported zero rows of Garmin history.
-  Evidence: https://github.com/QuantumPhysique/trale/issues/508 ; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:209,1119`; `app/src/main/res/values/strings.xml:881` (the only mention of the cap)
+  (2026-09-04 refinement: the window is measured from when the permission was GRANTED, not from now, and it resets on reinstall or on a re-grant, so the cap has to be recomputed against the grant time rather than against today and re-checked after any permission change. Without the history grant a read reaching further back errors rather than silently returning less, which is the detection hook this item needs.)
+  Evidence: https://github.com/QuantumPhysique/trale/issues/508 ; https://developer.android.com/health-and-fitness/health-connect/read-data ; https://www.androidauthority.com/health-connect-historical-background-reads-3443726/ ; `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt:209,1119`; `app/src/main/res/values/strings.xml:881` (the only mention of the cap)
   Touches: health/HealthConnectSync.kt outcome type, ui/settings/HealthConnectCard.kt, strings, HealthConnectImportTest
   Acceptance: after an import run without the history grant the Health Connect card shows a line saying the window was limited to 30 days with a button that requests the history permission; the line disappears once it is granted and a full read has run; a test drives FakeHealthConnectClient with the grant absent and asserts the outcome and the copy.
   Complexity: S
@@ -351,7 +352,8 @@ Every item rests on RESEARCH.md dated 2026-09-03. Stores, developer verification
 
 - [ ] P3: FHIR Observation export for weight and body fat
   Why: personal health aggregators (Fasten, CommonHealth, Metriport) read FHIR Bundles, and a body-weight Observation is about forty lines: LOINC 29463-7, UCUM kg or [lb_av], effectiveDateTime; it makes the data readable by any clinical tool without a bespoke connector.
-  Evidence: https://www.hl7.org/fhir/observation-example.html ; https://github.com/fastenhealth/fasten-onprem ; `app/src/main/java/com/weighttrack/data/io/BackupService.kt` export entry points
+  (2026-09-04: the body-fat half needs LOINC 41982-0, "Percentage of body fat Measured", unit `%`; both Observations should carry the FHIR vital-signs profile shape at http://hl7.org/fhir/StructureDefinition/bodyweight for the weight one.)
+  Evidence: https://www.hl7.org/fhir/observation-example.html ; https://www.hl7.org/fhir/observation-vitalsigns.html ; https://loinc.org/29463-7 ; https://loinc.org/41982-0 ; https://github.com/fastenhealth/fasten-onprem ; `app/src/main/java/com/weighttrack/data/io/BackupService.kt` export entry points
   Touches: core/io (a FHIR bundle writer), data/io/BackupService.kt, ui/settings/SettingsDataSections.kt, strings, a serialisation test against the HL7 example shape
   Acceptance: Settings offers "Export as FHIR"; the file validates against the Observation shape for weight and body fat with UCUM units; a test round-trips one reading and compares the JSON to a checked-in expected document.
   Complexity: M
@@ -873,6 +875,119 @@ Audit-only pass at HEAD `9d70b97` (v0.5.0, tree clean). Baseline: 507 core + 1,3
   Fix: run the migration suite and the benchmark on the attached phone, and put the sweeps' P2 items through a refutation pass before implementing them.
   Confidence: Verified
   Effort: M
+
+## Additions from the 2026-09-04 research pass
+
+#### P1
+
+- [ ] P1: Credit Open Food Facts in the app, and make the README's claim true
+  Why: `README.md:187` says "The app credits it wherever those products are shown", and nothing in the app does. `app/src/main/assets/offline_foods.db` is a 4.3 MB extract of an Open Food Facts export shipped inside the APK, and the online lookups return the same data. Open Food Facts publishes it under the Open Database Licence, which asks for a notice on a derived database; the MIT LICENSE at the repo root covers the code and says nothing about the asset.
+  Evidence: https://forum.openfoodfacts.org/t/conditions-to-use-the-open-food-facts-api/443 ; https://openfoodfacts.github.io/openfoodfacts-server/api/ ; `README.md:187`; `app/src/main/assets/offline_foods.db`; no match for "Open Database" or "ODbL" in `app/src/main/res/values/strings.xml`
+  Touches: `app/src/main/res/values/strings.xml` (a credit string), the Foods search results and food detail screens under `app/src/main/java/com/weighttrack/ui/food/`, a `NOTICE` file or a licence section in `README.md`, `tools/build_offline_foods.py` (write the licence line into the generated asset's sidecar)
+  Acceptance: the Foods screen and any screen showing an Open Food Facts product carry a visible credit naming Open Food Facts and the Open Database Licence; the repo states that `offline_foods.db` is ODbL while the code is MIT; a test asserts the credit string is present on the food result surfaces so it cannot be dropped silently.
+  Complexity: S
+
+- [ ] P1: Ship a first translated locale, and the workflow that keeps it current
+  Why: `app/src/main/res/` holds only `values` and `values-night`. There are 913 strings, 3 plurals and zero translations. Every localisation item on this roadmap so far makes translation possible (the hardcoded-text gate, locale number entry, locale-correct dates, plurals) and none produces a translated app, so the whole investment is unrealised. A shipped locale also proves the gate works end to end, which no amount of gate testing does.
+  Evidence: `ls app/src/main/res` shows `values` and `values-night` only; `grep -c "<string" app/src/main/res/values/strings.xml` = 913; `grep -c "<plurals"` = 3; https://weblate.org/en/features/ ; https://docs.weblate.org/en/latest/admin/projects.html
+  Touches: a new `app/src/main/res/values-<locale>/strings.xml`, `docs/CONTRIBUTING.md` (how to add a locale), a Gradle check that fails when a translated file references a string name the default no longer has
+  Acceptance: the app runs end to end in one non-English locale with no untranslated visible string on Home, Log, Charts, History, Goal, Measurements, Settings and Onboarding; a gate fails on a stale or orphaned key in any translated file; `docs/CONTRIBUTING.md` says how someone submits a language.
+  Complexity: L
+
+#### P2
+
+- [ ] P2: Tell people a new version exists
+  Why: distribution is direct APK from GitHub Releases and the app has no update check of any kind. Six releases shipped between 2026-08-29 and 2026-09-04; anyone still on v0.1.0 has no way to learn that. The existing Advanced Protection item covers why an update might fail to install, which is the step after this one.
+  Evidence: `grep -rl "api.github.com|releases/latest" app/src/main` returns nothing; `README.md:69-79` ("Installing"); `docs/SECURITY.md`; six releases listed by `gh release list`
+  Touches: a new checker under `app/src/main/java/com/weighttrack/update/` reading the releases API over the existing HTTP path, a Settings About row, `strings.xml`, `docs/SECURITY.md` (say the check is opt-in and what it sends)
+  Acceptance: an opt-in, off-by-default check compares the installed version name against the newest published tag no more than once a day, shows the new version and a link when there is one, says nothing when there is not, and fails silently with no network; the privacy copy lists it as a fifth way data leaves the phone; a test drives the comparison across equal, newer, older and malformed tag names.
+  Complexity: M
+
+- [ ] P2: Extend the release gate to the version strings in the documentation
+  Why: `tools/check-release-artifacts.ps1` verifies the package name, version name and code out of `aapt` badging, the signing certificate against `release-trust.json` and `docs/SECURITY.md`, alignment, the signature scheme and `SHA256SUMS.txt`. It never reads `README.md`, `docs/SECURITY.md` or `CHANGELOG.md`, and all three hard-code the current release in prose and in `apksigner` examples. When 0.5.2 ships those go stale and nothing notices.
+  Evidence: `tools/check-release-artifacts.ps1` (no README, CHANGELOG or docs path in its checks); `README.md:2,8,79`; `docs/SECURITY.md:27,38`
+  Touches: `tools/check-release-artifacts.ps1`, `tools/test-release-artifact-gate.ps1` (a planted stale version string that must be rejected)
+  Acceptance: the gate fails when the version badge, the heading, or any `WeightTrack-v<version>` APK example in `README.md` or `docs/SECURITY.md` does not match `weighttrackVersionName`, and the self-test proves it by planting one.
+  Complexity: S
+
+- [ ] P2: Split the two files that produce most of the defects
+  Why: `data/sync/SyncStore.kt` is 1,488 lines and `health/HealthConnectSync.kt` is 1,276, the two largest in the repo. The 2026-09-04 deep reads produced 28 findings and 13 came from those two files. The repo established the pattern on 2026-08-31 by splitting the settings screen and view model under 300 lines each.
+  Evidence: `wc -l` on both files; the "From the sync deep read, 2026-09-04" (7 items) and "From the Health Connect, alarms and widgets deep read, 2026-09-04" (6 items) sections above
+  Touches: `app/src/main/java/com/weighttrack/data/sync/SyncStore.kt` split by responsibility (document read, merge and apply, device list, transport selection), `app/src/main/java/com/weighttrack/health/HealthConnectSync.kt` split by direction (read, write, origin policy, claim), their existing test files
+  Acceptance: no file under `app/src/main/java/com/weighttrack/data/sync/` or the `health/` package exceeds 500 lines; the existing sync and Health Connect suites pass unchanged with no test rewritten to accommodate the split.
+  Complexity: L
+
+- [ ] P2: Clean and assemble in separate Gradle invocations in the release script
+  Why: `tools/prepare-release.ps1` passes the three clean tasks in the same invocation as the four assemble tasks, and `gradle.properties` sets `org.gradle.parallel=true`. `:core:clean` has no ordering relationship to `:app:assemblePlayRelease`, which consumes `:core`'s output, so nothing guarantees the clean finishes before the consumer starts. Gradle's own guidance is not to combine `clean` with other tasks.
+  Evidence: `tools/prepare-release.ps1:43-56`; `gradle.properties` (`org.gradle.parallel=true`)
+  Touches: `tools/prepare-release.ps1`
+  Acceptance: the script runs the clean tasks in one invocation, checks the exit code, then runs the assemble tasks and `checkFormFactorVersions` in a second; a failure in either stops the script before anything is copied into `dist/`.
+  Complexity: S
+
+- [ ] P2: Lock the food rate limiter
+  Why: `RateLimiter` holds an `ArrayDeque` with no synchronisation, and `data/food/FoodHttp.kt:62` makes the client that owns it a `@Singleton`. A search-as-you-type and a barcode lookup running at once mutate the same deque from two coroutines, which either throws `ConcurrentModificationException` inside a food search or lets more requests through than Open Food Facts allows, and they ban addresses that ignore the limit.
+  Evidence: `core/src/main/java/com/weighttrack/core/nutrition/RateLimiter.kt:15,20-23,40-44`; `app/src/main/java/com/weighttrack/data/food/FoodHttp.kt:62,67-76`; https://openfoodfacts.github.io/openfoodfacts-server/api/
+  Touches: `core/src/main/java/com/weighttrack/core/nutrition/RateLimiter.kt`, its test
+  Acceptance: `tryAcquire`, `waitMillis` and `remaining` are safe under concurrent callers; a test drives many threads through `tryAcquire` at one timestamp and asserts exactly `permitsPerMinute` succeed.
+  Complexity: S
+
+#### P3
+
+- [ ] P3: Widen the medication curve's step instead of cutting the range short
+  Why: `MedicationLevel.curve` computes the step count and caps it at `MAX_POINTS`, so any range wider than `MAX_POINTS` times `stepHours` (500 days at the default six hours) is drawn only for its first 500 days and then stops, with nothing saying so. The cap belongs on the resolution, not on the range. Latent today because `MedicationViewModel.curveFor` uses a fixed 56-day-back, 7-day-ahead window; live the moment that window gains a control, which the chart "since a date" work invites.
+  Evidence: `core/src/main/java/com/weighttrack/core/medication/MedicationLevel.kt:52-64`; `app/src/main/java/com/weighttrack/ui/medication/MedicationViewModel.kt:187-198`
+  Touches: `core/src/main/java/com/weighttrack/core/medication/MedicationLevel.kt`, `core/src/test/java/com/weighttrack/core/medication/MedicationLevelTest.kt`
+  Acceptance: `curve` covers the whole requested range whatever its width, at a step widened to fit `MAX_POINTS`; the first point is at `fromUtcMillis` and the last is at or after `toUtcMillis` minus one step; a test asks for a ten-year range and asserts the last point reaches the end.
+  Complexity: S
+
+- [ ] P3: Do not let a future-dated dose drag the level curve's window
+  Why: `curveFor` anchors on the newest dose timestamp, while `MedicationLevel.at` correctly counts a future dose as nothing. A dose typed with the wrong year, or one arriving from a peer with a bad clock, moves the whole 63-day window forward and the curve then reads zero across almost all of what it draws, with no explanation.
+  Evidence: `app/src/main/java/com/weighttrack/ui/medication/MedicationViewModel.kt:190-192`; `core/src/main/java/com/weighttrack/core/medication/MedicationLevel.kt:33-37`
+  Touches: `app/src/main/java/com/weighttrack/ui/medication/MedicationViewModel.kt`, its test
+  Acceptance: the window anchors on the newest dose at or before now; a dose dated in the future still appears in the list and still counts once its date arrives; a test with one dose dated a year ahead draws a curve around the real doses.
+  Complexity: S
+
+- [ ] P3: Make the archive's key-handling comment match what the code can do
+  Why: `ArchiveCodec.kt:137-139` justifies the `CharArray` parameter with "a String cannot be cleared and lives in the heap until something happens to collect it", and `BackupSettingsController.kt:81,98` does wipe the array. But `ui/settings/ArchivePasswordDialog.kt:38,103` holds the password as Compose `String` state and only converts at the end, so the plaintext plus one String per keystroke sits on the heap anyway, and the derived key bytes and the unwrapped master key are never zeroed either. The claim is stronger than the implementation, which is the same class of problem as the privacy-copy item above.
+  Evidence: `app/src/main/java/com/weighttrack/data/io/ArchiveCodec.kt:135-140,364-374`; `app/src/main/java/com/weighttrack/ui/settings/ArchivePasswordDialog.kt:38,103`; `app/src/main/java/com/weighttrack/ui/settings/BackupSettingsController.kt:81,98`
+  Touches: `app/src/main/java/com/weighttrack/data/io/ArchiveCodec.kt` (zero the derived key and the master key in a `finally`, and say what the CharArray does and does not buy), optionally `ArchivePasswordDialog.kt`
+  Acceptance: the derived key and the unwrapped master key are zeroed after use on both the write and the read path; the comment states plainly that the field above it holds a String and that the array wipe covers only the handover.
+  Complexity: S
+
+- [ ] P3: Delete the three items in `Roadmap_Blocked.md` that this project will never do
+  Why: `Roadmap_Blocked.md` carries "Register Android developer identity and release keys ahead of the 2027 global rollout" (P0), "Establish a form-factor-safe phone and Wear release gate" (P0) and the Play data-safety half of "Align Health Connect background access, rationale, and release declarations" (P0). Android developer verification, Play listing requirements and Wear OS are out of bounds for this repo by standing rule, so three permanent P0s sit at the top of the blocked list making the project look like it is waiting on store work it will never do.
+  Evidence: `Roadmap_Blocked.md:131-213`
+  Touches: `Roadmap_Blocked.md`
+  Acceptance: the three items and their explanatory sections are gone; anything in them that is genuinely about the app running on a sideloaded device (the Health Connect background-access rationale, the shared version-band check) is kept and restated without the store framing.
+  Complexity: S
+
+- [ ] P3: Clear old release directories before preparing a new one
+  Why: `dist/` holds `release-v0.4.0`, `release-v0.5.0` and `release-v0.5.1`. `prepare-release.ps1` removes only the versioned directory it is about to write, so every release adds another copy of three APKs and stale artifacts sit beside current ones.
+  Evidence: `ls dist/`; `tools/prepare-release.ps1:36-40`
+  Touches: `tools/prepare-release.ps1`
+  Acceptance: preparing a release leaves `dist/` holding exactly one `release-v<version>` directory; the script says which older directories it removed.
+  Complexity: S
+
+- [ ] P3: Plant a missing and an extra APK in the release gate's self-test
+  Why: `tools/test-release-artifact-gate.ps1` is a real positive control over six fault classes (wrong package, wrong signer, wrong version name, wrong version code, tampered checksum, undocumented fingerprint). `check-release-artifacts.ps1` claims `SHA256SUMS.txt` must name every APK exactly once, and no self-test proves that half fails, so a release missing the Wear APK or carrying an unlisted extra is unproven ground.
+  Evidence: `tools/test-release-artifact-gate.ps1:81-146`; `tools/check-release-artifacts.ps1:8,110-148`
+  Touches: `tools/test-release-artifact-gate.ps1`
+  Acceptance: the self-test deletes one APK from the prepared directory and asserts rejection, then adds an unlisted APK and asserts rejection, and both messages name the file.
+  Complexity: S
+
+- [ ] P3: Pin the published GLP-1 half-lives with a test and a citation each
+  Why: `core/medication/Medication.kt` is the only file in `core/medication` with no test. It holds the numbers every level curve rests on (semaglutide 165 h, tirzepatide 120 h, dulaglutide 112.8 h, liraglutide 13 h) and the comment says they come from the manufacturers' labels without saying which. A typo in one of them silently changes every curve and every report.
+  Evidence: `core/src/main/java/com/weighttrack/core/medication/Medication.kt:20-32`; `core/src/test/java/com/weighttrack/core/medication/` has no `MedicationTest.kt`
+  Touches: `core/src/main/java/com/weighttrack/core/medication/Medication.kt` (a label URL per drug in the KDoc), a new `core/src/test/java/com/weighttrack/core/medication/MedicationTest.kt`
+  Acceptance: a test asserts each drug's half-life and usual interval against the value in its doc comment's cited label, and fails if a new drug is added with no half-life and no explicit null; `OTHER` stays null and draws no curve.
+  Complexity: S
+
+- [ ] P3: State the accessibility bar the app is built to, and check against it
+  Why: the roadmap carries several accessibility items (chart equivalents, segment chip roles, History selection, unlabelled watch buttons, stat clipping) with no stated target, so "done" is a matter of opinion. EN 301 549 clause 11 is the mobile-software chapter and points at WCAG 2.1 AA, with v4.1.0 in ETSI approval to move it to WCAG 2.2. That is the right internal bar. It is not a legal obligation: the European Accessibility Act became enforceable 2025-06-28 and binds businesses selling to EU consumers, which this is not, so the docs must not claim compliance.
+  Evidence: https://www.deque.com/en-301-549-compliance/ ; https://abra.ai/blog/mobile-app-accessibility-en-301-549-v4-1-0 ; the accessibility items above
+  Touches: `docs/CONTRIBUTING.md`, the accessibility gate under `app/src/test/java/com/weighttrack/ui/a11y/`
+  Acceptance: `docs/CONTRIBUTING.md` names WCAG 2.1 AA as the bar for every interactive control and states that no compliance claim is made; each existing accessibility item cites the success criterion it satisfies; the gate's failure messages name the criterion.
+  Complexity: S
 
 ## Never
 
