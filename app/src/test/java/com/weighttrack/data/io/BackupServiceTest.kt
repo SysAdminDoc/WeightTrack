@@ -552,6 +552,35 @@ class BackupServiceTest {
         assertThat(settings.settings.first().weightUnit).isEqualTo(WeightUnit.LB)
     }
 
+    @Test
+    fun `restoring a version one file twice leaves one copy of each measurement`() = runTest {
+        // The measurement path was an insert wearing an upsert's name. A file restored twice, or
+        // restored onto a phone that had restored it already, doubled every measurement, and
+        // each copy then travelled to the other device as a separate record.
+        val settings = testSettingsRepository()
+        val profiles = ProfileRepository(
+            target.profileDao(),
+            settings,
+            DeletionRecorder(target, target.deletionDao(), target.syncDao()),
+            target.weightEntryDao(),
+        )
+        profiles.ensureDefault()
+        val file = write(VERSION_ONE)
+
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+        val first = target.syncDao().measurements().single().syncId
+        serviceFor(target, settings).importJson(Uri.fromFile(file)).getOrThrow()
+
+        val measurements = target.syncDao().measurements()
+        assertThat(measurements).hasSize(1)
+        // And it keeps the name it already had. A fresh one would reach the other phone as a
+        // measurement it has never seen, which is the duplicate again by a longer route.
+        assertThat(measurements.single().syncId).isEqualTo(first)
+        // The weights on the line above already deduped; this proves the file itself is the
+        // same one twice rather than two different files.
+        assertThat(target.syncDao().weights()).hasSize(1)
+    }
+
     private fun write(text: String): File =
         temporary.newFile("weighttrack.json").apply { writeText(text) }
 

@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Restoring a backup written by 0.4.0 or earlier no longer doubles every body measurement. That path inserted rather than matched, so restoring the same file twice, or restoring it onto a phone that had already taken it, left two of everything, and each copy then travelled to your other device as a separate measurement. The summary reported the full count as restored both times, so nothing on screen suggested anything was wrong. A measurement in one of those files is now recognised by what it is, one site measured at one moment, and a second restore changes nothing.
+
 - "Keep only the lowest reading each day" now keeps working. It was applied only on the first import from Health Connect: every sync after that asks what has changed rather than reading the whole window, and the rule was not there. So the option worked once, on the day you turned it on, and then quietly stopped, and a second weigh-in after breakfast dragged the trend around exactly as it would have with the setting off. The rule now settles each arriving reading against what that day already holds, which also means a lower reading arriving late replaces the heavier one rather than sitting beside it. A weight you typed in yourself is never displaced.
 
 ## 0.5.1 (2026-09-04)

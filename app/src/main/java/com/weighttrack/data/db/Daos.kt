@@ -311,6 +311,43 @@ interface MeasurementDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(measurements: List<MeasurementEntity>): List<Long>
 
+    @Query(
+        "SELECT * FROM measurements WHERE profileId = :profileId " +
+            "AND timestampUtcMillis = :timestampUtcMillis AND type = :type LIMIT 1",
+    )
+    suspend fun byIdentity(
+        profileId: Long,
+        timestampUtcMillis: Long,
+        type: String,
+    ): MeasurementEntity?
+
+    /**
+     * Inserts, or updates the row that already represents this measurement.
+     *
+     * A backup written before sets carried a travelling name has no name in it, so the only
+     * identity such a row has is the one it was always going to have: one site, measured at one
+     * moment, for one person. Without this the restore was an insert wearing an upsert's name,
+     * and restoring the same file twice doubled every measurement.
+     *
+     * The row that is already here keeps its own name. Minting a fresh one would make the
+     * restore look like a new measurement to every other device, which is the duplicate again
+     * by a longer route.
+     */
+    @Transaction
+    suspend fun upsertByIdentity(measurement: MeasurementEntity): Long {
+        val existing = byIdentity(
+            measurement.profileId,
+            measurement.timestampUtcMillis,
+            measurement.type,
+        )
+        return if (existing == null) {
+            insert(measurement)
+        } else {
+            update(measurement.copy(id = existing.id, syncId = existing.syncId))
+            existing.id
+        }
+    }
+
     @Update
     suspend fun update(measurement: MeasurementEntity)
 

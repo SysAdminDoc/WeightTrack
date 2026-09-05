@@ -151,11 +151,19 @@ class MeasurementRepository @Inject constructor(
         }
     }
 
-    /** [owner] is for the restore. See [WeightRepository.upsertAll]. */
+    /**
+     * [owner] is for the restore. See [WeightRepository.upsertAll].
+     *
+     * Matched one at a time rather than inserted in a batch. A backup old enough to take this
+     * path carries no travelling name for a measurement, so the row already here has to be found
+     * by what it is: one site, at one moment, for one person. Restoring such a file twice, or
+     * onto a phone that had restored it already, doubled every measurement and then published
+     * each copy to the other device as a separate record.
+     */
     suspend fun upsertAll(measurements: List<BodyMeasurement>, owner: Long? = null) {
         if (measurements.isEmpty()) return
         val profileId = owner ?: profiles.activeId()
-        dao.insertAll(measurements.map { it.toEntity(profileId = profileId) })
+        measurements.forEach { dao.upsertByIdentity(it.toEntity(profileId = profileId)) }
     }
 
     suspend fun deleteAll() = dao.deleteAll()
