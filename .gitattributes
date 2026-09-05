@@ -1,2 +1,5 @@
 # Keep generated trust metadata reviewable on every platform.
 gradle/verification-metadata.xml text eol=lf
+
+# Markdown is edited by tools on Windows that would otherwise rewrite every line.
+*.md text eol=lf
