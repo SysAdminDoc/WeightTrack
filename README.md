@@ -5,6 +5,16 @@
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
 </p>
 
+<p align="center">
+  <a href="https://ko-fi.com/X8K126YVER">
+    <img height="42" src="https://storage.ko-fi.com/cdn/kofi2.png?v=3" alt="Buy me a coffee on Ko-fi" />
+  </a>
+</p>
+
+<p align="center">
+  <sub><em>If this project helps you, a coffee helps me keep working on it.</em></sub>
+</p>
+
 # WeightTrack v0.5.1
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. There is no server behind it: your readings go only where you send them, in an export you take or a folder you point sync at.
