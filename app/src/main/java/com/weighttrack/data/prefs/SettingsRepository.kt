@@ -34,6 +34,16 @@ data class AppSettings(
     val trendWindowDays: Int = TrendEngine.DEFAULT_WINDOW_DAYS,
     /** Which smoother draws the line. The average is what every version has shown. */
     val smoothingMode: SmoothingMode = SmoothingMode.EMA,
+    /**
+     * Whether the figure at the top of Home is the trend or this morning's reading.
+     *
+     * On, which is how every version has behaved, because the trend is the number worth acting
+     * on: it is the one that does not move half a kilogram because of last night's dinner. But
+     * while somebody is losing, the trend sits above the scale by design, and being shown a
+     * higher number than the one they just stood on reads as the app arguing with them. Anybody
+     * who would rather see the reading can say so, and the trend line stays on the chart.
+     */
+    val showTrendWeight: Boolean = true,
     /** Zero means "derive a round number from the current weight unit". */
     val milestoneStepGrams: Int = 0,
     val onboardingComplete: Boolean = false,
@@ -149,6 +159,8 @@ class SettingsRepository @Inject constructor(
     suspend fun setHeightMm(heightMm: Int) = stamped { it[Keys.HEIGHT_MM] = heightMm }
 
     suspend fun setSmoothingMode(mode: SmoothingMode) = stamped { it[Keys.SMOOTHING_MODE] = mode.name }
+
+    suspend fun setShowTrendWeight(show: Boolean) = edit { it[Keys.SHOW_TREND_WEIGHT] = show }
 
     suspend fun setTrendWindowDays(days: Int) = stamped {
         it[Keys.TREND_WINDOW_DAYS] = days.coerceIn(TrendEngine.MIN_WINDOW_DAYS, TrendEngine.MAX_WINDOW_DAYS)
@@ -338,6 +350,7 @@ class SettingsRepository @Inject constructor(
         ),
         trendWindowDays = this[Keys.TREND_WINDOW_DAYS] ?: TrendEngine.DEFAULT_WINDOW_DAYS,
         smoothingMode = enumOrDefault(this[Keys.SMOOTHING_MODE], SmoothingMode.entries, SmoothingMode.EMA),
+        showTrendWeight = this[Keys.SHOW_TREND_WEIGHT] ?: true,
         milestoneStepGrams = this[Keys.MILESTONE_STEP_GRAMS] ?: 0,
         onboardingComplete = this[Keys.ONBOARDING_COMPLETE] ?: false,
         reminderEnabled = this[Keys.REMINDER_ENABLED] ?: false,
@@ -464,6 +477,7 @@ class SettingsRepository @Inject constructor(
         val ACTIVITY_LEVEL = stringPreferencesKey("activity_level")
         val TREND_WINDOW_DAYS = intPreferencesKey("trend_window_days")
         val SMOOTHING_MODE = stringPreferencesKey("smoothing_mode")
+        val SHOW_TREND_WEIGHT = booleanPreferencesKey("show_trend_weight")
         val MILESTONE_STEP_GRAMS = intPreferencesKey("milestone_step_grams")
         val ONBOARDING_COMPLETE = booleanPreferencesKey("onboarding_complete")
         val REMINDER_ENABLED = booleanPreferencesKey("reminder_enabled")

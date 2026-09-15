@@ -94,6 +94,20 @@ internal fun LazyListScope.trendSmoothingSection(
     SettingsSection {
         SectionHeading(stringResource(R.string.settings_trend_smoothing))
         Spacer(Modifier.height(4.dp))
+        // First, because it decides what the top of Home says, and somebody who came here to
+        // stop being shown a number above the one on their scale should not have to read about
+        // smoothing modes to find it.
+        ToggleRow(
+            label = stringResource(R.string.settings_show_trend_weight),
+            checked = settings.showTrendWeight,
+            onCheckedChange = viewModel::setShowTrendWeight,
+        )
+        Text(
+            text = stringResource(R.string.settings_show_trend_weight_explained),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Spacer(Modifier.height(10.dp))
         ChipRow(
             options = SmoothingMode.entries.map { it to smoothingModeLabel(it) },
             selected = settings.smoothingMode,

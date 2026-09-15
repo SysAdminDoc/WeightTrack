@@ -211,7 +211,12 @@ fun HomeScreen(
 private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
     val unit = snapshot.settings.weightUnit
     val trendColors = LocalTrendColors.current
+    // The trend, or this morning's reading when somebody has asked for that instead. While
+    // weight is coming off, the trend is above the scale by design, and being shown a higher
+    // number than the one just stood on reads as the app arguing rather than smoothing.
+    val showTrend = snapshot.settings.showTrendWeight
     val trendGrams = snapshot.series.latestTrendGrams?.roundToInt()
+    val heroGrams = if (showTrend) trendGrams else snapshot.latestEntry?.grams
     // The week you are in, under the same rule the chart and the weekly notification use. Seven
     // days back from the newest reading meant this card and the chart beside it said different
     // things about "this week" on the same phone on the same day.
@@ -222,11 +227,15 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
     )
 
     Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 8.dp)) {
-        SectionHeading(stringResource(R.string.home_trend_weight))
+        SectionHeading(
+            stringResource(
+                if (showTrend) R.string.home_trend_weight else R.string.home_current_weight,
+            ),
+        )
         Spacer(Modifier.height(2.dp))
         Row(verticalAlignment = Alignment.Bottom) {
             Text(
-                text = trendGrams?.let { WeightFormatter.value(it, unit) } ?: "--",
+                text = heroGrams?.let { WeightFormatter.value(it, unit) } ?: "--",
                 style = HeroNumberStyle,
                 color = MaterialTheme.colorScheme.onSurface,
             )
@@ -257,7 +266,9 @@ private fun TrendHeroCard(snapshot: ProgressSnapshot, today: LocalDate) {
             val whenWeighed = DateFormatters.sinceDay(entry.localDate, today)
             val weighed = WeightFormatter.full(entry.grams, unit)
             val scaleLine = when {
-                deviation == null || abs(deviation) <= 150 ->
+                // Without the trend on screen there is no line to be above or below, and
+                // saying so would point at a figure that is not there.
+                !showTrend || deviation == null || abs(deviation) <= 150 ->
                     stringResource(R.string.home_last_weighed, whenWeighed, weighed)
                 deviation > 0 ->
                     stringResource(R.string.home_last_weighed_above, whenWeighed, weighed)

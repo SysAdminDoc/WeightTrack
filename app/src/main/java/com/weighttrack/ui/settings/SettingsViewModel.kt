@@ -199,6 +199,10 @@ class SettingsViewModel @Inject constructor(
         settingsRepository.setSmoothingMode(mode)
     }
 
+    fun setShowTrendWeight(show: Boolean) = viewModelScope.launch {
+        settingsRepository.setShowTrendWeight(show)
+    }
+
     fun setNutritionEnabled(enabled: Boolean) = viewModelScope.launch {
         settingsRepository.setNutritionEnabled(enabled)
     }

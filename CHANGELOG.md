@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.4 (2026-09-14)
+
+- The big figure on Home can be your actual reading instead of the trend. The trend is still the number worth acting on, because one heavy dinner barely moves it, but while you are losing weight it sits above the scale by design, and being shown something higher than what you just stood on reads as the app arguing with you rather than smoothing anything. Settings, under Trend smoothing, now has a switch for it. Turn it off and Home shows the weight you last recorded and says so. The trend line stays on the chart, and the rate, the projection and the milestones are all still worked out from it, because those are the things it is genuinely better at.
+
 ## 0.5.3 (2026-09-14)
 
 - A height that could not be anybody's is refused, and nothing is derived from one. The inches field is where this bites: somebody six foot tall types 6, that is 152 mm, and the only check was that the number was above zero. Every figure worked out from height was then wrong for good with nothing saying so. A phone was found reading a BMI of 4805.7, calling its owner obese class 3, and offering a healthy weight range of 0.9 to 1.3 lb. An impossible height is now not stored, and BMI, the healthy range, resting burn and body fat say nothing at all rather than answer from one. A figure the app cannot stand behind is worse than a blank, because somebody acts on it.

@@ -199,6 +199,9 @@
     <string name="home_progress_photos">Progress photos</string>
     <string name="home_compare_how_you_look_over_time">Compare how you look over time</string>
     <string name="home_trend_weight">Trend weight</string>
+    <string name="home_current_weight">Current weight</string>
+    <string name="settings_show_trend_weight">Show the trend weight</string>
+    <string name="settings_show_trend_weight_explained">On, the big figure on Home is the trend, which is the one worth acting on because a single heavy dinner barely moves it. While you are losing it sits above the scale, so turn this off to see the reading you actually stood on. The trend line stays on the chart either way.</string>
     <string name="home_this_week">%1$s this week</string>
     <string name="home_days">30 days</string>
     <string name="home_30_day_trend">30-day trend</string>
