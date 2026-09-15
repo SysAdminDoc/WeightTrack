@@ -1,5 +1,6 @@
 package com.weighttrack.core.math
 
+import com.weighttrack.core.model.HeightPlausibility
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.Sex
 import kotlin.math.ceil
@@ -35,7 +36,7 @@ object BodyMetrics {
     private const val KATCH_LEAN_COEFFICIENT = 21.6
 
     fun bmi(grams: Int, heightMm: Int): Double? {
-        if (grams <= 0 || heightMm <= 0) return null
+        if (grams <= 0 || !HeightPlausibility.isPlausible(heightMm)) return null
         val metres = heightMm / 1000.0
         return UnitConverter.gramsToKg(grams) / (metres * metres)
     }
@@ -60,7 +61,7 @@ object BodyMetrics {
      * fail the check they came from: 18.5 x 1.8^2 divides back to 18.499999999999996.
      */
     fun healthyWeightRangeGrams(heightMm: Int): IntRange? {
-        if (heightMm <= 0) return null
+        if (!HeightPlausibility.isPlausible(heightMm)) return null
         val metres = heightMm / 1000.0
         val squared = metres * metres
         var lower = ceil(BMI_UNDERWEIGHT_CEILING * squared * UnitConverter.GRAMS_PER_KG).toInt()
@@ -75,7 +76,7 @@ object BodyMetrics {
      * the general population.
      */
     fun basalMetabolicRate(grams: Int, heightMm: Int, ageYears: Int, sex: Sex): Double? {
-        if (grams <= 0 || heightMm <= 0 || ageYears <= 0) return null
+        if (grams <= 0 || !HeightPlausibility.isPlausible(heightMm) || ageYears <= 0) return null
         val kg = UnitConverter.gramsToKg(grams)
         val cm = heightMm / 10.0
         val base = 10 * kg + 6.25 * cm - 5 * ageYears
@@ -111,7 +112,7 @@ object BodyMetrics {
         waistMm: Int,
         hipMm: Int? = null,
     ): Double? {
-        if (heightMm <= 0 || neckMm <= 0 || waistMm <= 0) return null
+        if (!HeightPlausibility.isPlausible(heightMm) || neckMm <= 0 || waistMm <= 0) return null
         val heightCm = heightMm / 10.0
         val neckCm = neckMm / 10.0
         val waistCm = waistMm / 10.0
@@ -145,7 +146,7 @@ object BodyMetrics {
     }
 
     fun waistToHeightRatio(waistMm: Int, heightMm: Int): Double? {
-        if (waistMm <= 0 || heightMm <= 0) return null
+        if (waistMm <= 0 || !HeightPlausibility.isPlausible(heightMm)) return null
         return waistMm.toDouble() / heightMm
     }
 

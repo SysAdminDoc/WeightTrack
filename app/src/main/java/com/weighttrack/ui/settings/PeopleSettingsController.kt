@@ -1,5 +1,6 @@
 package com.weighttrack.ui.settings
 
+import com.weighttrack.core.model.HeightPlausibility
 import com.weighttrack.R
 import com.weighttrack.core.model.ActivityLevel
 import com.weighttrack.core.model.Sex
@@ -62,7 +63,18 @@ internal class PeopleSettingsController(
         .map { it?.demographics ?: UserProfile() }
         .stateIn(scope, SharingStarted.WhileSubscribed(5_000), UserProfile())
 
-    fun setHeightMm(mm: Int) = editDemographics { it.copy(heightMm = mm) }
+    /**
+     * Keeps a height only when it could be one.
+     *
+     * The inches field is what makes this necessary: somebody six foot tall types 6, which is
+     * 152 mm, and every figure derived from height is then wrong for ever with nothing saying so.
+     * A phone was found reading BMI 4805.7 that way. Ignored rather than reported, the same as a
+     * half-typed year of birth, because this runs on every keystroke and "175" passes through
+     * "1" and "17" on the way.
+     */
+    fun setHeightMm(mm: Int) = editDemographics {
+        it.copy(heightMm = HeightPlausibility.orNull(mm) ?: it.heightMm)
+    }
 
     fun setProfile(profile: UserProfile) = editDemographics { profile }
 

@@ -1,5 +1,6 @@
 package com.weighttrack.ui.onboarding
 
+import com.weighttrack.core.model.HeightPlausibility
 import com.weighttrack.core.format.LocaleNumbers
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -136,9 +137,13 @@ class OnboardingViewModel @Inject constructor(
             profileRepository.setDemographics(
                 profileRepository.activeId(),
                 UserProfile(
+                    // Nothing rather than an impossible one. Six foot typed into the inches
+                    // field is 6, which is 152 mm, and it would divide into every figure the
+                    // app derives from height from then on.
                     heightMm = LocaleNumbers.decimal(current.heightText)
                         ?.takeIf { it > 0 }
                         ?.let { UnitConverter.displayToMm(it, current.lengthUnit) }
+                        ?.let(HeightPlausibility::orNull)
                         ?: 0,
                     sex = current.sex,
                     birthYear = LocaleNumbers.integer(current.birthYearText)?.takeIf { it in 1900..2100 } ?: 0,

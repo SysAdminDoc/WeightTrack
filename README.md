@@ -1,5 +1,5 @@
 <p align="center">
-  <img alt="Version" src="https://img.shields.io/badge/version-0.5.2-35D6A0?style=for-the-badge">
+  <img alt="Version" src="https://img.shields.io/badge/version-0.5.3-35D6A0?style=for-the-badge">
   <img alt="License" src="https://img.shields.io/badge/license-MIT-4ade80?style=for-the-badge">
   <img alt="Platform" src="https://img.shields.io/badge/platform-Android-58A6FF?style=for-the-badge">
   <img alt="Min SDK" src="https://img.shields.io/badge/minSdk-26-8b5cf6?style=for-the-badge">
@@ -15,11 +15,13 @@
   <sub><em>If this project helps you, a coffee helps me keep working on it.</em></sub>
 </p>
 
-# WeightTrack v0.5.2
+# WeightTrack v0.5.3
 
 A free, open-source Android app for tracking weight loss. No subscription, no account, no ads. There is no server behind it: your readings go only where you send them, in an export you take or a folder you point sync at.
 
-Version 0.5.2 matters if your phone is one of the Samsung handsets on Android 16 that report Health Connect as present without shipping any of its screens. Pressing Connect there handed the request to Android's own permission dialog, which then had nowhere to send the health part and died, taking you back to your home screen. It looked like WeightTrack crashing. The app now checks that something can answer before it offers.
+Version 0.5.3 refuses a height that could not be anybody's. Type 6 into a field labelled inches, meaning six foot, and the app used to keep 152 mm and work every body figure out from it: one phone read a BMI of 4805.7 and offered a healthy weight range of 0.9 to 1.3 lb. BMI, the healthy range, resting burn and body fat now say nothing rather than answer from a height nobody has.
+
+Version 0.5.2 before it matters if your phone is one of the Samsung handsets on Android 16 that report Health Connect as present without shipping any of its screens. Pressing Connect there handed the request to Android's own permission dialog, which then had nowhere to send the health part and died, taking you back to your home screen. It looked like WeightTrack crashing. The app now checks that something can answer before it offers.
 
 Version 0.5.1 before it is a correction release, and worth taking if you use a household, a launcher shortcut or Health Connect. Saving a weight from the icon's long-press could file the same reading three times. In a household, meals and glasses of water were written to Health Connect for whoever was on screen rather than the person it belongs to, and deleting the first person the app ever made never reached your other phone. Switching off one app in Health Connect could cost you the whole morning's reading. Editing a target that belonged to one weekday quietly replaced the one every other day was using. Searching the USDA database for an ordinary ingredient could take the Foods screen down.
 
@@ -88,7 +90,7 @@ signing certificate before you install:
 
 ```sh
 sha256sum -c SHA256SUMS.txt
-apksigner verify --verbose --print-certs WeightTrack-v0.5.2-play-release.apk
+apksigner verify --verbose --print-certs WeightTrack-v0.5.3-play-release.apk
 ```
 
 The fingerprint that comes back has to match the one published in

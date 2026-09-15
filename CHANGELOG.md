@@ -1,6 +1,10 @@
 # Changelog
 
-## Unreleased
+## 0.5.3 (2026-09-14)
+
+- A height that could not be anybody's is refused, and nothing is derived from one. The inches field is where this bites: somebody six foot tall types 6, that is 152 mm, and the only check was that the number was above zero. Every figure worked out from height was then wrong for good with nothing saying so. A phone was found reading a BMI of 4805.7, calling its owner obese class 3, and offering a healthy weight range of 0.9 to 1.3 lb. An impossible height is now not stored, and BMI, the healthy range, resting burn and body fat say nothing at all rather than answer from one. A figure the app cannot stand behind is worse than a blank, because somebody acts on it.
+
+## 0.5.2 (2026-09-14)
 
 - Health Connect is no longer offered on a phone that has nowhere to grant it. Some phones, including Samsung handsets on Android 16, report Health Connect as present while shipping none of its screens. WeightTrack believed the report and drew a Connect button. Pressing it handed the request to Android's permission dialog, which tried to pass the health part on to a screen that was not there and died, and because that dialog belongs to the system rather than to WeightTrack, nothing the app could catch would have stopped it. What you saw was WeightTrack vanishing back to your home screen, which looked exactly like the app crashing. The card now checks that something can actually answer before it offers, and says Health Connect is not available on this phone when nothing can.
 
