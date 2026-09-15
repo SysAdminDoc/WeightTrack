@@ -89,6 +89,16 @@
 
     <queries>
         <package android:name="com.google.android.apps.healthdata" />
+        <!--
+          Asked about before the Connect button is offered. From Android 14 the health
+          permissions are ordinary runtime permissions, so the SDK calls itself available on the
+          strength of the platform version alone; on a phone with no Health Connect screens the
+          request is accepted and then handed to an activity that is not there, which kills the
+          system permission dialog and drops somebody back at the launcher.
+        -->
+        <intent>
+            <action android:name="android.health.connect.action.REQUEST_HEALTH_PERMISSIONS" />
+        </intent>
     </queries>
 
     <application

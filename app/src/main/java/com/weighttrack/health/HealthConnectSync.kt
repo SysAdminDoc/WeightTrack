@@ -1,6 +1,8 @@
 package com.weighttrack.health
 
 import android.content.Context
+import android.content.Intent
+import android.os.Build
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.HealthConnectFeatures
 import androidx.health.connect.client.PermissionController
@@ -89,6 +91,50 @@ enum class HealthConnectAvailability {
     INSTALLED,
     UPDATE_REQUIRED,
     NOT_SUPPORTED,
+}
+
+/**
+ * Whether this phone has anywhere to grant health permissions.
+ *
+ * From Android 14 the health permissions are ordinary runtime permissions, and
+ * `HealthConnectClient.getSdkStatus` calls the SDK available on the strength of the platform
+ * version alone. Some phones ship with nothing behind that claim: a Samsung on Android 16 was
+ * found with no Health Connect screens at all. Asking there is not a request that quietly fails.
+ * The system permission dialog accepts it, tries to hand the health part to an activity that is
+ * not there, and dies with ActivityNotFoundException. That dialog is not ours, so nothing this
+ * app catches can stop it, and what somebody sees is WeightTrack vanishing to the launcher.
+ *
+ * Its own object so the check can be tested on both answers. Folded into `availability()` it
+ * could not be: Robolectric has no health service either, so every phone in a test looks
+ * unavailable for a different reason and a broken check would still pass.
+ */
+object HealthPermissionScreen {
+
+    /**
+     * The action the permission dialog forwards to.
+     *
+     * Spelled out rather than taken from `HealthConnectManager`, which would put an API 34
+     * constant in a minSdk 26 file for no gain. [HealthPermissionIntentTest] holds it to what
+     * the manifest asks about, so the two cannot drift apart.
+     */
+    const val ACTION_REQUEST_HEALTH_PERMISSIONS: String =
+        "android.health.connect.action.REQUEST_HEALTH_PERMISSIONS"
+
+    /** Android 14, where the platform took the permissions over from the provider app. */
+    private const val FIRST_VERSION_THAT_FORWARDS = 34
+
+    /**
+     * True on every version that does not forward, because there the provider app answers and
+     * `getSdkStatus` has already checked for it.
+     */
+    fun exists(context: Context): Boolean {
+        if (Build.VERSION.SDK_INT < FIRST_VERSION_THAT_FORWARDS) return true
+        return runCatching {
+            context.packageManager
+                .queryIntentActivities(Intent(ACTION_REQUEST_HEALTH_PERMISSIONS), 0)
+                .isNotEmpty()
+        }.getOrDefault(false)
+    }
 }
 
 /** One day of movement, as Health Connect reported it. Nulls mean "not recorded". */
@@ -287,7 +333,13 @@ class HealthConnectSync @Inject constructor(
 
     fun availability(): HealthConnectAvailability =
         when (HealthConnectClient.getSdkStatus(context)) {
-            HealthConnectClient.SDK_AVAILABLE -> HealthConnectAvailability.INSTALLED
+            HealthConnectClient.SDK_AVAILABLE ->
+                // Available is not the same as answerable. See [HealthPermissionScreen].
+                if (HealthPermissionScreen.exists(context)) {
+                    HealthConnectAvailability.INSTALLED
+                } else {
+                    HealthConnectAvailability.NOT_SUPPORTED
+                }
             HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
                 HealthConnectAvailability.UPDATE_REQUIRED
             else -> HealthConnectAvailability.NOT_SUPPORTED
